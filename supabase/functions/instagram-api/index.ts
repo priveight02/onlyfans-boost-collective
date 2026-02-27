@@ -1269,36 +1269,6 @@ Analyze every character in the name and username for any gender signal at all. L
         result = await igFetch(`/${params.media_id}`, token, "POST", { comment_enabled: false });
         break;
 
-      case "pin_comment":
-        if (!params?.comment_id || !params?.media_id) throw new Error("comment_id and media_id required");
-        {
-          const auth = getPrivateApiHeaders(conn, params);
-          if (!auth) throw new Error("Login via Instagram or enter session cookie to pin comments");
-          const pinHeaders = { ...auth.headers, "Content-Type": "application/x-www-form-urlencoded" };
-          const pinResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/comment/${params.comment_id}/pin/`, {
-            method: "POST",
-            headers: pinHeaders,
-            body: `_uuid=device123&_uid=${(conn.metadata as any)?.ig_ds_user_id || conn.platform_user_id || ""}`,
-          });
-          result = await pinResp.json();
-        }
-        break;
-
-      case "unpin_comment":
-        if (!params?.comment_id || !params?.media_id) throw new Error("comment_id and media_id required");
-        {
-          const auth = getPrivateApiHeaders(conn, params);
-          if (!auth) throw new Error("Login via Instagram or enter session cookie to unpin comments");
-          const unpinHeaders = { ...auth.headers, "Content-Type": "application/x-www-form-urlencoded" };
-          const unpinResp = await fetch(`https://i.instagram.com/api/v1/media/${params.media_id}/comment/${params.comment_id}/unpin/`, {
-            method: "POST",
-            headers: unpinHeaders,
-            body: `_uuid=device123&_uid=${(conn.metadata as any)?.ig_ds_user_id || conn.platform_user_id || ""}`,
-          });
-          result = await unpinResp.json();
-        }
-        break;
-
       // ===== INSIGHTS =====
       case "get_account_insights": {
         const requestedPeriod = params?.period || "day";

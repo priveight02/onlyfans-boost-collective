@@ -1716,23 +1716,6 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 </div>
               )}
 
-              {showDetail.status === "published" && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground mb-1.5 flex items-center gap-1"><Sparkles className="h-3 w-3 text-amber-400" /> Magic Repurpose</p>
-                  <div className="flex flex-col gap-2">
-                    <p className="text-[10px] text-muted-foreground">Turn this top-performing content into native posts for all other platforms instantly.</p>
-                    <Button size="sm" onClick={(e) => { 
-                      e.stopPropagation(); 
-                      const targets = availablePlatforms.filter(p => p !== showDetail.platform);
-                      targets.forEach(p => recycleContent(showDetail, p));
-                      toast.success(`Generating optimized drafts for ${targets.join(", ")}...`);
-                    }} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs h-7 w-full border-0">
-                      <Wand2 className="h-3.5 w-3.5 mr-1.5" /> Magic Repurpose All ({availablePlatforms.filter(p => p !== showDetail.platform).length})
-                    </Button>
-                  </div>
-                </div>
-              )}
-
               {/* Actions */}
               <div className="flex gap-2 pt-2 border-t border-border flex-wrap">
                 {showDetail.status !== "published" && connForPlatform(showDetail.platform) && (

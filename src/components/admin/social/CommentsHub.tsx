@@ -26,7 +26,7 @@ import {
   UserPlus, Zap, Key, Link2, AlertTriangle, CheckCircle2,
   Play, Pause, HeartHandshake, MessageCircle, Reply, Star, Pin, BellRing,
   Target, Megaphone, UserCheck, Mail, HelpCircle, Magnet,
-  User, Crown, Settings, ChevronDown, Calendar, ThumbsDown, AtSign, Hash, EyeOff,
+  User, Crown, Settings, ChevronDown, Calendar, ThumbsDown, AtSign, Hash,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import CreditCostBadge from "../CreditCostBadge";
@@ -975,22 +975,6 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
     setLikingCommentId(null);
   };
 
-  const pinComment = async (commentId: string, mediaId: string) => {
-    try {
-      const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
-      await callApi(funcName, { action: "pin_comment", params: { comment_id: commentId, media_id: mediaId } });
-      toast.success("Comment pinned");
-    } catch { toast.error("Pin failed"); }
-  };
-
-  const hideComment = async (commentId: string) => {
-    try {
-      const funcName = selectedPlatform === "instagram" ? "instagram-api" : "tiktok-api";
-      await callApi(funcName, { action: "hide_comment", params: { comment_id: commentId } });
-      toast.success("Comment hidden");
-    } catch { toast.error("Hide failed"); }
-  };
-
   // === AI AUTOMATION TOGGLES (all server-side via cron) ===
   const toggleAutoReply = () => {
     if (autoReplyActive) { setAutoReplyActive(false); toast.info("AI Auto-Reply paused"); }
@@ -1554,32 +1538,24 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                                 </span>
                               )}
                             </div>
-                            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-0.5">
                               <button onClick={() => likeComment(comment.id)} disabled={likingCommentId === comment.id}
                                 className="p-1 rounded-md hover:bg-pink-500/15 transition-colors" title="Like">
                                 {likingCommentId === comment.id ? <Loader2 className="h-3 w-3 animate-spin text-pink-400" /> : <Heart className="h-3 w-3 text-pink-400/70 hover:text-pink-400" />}
-                              </button>
-                              <button onClick={() => { setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText(""); }}
-                                className="p-1 rounded-md hover:bg-blue-500/15 transition-colors" title="Reply">
-                                <Reply className="h-3 w-3 text-blue-400/70 hover:text-blue-400" />
                               </button>
                               <button onClick={() => generateAiReplyForComment(comment)} disabled={aiGenerating}
                                 className="p-1 rounded-md hover:bg-purple-500/15 transition-colors" title="AI Reply">
                                 {aiGenerating && replyingTo === comment.id ? <Loader2 className="h-3 w-3 animate-spin text-purple-400" /> : <Brain className="h-3 w-3 text-purple-400/70 hover:text-purple-400" />}
                               </button>
-                              <button onClick={() => pinComment(comment.id, comment.media_id || selectedPostId)}
-                                className="p-1 rounded-md hover:bg-yellow-500/15 transition-colors" title="Pin">
-                                <Pin className="h-3 w-3 text-yellow-400/70 hover:text-yellow-400" />
-                              </button>
-                              <button onClick={() => hideComment(comment.id)}
-                                className="p-1 rounded-md hover:bg-red-500/15 transition-colors" title="Hide">
-                                <EyeOff className="h-3 w-3 text-red-400/70 hover:text-red-400" />
+                              <button onClick={() => { setReplyingTo(replyingTo === comment.id ? null : comment.id); setReplyText(""); }}
+                                className="p-1 rounded-md hover:bg-blue-500/15 transition-colors" title="Reply">
+                                <Reply className="h-3 w-3 text-blue-400/70 hover:text-blue-400" />
                               </button>
                               {/* Comment Detail Wheel */}
                               <Popover open={commentDetailId === comment.id} onOpenChange={(open) => setCommentDetailId(open ? comment.id : null)}>
                                 <PopoverTrigger asChild>
                                   <button className="p-1 rounded-md hover:bg-white/[0.08] transition-colors" title="Details">
-                                    <MoreHorizontal className="h-3 w-3 text-muted-foreground hover:text-foreground" />
+                                    <Settings className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                                   </button>
                                 </PopoverTrigger>
                                 <PopoverContent align="end" className="w-56 p-0 border-white/[0.08] bg-background/95 backdrop-blur-lg">
@@ -1630,6 +1606,10 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                                   </div>
                                 </PopoverContent>
                               </Popover>
+                              <button onClick={() => deleteComment(comment.id)} disabled={deletingId === comment.id}
+                                className="p-1 rounded-md hover:bg-destructive/15 transition-colors" title="Delete">
+                                {deletingId === comment.id ? <Loader2 className="h-3 w-3 animate-spin text-destructive" /> : <Trash2 className="h-3 w-3 text-destructive/50 hover:text-destructive" />}
+                              </button>
                             </div>
                           </div>
                           <p className="text-[11px] text-foreground mt-1 leading-relaxed">{comment.text}</p>
@@ -2099,21 +2079,17 @@ const CommentsHub = ({ accountId, connections, callApi, apiLoading, onNavigateTo
                               className="p-1 rounded-md hover:bg-pink-500/15 transition-colors" title="Like">
                               {likingCommentId === c.id ? <Loader2 className="h-3 w-3 animate-spin text-pink-400" /> : <Heart className="h-3 w-3 text-pink-400/70 hover:text-pink-400" />}
                             </button>
-                            <button onClick={() => { setReplyingTo(replyingTo === c.id ? null : c.id); setReplyText(""); }}
-                              className="p-1 rounded-md hover:bg-blue-500/15 transition-colors" title="Reply">
-                              <Reply className="h-3 w-3 text-blue-400/70 hover:text-blue-400" />
-                            </button>
                             <button onClick={() => generateAiReplyForComment(c)} disabled={aiGenerating}
                               className="p-1 rounded-md hover:bg-purple-500/15 transition-colors" title="AI Reply">
                               <Brain className="h-3 w-3 text-purple-400/70 hover:text-purple-400" />
                             </button>
-                            <button onClick={() => pinComment(c.id, c.media_id || (viewingPost?.id || ""))}
-                              className="p-1 rounded-md hover:bg-yellow-500/15 transition-colors" title="Pin">
-                              <Pin className="h-3 w-3 text-yellow-400/70 hover:text-yellow-400" />
+                            <button onClick={() => { setReplyingTo(replyingTo === c.id ? null : c.id); setReplyText(""); }}
+                              className="p-1 rounded-md hover:bg-blue-500/15 transition-colors" title="Reply">
+                              <Reply className="h-3 w-3 text-blue-400/70 hover:text-blue-400" />
                             </button>
-                            <button onClick={() => hideComment(c.id)}
-                              className="p-1 rounded-md hover:bg-red-500/15 transition-colors" title="Hide">
-                              <EyeOff className="h-3 w-3 text-red-400/70 hover:text-red-400" />
+                            <button onClick={() => { navigator.clipboard.writeText(c.text); toast.success("Copied"); }}
+                              className="p-1 rounded-md hover:bg-white/[0.08] transition-colors" title="Copy">
+                              <Download className="h-3 w-3 text-muted-foreground hover:text-foreground" />
                             </button>
                             <button onClick={() => deleteComment(c.id)} disabled={deletingId === c.id}
                               className="p-1 rounded-md hover:bg-destructive/15 transition-colors" title="Delete">
