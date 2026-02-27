@@ -327,9 +327,9 @@ const ContentCommandCenter = () => {
     for (const file of formMediaFiles) {
       const ext = file.name.split('.').pop();
       const path = `content/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("default-assets").upload(path, file);
+      const { error } = await supabase.storage.from("social-media").upload(path, file);
       if (error) { toast.error(`Upload failed: ${error.message}`); continue; }
-      const { data: urlData } = supabase.storage.from("default-assets").getPublicUrl(path);
+      const { data: urlData } = supabase.storage.from("social-media").getPublicUrl(path);
       urls.push(urlData.publicUrl);
     }
     setUploading(false);
@@ -1539,6 +1539,22 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
   // Published content for recycler
   const publishedContent = useMemo(() => items.filter(i => i.status === "published"), [items]);
 
+  // Draft storage items
+  const draftItems = useMemo(() => items.filter(i => i.status === "draft"), [items]);
+
+  // Quick publish a draft directly
+  const quickPublishDraft = async (item: any) => {
+    const conn = connForPlatform(item.platform);
+    if (!conn) { toast.error(`Connect ${platformConf(item.platform).label} first in Social Media Hub`); return; }
+    // Ensure it has media for platforms that require it
+    const mediaUrls: string[] = Array.isArray(item.media_urls) ? item.media_urls : [];
+    if (item.platform === "instagram" && mediaUrls.length === 0 && item.content_type !== "story") {
+      toast.error("Instagram posts require at least one image or video. Edit the draft to add media.");
+      return;
+    }
+    await publishToNetwork(item);
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -1658,6 +1674,101 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
         </div>
       )}
 
+      {/* ═══ DRAFT STORAGE ═══ */}
+      {draftItems.length > 0 && (
+        <Card className="bg-card/50 border-border">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Edit2 className="h-4 w-4 text-amber-400" />
+                <h2 className="text-sm font-bold text-foreground">Draft Storage</h2>
+                <Badge variant="outline" className="border-amber-500/20 text-amber-400 text-[10px]">{draftItems.length} drafts</Badge>
+              </div>
+              <p className="text-[10px] text-muted-foreground">Ready to post — click to publish directly</p>
+            </div>
+            <div className="grid gap-2 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-h-[400px] overflow-y-auto">
+              {draftItems.map(item => {
+                const conn = connForPlatform(item.platform);
+                const mediaUrls: string[] = Array.isArray(item.media_urls) ? item.media_urls : [];
+                const hasMedia = mediaUrls.length > 0;
+                const isVideo = hasMedia && /\.(mp4|mov|avi|webm)$/i.test(mediaUrls[0]);
+                return (
+                  <div key={item.id} className="bg-muted/20 border border-border rounded-lg overflow-hidden hover:border-primary/30 transition-all">
+                    {/* Media thumbnail */}
+                    {hasMedia && (
+                      <div className="h-24 overflow-hidden relative">
+                        {isVideo ? (
+                          <video src={mediaUrls[0]} className="w-full h-full object-cover" muted preload="metadata" />
+                        ) : (
+                          <img src={mediaUrls[0]} alt="" className="w-full h-full object-cover" />
+                        )}
+                        {mediaUrls.length > 1 && (
+                          <span className="absolute top-1 right-1 bg-black/70 text-white text-[8px] rounded px-1">+{mediaUrls.length - 1}</span>
+                        )}
+                      </div>
+                    )}
+                    {!hasMedia && (
+                      <div className="h-16 bg-muted/30 flex items-center justify-center">
+                        <FileText className="h-5 w-5 text-muted-foreground/30" />
+                      </div>
+                    )}
+                    <div className="p-2.5 space-y-1.5">
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className={`text-[8px] capitalize gap-0.5 ${platformConf(item.platform).color}`}>
+                          {platformIcon(item.platform)} {item.platform}
+                        </Badge>
+                        <Badge variant="outline" className="text-[8px] border-border text-muted-foreground capitalize">{item.content_type}</Badge>
+                        {item.viral_score > 0 && (
+                          <Badge variant="outline" className="text-[8px] border-pink-500/20 text-pink-400">
+                            <Flame className="h-2 w-2 mr-0.5" />{item.viral_score}%
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs font-medium text-foreground truncate">{item.title}</p>
+                      {item.caption && <p className="text-[10px] text-muted-foreground line-clamp-2">{item.caption}</p>}
+                      {item.hashtags?.length > 0 && (
+                        <div className="flex gap-0.5 flex-wrap">
+                          {item.hashtags.slice(0, 4).map((h: string, i: number) => (
+                            <span key={i} className="text-[8px] text-primary/50">#{h}</span>
+                          ))}
+                          {item.hashtags.length > 4 && <span className="text-[8px] text-muted-foreground">+{item.hashtags.length - 4}</span>}
+                        </div>
+                      )}
+                      {item.scheduled_at && (
+                        <p className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                          <Clock className="h-2.5 w-2.5" /> {format(new Date(item.scheduled_at), "MMM d, h:mm a")}
+                        </p>
+                      )}
+                      <div className="flex gap-1.5 pt-1.5 border-t border-border/30">
+                        {conn ? (
+                          <Button size="sm" onClick={(e) => { e.stopPropagation(); quickPublishDraft(item); }}
+                            disabled={publishing}
+                            className="flex-1 text-[10px] h-7 bg-emerald-600 hover:bg-emerald-500 text-white">
+                            {publishing ? <Loader2 className="h-3 w-3 animate-spin mr-0.5" /> : <Send className="h-3 w-3 mr-0.5" />}
+                            Post to {platformConf(item.platform).label}
+                          </Button>
+                        ) : (
+                          <div className="flex-1 text-center">
+                            <p className="text-[9px] text-amber-400">Connect {platformConf(item.platform).label} to post</p>
+                          </div>
+                        )}
+                        <Button size="sm" variant="outline" onClick={() => editItem(item)}
+                          className="text-[10px] h-7 border-border text-muted-foreground">
+                          <Edit2 className="h-2.5 w-2.5" />
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={() => deleteItem(item.id)}
+                          className="text-[10px] h-7 border-destructive/20 text-destructive">
+                          <Trash2 className="h-2.5 w-2.5" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       {/* Tabs + Filters + View Mode + Search + Bulk */}
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -1833,6 +1944,15 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   <p className="text-[9px] text-muted-foreground flex items-center gap-1 mt-1">
                     <Clock className="h-2.5 w-2.5" /> {format(new Date(item.scheduled_at), "MMM d, h:mm a")}
                   </p>
+                )}
+                {/* Quick publish button for drafts */}
+                {item.status === "draft" && connForPlatform(item.platform) && (
+                  <Button size="sm" onClick={(e) => { e.stopPropagation(); quickPublishDraft(item); }}
+                    disabled={publishing}
+                    className="mt-2 w-full text-[10px] h-7 bg-emerald-600 hover:bg-emerald-500 text-white">
+                    {publishing ? <Loader2 className="h-3 w-3 animate-spin mr-0.5" /> : <Send className="h-3 w-3 mr-0.5" />}
+                    Post to {platformConf(item.platform).label}
+                  </Button>
                 )}
               </CardContent>
             </Card>
