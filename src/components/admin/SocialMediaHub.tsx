@@ -2714,129 +2714,170 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         </TabsContent>
 
         {/* ===== CONTENT ===== */}
-        <TabsContent value="content" className="space-y-4 mt-4">
-          {/* AI Content Assistant */}
-          <Card className="bg-white/[0.03] border-purple-500/10 backdrop-blur-sm">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Brain className="h-4 w-4 text-purple-400" />AI Content Assistant</h4>
-                <CreditCostBadge cost="5–10" variant="header" label="/gen" />
+        <TabsContent value="content" className="space-y-3 mt-4">
+          {/* Quick Stats Bar */}
+          <div className="grid grid-cols-4 gap-2">
+            {[
+              { label: "Published", count: posts.filter(p => p.status === "published").length, color: "text-green-400", bg: "bg-green-500/10" },
+              { label: "Scheduled", count: posts.filter(p => p.status === "scheduled").length, color: "text-yellow-400", bg: "bg-yellow-500/10" },
+              { label: "Drafts", count: posts.filter(p => p.status === "draft").length, color: "text-muted-foreground", bg: "bg-muted/30" },
+              { label: "Total", count: posts.length, color: "text-foreground", bg: "bg-white/[0.04]" },
+            ].map(s => (
+              <div key={s.label} className={`${s.bg} border border-white/[0.06] rounded-xl p-2.5 text-center`}>
+                <p className={`text-lg font-bold ${s.color}`}>{s.count}</p>
+                <p className="text-[9px] text-muted-foreground">{s.label}</p>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <Input value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} placeholder="Topic: fitness motivation, beach vibes..." className="text-sm" />
-                <div className="flex gap-1">
-                  <select value={aiCaptionPlatform} onChange={e => setAiCaptionPlatform(e.target.value)} className="bg-white/[0.06] text-foreground border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm w-24 focus:border-[hsl(217,91%,60%)]/30 outline-none">
-                    <option value="instagram">IG</option><option value="tiktok">TT</option><option value="twitter">X</option>
-                  </select>
-                  <Button size="sm" onClick={generateAiCaption} disabled={apiLoading || !aiCaptionTopic} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0">
-                    <Sparkles className="h-3.5 w-3.5 mr-1" />Generate
-                  </Button>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {/* AI Content Assistant */}
+            <Card className="bg-white/[0.03] border-purple-500/10 backdrop-blur-sm">
+              <CardContent className="p-3 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5"><Brain className="h-3.5 w-3.5 text-purple-400" />AI Content Assistant</h4>
+                  <CreditCostBadge cost="5–10" variant="header" label="/gen" />
                 </div>
-              </div>
-              {aiCaptionResult && (
-                <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.08]">
-                  <p className="text-xs text-foreground whitespace-pre-wrap">{aiCaptionResult}</p>
-                  <div className="flex gap-2 mt-2">
-                    <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => { navigator.clipboard.writeText(aiCaptionResult); toast.success("Copied"); }}><Copy className="h-2.5 w-2.5 mr-0.5" />Copy</Button>
-                    <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => { setNewPost(p => ({ ...p, caption: aiCaptionResult })); toast.success("Pasted to composer"); }}><ArrowRight className="h-2.5 w-2.5 mr-0.5" />Use</Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Input value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} placeholder="Topic: fitness, travel..." className="text-xs h-8" />
+                  <div className="flex gap-1">
+                    <select value={aiCaptionPlatform} onChange={e => setAiCaptionPlatform(e.target.value)} className="bg-white/[0.06] text-foreground border border-white/[0.08] rounded-lg px-2 py-1 text-xs w-16 outline-none">
+                      <option value="instagram">IG</option><option value="tiktok">TT</option><option value="twitter">X</option>
+                    </select>
+                    <Button size="sm" onClick={generateAiCaption} disabled={apiLoading || !aiCaptionTopic} className="bg-gradient-to-r from-purple-500 to-pink-500 text-white border-0 h-8 text-xs">
+                      <Sparkles className="h-3 w-3 mr-1" />Generate
+                    </Button>
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                {aiCaptionResult && (
+                  <div className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.08]">
+                    <p className="text-[11px] text-foreground whitespace-pre-wrap max-h-32 overflow-y-auto">{aiCaptionResult}</p>
+                    <div className="flex gap-1.5 mt-2">
+                      <Button size="sm" variant="outline" className="h-5 text-[9px] px-1.5" onClick={() => { navigator.clipboard.writeText(aiCaptionResult); toast.success("Copied"); }}><Copy className="h-2 w-2 mr-0.5" />Copy</Button>
+                      <Button size="sm" variant="outline" className="h-5 text-[9px] px-1.5" onClick={() => { setNewPost(p => ({ ...p, caption: aiCaptionResult })); toast.success("Pasted"); }}><ArrowRight className="h-2 w-2 mr-0.5" />Use</Button>
+                    </div>
+                  </div>
+                )}
 
-          {/* Post Composer */}
+                {/* AI Hashtag Generator */}
+                <div className="border-t border-white/[0.06] pt-2">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <Hash className="h-3 w-3 text-blue-400" />
+                    <span className="text-[10px] font-medium text-foreground">AI Hashtag Generator</span>
+                  </div>
+                  <div className="flex gap-1">
+                    <Input placeholder="Topic for hashtags..." className="text-xs h-7 flex-1" value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} />
+                    <Button size="sm" className="h-7 text-[10px]" variant="outline" disabled={apiLoading || !aiCaptionTopic} onClick={async () => {
+                      const d = await callApi("social-ai-responder", { action: "generate_hashtags", params: { topic: aiCaptionTopic, platform: aiCaptionPlatform, count: 30 } });
+                      if (d?.hashtags) { navigator.clipboard.writeText(d.hashtags); toast.success("30 hashtags copied to clipboard!"); }
+                      else if (d?.reply) { navigator.clipboard.writeText(d.reply); toast.success("Hashtags copied!"); }
+                    }}><Hash className="h-2.5 w-2.5 mr-0.5" />Get 30</Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Content Analyzer */}
+            <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
+              <CardContent className="p-3 space-y-2.5">
+                <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5"><TrendingUp className="h-3.5 w-3.5 text-green-400" />Content Analyzer</h4>
+                <Textarea value={aiAnalyzeCaption} onChange={e => setAiAnalyzeCaption(e.target.value)} placeholder="Paste a caption to analyze performance potential, engagement likelihood, and get optimization tips..." rows={3} className="text-xs" />
+                <div className="flex items-center justify-between">
+                  <div className="text-[9px] text-muted-foreground">
+                    {aiAnalyzeCaption.length > 0 && <span>{aiAnalyzeCaption.length} chars · ~{Math.ceil(aiAnalyzeCaption.length / 5)} words</span>}
+                  </div>
+                  <Button size="sm" className="h-7 text-[10px]" onClick={analyzeContent} disabled={apiLoading || !aiAnalyzeCaption}><Brain className="h-3 w-3 mr-1" />Analyze</Button>
+                </div>
+                {aiAnalyzeResult && (
+                  <div className="bg-white/[0.04] rounded-lg p-2.5 border border-white/[0.08] max-h-48 overflow-y-auto">
+                    <p className="text-[11px] text-foreground whitespace-pre-wrap">{aiAnalyzeResult}</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Post Composer — Full Width */}
           <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
-            <CardContent className="p-4 space-y-3">
+            <CardContent className="p-3 space-y-2.5">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Layers className="h-4 w-4 text-blue-400" />Post Composer & Scheduler</h4>
+                <h4 className="text-xs font-semibold text-foreground flex items-center gap-1.5"><Layers className="h-3.5 w-3.5 text-blue-400" />Post Composer & Scheduler</h4>
+                {newPost.caption && (
+                  <span className="text-[9px] text-muted-foreground">
+                    {newPost.caption.length}/2200 chars
+                    {newPost.caption.length > 2200 && <span className="text-red-400 ml-1">Over limit!</span>}
+                  </span>
+                )}
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <select value={newPost.platform} onChange={e => setNewPost(p => ({ ...p, platform: e.target.value }))} className="bg-white/[0.06] text-foreground border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm focus:border-[hsl(217,91%,60%)]/30 outline-none">
+              <div className="grid grid-cols-3 gap-2">
+                <select value={newPost.platform} onChange={e => setNewPost(p => ({ ...p, platform: e.target.value }))} className="bg-white/[0.06] text-foreground border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs outline-none">
                   <option value="instagram">Instagram</option><option value="tiktok">TikTok</option><option value="twitter">X / Twitter</option><option value="reddit">Reddit</option><option value="telegram">Telegram</option>
                 </select>
-                <select value={newPost.post_type} onChange={e => setNewPost(p => ({ ...p, post_type: e.target.value }))} className="bg-white/[0.06] text-foreground border border-white/[0.08] rounded-lg px-2 py-1.5 text-sm focus:border-[hsl(217,91%,60%)]/30 outline-none">
+                <select value={newPost.post_type} onChange={e => setNewPost(p => ({ ...p, post_type: e.target.value }))} className="bg-white/[0.06] text-foreground border border-white/[0.08] rounded-lg px-2 py-1.5 text-xs outline-none">
                   <option value="feed">Photo</option><option value="reel">Reel</option><option value="story">Story</option><option value="carousel">Carousel</option>
                 </select>
+                <div>
+                  <label className="text-[9px] text-muted-foreground block mb-0.5">Schedule</label>
+                  <Input type="datetime-local" value={newPost.scheduled_at} onChange={e => setNewPost(p => ({ ...p, scheduled_at: e.target.value }))} className="text-xs h-8" />
+                </div>
               </div>
-              <Textarea value={newPost.caption} onChange={e => setNewPost(p => ({ ...p, caption: e.target.value }))} placeholder="Write your caption... (or use AI above)" rows={4} className="text-sm" />
-              <Input value={newPost.media_url} onChange={e => setNewPost(p => ({ ...p, media_url: e.target.value }))} placeholder="Media URL (image/video link)..." className="text-sm" />
-              <Input value={newPost.alt_text} onChange={e => setNewPost(p => ({ ...p, alt_text: e.target.value }))} placeholder="Alt text for accessibility..." className="text-sm" />
+              <Textarea value={newPost.caption} onChange={e => setNewPost(p => ({ ...p, caption: e.target.value }))} placeholder="Write your caption... (or use AI above)" rows={3} className="text-xs" />
               <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-[10px] text-muted-foreground mb-0.5 block">Schedule</label>
-                  <Input type="datetime-local" value={newPost.scheduled_at} onChange={e => setNewPost(p => ({ ...p, scheduled_at: e.target.value }))} className="text-sm" />
-                </div>
-                <div>
-                  <label className="text-[10px] text-muted-foreground mb-0.5 block">Redirect URL</label>
-                  <Input value={newPost.redirect_url} onChange={e => setNewPost(p => ({ ...p, redirect_url: e.target.value }))} placeholder="https://..." className="text-sm" />
-                </div>
+                <Input value={newPost.media_url} onChange={e => setNewPost(p => ({ ...p, media_url: e.target.value }))} placeholder="Media URL (image/video link)..." className="text-xs h-8" />
+                <Input value={newPost.redirect_url} onChange={e => setNewPost(p => ({ ...p, redirect_url: e.target.value }))} placeholder="Redirect URL (optional)..." className="text-xs h-8" />
               </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2"><Switch checked={newPost.auto_reply_enabled} onCheckedChange={v => setNewPost(p => ({ ...p, auto_reply_enabled: v }))} /><span className="text-xs text-muted-foreground">Auto-reply comments</span></div>
-                <div className="flex items-center gap-2"><Switch checked={aiCaptionCta} onCheckedChange={setAiCaptionCta} /><span className="text-xs text-muted-foreground">Include CTA</span></div>
+              <Input value={newPost.alt_text} onChange={e => setNewPost(p => ({ ...p, alt_text: e.target.value }))} placeholder="Alt text for accessibility..." className="text-xs h-8" />
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-1.5"><Switch checked={newPost.auto_reply_enabled} onCheckedChange={v => setNewPost(p => ({ ...p, auto_reply_enabled: v }))} /><span className="text-[10px] text-muted-foreground">Auto-reply comments</span></div>
+                <div className="flex items-center gap-1.5"><Switch checked={aiCaptionCta} onCheckedChange={setAiCaptionCta} /><span className="text-[10px] text-muted-foreground">Include CTA</span></div>
               </div>
               {newPost.auto_reply_enabled && (
-                <Input value={newPost.auto_reply_message} onChange={e => setNewPost(p => ({ ...p, auto_reply_message: e.target.value }))} placeholder="Auto-reply message for comments..." className="text-sm" />
+                <Input value={newPost.auto_reply_message} onChange={e => setNewPost(p => ({ ...p, auto_reply_message: e.target.value }))} placeholder="Auto-reply message for comments..." className="text-xs h-8" />
               )}
               <div className="flex gap-2">
-                <Button onClick={schedulePost} size="sm" className="bg-gradient-to-r from-blue-500 to-purple-500 text-white border-0">
-                  {newPost.scheduled_at ? <><Calendar className="h-3.5 w-3.5 mr-1" />Schedule</> : <><Send className="h-3.5 w-3.5 mr-1" />Save Draft</>}
+                <Button onClick={schedulePost} size="sm" className="bg-gradient-to-r from-blue-500 to-purple-500 text-white border-0 h-8 text-xs">
+                  {newPost.scheduled_at ? <><Calendar className="h-3 w-3 mr-1" />Schedule</> : <><Send className="h-3 w-3 mr-1" />Save Draft</>}
                 </Button>
-                {newPost.caption && <Button size="sm" variant="outline" onClick={() => publishPost({ ...newPost, media_urls: newPost.media_url ? [newPost.media_url] : [] })} disabled={apiLoading}><Zap className="h-3.5 w-3.5 mr-1" />Publish Now</Button>}
+                {newPost.caption && <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => publishPost({ ...newPost, media_urls: newPost.media_url ? [newPost.media_url] : [] })} disabled={apiLoading}><Zap className="h-3 w-3 mr-1" />Publish Now</Button>}
               </div>
             </CardContent>
           </Card>
 
-          {/* Content Analyzer */}
+          {/* Posts Queue */}
           <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
-            <CardContent className="p-4 space-y-3">
-              <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4 text-green-400" />Content Analyzer</h4>
-              <Textarea value={aiAnalyzeCaption} onChange={e => setAiAnalyzeCaption(e.target.value)} placeholder="Paste a caption to analyze performance potential..." rows={2} className="text-sm" />
-              <Button size="sm" onClick={analyzeContent} disabled={apiLoading || !aiAnalyzeCaption}><Brain className="h-3.5 w-3.5 mr-1" />Analyze</Button>
-              {aiAnalyzeResult && (
-                <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.08]">
-                  <p className="text-xs text-foreground whitespace-pre-wrap">{aiAnalyzeResult}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Posts list */}
-          <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-semibold text-foreground">Posts Queue ({posts.length})</h4>
-                <div className="flex gap-1.5 text-[10px] text-muted-foreground">
-                  <Badge className="bg-green-500/15 text-green-400">{posts.filter(p => p.status === "published").length} published</Badge>
-                  <Badge className="bg-yellow-500/15 text-yellow-400">{posts.filter(p => p.status === "scheduled").length} scheduled</Badge>
-                  <Badge className="bg-muted text-muted-foreground">{posts.filter(p => p.status === "draft").length} drafts</Badge>
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-foreground">Posts Queue ({posts.length})</h4>
+                <div className="flex gap-1 text-[9px]">
+                  <Badge className="bg-green-500/15 text-green-400 text-[9px]">{posts.filter(p => p.status === "published").length} pub</Badge>
+                  <Badge className="bg-yellow-500/15 text-yellow-400 text-[9px]">{posts.filter(p => p.status === "scheduled").length} sched</Badge>
+                  <Badge className="bg-muted text-muted-foreground text-[9px]">{posts.filter(p => p.status === "draft").length} draft</Badge>
                 </div>
               </div>
               {posts.length > 0 ? (
-                <ScrollArea className="max-h-[350px]">
-                  <div className="space-y-2">
+                <ScrollArea className="max-h-[300px]">
+                  <div className="space-y-1.5">
                     {posts.map(p => (
-                      <div key={p.id} className="bg-white/[0.04] rounded-lg p-3 flex justify-between items-start border border-white/[0.06]">
+                      <div key={p.id} className="bg-white/[0.04] rounded-lg p-2.5 flex justify-between items-start border border-white/[0.06]">
                         <div className="flex-1 min-w-0 mr-2">
-                          <div className="flex items-center gap-1.5 mb-1">
+                          <div className="flex items-center gap-1.5 mb-0.5">
                             {p.platform === "instagram" ? <Instagram className="h-3 w-3 text-pink-400" /> : p.platform === "tiktok" ? <Music2 className="h-3 w-3 text-cyan-400" /> : p.platform === "twitter" ? <Twitter className="h-3 w-3 text-blue-400" /> : p.platform === "reddit" ? <Globe className="h-3 w-3 text-orange-400" /> : <Phone className="h-3 w-3 text-blue-400" />}
-                            <Badge variant="outline" className="text-[10px]">{p.post_type}</Badge>
-                            <Badge className={`text-[10px] ${p.status === "published" ? "bg-green-500/15 text-green-400" : p.status === "scheduled" ? "bg-yellow-500/15 text-yellow-400" : "bg-muted text-muted-foreground"}`}>{p.status}</Badge>
+                            <Badge variant="outline" className="text-[9px] h-4">{p.post_type}</Badge>
+                            <Badge className={`text-[9px] h-4 ${p.status === "published" ? "bg-green-500/15 text-green-400" : p.status === "scheduled" ? "bg-yellow-500/15 text-yellow-400" : "bg-muted text-muted-foreground"}`}>{p.status}</Badge>
                           </div>
-                          <p className="text-xs text-foreground line-clamp-2">{p.caption || "No caption"}</p>
-                          {p.scheduled_at && <p className="text-[10px] text-muted-foreground mt-1"><Clock className="h-2.5 w-2.5 inline mr-0.5" />{new Date(p.scheduled_at).toLocaleString()}</p>}
+                          <p className="text-[11px] text-foreground line-clamp-1">{p.caption || "No caption"}</p>
+                          {p.scheduled_at && <p className="text-[9px] text-muted-foreground mt-0.5"><Clock className="h-2.5 w-2.5 inline mr-0.5" />{new Date(p.scheduled_at).toLocaleString()}</p>}
                         </div>
-                        <div className="flex gap-1">
-                          {p.status !== "published" && <Button size="sm" variant="ghost" onClick={() => publishPost(p)} className="h-7 w-7 p-0 text-green-400"><Send className="h-3 w-3" /></Button>}
-                          <Button size="sm" variant="ghost" onClick={() => deletePost(p.id)} className="h-7 w-7 p-0 text-red-400"><Trash2 className="h-3 w-3" /></Button>
+                        <div className="flex gap-0.5">
+                          {p.status !== "published" && <Button size="sm" variant="ghost" onClick={() => publishPost(p)} className="h-6 w-6 p-0 text-green-400"><Send className="h-3 w-3" /></Button>}
+                          <Button size="sm" variant="ghost" onClick={() => deletePost(p.id)} className="h-6 w-6 p-0 text-red-400"><Trash2 className="h-3 w-3" /></Button>
                         </div>
                       </div>
                     ))}
                   </div>
                 </ScrollArea>
               ) : (
-                <div className="text-center py-6"><Layers className="h-8 w-8 text-muted-foreground/20 mx-auto mb-2" /><p className="text-xs text-muted-foreground">No posts yet — create your first one above</p></div>
+                <div className="text-center py-4"><Layers className="h-6 w-6 text-muted-foreground/20 mx-auto mb-1" /><p className="text-[10px] text-muted-foreground">No posts yet — create your first one above</p></div>
               )}
             </CardContent>
           </Card>
