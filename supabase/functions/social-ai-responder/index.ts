@@ -2256,7 +2256,7 @@ Rules:
           body: JSON.stringify({
             model: "google/gemini-3-flash-preview",
             messages: [
-              { role: "system", content: `Generate a ${platform} caption. Style: ${style || "casual, young woman vibes"}. No emojis. Use casual texting style. ${include_cta ? "Include a call-to-action directing to bio/link casually." : ""} Include relevant hashtags. Reply ONLY with the caption.` },
+              { role: "system", content: `Generate a SHORT, punchy ${platform} caption in under 15 words. Be sharp, emotional, and concise. Play on curiosity, desire, or FOMO. Use 1-2 emojis max. ${include_cta ? "End with a subtle CTA." : ""} Then on a new line add 15-20 relevant hashtags. Reply ONLY with the caption + hashtags. No fluff.` },
               { role: "user", content: topic },
             ],
             max_tokens: 300,
