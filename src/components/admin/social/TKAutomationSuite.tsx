@@ -1386,7 +1386,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
               </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
               {/* Left Column — Caption & Media */}
               <div className="space-y-3">
                 <div>
@@ -1440,7 +1440,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                     <div className="flex gap-2 flex-wrap mt-3">
                       {uploadedFiles.map((f, i) => {
                         const count = uploadedFiles.length;
-                        const size = count <= 1 ? 'h-40 w-40' : count <= 3 ? 'h-28 w-28' : count <= 6 ? 'h-20 w-20' : 'h-16 w-16';
+                        const size = count <= 1 ? 'h-24 w-24' : count <= 3 ? 'h-20 w-20' : count <= 6 ? 'h-16 w-16' : 'h-14 w-14';
                         return (
                           <div key={i} className="relative group">
                             {isVideoMedia(f.file) ? (
@@ -1472,7 +1472,10 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   </div>
                 </div>
 
-              {/* TikTok Required UX Flow (Point 1 → 5) */}
+              </div>
+
+              {/* Right Column — TikTok Required UX Flow (Point 1 → 5) */}
+              <div className="space-y-3">
                 {/* ===== POINT 1: Creator Info ===== */}
                 <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.03] p-3 space-y-2">
                   <div className="flex items-center justify-between">
