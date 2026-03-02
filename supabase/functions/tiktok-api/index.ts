@@ -95,6 +95,77 @@ function clampPhotoDesc(desc?: string): string {
   return (desc || "").substring(0, PHOTO_DESC_MAX);
 }
 
+// Download a video from sourceUrl and upload it to TikTok via FILE_UPLOAD.
+// This completely bypasses the url_ownership_unverified error that PULL_FROM_URL requires.
+async function uploadVideoViaFileUpload(
+  token: string,
+  sourceUrl: string,
+  postInfo: Record<string, any>
+): Promise<any> {
+  console.log(`[FILE_UPLOAD] Downloading video from: ${sourceUrl.substring(0, 100)}...`);
+  const fileResp = await fetch(sourceUrl);
+  if (!fileResp.ok) throw new Error(`Failed to download video from source: ${fileResp.status}`);
+  const fileBuffer = await fileResp.arrayBuffer();
+  const videoSize = fileBuffer.byteLength;
+  console.log(`[FILE_UPLOAD] Video downloaded: ${videoSize} bytes, initializing upload...`);
+
+  const initResult = await ttFetch("/post/publish/video/init/", token, "POST", {
+    post_info: postInfo,
+    source_info: {
+      source: "FILE_UPLOAD",
+      video_size: videoSize,
+      chunk_size: videoSize,
+      total_chunk_count: 1,
+    },
+  });
+
+  const uploadUrl = initResult?.data?.upload_url;
+  const publishId = initResult?.data?.publish_id;
+  if (!uploadUrl) {
+    console.log("[FILE_UPLOAD] No upload_url returned, publish_id:", publishId);
+    return initResult;
+  }
+
+  console.log(`[FILE_UPLOAD] Uploading ${videoSize} bytes to TikTok...`);
+  const putResp = await fetch(uploadUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "video/mp4",
+      "Content-Length": String(videoSize),
+      "Content-Range": `bytes 0-${videoSize - 1}/${videoSize}`,
+    },
+    body: fileBuffer,
+  });
+
+  if (!putResp.ok) {
+    const errText = await putResp.text();
+    console.error(`[FILE_UPLOAD] PUT failed: ${putResp.status}`, errText.substring(0, 500));
+    throw new Error(`Video upload to TikTok failed (${putResp.status})`);
+  }
+  await putResp.text(); // consume body
+
+  console.log(`[FILE_UPLOAD] Success, publish_id: ${publishId}`);
+  return initResult;
+}
+
+// For photo/carousel, PULL_FROM_URL is the ONLY supported source.
+// If url_ownership_unverified occurs, provide clear instructions.
+function handlePhotoUrlOwnershipError(err: any, imageUrls: string[]): never {
+  const msg = err?.message || String(err);
+  if (msg.includes("url_ownership_unverified")) {
+    // Extract the domain from the first image URL
+    let domain = "your media host";
+    try { domain = new URL(imageUrls[0]).hostname; } catch {}
+    throw new Error(
+      `TikTok rejected your photo URLs because the domain "${domain}" is not verified in your TikTok app's URL Properties. ` +
+      `Photos ONLY support PULL_FROM_URL (no file upload alternative). ` +
+      `To fix: Go to TikTok Developer Portal → Your App → Settings → URL Properties → Add URL Prefix → add "https://${domain}/". ` +
+      `TikTok may take a few minutes to verify it after adding.`
+    );
+  }
+  throw err;
+}
+
 // Build a valid video post_info object
 function buildVideoPostInfo(opts: {
   title?: string;
@@ -263,17 +334,14 @@ serve(async (req) => {
 
           if (postType === "video") {
             const privacy = await resolvePrivacyLevel(postConn.access_token, meta.privacy_level || "PUBLIC_TO_EVERYONE");
-            publishResult = await ttFetch("/post/publish/video/init/", postConn.access_token, "POST", {
-              post_info: buildVideoPostInfo({
-                title: post.caption,
-                privacy_level: privacy,
-                disable_duet: meta.disable_duet,
-                disable_comment: meta.disable_comment,
-                disable_stitch: meta.disable_stitch,
-                brand_content_toggle: meta.brand_content,
-              }),
-              source_info: { source: "PULL_FROM_URL", video_url: mediaUrl },
-            });
+            publishResult = await uploadVideoViaFileUpload(postConn.access_token, mediaUrl, buildVideoPostInfo({
+              title: post.caption,
+              privacy_level: privacy,
+              disable_duet: meta.disable_duet,
+              disable_comment: meta.disable_comment,
+              disable_stitch: meta.disable_stitch,
+              brand_content_toggle: meta.brand_content,
+            }));
           } else {
             const mediaType = postType === "carousel" ? "CAROUSEL" : "PHOTO";
             const privacy = await resolvePrivacyLevel(postConn.access_token, meta.privacy_level || "PUBLIC_TO_EVERYONE");
@@ -387,17 +455,14 @@ serve(async (req) => {
 
           if (postType === "video") {
             const privacy = await resolvePrivacyLevel(postConn.access_token, meta.privacy_level || "PUBLIC_TO_EVERYONE");
-            publishResult = await ttFetch("/post/publish/video/init/", postConn.access_token, "POST", {
-              post_info: buildVideoPostInfo({
-                title: post.caption,
-                privacy_level: privacy,
-                disable_duet: meta.disable_duet,
-                disable_comment: meta.disable_comment,
-                disable_stitch: meta.disable_stitch,
-                brand_content_toggle: meta.brand_content,
-              }),
-              source_info: { source: "PULL_FROM_URL", video_url: mediaUrl },
-            });
+            publishResult = await uploadVideoViaFileUpload(postConn.access_token, mediaUrl, buildVideoPostInfo({
+              title: post.caption,
+              privacy_level: privacy,
+              disable_duet: meta.disable_duet,
+              disable_comment: meta.disable_comment,
+              disable_stitch: meta.disable_stitch,
+              brand_content_toggle: meta.brand_content,
+            }));
           } else {
             const mediaType = postType === "carousel" ? "CAROUSEL" : "PHOTO";
             const privacy = await resolvePrivacyLevel(postConn.access_token, meta.privacy_level || "PUBLIC_TO_EVERYONE");
@@ -607,25 +672,19 @@ serve(async (req) => {
         break;
       }
 
-      // ===== PUBLISHING: VIDEO (PULL FROM URL) =====
+      // ===== PUBLISHING: VIDEO (via FILE_UPLOAD to bypass url_ownership) =====
       case "publish_video_by_url": {
         const vidPrivacy = await resolvePrivacyLevel(token!, params.privacy_level || "PUBLIC_TO_EVERYONE");
         if (!params.video_url) throw new Error("Missing video_url parameter");
-        result = await ttFetch("/post/publish/video/init/", token!, "POST", {
-          post_info: buildVideoPostInfo({
-            title: params.title,
-            privacy_level: vidPrivacy,
-            disable_duet: params.disable_duet,
-            disable_comment: params.disable_comment,
-            disable_stitch: params.disable_stitch,
-            brand_content_toggle: params.brand_content_toggle,
-            brand_organic_toggle: params.brand_organic_toggle,
-          }),
-          source_info: {
-            source: "PULL_FROM_URL",
-            video_url: params.video_url,
-          },
-        });
+        result = await uploadVideoViaFileUpload(token!, params.video_url, buildVideoPostInfo({
+          title: params.title,
+          privacy_level: vidPrivacy,
+          disable_duet: params.disable_duet,
+          disable_comment: params.disable_comment,
+          disable_stitch: params.disable_stitch,
+          brand_content_toggle: params.brand_content_toggle,
+          brand_organic_toggle: params.brand_organic_toggle,
+        }));
         if (params.post_id && result.data?.publish_id) {
           await supabase.from("social_posts").update({
             platform_post_id: result.data.publish_id,
@@ -654,20 +713,24 @@ serve(async (req) => {
         if (!params.image_urls || !Array.isArray(params.image_urls) || params.image_urls.length === 0) {
           throw new Error("Missing or empty image_urls array for photo publish");
         }
-        result = await ttFetch("/post/publish/content/init/", token!, "POST",
-          buildPhotoPublishBody({
-            title: params.title,
-            description: params.description,
-            privacy_level: photoPrivacy,
-            disable_comment: params.disable_comment,
-            auto_add_music: params.auto_add_music,
-            brand_content_toggle: params.brand_content_toggle,
-            brand_organic_toggle: params.brand_organic_toggle,
-            image_urls: params.image_urls,
-            cover_index: params.cover_index,
-            media_type: "PHOTO",
-          })
-        );
+        try {
+          result = await ttFetch("/post/publish/content/init/", token!, "POST",
+            buildPhotoPublishBody({
+              title: params.title,
+              description: params.description,
+              privacy_level: photoPrivacy,
+              disable_comment: params.disable_comment,
+              auto_add_music: params.auto_add_music,
+              brand_content_toggle: params.brand_content_toggle,
+              brand_organic_toggle: params.brand_organic_toggle,
+              image_urls: params.image_urls,
+              cover_index: params.cover_index,
+              media_type: "PHOTO",
+            })
+          );
+        } catch (photoErr: any) {
+          handlePhotoUrlOwnershipError(photoErr, params.image_urls);
+        }
         break;
       }
 
@@ -677,20 +740,24 @@ serve(async (req) => {
         if (!params.image_urls || !Array.isArray(params.image_urls) || params.image_urls.length === 0) {
           throw new Error("Missing or empty image_urls array for carousel publish");
         }
-        result = await ttFetch("/post/publish/content/init/", token!, "POST",
-          buildPhotoPublishBody({
-            title: params.title,
-            description: params.description,
-            privacy_level: carouselPrivacy,
-            disable_comment: params.disable_comment,
-            auto_add_music: params.auto_add_music,
-            brand_content_toggle: params.brand_content_toggle,
-            brand_organic_toggle: params.brand_organic_toggle,
-            image_urls: params.image_urls,
-            cover_index: params.cover_index,
-            media_type: "CAROUSEL",
-          })
-        );
+        try {
+          result = await ttFetch("/post/publish/content/init/", token!, "POST",
+            buildPhotoPublishBody({
+              title: params.title,
+              description: params.description,
+              privacy_level: carouselPrivacy,
+              disable_comment: params.disable_comment,
+              auto_add_music: params.auto_add_music,
+              brand_content_toggle: params.brand_content_toggle,
+              brand_organic_toggle: params.brand_organic_toggle,
+              image_urls: params.image_urls,
+              cover_index: params.cover_index,
+              media_type: "CAROUSEL",
+            })
+          );
+        } catch (carouselErr: any) {
+          handlePhotoUrlOwnershipError(carouselErr, params.image_urls);
+        }
         break;
       }
 
