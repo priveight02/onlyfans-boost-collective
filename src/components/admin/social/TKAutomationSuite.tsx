@@ -1386,7 +1386,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
               </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+            <div className="space-y-4">
               {/* Left Column — Caption & Media */}
               <div className="space-y-3">
                 <div>
@@ -1471,10 +1471,8 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                     <Input value={newPostMediaUrl} onChange={e => setNewPostMediaUrl(e.target.value)} placeholder="https://example.com/video.mp4" className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40 font-mono text-[11px]" />
                   </div>
                 </div>
-              </div>
 
-              {/* Right Column — TikTok Required UX Flow (Point 1 → 5) */}
-              <div className="space-y-3">
+              {/* TikTok Required UX Flow (Point 1 → 5) */}
                 {/* ===== POINT 1: Creator Info ===== */}
                 <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.03] p-3 space-y-2">
                   <div className="flex items-center justify-between">
