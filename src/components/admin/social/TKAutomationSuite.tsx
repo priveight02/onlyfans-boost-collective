@@ -1366,7 +1366,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
         {/* ===== MEGA SCHEDULER — Full TikTok Posting Form ===== */}
         <Card className="bg-white/[0.03] border-cyan-500/20 backdrop-blur-sm overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-violet-500" />
-          <CardContent className="p-5 space-y-5">
+          <CardContent className="p-4 space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
                 <div className="h-7 w-7 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
@@ -1386,9 +1386,9 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Left Column — Caption & Media */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 <div>
                   <div className="flex items-center justify-between mb-1.5">
                     <label className="text-xs font-medium text-muted-foreground">Caption / Title</label>
@@ -1414,7 +1414,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Media — Upload Files or Paste URL</label>
                   <input ref={fileInputRef} type="file" multiple accept={schedContentType === "video" ? "video/*" : "image/*,video/*"} className="hidden" onChange={e => handleFileUpload(e.target.files)} />
                   <div
-                    className="border-2 border-dashed border-white/[0.08] rounded-xl p-6 text-center cursor-pointer hover:border-cyan-500/30 hover:bg-cyan-500/[0.02] transition-all"
+                    className="border-2 border-dashed border-white/[0.08] rounded-xl p-4 text-center cursor-pointer hover:border-cyan-500/30 hover:bg-cyan-500/[0.02] transition-all"
                     onClick={() => fileInputRef.current?.click()}
                     onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
                     onDrop={e => { e.preventDefault(); e.stopPropagation(); handleFileUpload(e.dataTransfer.files); }}
@@ -1426,8 +1426,8 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                       </div>
                     ) : (
                       <div className="flex flex-col items-center gap-2">
-                        <div className="h-12 w-12 rounded-full bg-cyan-500/10 flex items-center justify-center">
-                          <Upload className="h-5 w-5 text-cyan-400" />
+                        <div className="h-10 w-10 rounded-full bg-cyan-500/10 flex items-center justify-center">
+                          <Upload className="h-4 w-4 text-cyan-400" />
                         </div>
                         <p className="text-xs font-medium text-foreground">Drop files here or click to browse</p>
                         <p className="text-[10px] text-muted-foreground">
@@ -1474,7 +1474,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
               </div>
 
               {/* Right Column — TikTok Required UX Flow (Point 1 → 5) */}
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {/* ===== POINT 1: Creator Info ===== */}
                 <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.03] p-3 space-y-2">
                   <div className="flex items-center justify-between">
