@@ -1393,7 +1393,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                       {uploadedFiles.map((f, i) => (
                         <div key={i} className="relative group">
                           {f.file.type.startsWith("video/") ? (
-                            <video src={f.preview} className="h-20 w-20 rounded-lg object-cover ring-1 ring-border/20" />
+                            <video src={f.preview} className="h-20 w-20 rounded-lg object-cover ring-1 ring-border/20" autoPlay loop muted playsInline />
                           ) : (
                             <img src={f.preview} className="h-20 w-20 rounded-lg object-cover ring-1 ring-border/20" />
                           )}
@@ -2198,7 +2198,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                     {uploadedFiles.map((f, i) => (
                       <div key={i} className="relative group">
                         {f.file.type.startsWith("video") ? (
-                          <video src={f.preview} className="h-16 w-16 object-cover rounded-lg border border-white/[0.06]" />
+                          <video src={f.preview} className="h-16 w-16 object-cover rounded-lg border border-white/[0.06]" autoPlay loop muted playsInline />
                         ) : (
                           <img src={f.preview} className="h-16 w-16 object-cover rounded-lg border border-white/[0.06]" alt="" />
                         )}
