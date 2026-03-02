@@ -426,7 +426,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     invalidateNamespace("global", "smh_global_connections");
     const { data } = await supabase
       .from("social_connections")
-      .select("id, account_id, platform, is_connected")
+      .select("id, account_id, platform, is_connected, platform_username, metadata")
       .eq("user_id", user.id);
     setGlobalConnections(data || []);
   }, [user?.id]);
@@ -524,7 +524,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         if (!user?.id) return [];
         const { data } = await supabase
           .from("social_connections")
-          .select("id, account_id, platform, is_connected")
+          .select("id, account_id, platform, is_connected, platform_username, metadata")
           .eq("user_id", user.id);
         return data || [];
       })(),
@@ -712,7 +712,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
     }
     // Also refresh globalConnections immediately
     if (user?.id) {
-      const { data: freshGlobal } = await supabase.from("social_connections").select("id, account_id, platform, is_connected").eq("user_id", user.id);
+      const { data: freshGlobal } = await supabase.from("social_connections").select("id, account_id, platform, is_connected, platform_username, metadata").eq("user_id", user.id);
       setGlobalConnections(freshGlobal || []);
     }
     
@@ -2512,8 +2512,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             <Radio className="h-3 w-3 mr-1" />AI Auto-Responding
           </Badge>
         )}
-        {/* Mini avatars of connected accounts */}
-        {connections.filter(c => c.is_connected).map(c => (
+        {/* Mini avatars of connected accounts — use globalConnections for cross-account sync */}
+        {globalConnections.filter((c: any) => c.is_connected).map((c: any) => (
           <div key={c.id} className="flex items-center gap-1.5 bg-muted/40 rounded-full pl-1 pr-2 py-0.5 border border-border">
             <div className="relative">
               {(c.metadata as any)?.profile_picture_url || (c.metadata as any)?.threads_profile_picture_url || (c.metadata as any)?.profile_image_url || (c.metadata as any)?.icon_img || (c.metadata as any)?.avatar_url ? (
