@@ -107,7 +107,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
   // Publish video
   const [publishVideoUrl, setPublishVideoUrl] = useState("");
   const [publishVideoTitle, setPublishVideoTitle] = useState("");
-  const [publishPrivacy, setPublishPrivacy] = useState("PUBLIC_TO_EVERYONE");
+  const [publishPrivacy, setPublishPrivacy] = useState("");
   const [disableDuet, setDisableDuet] = useState(false);
   const [disableComment, setDisableComment] = useState(false);
   const [disableStitch, setDisableStitch] = useState(false);
@@ -118,7 +118,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
   const [photoUrls, setPhotoUrls] = useState("");
   const [photoTitle, setPhotoTitle] = useState("");
   const [photoDesc, setPhotoDesc] = useState("");
-  const [photoPrivacy, setPhotoPrivacy] = useState("PUBLIC_TO_EVERYONE");
+  const [photoPrivacy, setPhotoPrivacy] = useState("");
   const [mediaType, setMediaType] = useState<"PHOTO" | "CAROUSEL">("PHOTO");
 
   // Playlists
@@ -188,13 +188,14 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
   const [fileUploading, setFileUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Schedule form — full TikTok fields
-  const [schedPrivacy, setSchedPrivacy] = useState("PUBLIC_TO_EVERYONE");
+  const [schedPrivacy, setSchedPrivacy] = useState("");
   const [schedDisableDuet, setSchedDisableDuet] = useState(false);
   const [schedDisableComment, setSchedDisableComment] = useState(false);
   const [schedDisableStitch, setSchedDisableStitch] = useState(false);
   const [schedHashtags, setSchedHashtags] = useState("");
   const [schedLocation, setSchedLocation] = useState("");
   const [schedBrandContent, setSchedBrandContent] = useState(false);
+  const [schedBrandOrganic, setSchedBrandOrganic] = useState(false);
   const [schedAiGenerating, setSchedAiGenerating] = useState(false);
   const [schedContentType, setSchedContentType] = useState<"video" | "photo" | "carousel">("video");
 
@@ -289,8 +290,9 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
 
   const publishVideoByUrl = async () => {
     if (!publishVideoUrl) { toast.error("Enter a video URL"); return; }
+    if (!publishPrivacy) { toast.error("Select a privacy level"); return; }
     const d = await callApi("publish_video_by_url", {
-      video_url: publishVideoUrl, title: publishVideoTitle, privacy_level: publishPrivacy,
+      video_url: publishVideoUrl, title: withAttribution(publishVideoTitle), privacy_level: publishPrivacy,
       disable_duet: disableDuet, disable_comment: disableComment, disable_stitch: disableStitch,
     });
     if (d?.data?.publish_id) {
@@ -309,9 +311,11 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
   const publishPhoto = async () => {
     const urls = photoUrls.split("\n").map(u => u.trim()).filter(Boolean);
     if (urls.length === 0) { toast.error("Enter at least one image URL"); return; }
+    if (!photoPrivacy) { toast.error("Select a privacy level"); return; }
     const action = mediaType === "CAROUSEL" ? "publish_carousel" : "publish_photo";
+    const title = withAttribution(photoTitle || photoDesc);
     const d = await callApi(action, {
-      image_urls: urls, title: photoTitle, description: photoDesc,
+      image_urls: urls, title, description: title,
       privacy_level: photoPrivacy, disable_comment: disableComment,
     });
     if (d) { toast.success(`${mediaType === "CAROUSEL" ? "Carousel" : "Photo"} published!`); setPhotoUrls(""); setPhotoTitle(""); setPhotoDesc(""); }
@@ -470,9 +474,16 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
   // Scheduled posts
   const schedulePost = async () => {
     if (!newPostCaption && !newPostMediaUrl && uploadedFiles.length === 0) { toast.error("Add caption or media"); return; }
+    if (!schedPrivacy) { toast.error("Select a privacy level before scheduling"); return; }
+
     const mediaUrls = uploadedFiles.filter(f => f.url).map(f => f.url!);
     if (newPostMediaUrl) mediaUrls.unshift(newPostMediaUrl);
-    const fullCaption = schedHashtags ? `${newPostCaption}\n\n${schedHashtags.split(",").map(h => `#${h.trim()}`).join(" ")}` : newPostCaption;
+
+    const captionWithHashtags = schedHashtags
+      ? `${newPostCaption}\n\n${schedHashtags.split(",").map(h => `#${h.trim()}`).join(" ")}`
+      : newPostCaption;
+    const fullCaption = withAttribution(captionWithHashtags);
+
     const { error } = await supabase.from("social_posts").insert({
       account_id: selectedAccount, platform: "tiktok", post_type: schedContentType,
       caption: fullCaption, media_urls: mediaUrls.length > 0 ? mediaUrls : [],
@@ -481,18 +492,21 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
       metadata: {
         privacy_level: schedPrivacy, disable_duet: schedDisableDuet,
         disable_comment: schedDisableComment, disable_stitch: schedDisableStitch,
-        location: schedLocation || null, brand_content: schedBrandContent,
+        location: schedLocation || null,
+        brand_content: schedBrandContent,
+        brand_organic: schedBrandOrganic,
         content_type: schedContentType,
       },
     });
+
     if (error) toast.error(error.message);
     else {
       toast.success("Post created!");
       setNewPostCaption(""); setNewPostMediaUrl(""); setNewPostScheduledAt("");
       setUploadedFiles([]); setSchedHashtags(""); setSchedLocation("");
-      setSchedPrivacy("PUBLIC_TO_EVERYONE"); setSchedDisableDuet(false);
+      setSchedPrivacy(""); setSchedDisableDuet(false);
       setSchedDisableComment(false); setSchedDisableStitch(false);
-      setSchedBrandContent(false); setSchedContentType("video");
+      setSchedBrandContent(false); setSchedBrandOrganic(false); setSchedContentType("video");
       loadScheduledPosts();
     }
   };
@@ -520,23 +534,28 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
     const mediaUrl = Array.isArray(post.media_urls) ? post.media_urls[0] : null;
     if (!mediaUrl) { toast.error("No media URL available"); return; }
     const postType = meta.content_type || post.post_type || "video";
+    const finalTitle = withAttribution(post.caption || "");
+    const finalPrivacy = meta.privacy_level || "SELF_ONLY";
     let result;
     if (postType === "video") {
       result = await callApi("publish_video_by_url", {
-        video_url: mediaUrl, title: post.caption,
-        privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
+        video_url: mediaUrl, title: finalTitle,
+        privacy_level: finalPrivacy,
         disable_duet: meta.disable_duet || false,
         disable_comment: meta.disable_comment || false,
         disable_stitch: meta.disable_stitch || false,
         brand_content_toggle: meta.brand_content || false,
+        brand_organic_toggle: meta.brand_organic || false,
         post_id: post.id,
       });
     } else {
       const action = postType === "carousel" ? "publish_carousel" : "publish_photo";
       result = await callApi(action, {
-        image_urls: post.media_urls, title: post.caption,
-        privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
+        image_urls: post.media_urls, title: finalTitle, description: finalTitle,
+        privacy_level: finalPrivacy,
         disable_comment: meta.disable_comment || false,
+        brand_content_toggle: meta.brand_content || false,
+        brand_organic_toggle: meta.brand_organic || false,
       });
     }
     if (result) {
@@ -600,9 +619,20 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
   // === NEW FEATURE: CTA Optimizer ===
   const [ctaLink, setCtaLink] = useState("");
   const [ctaText, setCtaText] = useState("🔗 Link in bio");
+  const TIKTOK_APP_NAME = "Uplyze";
+  const TIKTOK_ORG_NAME = "Uplyze";
+  const ATTRIBUTION_LINE = `Posted via ${TIKTOK_APP_NAME}`;
   const injectCta = (caption: string) => {
     const cta = ctaLink ? `\n\n${ctaText} → ${ctaLink}` : `\n\n${ctaText}`;
     return caption + cta;
+  };
+  const withAttribution = (caption: string) => {
+    if (!caption?.trim()) return ATTRIBUTION_LINE;
+    return caption.includes(ATTRIBUTION_LINE) ? caption : `${caption}\n\n${ATTRIBUTION_LINE}`;
+  };
+  const isVideoMedia = (file: File) => {
+    const name = (file.name || "").toLowerCase();
+    return file.type.startsWith("video/") || /\.(mp4|mov|webm|m4v|avi)$/i.test(name);
   };
 
   // === PRODUCTION: Auto-poll for publishing posts on mount ===
@@ -1406,7 +1436,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                         const size = count <= 1 ? 'h-60 w-60' : count <= 3 ? 'h-40 w-40' : count <= 6 ? 'h-28 w-28' : 'h-20 w-20';
                         return (
                           <div key={i} className="relative group">
-                            {f.file.type.startsWith("video/") ? (
+                            {isVideoMedia(f.file) ? (
                               <video
                                 src={f.preview}
                                 className={`${size} rounded-lg object-cover ring-1 ring-border/20`}
@@ -1436,31 +1466,39 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                 </div>
               </div>
 
-              {/* Right Column — Settings & Schedule */}
+              {/* Right Column — TikTok Required UX Flow (Point 1 → 5) */}
               <div className="space-y-4">
+                <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.03] p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-foreground">1) Creator Info & Daily Limits</p>
+                    <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={fetchCreatorInfo}>
+                      <RefreshCw className="h-3 w-3 mr-1" /> Refresh
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">App Name: <span className="text-foreground font-medium">{TIKTOK_APP_NAME}</span> • Organization Name: <span className="text-foreground font-medium">{TIKTOK_ORG_NAME}</span></p>
+                  <p className="text-[10px] text-muted-foreground">Daily posting limit: <span className="text-foreground">{creatorInfo?.max_posts_per_day ?? creatorInfo?.daily_post_limit ?? creatorInfo?.creator_info?.daily_post_limit ?? "Fetch creator info"}</span></p>
+                </div>
+
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Privacy Level</label>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">2) Privacy Level (required)</label>
                   <select value={schedPrivacy} onChange={e => setSchedPrivacy(e.target.value)} className="w-full bg-muted/20 border border-border/40 text-foreground rounded-lg px-3 py-2 text-sm focus:border-cyan-500/40 outline-none">
+                    <option value="" disabled>Select privacy level</option>
                     <option value="PUBLIC_TO_EVERYONE">🌍 Public — Everyone</option>
                     <option value="MUTUAL_FOLLOW_FRIENDS">👥 Friends — Mutual Follows</option>
                     <option value="FOLLOWER_OF_CREATOR">🔒 Followers Only</option>
                     <option value="SELF_ONLY">🔐 Private — Self Only</option>
                   </select>
                 </div>
-                <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block flex items-center gap-1">
-                    <MapPin className="h-3 w-3" />Location (optional)
-                  </label>
-                  <Input value={schedLocation} onChange={e => setSchedLocation(e.target.value)} placeholder="New York, USA" className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
-                </div>
+
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground block">Interaction Settings</label>
+                  <label className="text-xs font-medium text-muted-foreground block">3) Interaction Settings</label>
                   <div className="grid grid-cols-1 gap-2">
                     {[
-                      { label: "Allow Duets", icon: Users, checked: !schedDisableDuet, onChange: (v: boolean) => setSchedDisableDuet(!v) },
+                      ...(schedContentType === "video" ? [
+                        { label: "Allow Duets", icon: Users, checked: !schedDisableDuet, onChange: (v: boolean) => setSchedDisableDuet(!v) },
+                        { label: "Allow Stitches", icon: Layers, checked: !schedDisableStitch, onChange: (v: boolean) => setSchedDisableStitch(!v) },
+                      ] : []),
                       { label: "Allow Comments", icon: MessageSquare, checked: !schedDisableComment, onChange: (v: boolean) => setSchedDisableComment(!v) },
-                      { label: "Allow Stitches", icon: Layers, checked: !schedDisableStitch, onChange: (v: boolean) => setSchedDisableStitch(!v) },
-                      { label: "Branded Content", icon: Megaphone, checked: schedBrandContent, onChange: setSchedBrandContent },
                     ].map(s => (
                       <label key={s.label} className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
                         <span className="text-xs text-foreground flex items-center gap-2"><s.icon className="h-3.5 w-3.5 text-muted-foreground" />{s.label}</span>
@@ -1468,6 +1506,32 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                       </label>
                     ))}
                   </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground block">4) Commercial Disclosure</label>
+                  <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
+                    <span className="text-xs text-foreground flex items-center gap-2"><Megaphone className="h-3.5 w-3.5 text-muted-foreground" />Branded Content</span>
+                    <Switch checked={schedBrandContent} onCheckedChange={setSchedBrandContent} className="scale-75" />
+                  </label>
+                  <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
+                    <span className="text-xs text-foreground flex items-center gap-2"><Shield className="h-3.5 w-3.5 text-muted-foreground" />Your Brand Promotion</span>
+                    <Switch checked={schedBrandOrganic} onCheckedChange={setSchedBrandOrganic} className="scale-75" />
+                  </label>
+                  <p className="text-[10px] text-muted-foreground">By publishing, you agree to TikTok branded content policies and local advertising disclosure laws.</p>
+                </div>
+
+                <div className="rounded-lg border border-border/30 bg-muted/20 p-3">
+                  <p className="text-xs font-medium text-foreground mb-1">5) Attribution Preview</p>
+                  <p className="text-[10px] text-muted-foreground">{ATTRIBUTION_LINE}</p>
+                  <p className="text-xs text-foreground whitespace-pre-wrap mt-1">{withAttribution(newPostCaption || "")}</p>
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />Location (optional)
+                  </label>
+                  <Input value={schedLocation} onChange={e => setSchedLocation(e.target.value)} placeholder="New York, USA" className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1.5 block flex items-center gap-1">
@@ -1477,30 +1541,36 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   <p className="text-[10px] text-muted-foreground mt-1">Leave empty to save as draft</p>
                 </div>
                 <div className="flex gap-2 pt-1">
-                  <Button onClick={schedulePost} disabled={(!newPostCaption && !newPostMediaUrl && uploadedFiles.length === 0)} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white gap-2">
+                  <Button onClick={schedulePost} disabled={!schedPrivacy || (!newPostCaption && !newPostMediaUrl && uploadedFiles.length === 0)} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white gap-2">
                     {newPostScheduledAt ? <Calendar className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
                     {newPostScheduledAt ? "Schedule Post" : "Save as Draft"}
                   </Button>
                   {(newPostMediaUrl || uploadedFiles.some(f => f.url)) && !newPostScheduledAt && (
                     <Button variant="outline" onClick={async () => {
+                      if (!schedPrivacy) { toast.error("Select a privacy level before publishing"); return; }
                       const mediaUrl = uploadedFiles.find(f => f.url)?.url || newPostMediaUrl;
                       if (!mediaUrl) return;
+                      const finalTitle = withAttribution(newPostCaption || "");
                       if (schedContentType === "video") {
                         await callApi("publish_video_by_url", {
-                          video_url: mediaUrl, title: newPostCaption,
+                          video_url: mediaUrl, title: finalTitle,
                           privacy_level: schedPrivacy, disable_duet: schedDisableDuet,
                           disable_comment: schedDisableComment, disable_stitch: schedDisableStitch,
+                          brand_content_toggle: schedBrandContent,
+                          brand_organic_toggle: schedBrandOrganic,
                         });
                       } else {
                         const urls = uploadedFiles.filter(f => f.url).map(f => f.url!);
                         if (newPostMediaUrl) urls.unshift(newPostMediaUrl);
                         await callApi(schedContentType === "carousel" ? "publish_carousel" : "publish_photo", {
-                          image_urls: urls, title: newPostCaption, description: newPostCaption,
+                          image_urls: urls, title: finalTitle, description: finalTitle,
                           privacy_level: schedPrivacy, disable_comment: schedDisableComment,
+                          brand_content_toggle: schedBrandContent,
+                          brand_organic_toggle: schedBrandOrganic,
                         });
                       }
                       toast.success("Published!");
-                    }} disabled={loading} className="gap-2">
+                    }} disabled={loading || !schedPrivacy} className="gap-2">
                       <Upload className="h-4 w-4" />Publish Now
                     </Button>
                   )}
@@ -2220,7 +2290,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                       const size = count <= 1 ? 'h-48 w-48' : count <= 3 ? 'h-32 w-32' : count <= 6 ? 'h-24 w-24' : 'h-16 w-16';
                       return (
                         <div key={i} className="relative group">
-                          {f.file.type.startsWith("video") ? (
+                          {isVideoMedia(f.file) ? (
                             <video
                               src={f.preview}
                               className={`${size} object-cover rounded-lg border border-white/[0.06]`}
@@ -2249,6 +2319,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Privacy Level</label>
                   <select value={schedPrivacy} onChange={e => setSchedPrivacy(e.target.value)} className="w-full bg-white/[0.06] text-foreground border border-white/[0.08] rounded-lg px-3 py-2 text-sm outline-none">
+                    <option value="" disabled>Select privacy level</option>
                     <option value="PUBLIC_TO_EVERYONE">🌍 Public</option>
                     <option value="MUTUAL_FOLLOW_FRIENDS">🤝 Friends</option>
                     <option value="FOLLOWER_OF_CREATOR">👥 Followers Only</option>
@@ -2260,20 +2331,53 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   <Input value={schedLocation} onChange={e => setSchedLocation(e.target.value)} placeholder="City, Country..." className="text-sm bg-muted/20 border-border/40" />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div className="flex items-center gap-2"><Switch checked={schedDisableDuet} onCheckedChange={setSchedDisableDuet} /><span className="text-xs text-muted-foreground">Disable Duet</span></div>
-                  <div className="flex items-center gap-2"><Switch checked={schedDisableStitch} onCheckedChange={setSchedDisableStitch} /><span className="text-xs text-muted-foreground">Disable Stitch</span></div>
+                  {schedContentType === "video" && (
+                    <>
+                      <div className="flex items-center gap-2"><Switch checked={schedDisableDuet} onCheckedChange={setSchedDisableDuet} /><span className="text-xs text-muted-foreground">Disable Duet</span></div>
+                      <div className="flex items-center gap-2"><Switch checked={schedDisableStitch} onCheckedChange={setSchedDisableStitch} /><span className="text-xs text-muted-foreground">Disable Stitch</span></div>
+                    </>
+                  )}
                   <div className="flex items-center gap-2"><Switch checked={schedDisableComment} onCheckedChange={setSchedDisableComment} /><span className="text-xs text-muted-foreground">Disable Comments</span></div>
                   <div className="flex items-center gap-2"><Switch checked={schedBrandContent} onCheckedChange={setSchedBrandContent} /><span className="text-xs text-muted-foreground">Brand Content</span></div>
+                  <div className="flex items-center gap-2"><Switch checked={schedBrandOrganic} onCheckedChange={setSchedBrandOrganic} /><span className="text-xs text-muted-foreground">Your Brand Promotion</span></div>
                 </div>
               </div>
             </div>
 
+            <div className="rounded-lg border border-border/30 bg-muted/20 p-3">
+              <p className="text-[10px] text-muted-foreground">{ATTRIBUTION_LINE}</p>
+              <p className="text-xs text-foreground mt-1">App Name: {TIKTOK_APP_NAME} • Organization Name: {TIKTOK_ORG_NAME}</p>
+            </div>
+
             <div className="flex gap-2">
-              <Button onClick={schedulePost} size="sm" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 gap-1.5" disabled={scheduledPosts.filter(p => p.status === "scheduled").length >= 50}>
+              <Button onClick={schedulePost} size="sm" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 gap-1.5" disabled={!schedPrivacy || scheduledPosts.filter(p => p.status === "scheduled").length >= 50}>
                 {newPostScheduledAt ? <><Calendar className="h-3.5 w-3.5" />Schedule</> : <><FolderOpen className="h-3.5 w-3.5" />Save Draft</>}
               </Button>
               {newPostCaption && (
-                <Button size="sm" variant="outline" onClick={() => publishPost({ caption: newPostCaption, media_urls: uploadedFiles.filter(f => f.url).map(f => f.url!), metadata: { privacy_level: schedPrivacy, content_type: schedContentType, disable_duet: schedDisableDuet, disable_comment: schedDisableComment, disable_stitch: schedDisableStitch, brand_content: schedBrandContent, location: schedLocation }, post_type: schedContentType })} disabled={loading} className="gap-1.5">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    if (!schedPrivacy) { toast.error("Select a privacy level before publishing"); return; }
+                    publishPost({
+                      caption: withAttribution(newPostCaption),
+                      media_urls: uploadedFiles.filter(f => f.url).map(f => f.url!),
+                      metadata: {
+                        privacy_level: schedPrivacy,
+                        content_type: schedContentType,
+                        disable_duet: schedDisableDuet,
+                        disable_comment: schedDisableComment,
+                        disable_stitch: schedDisableStitch,
+                        brand_content: schedBrandContent,
+                        brand_organic: schedBrandOrganic,
+                        location: schedLocation,
+                      },
+                      post_type: schedContentType,
+                    });
+                  }}
+                  disabled={loading || !schedPrivacy}
+                  className="gap-1.5"
+                >
                   <Zap className="h-3.5 w-3.5" />Publish Now
                 </Button>
               )}
