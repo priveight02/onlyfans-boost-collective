@@ -133,6 +133,7 @@ function buildPhotoPublishBody(opts: {
   image_urls: string[];
   cover_index?: number;
   media_type: "PHOTO" | "CAROUSEL";
+  post_mode?: "DIRECT_POST" | "MEDIA_UPLOAD";
 }): Record<string, any> {
   const postInfo: Record<string, any> = {
     title: clampPhotoTitle(opts.title),
@@ -151,9 +152,64 @@ function buildPhotoPublishBody(opts: {
       photo_cover_index: opts.cover_index ?? 0,
       photo_images: opts.image_urls,
     },
-    post_mode: "DIRECT_POST",
+    post_mode: opts.post_mode || "DIRECT_POST",
     media_type: opts.media_type,
   };
+}
+
+function isUrlOwnershipError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error || "");
+  return msg.includes("url_ownership_unverified");
+}
+
+function getHostFromUrl(url?: string): string {
+  try {
+    return url ? new URL(url).host : "unknown-host";
+  } catch {
+    return "unknown-host";
+  }
+}
+
+async function initPhotoPublishWithFallback(token: string, opts: {
+  title?: string;
+  description?: string;
+  privacy_level: string;
+  disable_comment?: boolean;
+  auto_add_music?: boolean;
+  brand_content_toggle?: boolean;
+  brand_organic_toggle?: boolean;
+  image_urls: string[];
+  cover_index?: number;
+  media_type: "PHOTO" | "CAROUSEL";
+}) {
+  try {
+    return await ttFetch(
+      "/post/publish/content/init/",
+      token,
+      "POST",
+      buildPhotoPublishBody({ ...opts, post_mode: "DIRECT_POST" })
+    );
+  } catch (directErr) {
+    if (!isUrlOwnershipError(directErr)) throw directErr;
+
+    console.warn("Direct photo publish blocked by URL ownership. Retrying with MEDIA_UPLOAD mode.");
+
+    try {
+      return await ttFetch(
+        "/post/publish/content/init/",
+        token,
+        "POST",
+        buildPhotoPublishBody({ ...opts, post_mode: "MEDIA_UPLOAD" })
+      );
+    } catch (uploadErr) {
+      if (!isUrlOwnershipError(uploadErr)) throw uploadErr;
+      const mediaHost = getHostFromUrl(opts.image_urls?.[0]);
+      throw new Error(
+        `TikTok rejected media host (${mediaHost}) with url_ownership_unverified. ` +
+        `Photo/carousel posting requires a TikTok-verified media domain for pull_from_url.`
+      );
+    }
+  }
 }
 
 serve(async (req) => {
@@ -277,16 +333,14 @@ serve(async (req) => {
           } else {
             const mediaType = postType === "carousel" ? "CAROUSEL" : "PHOTO";
             const privacy = await resolvePrivacyLevel(postConn.access_token, meta.privacy_level || "PUBLIC_TO_EVERYONE");
-            publishResult = await ttFetch("/post/publish/content/init/", postConn.access_token, "POST",
-              buildPhotoPublishBody({
-                title: post.caption,
-                description: post.caption,
-                privacy_level: privacy,
-                disable_comment: meta.disable_comment,
-                image_urls: post.media_urls,
-                media_type: mediaType as "PHOTO" | "CAROUSEL",
-              })
-            );
+            publishResult = await initPhotoPublishWithFallback(postConn.access_token, {
+              title: post.caption,
+              description: post.caption,
+              privacy_level: privacy,
+              disable_comment: meta.disable_comment,
+              image_urls: post.media_urls,
+              media_type: mediaType as "PHOTO" | "CAROUSEL",
+            });
           }
 
           const publishId = publishResult?.data?.publish_id;
@@ -401,16 +455,14 @@ serve(async (req) => {
           } else {
             const mediaType = postType === "carousel" ? "CAROUSEL" : "PHOTO";
             const privacy = await resolvePrivacyLevel(postConn.access_token, meta.privacy_level || "PUBLIC_TO_EVERYONE");
-            publishResult = await ttFetch("/post/publish/content/init/", postConn.access_token, "POST",
-              buildPhotoPublishBody({
-                title: post.caption,
-                description: post.caption,
-                privacy_level: privacy,
-                disable_comment: meta.disable_comment,
-                image_urls: post.media_urls,
-                media_type: mediaType as "PHOTO" | "CAROUSEL",
-              })
-            );
+            publishResult = await initPhotoPublishWithFallback(postConn.access_token, {
+              title: post.caption,
+              description: post.caption,
+              privacy_level: privacy,
+              disable_comment: meta.disable_comment,
+              image_urls: post.media_urls,
+              media_type: mediaType as "PHOTO" | "CAROUSEL",
+            });
           }
 
           const publishId = publishResult?.data?.publish_id;
@@ -654,20 +706,18 @@ serve(async (req) => {
         if (!params.image_urls || !Array.isArray(params.image_urls) || params.image_urls.length === 0) {
           throw new Error("Missing or empty image_urls array for photo publish");
         }
-        result = await ttFetch("/post/publish/content/init/", token!, "POST",
-          buildPhotoPublishBody({
-            title: params.title,
-            description: params.description,
-            privacy_level: photoPrivacy,
-            disable_comment: params.disable_comment,
-            auto_add_music: params.auto_add_music,
-            brand_content_toggle: params.brand_content_toggle,
-            brand_organic_toggle: params.brand_organic_toggle,
-            image_urls: params.image_urls,
-            cover_index: params.cover_index,
-            media_type: "PHOTO",
-          })
-        );
+        result = await initPhotoPublishWithFallback(token!, {
+          title: params.title,
+          description: params.description,
+          privacy_level: photoPrivacy,
+          disable_comment: params.disable_comment,
+          auto_add_music: params.auto_add_music,
+          brand_content_toggle: params.brand_content_toggle,
+          brand_organic_toggle: params.brand_organic_toggle,
+          image_urls: params.image_urls,
+          cover_index: params.cover_index,
+          media_type: "PHOTO",
+        });
         break;
       }
 
@@ -677,20 +727,18 @@ serve(async (req) => {
         if (!params.image_urls || !Array.isArray(params.image_urls) || params.image_urls.length === 0) {
           throw new Error("Missing or empty image_urls array for carousel publish");
         }
-        result = await ttFetch("/post/publish/content/init/", token!, "POST",
-          buildPhotoPublishBody({
-            title: params.title,
-            description: params.description,
-            privacy_level: carouselPrivacy,
-            disable_comment: params.disable_comment,
-            auto_add_music: params.auto_add_music,
-            brand_content_toggle: params.brand_content_toggle,
-            brand_organic_toggle: params.brand_organic_toggle,
-            image_urls: params.image_urls,
-            cover_index: params.cover_index,
-            media_type: "CAROUSEL",
-          })
-        );
+        result = await initPhotoPublishWithFallback(token!, {
+          title: params.title,
+          description: params.description,
+          privacy_level: carouselPrivacy,
+          disable_comment: params.disable_comment,
+          auto_add_music: params.auto_add_music,
+          brand_content_toggle: params.brand_content_toggle,
+          brand_organic_toggle: params.brand_organic_toggle,
+          image_urls: params.image_urls,
+          cover_index: params.cover_index,
+          media_type: "CAROUSEL",
+        });
         break;
       }
 
