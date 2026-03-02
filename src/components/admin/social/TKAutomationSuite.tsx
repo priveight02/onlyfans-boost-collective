@@ -1393,9 +1393,9 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                       {uploadedFiles.map((f, i) => (
                         <div key={i} className="relative group">
                           {f.file.type.startsWith("video/") ? (
-                            <video src={f.preview} className="h-20 w-20 rounded-lg object-cover ring-1 ring-border/20" autoPlay loop muted playsInline />
+                            <video src={f.preview} className="h-60 w-60 rounded-lg object-cover ring-1 ring-border/20" autoPlay loop muted playsInline preload="auto" />
                           ) : (
-                            <img src={f.preview} className="h-20 w-20 rounded-lg object-cover ring-1 ring-border/20" />
+                            <img src={f.preview} className="h-60 w-60 rounded-lg object-cover ring-1 ring-border/20" />
                           )}
                           <button onClick={() => removeUploadedFile(i)} className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                             <X className="h-3 w-3" />
@@ -2198,9 +2198,9 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                     {uploadedFiles.map((f, i) => (
                       <div key={i} className="relative group">
                         {f.file.type.startsWith("video") ? (
-                          <video src={f.preview} className="h-16 w-16 object-cover rounded-lg border border-white/[0.06]" autoPlay loop muted playsInline />
+                          <video src={f.preview} className="h-48 w-48 object-cover rounded-lg border border-white/[0.06]" autoPlay loop muted playsInline preload="auto" />
                         ) : (
-                          <img src={f.preview} className="h-16 w-16 object-cover rounded-lg border border-white/[0.06]" alt="" />
+                          <img src={f.preview} className="h-48 w-48 object-cover rounded-lg border border-white/[0.06]" alt="" />
                         )}
                         <button onClick={() => removeUploadedFile(i)} className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                           <X className="h-3 w-3 text-white" />
