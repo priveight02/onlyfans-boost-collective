@@ -3430,12 +3430,42 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                           onDisconnect={disconnectPlatform}
                           onReconnect={() => automatedFacebookConnect(true)}
                         />
-                        <div className="relative">
-                          {isLoading ? <Loader2 className="h-8 w-8 text-blue-500 animate-spin" /> : (
-                            <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(59,130,246,0.5)]" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-                          )}
-                        </div>
-                        <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">Connect Facebook</span>
+                        {(() => {
+                          const fbConn2 = connections.find(c => c.platform === "facebook" && c.is_connected)
+                            || globalConnections.find((c: any) => c.platform === "facebook" && c.is_connected);
+                          const fbMeta2 = (fbConn2 as any)?.metadata || {};
+                          const fbUsername2 = (fbConn2 as any)?.platform_username;
+                          const fbAvatar2 = fbMeta2.picture_url || fbMeta2.profile_picture_url || fbMeta2.avatar_url;
+                          if (platformConnected && fbUsername2) {
+                            return (
+                              <>
+                                <div className="relative">
+                                  {fbAvatar2 ? (
+                                    <img src={fbAvatar2} alt={fbUsername2} className="h-9 w-9 rounded-full object-cover ring-2 ring-blue-500/30" />
+                                  ) : (
+                                    <div className="h-9 w-9 rounded-full bg-white/[0.06] flex items-center justify-center ring-2 ring-blue-500/30">
+                                      <Users className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                  )}
+                                  <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-background border border-border flex items-center justify-center">
+                                    <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                                  </div>
+                                </div>
+                                <span className="text-[10px] font-semibold text-foreground transition-colors leading-tight text-center truncate max-w-full">@{fbUsername2}</span>
+                              </>
+                            );
+                          }
+                          return (
+                            <>
+                              <div className="relative">
+                                {isLoading ? <Loader2 className="h-8 w-8 text-blue-500 animate-spin" /> : (
+                                  <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(59,130,246,0.5)]" fill="#1877F2"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+                                )}
+                              </div>
+                              <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">Connect Facebook</span>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
@@ -3482,8 +3512,38 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                           onDisconnect={disconnectPlatform}
                           onReconnect={() => automatedThreadsConnect(true)}
                         />
-                        <div className="relative">{isLoading ? <Loader2 className="h-8 w-8 animate-spin opacity-60" /> : p.svgIcon}</div>
-                        <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">{p.label}</span>
+                        {(() => {
+                          const thConn2 = connections.find(c => c.platform === "threads" && c.is_connected)
+                            || globalConnections.find((c: any) => c.platform === "threads" && c.is_connected);
+                          const thMeta2 = (thConn2 as any)?.metadata || {};
+                          const thUsername2 = (thConn2 as any)?.platform_username;
+                          const thAvatar2 = thMeta2.threads_profile_picture_url || thMeta2.profile_picture_url || thMeta2.avatar_url || thMeta2.picture_url;
+                          if (platformConnected && thUsername2) {
+                            return (
+                              <>
+                                <div className="relative">
+                                  {thAvatar2 ? (
+                                    <img src={thAvatar2} alt={thUsername2} className="h-9 w-9 rounded-full object-cover ring-2 ring-purple-400/30" />
+                                  ) : (
+                                    <div className="h-9 w-9 rounded-full bg-white/[0.06] flex items-center justify-center ring-2 ring-purple-400/30">
+                                      <Users className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                  )}
+                                  <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-background border border-border flex items-center justify-center">
+                                    <svg viewBox="0 0 192 192" className="h-2.5 w-2.5" fill="currentColor"><path d="M141.537 88.9883C140.71 88.5919 139.87 88.2104 139.019 87.8451C137.537 60.5382 122.616 44.905 97.5619 44.745C97.4484 44.7443 97.3355 44.7443 97.222 44.745C82.2364 44.745 69.7731 51.1399 62.1022 62.6747L75.7727 71.3821C81.1761 63.5292 89.268 59.6122 97.222 59.6122L97.278 59.6122C106.338 59.6665 113.17 62.4629 117.586 67.8906C120.755 71.7552 122.829 76.9676 123.793 83.4466C117.929 82.4062 111.534 81.9825 104.665 82.1792C82.4856 82.8102 68.1467 94.7389 69.0766 111.163C69.5497 119.502 73.5604 126.721 80.3757 131.552C86.1847 135.684 93.6258 137.742 101.379 137.363C111.344 136.866 119.239 132.871 124.654 125.607C128.641 120.289 131.219 113.485 132.553 104.854C137.467 107.83 141.145 111.752 143.251 116.533C146.886 124.647 147.068 138.247 136.398 148.917C127.051 158.265 115.818 162.697 97.364 162.837C76.7819 162.681 61.5251 156.296 51.2819 143.763C41.6667 131.989 36.6012 115.282 36.4329 94C36.6012 72.7178 41.6667 56.0107 51.2819 44.2365C61.5251 31.7035 76.7819 25.3185 97.364 25.1627C118.093 25.3197 133.627 31.7688 144.198 44.3827C149.359 50.5355 153.27 58.165 155.89 66.9742L170.186 63.0565C167.07 52.5024 162.307 43.4419 156.056 35.9973C142.95 20.4105 124.452 12.4483 97.406 12.2617L97.322 12.2617C70.4367 12.4471 52.17 20.4758 39.3082 36.0914C27.0166 51.012 20.7267 71.2753 20.5331 94.0419L20.5331 94.0419C20.7267 116.725 27.0166 136.988 39.3082 151.909C52.17 167.524 70.4367 175.553 97.322 175.738L97.406 175.738C119.394 175.572 133.776 169.793 145.684 157.885C161.961 141.608 161.496 121.068 156.384 109.483C152.716 101.175 146.059 94.3498 141.537 88.9883ZM100.885 123.532C90.3552 124.072 82.5765 118.403 82.1001 108.85C81.7364 101.638 86.6254 93.2956 104.962 92.7273C107.887 92.6432 110.734 92.7217 113.491 92.957C112.222 107.725 107.531 123.194 100.885 123.532Z"/></svg>
+                                  </div>
+                                </div>
+                                <span className="text-[10px] font-semibold text-foreground transition-colors leading-tight text-center truncate max-w-full">@{thUsername2}</span>
+                              </>
+                            );
+                          }
+                          return (
+                            <>
+                              <div className="relative">{isLoading ? <Loader2 className="h-8 w-8 animate-spin opacity-60" /> : p.svgIcon}</div>
+                              <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">{p.label}</span>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
