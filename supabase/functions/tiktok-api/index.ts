@@ -73,23 +73,14 @@ async function ttFetch(endpoint: string, token: string, method = "GET", body?: a
   return data;
 }
 
-// Correct endpoint: /post/publish/creator_info/query/
+// For unaudited TikTok apps, ONLY "SELF_ONLY" is allowed.
+// The creator_info endpoint may return other options but TikTok will reject them
+// with "unaudited_client_can_only_post_to_private_accounts".
+// Once the app passes TikTok's audit, remove this override.
 async function resolvePrivacyLevel(token: string, requested: string): Promise<string> {
-  try {
-    const info = await ttFetch("/post/publish/creator_info/query/", token, "POST", {});
-    const allowed: string[] = info?.data?.privacy_level_options || [];
-    console.log("Creator allowed privacy levels:", allowed);
-    if (allowed.length === 0) return "SELF_ONLY";
-    if (allowed.includes(requested)) return requested;
-    // Fallback priority
-    for (const pref of ["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"]) {
-      if (allowed.includes(pref)) return pref;
-    }
-    return allowed[0];
-  } catch (e) {
-    console.error("Could not fetch creator info for privacy validation:", e);
-    return "SELF_ONLY";
-  }
+  // FORCE SELF_ONLY until app is audited by TikTok
+  console.log(`Privacy level requested: ${requested}, forcing SELF_ONLY (unaudited app)`);
+  return "SELF_ONLY";
 }
 
 function clampVideoTitle(title?: string): string {
