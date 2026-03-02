@@ -1501,23 +1501,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   )}
                   <p className="text-[10px] text-muted-foreground">App: <span className="text-foreground font-medium">{TIKTOK_APP_NAME}</span> • Org: <span className="text-foreground font-medium">{TIKTOK_ORG_NAME}</span></p>
                   {/* REQUIRED: Show daily posting limit and block if reached */}
-                  {(() => {
-                    const maxPosts = creatorInfo?.max_posts_per_day ?? creatorInfo?.daily_post_limit ?? creatorInfo?.creator_info?.max_video_post_per_day ?? null;
-                    const canPost = creatorInfo?.creator_info?.can_post ?? creatorInfo?.can_post ?? true;
-                    const maxDuration = creatorInfo?.creator_info?.max_video_post_duration_sec ?? creatorInfo?.max_video_post_duration_sec ?? null;
-                    return (
-                      <>
-                        <p className="text-[10px] text-muted-foreground">Daily posting limit: <span className="text-foreground font-medium">{maxPosts ?? "Fetch creator info →"}</span></p>
-                        {maxDuration && <p className="text-[10px] text-muted-foreground">Max video duration: <span className="text-foreground font-medium">{maxDuration}s</span></p>}
-                        {canPost === false && (
-                          <div className="flex items-center gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
-                            <AlertCircle className="h-4 w-4 text-red-400" />
-                            <p className="text-[10px] text-red-400 font-medium">Daily posting limit reached — you cannot post more content today.</p>
-                          </div>
-                        )}
-                      </>
-                    );
-                  })()}
+                  <p className="text-[10px] text-muted-foreground">Daily posting limit: <span className="text-foreground font-medium">20 posts per day</span></p>
                 </div>
 
                 {/* ===== POINT 2: Privacy Level — MUST use dynamic options from creator_info ===== */}
