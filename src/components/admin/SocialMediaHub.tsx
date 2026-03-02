@@ -800,12 +800,13 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
      sessionStorage.setItem("tt_csrf", csrfState);
      const ttRedirectUri = "https://uplyze.ai/tt-login";
       const scopes = normalizeTikTokScopes(cachedTtScopes);
-      const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${new URLSearchParams({
+       const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${new URLSearchParams({
         client_key: ttClientKey,
         scope: scopes,
         response_type: "code",
         redirect_uri: ttRedirectUri,
         state: csrfState,
+        disable_auto_login: "1",
       }).toString()}`;
      const authWindow = window.open(authUrl, "tiktok_oauth", "width=600,height=700,scrollbars=yes");
      setAutoConnectLoading("tiktok");
@@ -2072,6 +2073,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
       response_type: "code",
       redirect_uri: ttRedirectUri,
       state: uniqueState,
+      disable_auto_login: "1",
     };
     const authUrl = `https://www.tiktok.com/v2/auth/authorize/?${new URLSearchParams(authParams).toString()}`;
     const w = 520, h = 620;
@@ -3288,6 +3290,11 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                   const isLoading = autoConnectLoading === "tiktok" || ttLoginPopupLoading;
                   const platformConnected = ttConnectedAny;
                   const cardDisabled = isLoading;
+                  const ttConn = connections.find(c => c.platform === "tiktok" && c.is_connected)
+                    || globalConnections.find((c: any) => c.platform === "tiktok" && c.is_connected);
+                  const ttConnMeta = (ttConn as any)?.metadata || {};
+                  const ttConnUsername = (ttConn as any)?.platform_username;
+                  const ttConnAvatar = ttConnMeta.avatar_url || ttConnMeta.profile_picture_url;
                   return (
                     <div className="group/wrap relative" id="tiktok-connect-card">
                       <div
@@ -3304,18 +3311,16 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                         style={highlightTiktok ? { '--highlight-color': 'rgba(34,211,238,0.4)' } as React.CSSProperties : undefined}
                       >
                         {platformConnected && <div className="absolute top-2 right-2 h-2 w-2 rounded-full bg-green-400 shadow-[0_0_6px] shadow-green-400/60" />}
-                        {ttConnected && (() => {
-                          const ttConn = connections.find(c => c.platform === "tiktok" && c.is_connected);
-                          return ttConn ? (
-                            <button
-                              className="absolute bottom-1.5 left-1.5 text-red-400/60 hover:text-red-400 transition-colors z-10"
-                              onClick={(e) => { e.stopPropagation(); e.preventDefault(); disconnectPlatform(ttConn.id); }}
-                              title="Disconnect TikTok"
-                            >
-                              <Link2 className="h-3.5 w-3.5" />
-                            </button>
-                          ) : null;
-                        })()}
+                        {/* Disconnect (unlink) button */}
+                        {ttConnectedAny && ttConn && (
+                          <button
+                            className="absolute bottom-1.5 left-1.5 text-red-400/60 hover:text-red-400 transition-colors z-10"
+                            onClick={(e) => { e.stopPropagation(); e.preventDefault(); disconnectPlatform(ttConn.id); }}
+                            title="Disconnect TikTok"
+                          >
+                            <Link2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                         <ConnectCardAccountManager
                           platform="tiktok"
                           connections={connections}
@@ -3323,10 +3328,32 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                           onDisconnect={disconnectPlatform}
                           onReconnect={() => openTtLoginPopup(true)}
                         />
-                        <div className="relative">
-                          {isLoading ? <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" /> : <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]" fill="#00f2ea"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.18 8.18 0 0 0 4.76 1.52V6.84a4.84 4.84 0 0 1-1-.15z"/></svg>}
-                        </div>
-                        <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">Connect TikTok</span>
+                        {/* Connected: show avatar + username pill */}
+                        {platformConnected && ttConnUsername ? (
+                          <>
+                            <div className="relative">
+                              {ttConnAvatar ? (
+                                <img src={ttConnAvatar} alt={ttConnUsername} className="h-9 w-9 rounded-full object-cover ring-2 ring-cyan-400/30" />
+                              ) : (
+                                <div className="h-9 w-9 rounded-full bg-white/[0.06] flex items-center justify-center ring-2 ring-cyan-400/30">
+                                  <Users className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                              )}
+                              {/* Platform badge */}
+                              <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-background border border-border flex items-center justify-center">
+                                <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="#00f2ea"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.18 8.18 0 0 0 4.76 1.52V6.84a4.84 4.84 0 0 1-1-.15z"/></svg>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-semibold text-foreground transition-colors leading-tight text-center truncate max-w-full">@{ttConnUsername}</span>
+                          </>
+                        ) : (
+                          <>
+                            <div className="relative">
+                              {isLoading ? <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" /> : <svg viewBox="0 0 24 24" className="h-8 w-8 transition-all duration-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(34,211,238,0.5)]" fill="#00f2ea"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.34-6.34V8.75a8.18 8.18 0 0 0 4.76 1.52V6.84a4.84 4.84 0 0 1-1-.15z"/></svg>}
+                            </div>
+                            <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">Connect TikTok</span>
+                          </>
+                        )}
                       </div>
                     </div>
                   );
