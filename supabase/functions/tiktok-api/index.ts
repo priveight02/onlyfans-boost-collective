@@ -16,6 +16,11 @@ const DEFAULT_TIKTOK_OAUTH_SCOPES = [
   "video.upload",
 ].join(",");
 
+// TikTok API field limits (as of March 2026)
+const PHOTO_TITLE_MAX = 90;
+const PHOTO_DESC_MAX = 4000;
+const VIDEO_TITLE_MAX = 2200;
+
 function normalizeTikTokScopes(rawScopes?: string | null) {
   const normalized = (rawScopes || DEFAULT_TIKTOK_OAUTH_SCOPES)
     .split(",")
@@ -51,7 +56,7 @@ async function ttFetch(endpoint: string, token: string, method = "GET", body?: a
   const contentType = resp.headers.get("content-type") || "";
   if (!contentType.includes("application/json")) {
     const text = await resp.text();
-    console.error("TikTok non-JSON response:", resp.status, text.substring(0, 300));
+    console.error("TikTok non-JSON response:", resp.status, text.substring(0, 500));
     if (resp.status === 404) {
       throw new Error(`This TikTok API endpoint is not available (404). This feature may require approved scopes or is not available in sandbox mode.`);
     }
@@ -59,31 +64,105 @@ async function ttFetch(endpoint: string, token: string, method = "GET", body?: a
   }
   const data = await resp.json();
   if (data.error?.code && data.error.code !== "ok") {
-    throw new Error(`TikTok API: ${data.error.message || "Unknown error"} (${data.error.code})`);
+    const logCode = data.error.code;
+    const logMsg = data.error.message || "Unknown error";
+    const logExtra = data.error.log_id ? ` [log_id: ${data.error.log_id}]` : "";
+    console.error(`TikTok API error: ${logCode} - ${logMsg}${logExtra}`, JSON.stringify(data.error));
+    throw new Error(`TikTok API: ${logMsg} (${logCode})`);
   }
   return data;
 }
 
-// Fetch creator info to get allowed privacy levels, then validate/fallback
+// Correct endpoint: /post/publish/creator_info/query/
 async function resolvePrivacyLevel(token: string, requested: string): Promise<string> {
   try {
-    const info = await ttFetch("/post/publish/creator_info/", token, "POST", {});
+    const info = await ttFetch("/post/publish/creator_info/query/", token, "POST", {});
     const allowed: string[] = info?.data?.privacy_level_options || [];
+    console.log("Creator allowed privacy levels:", allowed);
     if (allowed.length === 0) return "SELF_ONLY";
     if (allowed.includes(requested)) return requested;
-    // Fallback priority: PUBLIC > MUTUAL_FOLLOW_FRIENDS > SELF_ONLY
+    // Fallback priority
     for (const pref of ["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"]) {
       if (allowed.includes(pref)) return pref;
     }
     return allowed[0];
   } catch (e) {
     console.error("Could not fetch creator info for privacy validation:", e);
-    return "SELF_ONLY"; // safest fallback
+    return "SELF_ONLY";
   }
 }
 
-function clampTitle(title?: string): string {
-  return (title || "").substring(0, 150);
+function clampVideoTitle(title?: string): string {
+  return (title || "").substring(0, VIDEO_TITLE_MAX);
+}
+
+function clampPhotoTitle(title?: string): string {
+  return (title || "").substring(0, PHOTO_TITLE_MAX);
+}
+
+function clampPhotoDesc(desc?: string): string {
+  return (desc || "").substring(0, PHOTO_DESC_MAX);
+}
+
+// Build a valid video post_info object
+function buildVideoPostInfo(opts: {
+  title?: string;
+  privacy_level: string;
+  disable_duet?: boolean;
+  disable_comment?: boolean;
+  disable_stitch?: boolean;
+  video_cover_timestamp_ms?: number;
+  brand_content_toggle?: boolean;
+  brand_organic_toggle?: boolean;
+}): Record<string, any> {
+  const info: Record<string, any> = {
+    title: clampVideoTitle(opts.title),
+    privacy_level: opts.privacy_level,
+    disable_duet: opts.disable_duet ?? false,
+    disable_comment: opts.disable_comment ?? false,
+    disable_stitch: opts.disable_stitch ?? false,
+  };
+  if (opts.video_cover_timestamp_ms !== undefined && opts.video_cover_timestamp_ms > 0) {
+    info.video_cover_timestamp_ms = opts.video_cover_timestamp_ms;
+  }
+  if (opts.brand_content_toggle) info.brand_content_toggle = true;
+  if (opts.brand_organic_toggle) info.brand_organic_toggle = true;
+  return info;
+}
+
+// Build a valid photo/carousel post_info + top-level fields
+function buildPhotoPublishBody(opts: {
+  title?: string;
+  description?: string;
+  privacy_level: string;
+  disable_comment?: boolean;
+  auto_add_music?: boolean;
+  brand_content_toggle?: boolean;
+  brand_organic_toggle?: boolean;
+  image_urls: string[];
+  cover_index?: number;
+  media_type: "PHOTO" | "CAROUSEL";
+}): Record<string, any> {
+  const postInfo: Record<string, any> = {
+    title: clampPhotoTitle(opts.title),
+    description: clampPhotoDesc(opts.description || opts.title),
+    privacy_level: opts.privacy_level,
+    disable_comment: opts.disable_comment ?? false,
+    auto_add_music: opts.auto_add_music ?? true,
+  };
+  if (opts.brand_content_toggle) postInfo.brand_content_toggle = true;
+  if (opts.brand_organic_toggle) postInfo.brand_organic_toggle = true;
+
+  return {
+    post_info: postInfo,
+    source_info: {
+      source: "PULL_FROM_URL",
+      photo_cover_index: opts.cover_index ?? 0,
+      photo_images: opts.image_urls,
+    },
+    post_mode: "DIRECT_POST",
+    media_type: opts.media_type,
+  };
 }
 
 serve(async (req) => {
@@ -138,7 +217,7 @@ serve(async (req) => {
       });
     }
 
-    // ===== BATCH PUBLISH (one cron per minute-slot, handles all posts in that slot) =====
+    // ===== BATCH PUBLISH =====
     if (action === "publish_scheduled_batch") {
       const bodyData = await req.clone().json().catch(() => ({}));
       const slotTs = params?.slot_ts || bodyData.slot_ts;
@@ -149,9 +228,8 @@ serve(async (req) => {
         });
       }
 
-      // Find ALL scheduled tiktok posts in this minute slot
       const slotStart = new Date(slotTs);
-      const slotEnd = new Date(slotStart.getTime() + 60000); // +1 minute
+      const slotEnd = new Date(slotStart.getTime() + 60000);
 
       const { data: posts, error: fetchErr } = await supabase
         .from("social_posts")
@@ -163,7 +241,6 @@ serve(async (req) => {
         .order("scheduled_at", { ascending: true });
 
       if (fetchErr || !posts || posts.length === 0) {
-        // No posts in slot — cron will self-destruct via trigger when last post status changes
         return new Response(JSON.stringify({ success: true, data: { skipped: true, reason: "no_posts_in_slot", slot: slotTs } }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -186,7 +263,6 @@ serve(async (req) => {
             continue;
           }
 
-          // Mark as publishing (triggers cron cleanup check via DB trigger)
           await supabase.from("social_posts").update({
             status: "publishing", updated_at: new Date().toISOString(),
           }).eq("id", post.id);
@@ -195,36 +271,31 @@ serve(async (req) => {
           let publishResult: any;
 
           if (postType === "video") {
-            const batchVidPrivacy = await resolvePrivacyLevel(postConn.access_token, meta.privacy_level || "PUBLIC_TO_EVERYONE");
+            const privacy = await resolvePrivacyLevel(postConn.access_token, meta.privacy_level || "PUBLIC_TO_EVERYONE");
             publishResult = await ttFetch("/post/publish/video/init/", postConn.access_token, "POST", {
-              post_info: {
-                title: clampTitle(post.caption),
-                privacy_level: batchVidPrivacy,
-                disable_duet: meta.disable_duet || false,
-                disable_comment: meta.disable_comment || false,
-                disable_stitch: meta.disable_stitch || false,
-                ...(meta.brand_content ? { brand_content_toggle: true } : {}),
-              },
+              post_info: buildVideoPostInfo({
+                title: post.caption,
+                privacy_level: privacy,
+                disable_duet: meta.disable_duet,
+                disable_comment: meta.disable_comment,
+                disable_stitch: meta.disable_stitch,
+                brand_content_toggle: meta.brand_content,
+              }),
               source_info: { source: "PULL_FROM_URL", video_url: mediaUrl },
             });
           } else {
             const mediaType = postType === "carousel" ? "CAROUSEL" : "PHOTO";
-            const batchPhotoPrivacy = await resolvePrivacyLevel(postConn.access_token, meta.privacy_level || "PUBLIC_TO_EVERYONE");
-            publishResult = await ttFetch("/post/publish/content/init/", postConn.access_token, "POST", {
-              post_info: {
-                title: clampTitle(post.caption),
-                description: (post.caption || "").substring(0, 2200),
-                privacy_level: batchPhotoPrivacy,
-                disable_comment: meta.disable_comment || false,
-              },
-              source_info: {
-                source: "PULL_FROM_URL",
-                photo_cover_index: 0,
-                photo_images: post.media_urls,
-              },
-              post_mode: "DIRECT_POST",
-              media_type: mediaType,
-            });
+            const privacy = await resolvePrivacyLevel(postConn.access_token, meta.privacy_level || "PUBLIC_TO_EVERYONE");
+            publishResult = await ttFetch("/post/publish/content/init/", postConn.access_token, "POST",
+              buildPhotoPublishBody({
+                title: post.caption,
+                description: post.caption,
+                privacy_level: privacy,
+                disable_comment: meta.disable_comment,
+                image_urls: post.media_urls,
+                media_type: mediaType as "PHOTO" | "CAROUSEL",
+              })
+            );
           }
 
           const publishId = publishResult?.data?.publish_id;
@@ -263,7 +334,6 @@ serve(async (req) => {
         });
       }
 
-      // Delegate to batch logic by finding the post's slot
       const { data: post } = await supabase
         .from("social_posts")
         .select("scheduled_at")
@@ -277,14 +347,7 @@ serve(async (req) => {
         });
       }
 
-      // Re-invoke as batch for the slot containing this post
       const slotTs = new Date(new Date(post.scheduled_at).setSeconds(0, 0)).toISOString();
-      const batchReq = new Request(req.url, {
-        method: "POST",
-        headers: req.headers,
-        body: JSON.stringify({ action: "publish_scheduled_batch", params: { slot_ts: slotTs } }),
-      });
-      // Recursive call not ideal — just inline the response
       return new Response(JSON.stringify({ success: true, data: { redirected_to_batch: true, slot_ts: slotTs } }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -332,34 +395,31 @@ serve(async (req) => {
           let publishResult: any;
 
           if (postType === "video") {
+            const privacy = await resolvePrivacyLevel(postConn.access_token, meta.privacy_level || "PUBLIC_TO_EVERYONE");
             publishResult = await ttFetch("/post/publish/video/init/", postConn.access_token, "POST", {
-              post_info: {
-                title: post.caption || "",
-                privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
-                disable_duet: meta.disable_duet || false,
-                disable_comment: meta.disable_comment || false,
-                disable_stitch: meta.disable_stitch || false,
-                ...(meta.brand_content ? { brand_content_toggle: true } : {}),
-              },
+              post_info: buildVideoPostInfo({
+                title: post.caption,
+                privacy_level: privacy,
+                disable_duet: meta.disable_duet,
+                disable_comment: meta.disable_comment,
+                disable_stitch: meta.disable_stitch,
+                brand_content_toggle: meta.brand_content,
+              }),
               source_info: { source: "PULL_FROM_URL", video_url: mediaUrl },
             });
           } else {
             const mediaType = postType === "carousel" ? "CAROUSEL" : "PHOTO";
-            publishResult = await ttFetch("/post/publish/content/init/", postConn.access_token, "POST", {
-              post_info: {
-                title: post.caption || "",
-                description: post.caption || "",
-                privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
-                disable_comment: meta.disable_comment || false,
-              },
-              source_info: {
-                source: "PULL_FROM_URL",
-                photo_cover_index: 0,
-                photo_images: post.media_urls,
-              },
-              post_mode: "DIRECT_POST",
-              media_type: mediaType,
-            });
+            const privacy = await resolvePrivacyLevel(postConn.access_token, meta.privacy_level || "PUBLIC_TO_EVERYONE");
+            publishResult = await ttFetch("/post/publish/content/init/", postConn.access_token, "POST",
+              buildPhotoPublishBody({
+                title: post.caption,
+                description: post.caption,
+                privacy_level: privacy,
+                disable_comment: meta.disable_comment,
+                image_urls: post.media_urls,
+                media_type: mediaType as "PHOTO" | "CAROUSEL",
+              })
+            );
           }
 
           const publishId = publishResult?.data?.publish_id;
@@ -443,7 +503,6 @@ serve(async (req) => {
       conn = await getConnection(supabase, account_id);
       token = conn.access_token;
       
-      // Get video IDs from published posts
       const { data: publishedPosts } = await supabase
         .from("social_posts")
         .select("id, platform_post_id, caption")
@@ -460,12 +519,10 @@ serve(async (req) => {
         });
       }
 
-      // Fetch video details for engagement data
       const videoFields = "id,title,video_description,duration,cover_image_url,share_url,create_time,like_count,comment_count,share_count,view_count";
       const videoList = await ttFetch(`/video/list/?fields=${videoFields}`, token, "POST", { max_count: 20 });
       const apiVideos = videoList?.data?.videos || [];
 
-      // Update engagement data on posts
       for (const post of publishedPosts) {
         const matchedVideo = apiVideos.find((v: any) => v.id === post.platform_post_id);
         if (matchedVideo) {
@@ -535,20 +592,20 @@ serve(async (req) => {
         break;
       }
 
-      // ===== PUBLISHING: VIDEO =====
+      // ===== PUBLISHING: VIDEO (FILE UPLOAD) =====
       case "init_video_upload": {
         const uploadPrivacy = await resolvePrivacyLevel(token!, params.privacy_level || "SELF_ONLY");
         result = await ttFetch("/post/publish/video/init/", token!, "POST", {
-          post_info: {
-            title: clampTitle(params.title),
+          post_info: buildVideoPostInfo({
+            title: params.title,
             privacy_level: uploadPrivacy,
-            disable_duet: params.disable_duet || false,
-            disable_comment: params.disable_comment || false,
-            disable_stitch: params.disable_stitch || false,
-            video_cover_timestamp_ms: params.cover_timestamp || 0,
-            ...(params.brand_content_toggle !== undefined ? { brand_content_toggle: params.brand_content_toggle } : {}),
-            ...(params.brand_organic_toggle !== undefined ? { brand_organic_toggle: params.brand_organic_toggle } : {}),
-          },
+            disable_duet: params.disable_duet,
+            disable_comment: params.disable_comment,
+            disable_stitch: params.disable_stitch,
+            video_cover_timestamp_ms: params.cover_timestamp,
+            brand_content_toggle: params.brand_content_toggle,
+            brand_organic_toggle: params.brand_organic_toggle,
+          }),
           source_info: {
             source: "FILE_UPLOAD",
             video_size: params.video_size,
@@ -559,19 +616,20 @@ serve(async (req) => {
         break;
       }
 
+      // ===== PUBLISHING: VIDEO (PULL FROM URL) =====
       case "publish_video_by_url": {
         const vidPrivacy = await resolvePrivacyLevel(token!, params.privacy_level || "PUBLIC_TO_EVERYONE");
         if (!params.video_url) throw new Error("Missing video_url parameter");
         result = await ttFetch("/post/publish/video/init/", token!, "POST", {
-          post_info: {
-            title: clampTitle(params.title),
+          post_info: buildVideoPostInfo({
+            title: params.title,
             privacy_level: vidPrivacy,
-            disable_duet: params.disable_duet ?? false,
-            disable_comment: params.disable_comment ?? false,
-            disable_stitch: params.disable_stitch ?? false,
-            ...(params.brand_content_toggle ? { brand_content_toggle: true } : {}),
-            ...(params.brand_organic_toggle ? { brand_organic_toggle: true } : {}),
-          },
+            disable_duet: params.disable_duet,
+            disable_comment: params.disable_comment,
+            disable_stitch: params.disable_stitch,
+            brand_content_toggle: params.brand_content_toggle,
+            brand_organic_toggle: params.brand_organic_toggle,
+          }),
           source_info: {
             source: "PULL_FROM_URL",
             video_url: params.video_url,
@@ -605,25 +663,20 @@ serve(async (req) => {
         if (!params.image_urls || !Array.isArray(params.image_urls) || params.image_urls.length === 0) {
           throw new Error("Missing or empty image_urls array for photo publish");
         }
-        result = await ttFetch("/post/publish/content/init/", token!, "POST", {
-          post_info: {
-            title: clampTitle(params.title),
-            description: (params.description || "").substring(0, 2200),
+        result = await ttFetch("/post/publish/content/init/", token!, "POST",
+          buildPhotoPublishBody({
+            title: params.title,
+            description: params.description,
             privacy_level: photoPrivacy,
-            disable_comment: params.disable_comment ?? false,
-            disable_duet: params.disable_duet ?? false,
-            disable_stitch: params.disable_stitch ?? false,
-            ...(params.brand_content_toggle ? { brand_content_toggle: true } : {}),
-            ...(params.brand_organic_toggle ? { brand_organic_toggle: true } : {}),
-          },
-          source_info: {
-            source: "PULL_FROM_URL",
-            photo_cover_index: params.cover_index || 0,
-            photo_images: params.image_urls,
-          },
-          post_mode: "DIRECT_POST",
-          media_type: "PHOTO",
-        });
+            disable_comment: params.disable_comment,
+            auto_add_music: params.auto_add_music,
+            brand_content_toggle: params.brand_content_toggle,
+            brand_organic_toggle: params.brand_organic_toggle,
+            image_urls: params.image_urls,
+            cover_index: params.cover_index,
+            media_type: "PHOTO",
+          })
+        );
         break;
       }
 
@@ -633,31 +686,26 @@ serve(async (req) => {
         if (!params.image_urls || !Array.isArray(params.image_urls) || params.image_urls.length === 0) {
           throw new Error("Missing or empty image_urls array for carousel publish");
         }
-        result = await ttFetch("/post/publish/content/init/", token!, "POST", {
-          post_info: {
-            title: clampTitle(params.title),
-            description: (params.description || "").substring(0, 2200),
+        result = await ttFetch("/post/publish/content/init/", token!, "POST",
+          buildPhotoPublishBody({
+            title: params.title,
+            description: params.description,
             privacy_level: carouselPrivacy,
-            disable_comment: params.disable_comment ?? false,
-            disable_duet: params.disable_duet ?? false,
-            disable_stitch: params.disable_stitch ?? false,
-            ...(params.brand_content_toggle ? { brand_content_toggle: true } : {}),
-            ...(params.brand_organic_toggle ? { brand_organic_toggle: true } : {}),
-          },
-          source_info: {
-            source: "PULL_FROM_URL",
-            photo_cover_index: params.cover_index || 0,
-            photo_images: params.image_urls,
-          },
-          post_mode: "DIRECT_POST",
-          media_type: "CAROUSEL",
-        });
+            disable_comment: params.disable_comment,
+            auto_add_music: params.auto_add_music,
+            brand_content_toggle: params.brand_content_toggle,
+            brand_organic_toggle: params.brand_organic_toggle,
+            image_urls: params.image_urls,
+            cover_index: params.cover_index,
+            media_type: "CAROUSEL",
+          })
+        );
         break;
       }
 
       // ===== CREATOR INFO =====
       case "get_creator_info":
-        result = await ttFetch("/post/publish/creator_info/", token!, "POST", {});
+        result = await ttFetch("/post/publish/creator_info/query/", token!, "POST", {});
         break;
 
       // ===== COMMENTS (requires unapproved scopes) =====
