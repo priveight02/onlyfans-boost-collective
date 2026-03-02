@@ -2495,8 +2495,8 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         <Badge className={igConnected ? "bg-green-500/15 text-green-400 border-green-500/30" : "bg-muted text-muted-foreground"}>
           <Instagram className="h-3 w-3 mr-1" />{igConnected ? "IG Live" : "IG Offline"}
         </Badge>
-        <Badge className={ttConnected ? "bg-green-500/15 text-green-400 border-green-500/30" : "bg-muted text-muted-foreground"}>
-          <Music2 className="h-3 w-3 mr-1" />{ttConnected ? "TT Live" : "TT Offline"}
+        <Badge className={ttConnectedAny ? "bg-green-500/15 text-green-400 border-green-500/30" : "bg-muted text-muted-foreground"}>
+          <Music2 className="h-3 w-3 mr-1" />{ttConnectedAny ? "TT Live" : "TT Offline"}
         </Badge>
         <Badge className={xConnected ? "bg-green-500/15 text-green-400 border-green-500/30" : "bg-muted text-muted-foreground"}>
           <Twitter className="h-3 w-3 mr-1" />{xConnected ? "X Live" : "X Offline"}
@@ -2538,10 +2538,10 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
       {/* Platform Tabs */}
       <div className="flex gap-1.5 flex-wrap mb-4">
         {[
-          { v: "instagram", icon: Instagram, l: "Instagram Automation", activeClasses: "bg-gradient-to-r from-pink-500/15 to-purple-500/15 text-foreground border-pink-500/25 shadow-[0_0_15px_-4px] shadow-pink-500/20 backdrop-blur-sm", requiresConnection: true, connected: igConnected },
-          { v: "tiktok", icon: Music2, l: "TikTok Automation", activeClasses: "bg-gradient-to-r from-cyan-500/15 to-teal-500/15 text-foreground border-cyan-500/25 shadow-[0_0_15px_-4px] shadow-cyan-500/20 backdrop-blur-sm", requiresConnection: true, connected: ttConnected },
-          { v: "threads", icon: AtSign, l: "Threads Automation", activeClasses: "bg-gradient-to-r from-purple-500/15 to-violet-500/15 text-foreground border-purple-500/25 shadow-[0_0_15px_-4px] shadow-purple-500/20 backdrop-blur-sm", requiresConnection: true, connected: threadsConnected },
-          { v: "facebook", icon: Globe, l: "Facebook Automation", activeClasses: "bg-gradient-to-r from-blue-500/15 to-indigo-500/15 text-foreground border-blue-500/25 shadow-[0_0_15px_-4px] shadow-blue-500/20 backdrop-blur-sm", requiresConnection: true, connected: facebookConnected },
+          { v: "instagram", icon: Instagram, l: "Instagram Automation", activeClasses: "bg-gradient-to-r from-pink-500/15 to-purple-500/15 text-foreground border-pink-500/25 shadow-[0_0_15px_-4px] shadow-pink-500/20 backdrop-blur-sm", requiresConnection: true, connected: igConnectedAny },
+          { v: "tiktok", icon: Music2, l: "TikTok Automation", activeClasses: "bg-gradient-to-r from-cyan-500/15 to-teal-500/15 text-foreground border-cyan-500/25 shadow-[0_0_15px_-4px] shadow-cyan-500/20 backdrop-blur-sm", requiresConnection: true, connected: ttConnectedAny },
+          { v: "threads", icon: AtSign, l: "Threads Automation", activeClasses: "bg-gradient-to-r from-purple-500/15 to-violet-500/15 text-foreground border-purple-500/25 shadow-[0_0_15px_-4px] shadow-purple-500/20 backdrop-blur-sm", requiresConnection: true, connected: threadsConnectedAny },
+          { v: "facebook", icon: Globe, l: "Facebook Automation", activeClasses: "bg-gradient-to-r from-blue-500/15 to-indigo-500/15 text-foreground border-blue-500/25 shadow-[0_0_15px_-4px] shadow-blue-500/20 backdrop-blur-sm", requiresConnection: true, connected: facebookConnectedAny },
           { v: "connect", icon: Plus, l: "Connect", activeClasses: "bg-white/[0.06] text-foreground border-white/[0.12] backdrop-blur-sm", requiresConnection: false, connected: true },
         ].map(t => (
           <button
@@ -3276,10 +3276,41 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                           onDisconnect={disconnectPlatform}
                           onReconnect={() => openIgLoginPopup(true)}
                         />
-                        <div className="relative">
-                          {isLoading ? <Loader2 className="h-8 w-8 text-pink-400 animate-spin" /> : <Instagram className="h-8 w-8 text-pink-400 transition-all duration-300 group-hover/cube:text-pink-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(236,72,153,0.5)]" />}
-                        </div>
-                        <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">Connect Instagram</span>
+                        {/* Connected: show avatar + username pill like TikTok */}
+                        {(() => {
+                          const igConn2 = connections.find(c => c.platform === "instagram" && c.is_connected)
+                            || globalConnections.find((c: any) => c.platform === "instagram" && c.is_connected);
+                          const igMeta2 = (igConn2 as any)?.metadata || {};
+                          const igUsername2 = (igConn2 as any)?.platform_username;
+                          const igAvatar2 = igMeta2.profile_picture_url || igMeta2.avatar_url || igMeta2.threads_profile_picture_url;
+                          if (platformConnected && igUsername2) {
+                            return (
+                              <>
+                                <div className="relative">
+                                  {igAvatar2 ? (
+                                    <img src={igAvatar2} alt={igUsername2} className="h-9 w-9 rounded-full object-cover ring-2 ring-pink-400/30" />
+                                  ) : (
+                                    <div className="h-9 w-9 rounded-full bg-white/[0.06] flex items-center justify-center ring-2 ring-pink-400/30">
+                                      <Users className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                  )}
+                                  <div className="absolute -bottom-0.5 -right-0.5 h-4 w-4 rounded-full bg-background border border-border flex items-center justify-center">
+                                    <Instagram className="h-2.5 w-2.5 text-pink-400" />
+                                  </div>
+                                </div>
+                                <span className="text-[10px] font-semibold text-foreground transition-colors leading-tight text-center truncate max-w-full">@{igUsername2}</span>
+                              </>
+                            );
+                          }
+                          return (
+                            <>
+                              <div className="relative">
+                                {isLoading ? <Loader2 className="h-8 w-8 text-pink-400 animate-spin" /> : <Instagram className="h-8 w-8 text-pink-400 transition-all duration-300 group-hover/cube:text-pink-300 group-hover/cube:drop-shadow-[0_0_12px_rgba(236,72,153,0.5)]" />}
+                              </div>
+                              <span className="text-[10px] font-semibold text-muted-foreground group-hover/cube:text-foreground transition-colors leading-tight text-center">Connect Instagram</span>
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
