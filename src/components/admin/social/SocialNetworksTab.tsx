@@ -794,17 +794,33 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
     setTtPostsLoading(false);
   };
 
-  // Poll publishing statuses
+  // Poll publishing statuses with exponential backoff (max 6 checks: 5s, 10s, 20s, 40s, 60s, 60s then stop)
+  const pollingAttemptsRef = { current: new Map<string, number>() };
   useEffect(() => {
     if (ttPollingIds.length === 0) return;
-    const interval = setInterval(async () => {
-      for (const postId of ttPollingIds) {
-        const { data: post } = await supabase.from("social_posts").select("status, platform_post_id").eq("id", postId).single();
-        if (!post || !post.platform_post_id || post.status !== "publishing") {
-          setTtPollingIds(prev => prev.filter(id => id !== postId));
-          loadTtPosts();
-          continue;
-        }
+    const MAX_ATTEMPTS = 6;
+    const getDelay = (attempt: number) => Math.min(5000 * Math.pow(2, attempt), 60000);
+
+    const checkPost = async (postId: string) => {
+      const attempts = pollingAttemptsRef.current.get(postId) || 0;
+      if (attempts >= MAX_ATTEMPTS) {
+        setTtPollingIds(prev => prev.filter(id => id !== postId));
+        pollingAttemptsRef.current.delete(postId);
+        toast.info("Status check timed out. Use 'Check Status' button to retry.");
+        return;
+      }
+      pollingAttemptsRef.current.set(postId, attempts + 1);
+
+      const { data: post } = await supabase.from("social_posts").select("status, platform_post_id").eq("id", postId).single();
+      if (!post || post.status !== "publishing") {
+        setTtPollingIds(prev => prev.filter(id => id !== postId));
+        pollingAttemptsRef.current.delete(postId);
+        loadTtPosts();
+        if (post?.status === "published") toast.success("TikTok post is now live!");
+        else if (post?.status === "failed") toast.error("TikTok post failed to publish");
+        return;
+      }
+      if (post.platform_post_id) {
         try {
           await supabase.functions.invoke("tiktok-api", {
             body: { action: "check_publish_status", account_id: selectedAccount, params: { publish_id: post.platform_post_id, post_id: postId } },
@@ -812,14 +828,25 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
           const { data: updated } = await supabase.from("social_posts").select("status").eq("id", postId).single();
           if (updated && updated.status !== "publishing") {
             setTtPollingIds(prev => prev.filter(id => id !== postId));
+            pollingAttemptsRef.current.delete(postId);
             loadTtPosts();
             if (updated.status === "published") toast.success("TikTok post is now live!");
             else if (updated.status === "failed") toast.error("TikTok post failed to publish");
+            return;
           }
-        } catch { /* ignore polling errors */ }
+        } catch { /* ignore */ }
       }
-    }, 5000);
-    return () => clearInterval(interval);
+      // Schedule next check with backoff
+      setTimeout(() => checkPost(postId), getDelay(attempts + 1));
+    };
+
+    // Start checking each new polling ID
+    ttPollingIds.forEach(id => {
+      if (!pollingAttemptsRef.current.has(id)) {
+        pollingAttemptsRef.current.set(id, 0);
+        setTimeout(() => checkPost(id), 5000);
+      }
+    });
   }, [ttPollingIds, selectedAccount]);
 
   // Realtime subscription for social_posts
@@ -877,7 +904,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
             brand_content: ttBrandContent,
             brand_organic: ttBrandOrganic,
             content_type: ttPostType,
-            app_name: "Uplyze Social Hub",
+            app_name: "Uplyze",
             organization: "Uplyze",
           },
         }).select().single();
@@ -1047,7 +1074,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
           {/* POINT 3: Commercial Content Disclosure */}
           <div className="rounded-lg border border-white/10 p-3 space-y-2" style={{ background: "hsl(222, 30%, 10%)" }}>
             <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Step 3 — Commercial Content Disclosure</p>
-            <p className="text-[10px] text-white/30 leading-relaxed">If this post promotes a brand, product, or third-party, toggle the appropriate option. <a href="https://www.tiktok.com/community-guidelines" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">TikTok Branded Content Policy</a></p>
+            <p className="text-[10px] text-white/30 leading-relaxed">You must indicate if your content promotes goods or services in exchange for something of value. Your content may promote yourself, a third party, or both. <a href="https://www.tiktok.com/community-guidelines/en/integrity-authenticity" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">Learn more about TikTok's Branded Content Policy</a></p>
             <div className="flex flex-col gap-2 mt-1">
               {[
                 { label: "Branded Content", desc: "Promoting another brand or third party.", value: ttBrandContent, setter: setTtBrandContent },
@@ -1103,7 +1130,7 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
 
           {/* POINT 5: Attribution + Publish Action */}
           <div className="rounded-lg border border-cyan-500/20 p-3 space-y-2" style={{ background: "hsl(222, 30%, 8%)" }}>
-            <p className="text-[10px] text-white/30 text-center">This content will be posted to TikTok via <strong className="text-white/60">Uplyze Social Hub</strong></p>
+            <p className="text-[10px] text-white/30 text-center">This content will be posted to TikTok via <strong className="text-white/60">Uplyze</strong></p>
             <p className="text-[9px] text-white/20 text-center">By posting, you agree to TikTok's <a href="https://www.tiktok.com/legal/terms-of-service" target="_blank" rel="noopener noreferrer" className="text-cyan-400/60 underline">Terms of Service</a> and <a href="https://www.tiktok.com/community-guidelines" target="_blank" rel="noopener noreferrer" className="text-cyan-400/60 underline">Community Guidelines</a></p>
             <Button onClick={handlePublishToTikTok}
               disabled={ttPublishing || !ttCreator || !ttCaption.trim() || !ttPrivacy || ttCreator?.max_video_post_per_day_reached || (ttPostType === "video" ? !ttVideoUrl.trim() : !ttPhotoUrls.trim())}
