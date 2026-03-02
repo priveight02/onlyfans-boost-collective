@@ -2480,10 +2480,9 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent leading-[1.3]">Social Media</h2>
+            <h2 className="text-xl font-bold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent leading-[1.3]">Uplyze Social Hub</h2>
             <CreditCostBadge cost="0–10" variant="header" label="per action" />
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">AI Auto-DM · Multi-Platform · Full API</p>
         </div>
         <div className="flex items-center gap-2">
           {apiLoading && <Badge variant="outline" className="text-yellow-400 border-yellow-400/30 animate-pulse backdrop-blur-sm"><RefreshCw className="h-3 w-3 mr-1 animate-spin" />API</Badge>}
