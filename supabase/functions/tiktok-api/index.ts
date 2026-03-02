@@ -64,6 +64,28 @@ async function ttFetch(endpoint: string, token: string, method = "GET", body?: a
   return data;
 }
 
+// Fetch creator info to get allowed privacy levels, then validate/fallback
+async function resolvePrivacyLevel(token: string, requested: string): Promise<string> {
+  try {
+    const info = await ttFetch("/post/publish/creator_info/", token, "POST", {});
+    const allowed: string[] = info?.data?.privacy_level_options || [];
+    if (allowed.length === 0) return "SELF_ONLY";
+    if (allowed.includes(requested)) return requested;
+    // Fallback priority: PUBLIC > MUTUAL_FOLLOW_FRIENDS > SELF_ONLY
+    for (const pref of ["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"]) {
+      if (allowed.includes(pref)) return pref;
+    }
+    return allowed[0];
+  } catch (e) {
+    console.error("Could not fetch creator info for privacy validation:", e);
+    return "SELF_ONLY"; // safest fallback
+  }
+}
+
+function clampTitle(title?: string): string {
+  return (title || "").substring(0, 150);
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -173,10 +195,11 @@ serve(async (req) => {
           let publishResult: any;
 
           if (postType === "video") {
+            const batchVidPrivacy = await resolvePrivacyLevel(postConn.access_token, meta.privacy_level || "PUBLIC_TO_EVERYONE");
             publishResult = await ttFetch("/post/publish/video/init/", postConn.access_token, "POST", {
               post_info: {
-                title: post.caption || "",
-                privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
+                title: clampTitle(post.caption),
+                privacy_level: batchVidPrivacy,
                 disable_duet: meta.disable_duet || false,
                 disable_comment: meta.disable_comment || false,
                 disable_stitch: meta.disable_stitch || false,
@@ -186,11 +209,12 @@ serve(async (req) => {
             });
           } else {
             const mediaType = postType === "carousel" ? "CAROUSEL" : "PHOTO";
+            const batchPhotoPrivacy = await resolvePrivacyLevel(postConn.access_token, meta.privacy_level || "PUBLIC_TO_EVERYONE");
             publishResult = await ttFetch("/post/publish/content/init/", postConn.access_token, "POST", {
               post_info: {
-                title: post.caption || "",
-                description: post.caption || "",
-                privacy_level: meta.privacy_level || "PUBLIC_TO_EVERYONE",
+                title: clampTitle(post.caption),
+                description: (post.caption || "").substring(0, 2200),
+                privacy_level: batchPhotoPrivacy,
                 disable_comment: meta.disable_comment || false,
               },
               source_info: {
@@ -512,11 +536,12 @@ serve(async (req) => {
       }
 
       // ===== PUBLISHING: VIDEO =====
-      case "init_video_upload":
+      case "init_video_upload": {
+        const uploadPrivacy = await resolvePrivacyLevel(token!, params.privacy_level || "SELF_ONLY");
         result = await ttFetch("/post/publish/video/init/", token!, "POST", {
           post_info: {
-            title: params.title || "",
-            privacy_level: params.privacy_level || "SELF_ONLY",
+            title: clampTitle(params.title),
+            privacy_level: uploadPrivacy,
             disable_duet: params.disable_duet || false,
             disable_comment: params.disable_comment || false,
             disable_stitch: params.disable_stitch || false,
@@ -532,12 +557,15 @@ serve(async (req) => {
           },
         });
         break;
+      }
 
-      case "publish_video_by_url":
+      case "publish_video_by_url": {
+        const vidPrivacy = await resolvePrivacyLevel(token!, params.privacy_level || "PUBLIC_TO_EVERYONE");
+        if (!params.video_url) throw new Error("Missing video_url parameter");
         result = await ttFetch("/post/publish/video/init/", token!, "POST", {
           post_info: {
-            title: params.title || "",
-            privacy_level: params.privacy_level || "PUBLIC_TO_EVERYONE",
+            title: clampTitle(params.title),
+            privacy_level: vidPrivacy,
             disable_duet: params.disable_duet ?? false,
             disable_comment: params.disable_comment ?? false,
             disable_stitch: params.disable_stitch ?? false,
@@ -557,6 +585,7 @@ serve(async (req) => {
           }).eq("id", params.post_id);
         }
         break;
+      }
 
       case "check_publish_status":
         result = await ttFetch("/post/publish/status/fetch/", token!, "POST", {
@@ -571,12 +600,16 @@ serve(async (req) => {
         break;
 
       // ===== PUBLISHING: PHOTO =====
-      case "publish_photo":
+      case "publish_photo": {
+        const photoPrivacy = await resolvePrivacyLevel(token!, params.privacy_level || "PUBLIC_TO_EVERYONE");
+        if (!params.image_urls || !Array.isArray(params.image_urls) || params.image_urls.length === 0) {
+          throw new Error("Missing or empty image_urls array for photo publish");
+        }
         result = await ttFetch("/post/publish/content/init/", token!, "POST", {
           post_info: {
-            title: params.title || "",
-            description: params.description || "",
-            privacy_level: params.privacy_level || "PUBLIC_TO_EVERYONE",
+            title: clampTitle(params.title),
+            description: (params.description || "").substring(0, 2200),
+            privacy_level: photoPrivacy,
             disable_comment: params.disable_comment ?? false,
             disable_duet: params.disable_duet ?? false,
             disable_stitch: params.disable_stitch ?? false,
@@ -592,14 +625,19 @@ serve(async (req) => {
           media_type: "PHOTO",
         });
         break;
+      }
 
       // ===== PUBLISHING: CAROUSEL =====
-      case "publish_carousel":
+      case "publish_carousel": {
+        const carouselPrivacy = await resolvePrivacyLevel(token!, params.privacy_level || "PUBLIC_TO_EVERYONE");
+        if (!params.image_urls || !Array.isArray(params.image_urls) || params.image_urls.length === 0) {
+          throw new Error("Missing or empty image_urls array for carousel publish");
+        }
         result = await ttFetch("/post/publish/content/init/", token!, "POST", {
           post_info: {
-            title: params.title || "",
-            description: params.description || "",
-            privacy_level: params.privacy_level || "PUBLIC_TO_EVERYONE",
+            title: clampTitle(params.title),
+            description: (params.description || "").substring(0, 2200),
+            privacy_level: carouselPrivacy,
             disable_comment: params.disable_comment ?? false,
             disable_duet: params.disable_duet ?? false,
             disable_stitch: params.disable_stitch ?? false,
@@ -615,6 +653,7 @@ serve(async (req) => {
           media_type: "CAROUSEL",
         });
         break;
+      }
 
       // ===== CREATOR INFO =====
       case "get_creator_info":
