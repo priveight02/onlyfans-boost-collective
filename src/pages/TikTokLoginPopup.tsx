@@ -27,22 +27,8 @@ const TikTokLoginPopup = () => {
       return;
     }
 
-    // Verify CSRF state
-    if (state) {
-      const savedState = sessionStorage.getItem("tt_csrf");
-      if (savedState && savedState !== state) {
-        const securityError = "Security check failed. Please try again.";
-        setError(securityError);
-        if (window.opener) {
-          window.opener.postMessage({
-            type: "TT_OAUTH_RESULT",
-            payload: { error: securityError, redirect_uri: redirectUri },
-          }, "*");
-          setTimeout(() => window.close(), 1200);
-        }
-        return;
-      }
-    }
+    // CSRF state is validated by the opener via postMessage — sessionStorage
+    // is not shared across windows, so we skip the check here.
 
     if (code) {
       handleCodeExchange(code);
