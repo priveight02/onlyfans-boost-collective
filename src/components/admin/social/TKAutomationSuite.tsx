@@ -1390,19 +1390,28 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   </div>
                   {uploadedFiles.length > 0 && (
                     <div className="flex gap-2 flex-wrap mt-3">
-                      {uploadedFiles.map((f, i) => (
-                        <div key={i} className="relative group">
-                          {f.file.type.startsWith("video/") ? (
-                            <video src={f.preview} className="h-60 w-60 rounded-lg object-cover ring-1 ring-border/20" autoPlay loop muted playsInline preload="auto" />
-                          ) : (
-                            <img src={f.preview} className="h-60 w-60 rounded-lg object-cover ring-1 ring-border/20" />
-                          )}
-                          <button onClick={() => removeUploadedFile(i)} className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <X className="h-3 w-3" />
-                          </button>
-                          {f.url && <CheckCircle2 className="absolute bottom-1 right-1 h-3.5 w-3.5 text-green-400" />}
-                        </div>
-                      ))}
+                      {uploadedFiles.map((f, i) => {
+                        const count = uploadedFiles.length;
+                        const size = count <= 1 ? 'h-60 w-60' : count <= 3 ? 'h-40 w-40' : count <= 6 ? 'h-28 w-28' : 'h-20 w-20';
+                        return (
+                          <div key={i} className="relative group">
+                            {f.file.type.startsWith("video/") ? (
+                              <video
+                                src={f.preview}
+                                className={`${size} rounded-lg object-cover ring-1 ring-border/20`}
+                                autoPlay loop muted playsInline preload="auto"
+                                ref={el => { if (el) el.play().catch(() => {}); }}
+                              />
+                            ) : (
+                              <img src={f.preview} className={`${size} rounded-lg object-cover ring-1 ring-border/20`} />
+                            )}
+                            <button onClick={() => removeUploadedFile(i)} className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <X className="h-3 w-3" />
+                            </button>
+                            {f.url && <CheckCircle2 className="absolute bottom-1 right-1 h-3.5 w-3.5 text-green-400" />}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                   <div className="mt-3">
@@ -2195,18 +2204,27 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                 </div>
                 {uploadedFiles.length > 0 && (
                   <div className="flex gap-2 flex-wrap">
-                    {uploadedFiles.map((f, i) => (
-                      <div key={i} className="relative group">
-                        {f.file.type.startsWith("video") ? (
-                          <video src={f.preview} className="h-48 w-48 object-cover rounded-lg border border-white/[0.06]" autoPlay loop muted playsInline preload="auto" />
-                        ) : (
-                          <img src={f.preview} className="h-48 w-48 object-cover rounded-lg border border-white/[0.06]" alt="" />
-                        )}
-                        <button onClick={() => removeUploadedFile(i)} className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                          <X className="h-3 w-3 text-white" />
-                        </button>
-                      </div>
-                    ))}
+                    {uploadedFiles.map((f, i) => {
+                      const count = uploadedFiles.length;
+                      const size = count <= 1 ? 'h-48 w-48' : count <= 3 ? 'h-32 w-32' : count <= 6 ? 'h-24 w-24' : 'h-16 w-16';
+                      return (
+                        <div key={i} className="relative group">
+                          {f.file.type.startsWith("video") ? (
+                            <video
+                              src={f.preview}
+                              className={`${size} object-cover rounded-lg border border-white/[0.06]`}
+                              autoPlay loop muted playsInline preload="auto"
+                              ref={el => { if (el) el.play().catch(() => {}); }}
+                            />
+                          ) : (
+                            <img src={f.preview} className={`${size} object-cover rounded-lg border border-white/[0.06]`} alt="" />
+                          )}
+                          <button onClick={() => removeUploadedFile(i)} className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-500 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <X className="h-3 w-3 text-white" />
+                          </button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
                 <Input value={newPostMediaUrl} onChange={e => setNewPostMediaUrl(e.target.value)} placeholder="Or paste media URL..." className="text-sm bg-muted/20 border-border/40" />
