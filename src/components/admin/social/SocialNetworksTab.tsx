@@ -33,6 +33,20 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   const [persistedResults, setPersistedResults] = useState<Record<string, any>>({});
   const [inputValues, setInputValues] = useState<Record<string, string>>({});
   const [connectedPlatforms, setConnectedPlatforms] = useState<string[]>([]);
+  // TikTok UX-Compliant Publish State
+  const [ttCreatorInfo, setTtCreatorInfo] = useState<any>(null);
+  const [ttCreatorLoading, setTtCreatorLoading] = useState(false);
+  const [ttPostType, setTtPostType] = useState<"video"|"photo"|"carousel">("video");
+  const [ttVideoUrl, setTtVideoUrl] = useState("");
+  const [ttPhotoUrls, setTtPhotoUrls] = useState("");
+  const [ttCaption, setTtCaption] = useState("");
+  const [ttPrivacy, setTtPrivacy] = useState("PUBLIC_TO_EVERYONE");
+  const [ttAllowComment, setTtAllowComment] = useState(true);
+  const [ttAllowDuet, setTtAllowDuet] = useState(true);
+  const [ttAllowStitch, setTtAllowStitch] = useState(true);
+  const [ttBrandContent, setTtBrandContent] = useState(false);
+  const [ttBrandOrganic, setTtBrandOrganic] = useState(false);
+  const [ttPublishing, setTtPublishing] = useState(false);
   const setInput = (key: string, val: string) => setInputValues(p => ({ ...p, [key]: val }));
   const getInput = (key: string) => inputValues[key] || "";
 
@@ -747,11 +761,146 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderInputAction("Publish Status","tiktok-api","check_publish_status",[{key:"tt_ps_id",placeholder:"Publish ID"}],()=>({publish_id:getInput("tt_ps_id")}),Activity)}
       </TabsContent>
       <TabsContent value="publish" className="space-y-2 mt-3">
-        {renderInputAction("Publish Video (URL)","tiktok-api","publish_video_by_url",[{key:"tt_pub_url",placeholder:"Video URL"},{key:"tt_pub_title",placeholder:"Caption"}],()=>({video_url:getInput("tt_pub_url"),title:getInput("tt_pub_title"),privacy_level:"PUBLIC_TO_EVERYONE"}),Upload)}
-        {renderInputAction("Publish Photo","tiktok-api","publish_photo",[{key:"tt_ph_title",placeholder:"Title"},{key:"tt_ph_urls",placeholder:"Image URLs (comma sep)"}],()=>({title:getInput("tt_ph_title"),image_urls:getInput("tt_ph_urls").split(",").map(s=>s.trim()),privacy_level:"PUBLIC_TO_EVERYONE"}),Image)}
-        {renderInputAction("Carousel","tiktok-api","publish_carousel",[{key:"tt_car_title",placeholder:"Title"},{key:"tt_car_urls",placeholder:"Image URLs (comma sep)"}],()=>({title:getInput("tt_car_title"),image_urls:getInput("tt_car_urls").split(",").map(s=>s.trim()),privacy_level:"PUBLIC_TO_EVERYONE"}),Layers)}
-        {renderInputAction("Private Video","tiktok-api","publish_video_by_url",[{key:"tt_priv_url",placeholder:"Video URL"},{key:"tt_priv_title",placeholder:"Caption"}],()=>({video_url:getInput("tt_priv_url"),title:getInput("tt_priv_title"),privacy_level:"SELF_ONLY"}),Lock)}
-        {renderInputAction("Friends Only Video","tiktok-api","publish_video_by_url",[{key:"tt_fr_url",placeholder:"Video URL"},{key:"tt_fr_title",placeholder:"Caption"}],()=>({video_url:getInput("tt_fr_url"),title:getInput("tt_fr_title"),privacy_level:"MUTUAL_FOLLOW_FRIENDS"}),Users)}
+        <div className="space-y-3">
+          {/* POINT 1: Creator Info Display — Show logged-in TikTok identity */}
+          <div className="rounded-lg border border-white/10 p-3" style={{ background: "hsl(222, 30%, 10%)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40 mb-2">Posting As</p>
+            {ttCreatorLoading ? (
+              <div className="flex items-center gap-2 text-white/50 text-xs"><RefreshCw className="h-3 w-3 animate-spin" /> Loading creator info...</div>
+            ) : ttCreatorInfo ? (
+              <div className="flex items-center gap-3">
+                {ttCreatorInfo.avatar_url ? (
+                  <img src={ttCreatorInfo.avatar_url} alt="" className="h-10 w-10 rounded-full border-2 border-cyan-500/50 object-cover" />
+                ) : (
+                  <div className="h-10 w-10 rounded-full bg-cyan-500/20 flex items-center justify-center"><Users className="h-5 w-5 text-cyan-400" /></div>
+                )}
+                <div>
+                  <p className="text-sm font-semibold text-white">@{ttCreatorInfo.creator_username || ttCreatorInfo.username || "unknown"}</p>
+                  <p className="text-[10px] text-white/40">{ttCreatorInfo.creator_nickname || ttCreatorInfo.display_name || ""}</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={async () => { setTtCreatorLoading(true); try { const res = await callApi("tiktok-api", "get_creator_info", {}); if (res) setTtCreatorInfo(res); } catch {} setTtCreatorLoading(false); }} className="ml-auto text-white/40 hover:text-white h-7 w-7 p-0"><RefreshCw className="h-3 w-3" /></Button>
+              </div>
+            ) : (
+              <Button variant="outline" size="sm" onClick={async () => { setTtCreatorLoading(true); try { const res = await callApi("tiktok-api", "get_creator_info", {}); if (res) setTtCreatorInfo(res); } catch {} setTtCreatorLoading(false); }} className="text-xs border-white/20 text-white/60">Load Creator Info</Button>
+            )}
+          </div>
+
+          {/* Content Type Selector */}
+          <div className="flex gap-1.5">
+            {([["video", Video, "Video"] as const, ["photo", Image, "Photo"] as const, ["carousel", Layers, "Carousel"] as const]).map(([type, Icon, label]) => (
+              <Button key={type} variant={ttPostType === type ? "default" : "outline"} size="sm" onClick={() => setTtPostType(type)}
+                className={`text-xs gap-1 ${ttPostType === type ? "bg-cyan-600 text-white" : "border-white/20 text-white/60"}`}>
+                <Icon className="h-3 w-3" />{label}
+              </Button>
+            ))}
+          </div>
+
+          {/* Media Input */}
+          {ttPostType === "video" ? (
+            <Input value={ttVideoUrl} onChange={e => setTtVideoUrl(e.target.value)} placeholder="Video URL (publicly accessible)" className="bg-white/5 border-white/10 text-white text-xs" />
+          ) : (
+            <Input value={ttPhotoUrls} onChange={e => setTtPhotoUrls(e.target.value)} placeholder="Image URLs (comma separated, publicly accessible)" className="bg-white/5 border-white/10 text-white text-xs" />
+          )}
+
+          {/* Caption */}
+          <textarea value={ttCaption} onChange={e => setTtCaption(e.target.value)} placeholder="Write a caption... #hashtags" rows={3}
+            className="w-full rounded-md bg-white/5 border border-white/10 text-white text-xs p-2.5 resize-none focus:outline-none focus:border-cyan-500/50 placeholder:text-white/30" />
+
+          {/* POINT 2: Privacy Level — Dynamic from creator_info.privacy_level_options */}
+          <div className="rounded-lg border border-white/10 p-3 space-y-2" style={{ background: "hsl(222, 30%, 10%)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Who can view this post</p>
+            <div className="flex gap-1.5 flex-wrap">
+              {(ttCreatorInfo?.privacy_level_options || ["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "SELF_ONLY"]).map((opt: string) => {
+                const icons: Record<string, any> = { PUBLIC_TO_EVERYONE: Globe, MUTUAL_FOLLOW_FRIENDS: Users, FOLLOWER_OF_CREATOR: Heart, SELF_ONLY: Lock };
+                const Icon = icons[opt] || Globe;
+                const privacyLabels: Record<string, string> = { PUBLIC_TO_EVERYONE: "Public", MUTUAL_FOLLOW_FRIENDS: "Friends", FOLLOWER_OF_CREATOR: "Followers", SELF_ONLY: "Private" };
+                return (
+                  <Button key={opt} variant={ttPrivacy === opt ? "default" : "outline"} size="sm" onClick={() => setTtPrivacy(opt)}
+                    className={`text-[10px] gap-1 ${ttPrivacy === opt ? "bg-cyan-600 text-white" : "border-white/20 text-white/60"}`}>
+                    <Icon className="h-3 w-3" />{privacyLabels[opt] || opt}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* POINT 3: Interaction Settings — Allow Comment, Duet, Stitch */}
+          <div className="rounded-lg border border-white/10 p-3 space-y-2" style={{ background: "hsl(222, 30%, 10%)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Interaction Settings</p>
+            <div className="flex flex-col gap-2">
+              {[
+                { label: "Allow Comments", value: ttAllowComment, setter: setTtAllowComment, icon: MessageSquare, disabledByCreator: ttCreatorInfo?.comment_disabled },
+                { label: "Allow Duet", value: ttAllowDuet, setter: setTtAllowDuet, icon: Repeat, disabledByCreator: ttCreatorInfo?.duet_disabled },
+                { label: "Allow Stitch", value: ttAllowStitch, setter: setTtAllowStitch, icon: Layers, disabledByCreator: ttCreatorInfo?.stitch_disabled },
+              ].map(toggle => (
+                <div key={toggle.label} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <toggle.icon className="h-3.5 w-3.5 text-white/50" />
+                    <span className="text-xs text-white/70">{toggle.label}</span>
+                    {toggle.disabledByCreator && <Badge variant="outline" className="text-[8px] border-orange-500/30 text-orange-400 px-1 py-0">Disabled by creator</Badge>}
+                  </div>
+                  <button
+                    onClick={() => !toggle.disabledByCreator && toggle.setter(!toggle.value)}
+                    disabled={toggle.disabledByCreator}
+                    className={`relative w-9 h-5 rounded-full transition-colors ${toggle.value && !toggle.disabledByCreator ? "bg-cyan-600" : "bg-white/10"} ${toggle.disabledByCreator ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${toggle.value && !toggle.disabledByCreator ? "translate-x-4" : ""}`} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* POINT 4: Commercial Content Disclosure */}
+          <div className="rounded-lg border border-white/10 p-3 space-y-2" style={{ background: "hsl(222, 30%, 10%)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Commercial Content Disclosure</p>
+            <p className="text-[10px] text-white/30 leading-relaxed">If this post promotes a brand, product, or third-party, turn on the appropriate toggle. This lets viewers know the post is commercial. <a href="https://www.tiktok.com/community-guidelines" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">Learn more</a></p>
+            <div className="flex flex-col gap-2 mt-1">
+              {[
+                { label: "Branded Content", desc: "You are promoting another brand or third party", value: ttBrandContent, setter: setTtBrandContent },
+                { label: "Your Brand", desc: "You are promoting yourself or your own business", value: ttBrandOrganic, setter: setTtBrandOrganic },
+              ].map(toggle => (
+                <div key={toggle.label} className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-white/70">{toggle.label}</span>
+                    <p className="text-[9px] text-white/30">{toggle.desc}</p>
+                  </div>
+                  <button
+                    onClick={() => toggle.setter(!toggle.value)}
+                    className={`relative w-9 h-5 rounded-full transition-colors cursor-pointer ${toggle.value ? "bg-cyan-600" : "bg-white/10"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${toggle.value ? "translate-x-4" : ""}`} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            {(ttBrandContent || ttBrandOrganic) && (
+              <p className="text-[9px] text-amber-400/70 mt-1 leading-relaxed">⚠️ By posting, you agree that your content complies with TikTok's <a href="https://www.tiktok.com/community-guidelines" target="_blank" rel="noopener noreferrer" className="underline">Branded Content Policy</a>. This content will be labeled to viewers.</p>
+            )}
+          </div>
+
+          {/* POINT 5: Posted-by Disclosure & Publish Button */}
+          <div className="rounded-lg border border-cyan-500/20 p-3 space-y-2" style={{ background: "hsl(222, 30%, 8%)" }}>
+            <p className="text-[10px] text-white/30 text-center">This content will be posted to TikTok via <strong className="text-white/60">Uplyze</strong></p>
+            <Button onClick={async () => {
+              if (!ttCaption.trim()) { toast.error("Caption is required"); return; }
+              setTtPublishing(true);
+              try {
+                let action = "publish_video_by_url";
+                let params: any = { title: ttCaption, privacy_level: ttPrivacy, disable_comment: !ttAllowComment, disable_duet: !ttAllowDuet, disable_stitch: !ttAllowStitch, brand_content_toggle: ttBrandContent, brand_organic_toggle: ttBrandOrganic };
+                if (ttPostType === "video") { action = "publish_video_by_url"; params.video_url = ttVideoUrl; }
+                else if (ttPostType === "photo") { action = "publish_photo"; params.image_urls = ttPhotoUrls.split(",").map(s => s.trim()).filter(Boolean); }
+                else { action = "publish_carousel"; params.image_urls = ttPhotoUrls.split(",").map(s => s.trim()).filter(Boolean); }
+                const res = await callApi("tiktok-api", action, params);
+                if (res) { toast.success("Published to TikTok!"); setTtCaption(""); setTtVideoUrl(""); setTtPhotoUrls(""); }
+              } catch (e: any) { toast.error(e.message || "Publish failed"); }
+              setTtPublishing(false);
+            }} disabled={ttPublishing || !ttCaption.trim() || (ttPostType === "video" ? !ttVideoUrl.trim() : !ttPhotoUrls.trim())}
+              className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold text-sm h-10">
+              {ttPublishing ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Publishing...</> : <><Upload className="h-4 w-4 mr-2" />Publish to TikTok</>}
+            </Button>
+          </div>
+        </div>
       </TabsContent>
       <TabsContent value="comments" className="space-y-2 mt-3">
         {renderInputAction("Get Comments","tiktok-api","get_comments",[{key:"tt_cmt_vid",placeholder:"Video ID"}],()=>({video_id:getInput("tt_cmt_vid"),limit:50}),MessageSquare)}
