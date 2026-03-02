@@ -844,18 +844,17 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           if (existingTT) {
             accountId = existingTT.account_id;
           } else {
-            const { count: ttCount } = await supabase.from("social_connections").select("id", { count: "exact", head: true }).eq("platform", "tiktok").eq("is_connected", true).eq("user_id", user?.id!);
-            if ((ttCount || 0) >= 5) { toast.error("Maximum 5 TikTok accounts reached"); setAutoConnectLoading(null); return; }
-            // Create new managed account for additional TT connection
-            if (accountId && (ttCount || 0) > 0) {
-              const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: ttUser.display_name || username, platform: "tiktok", status: "active", avatar_url: ttUser.avatar_url || null, user_id: user?.id }).select("id").single();
-              if (err || !newAcct) { toast.error(err?.message || "Failed"); setAutoConnectLoading(null); return; }
-              accountId = newAcct.id;
-              toast.success(`Additional TikTok @${username} created`);
-            } else if (!accountId) {
+            // Check if managed_account already exists for this username
+            const { data: existingMA } = await supabase.from("managed_accounts").select("id").eq("username", username).eq("user_id", user?.id!).maybeSingle();
+            if (existingMA) {
+              accountId = existingMA.id;
+            } else {
+              const { count: ttCount } = await supabase.from("social_connections").select("id", { count: "exact", head: true }).eq("platform", "tiktok").eq("is_connected", true).eq("user_id", user?.id!);
+              if ((ttCount || 0) >= 5) { toast.error("Maximum 5 TikTok accounts reached"); setAutoConnectLoading(null); return; }
               const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({ username, display_name: ttUser.display_name || username, platform: "tiktok", status: "active", avatar_url: ttUser.avatar_url || null, user_id: user?.id }).select("id").single();
               if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
               accountId = newAcct.id;
+              toast.success(`TikTok @${username} created`);
             }
           }
           setSelectedAccount(accountId);
@@ -2180,32 +2179,24 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
           }
           accountId = existingTT.account_id;
         } else {
-          const { count: ttCount } = await supabase
-            .from("social_connections")
-            .select("id", { count: "exact", head: true })
-            .eq("platform", "tiktok")
-            .eq("is_connected", true)
-            .eq("user_id", user?.id!);
-
-          if ((ttCount || 0) >= 5) {
-            toast.error("Maximum 5 TikTok accounts reached");
-            setAutoConnectLoading(null);
-            return;
-          }
-
-          if (addMode || (accountId && (ttCount || 0) > 0)) {
-            const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
-              username,
-              display_name: ttUser.display_name || username,
-              platform: "tiktok",
-              status: "active",
-              avatar_url: ttUser.avatar_url || null,
-              user_id: user?.id,
-            }).select("id").single();
-            if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
-            accountId = newAcct.id;
-            toast.success(`Additional TikTok @${username} created`);
+          // Check if managed_account already exists for this username
+          const { data: existingMA } = await supabase.from("managed_accounts").select("id").eq("username", username).eq("user_id", user?.id!).maybeSingle();
+          if (existingMA) {
+            accountId = existingMA.id;
           } else {
+            const { count: ttCount } = await supabase
+              .from("social_connections")
+              .select("id", { count: "exact", head: true })
+              .eq("platform", "tiktok")
+              .eq("is_connected", true)
+              .eq("user_id", user?.id!);
+
+            if ((ttCount || 0) >= 5) {
+              toast.error("Maximum 5 TikTok accounts reached");
+              setAutoConnectLoading(null);
+              return;
+            }
+
             const { data: newAcct, error: err } = await supabase.from("managed_accounts").insert({
               username,
               display_name: ttUser.display_name || username,
@@ -2216,6 +2207,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             }).select("id").single();
             if (err || !newAcct) { toast.error(err?.message || "Failed to create account"); setAutoConnectLoading(null); return; }
             accountId = newAcct.id;
+            toast.success(`TikTok @${username} created`);
           }
         }
         setSelectedAccount(accountId);
