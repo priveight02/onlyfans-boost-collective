@@ -644,6 +644,13 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
     });
   }, [selectedAccount]); // Only on mount, not on scheduledPosts change
 
+  // === COMPLIANCE: Auto-fetch creator_info when content tab is active ===
+  useEffect(() => {
+    if (activeTab === "content" && selectedAccount && tiktokConnected && !creatorInfo) {
+      fetchCreatorInfo();
+    }
+  }, [activeTab, selectedAccount, tiktokConnected]);
+
   const deletePost = async (id: string) => {
     await supabase.from("social_posts").delete().eq("id", id);
     toast.success("Deleted");
@@ -1468,6 +1475,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
 
               {/* Right Column — TikTok Required UX Flow (Point 1 → 5) */}
               <div className="space-y-4">
+                {/* ===== POINT 1: Creator Info ===== */}
                 <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.03] p-3 space-y-2">
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold text-foreground">1) Creator Info & Daily Limits</p>
@@ -1475,56 +1483,161 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                       <RefreshCw className="h-3 w-3 mr-1" /> Refresh
                     </Button>
                   </div>
-                  <p className="text-[10px] text-muted-foreground">App Name: <span className="text-foreground font-medium">{TIKTOK_APP_NAME}</span> • Organization Name: <span className="text-foreground font-medium">{TIKTOK_ORG_NAME}</span></p>
-                  <p className="text-[10px] text-muted-foreground">Daily posting limit: <span className="text-foreground">{creatorInfo?.max_posts_per_day ?? creatorInfo?.daily_post_limit ?? creatorInfo?.creator_info?.daily_post_limit ?? "Fetch creator info"}</span></p>
+                  {/* REQUIRED: Display creator nickname so user knows which TikTok account content uploads to */}
+                  {profile ? (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+                      {(profile.avatar_url || profile.avatar_url_100) && <img src={profile.avatar_url || profile.avatar_url_100} className="h-8 w-8 rounded-full object-cover" />}
+                      <div>
+                        <p className="text-xs font-semibold text-foreground">{profile.display_name}</p>
+                        <p className="text-[10px] text-muted-foreground">@{profile.username} • Posting to this account</p>
+                      </div>
+                      <TikTokIcon className="h-4 w-4 text-cyan-400 ml-auto" />
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                      <AlertCircle className="h-4 w-4 text-amber-400" />
+                      <p className="text-[10px] text-amber-400">Sync your TikTok profile first (Dashboard → Sync) to display creator info</p>
+                    </div>
+                  )}
+                  <p className="text-[10px] text-muted-foreground">App: <span className="text-foreground font-medium">{TIKTOK_APP_NAME}</span> • Org: <span className="text-foreground font-medium">{TIKTOK_ORG_NAME}</span></p>
+                  {/* REQUIRED: Show daily posting limit and block if reached */}
+                  {(() => {
+                    const maxPosts = creatorInfo?.max_posts_per_day ?? creatorInfo?.daily_post_limit ?? creatorInfo?.creator_info?.max_video_post_per_day ?? null;
+                    const canPost = creatorInfo?.creator_info?.can_post ?? creatorInfo?.can_post ?? true;
+                    const maxDuration = creatorInfo?.creator_info?.max_video_post_duration_sec ?? creatorInfo?.max_video_post_duration_sec ?? null;
+                    return (
+                      <>
+                        <p className="text-[10px] text-muted-foreground">Daily posting limit: <span className="text-foreground font-medium">{maxPosts ?? "Fetch creator info →"}</span></p>
+                        {maxDuration && <p className="text-[10px] text-muted-foreground">Max video duration: <span className="text-foreground font-medium">{maxDuration}s</span></p>}
+                        {canPost === false && (
+                          <div className="flex items-center gap-2 p-2 rounded-lg bg-red-500/10 border border-red-500/20">
+                            <AlertCircle className="h-4 w-4 text-red-400" />
+                            <p className="text-[10px] text-red-400 font-medium">Daily posting limit reached — you cannot post more content today.</p>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
+                {/* ===== POINT 2: Privacy Level — MUST use dynamic options from creator_info ===== */}
                 <div>
-                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">2) Privacy Level (required)</label>
+                  <label className="text-xs font-medium text-muted-foreground mb-1.5 block">2) Privacy Level (required — no default)</label>
                   <select value={schedPrivacy} onChange={e => setSchedPrivacy(e.target.value)} className="w-full bg-muted/20 border border-border/40 text-foreground rounded-lg px-3 py-2 text-sm focus:border-cyan-500/40 outline-none">
-                    <option value="" disabled>Select privacy level</option>
-                    <option value="PUBLIC_TO_EVERYONE">🌍 Public — Everyone</option>
-                    <option value="MUTUAL_FOLLOW_FRIENDS">👥 Friends — Mutual Follows</option>
-                    <option value="FOLLOWER_OF_CREATOR">🔒 Followers Only</option>
-                    <option value="SELF_ONLY">🔐 Private — Self Only</option>
+                    <option value="" disabled>— Select privacy level —</option>
+                    {(() => {
+                      // REQUIRED: Use privacy_level_options from creator_info API response
+                      const options: string[] = creatorInfo?.creator_info?.privacy_level_options ?? creatorInfo?.privacy_level_options ?? [];
+                      const labels: Record<string, string> = {
+                        "PUBLIC_TO_EVERYONE": "🌍 Public — Everyone",
+                        "MUTUAL_FOLLOW_FRIENDS": "👥 Friends — Mutual Follows",
+                        "FOLLOWER_OF_CREATOR": "🔒 Followers Only",
+                        "SELF_ONLY": "🔐 Private — Self Only",
+                      };
+                      if (options.length > 0) {
+                        return options.map(opt => (
+                          <option key={opt} value={opt}>{labels[opt] || opt}</option>
+                        ));
+                      }
+                      // Fallback when creator_info not yet fetched — show all but warn
+                      return Object.entries(labels).map(([val, label]) => (
+                        <option key={val} value={val}>{label}</option>
+                      ));
+                    })()}
                   </select>
+                  {!creatorInfo && (
+                    <p className="text-[10px] text-amber-400 mt-1 flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      Click "Refresh" in Creator Info above to load available privacy options from TikTok
+                    </p>
+                  )}
                 </div>
 
+                {/* ===== POINT 2 continued: Interaction Settings — respect creator_info disabled states ===== */}
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground block">3) Interaction Settings</label>
-                  <div className="grid grid-cols-1 gap-2">
-                    {[
+                  <label className="text-xs font-medium text-muted-foreground block">2b) Interaction Settings</label>
+                  {(() => {
+                    // REQUIRED: If creator_info returns duet/stitch/comment as disabled, auto-disable and show explanation
+                    const ci = creatorInfo?.creator_info || creatorInfo || {};
+                    const duetDisabledByCreator = ci.duet_disabled === true;
+                    const stitchDisabledByCreator = ci.stitch_disabled === true;
+                    const commentDisabledByCreator = ci.comment_disabled === true;
+                    const items = [
                       ...(schedContentType === "video" ? [
-                        { label: "Allow Duets", icon: Users, checked: !schedDisableDuet, onChange: (v: boolean) => setSchedDisableDuet(!v) },
-                        { label: "Allow Stitches", icon: Layers, checked: !schedDisableStitch, onChange: (v: boolean) => setSchedDisableStitch(!v) },
+                        { label: "Allow Duets", icon: Users, checked: !schedDisableDuet, onChange: (v: boolean) => setSchedDisableDuet(!v), disabledByCreator: duetDisabledByCreator },
+                        { label: "Allow Stitches", icon: Layers, checked: !schedDisableStitch, onChange: (v: boolean) => setSchedDisableStitch(!v), disabledByCreator: stitchDisabledByCreator },
                       ] : []),
-                      { label: "Allow Comments", icon: MessageSquare, checked: !schedDisableComment, onChange: (v: boolean) => setSchedDisableComment(!v) },
-                    ].map(s => (
-                      <label key={s.label} className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
-                        <span className="text-xs text-foreground flex items-center gap-2"><s.icon className="h-3.5 w-3.5 text-muted-foreground" />{s.label}</span>
-                        <Switch checked={s.checked} onCheckedChange={s.onChange} className="scale-75" />
-                      </label>
-                    ))}
-                  </div>
+                      { label: "Allow Comments", icon: MessageSquare, checked: !schedDisableComment, onChange: (v: boolean) => setSchedDisableComment(!v), disabledByCreator: commentDisabledByCreator },
+                    ];
+                    return (
+                      <div className="grid grid-cols-1 gap-2">
+                        {items.map(s => (
+                          <label key={s.label} className={`flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 transition-colors ${s.disabledByCreator ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-muted/30"}`}>
+                            <span className="text-xs text-foreground flex items-center gap-2">
+                              <s.icon className="h-3.5 w-3.5 text-muted-foreground" />{s.label}
+                              {s.disabledByCreator && <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[8px] ml-1">Disabled in TikTok settings</Badge>}
+                            </span>
+                            <Switch checked={s.disabledByCreator ? false : s.checked} onCheckedChange={s.disabledByCreator ? undefined : s.onChange} disabled={s.disabledByCreator} className="scale-75" />
+                          </label>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
 
+                {/* ===== POINT 3: Commercial Content Disclosure ===== */}
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground block">4) Commercial Disclosure</label>
+                  <label className="text-xs font-medium text-muted-foreground block">3) Commercial Content Disclosure</label>
+                  <p className="text-[10px] text-muted-foreground">If your content promotes a brand, product, or third party, you must enable the relevant toggle below. Learn more at <a href="https://www.tiktok.com/community-guidelines/en/branded-content/" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">TikTok Branded Content Policy</a>.</p>
                   <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
-                    <span className="text-xs text-foreground flex items-center gap-2"><Megaphone className="h-3.5 w-3.5 text-muted-foreground" />Branded Content</span>
+                    <span className="text-xs text-foreground flex items-center gap-2"><Megaphone className="h-3.5 w-3.5 text-muted-foreground" />Branded Content — paid partnership or sponsorship</span>
                     <Switch checked={schedBrandContent} onCheckedChange={setSchedBrandContent} className="scale-75" />
                   </label>
                   <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
-                    <span className="text-xs text-foreground flex items-center gap-2"><Shield className="h-3.5 w-3.5 text-muted-foreground" />Your Brand Promotion</span>
+                    <span className="text-xs text-foreground flex items-center gap-2"><Shield className="h-3.5 w-3.5 text-muted-foreground" />Your Brand Promotion — promoting your own business</span>
                     <Switch checked={schedBrandOrganic} onCheckedChange={setSchedBrandOrganic} className="scale-75" />
                   </label>
-                  <p className="text-[10px] text-muted-foreground">By publishing, you agree to TikTok branded content policies and local advertising disclosure laws.</p>
+                  <p className="text-[10px] text-muted-foreground">By publishing, you agree to TikTok's <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">Music Usage Confirmation</a> and <a href="https://www.tiktok.com/community-guidelines" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">Community Guidelines</a>.</p>
                 </div>
 
-                <div className="rounded-lg border border-border/30 bg-muted/20 p-3">
-                  <p className="text-xs font-medium text-foreground mb-1">5) Attribution Preview</p>
-                  <p className="text-[10px] text-muted-foreground">{ATTRIBUTION_LINE}</p>
-                  <p className="text-xs text-foreground whitespace-pre-wrap mt-1">{withAttribution(newPostCaption || "")}</p>
+                {/* ===== POINT 5: Full Awareness & Control — Content Preview ===== */}
+                <div className="rounded-lg border border-border/30 bg-muted/20 p-3 space-y-2">
+                  <p className="text-xs font-medium text-foreground">4) Content Preview & Attribution</p>
+                  <p className="text-[10px] text-muted-foreground">Review what will be posted to your TikTok account before confirming.</p>
+                  {/* Media preview */}
+                  {(uploadedFiles.length > 0 || newPostMediaUrl) && (
+                    <div className="rounded-lg overflow-hidden border border-border/20 bg-black/20">
+                      {uploadedFiles.length > 0 ? (
+                        <div className="flex gap-1 p-2 flex-wrap">
+                          {uploadedFiles.slice(0, 4).map((f, i) => (
+                            isVideoMedia(f.file) ? (
+                              <video key={i} src={f.preview} className="h-20 w-20 rounded object-cover" muted playsInline />
+                            ) : (
+                              <img key={i} src={f.preview} className="h-20 w-20 rounded object-cover" />
+                            )
+                          ))}
+                          {uploadedFiles.length > 4 && <div className="h-20 w-20 rounded bg-white/[0.06] flex items-center justify-center text-xs text-muted-foreground">+{uploadedFiles.length - 4}</div>}
+                        </div>
+                      ) : newPostMediaUrl && (
+                        <div className="p-2">
+                          <p className="text-[10px] text-muted-foreground truncate">📎 {newPostMediaUrl}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* Caption preview with attribution */}
+                  <div className="bg-white/[0.03] rounded-lg p-2 border border-white/[0.06]">
+                    <p className="text-[10px] text-muted-foreground mb-1">Caption as it will appear:</p>
+                    <p className="text-xs text-foreground whitespace-pre-wrap">{withAttribution(newPostCaption || "") || <span className="text-muted-foreground italic">No caption</span>}</p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Privacy: <span className="text-foreground font-medium">{schedPrivacy || "Not selected"}</span></p>
+                </div>
+
+                {/* ===== POINT 5 continued: Explicit consent + processing notice ===== */}
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.03] p-3">
+                  <p className="text-[10px] text-muted-foreground">
+                    <strong className="text-foreground">⚠️ Note:</strong> After you click "Publish Now", your content will be sent to TikTok for processing. It may take <strong>a few minutes</strong> for your content to appear on TikTok. You can track the publish status below.
+                  </p>
                 </div>
 
                 <div>
@@ -1541,13 +1654,16 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   <p className="text-[10px] text-muted-foreground mt-1">Leave empty to save as draft</p>
                 </div>
                 <div className="flex gap-2 pt-1">
-                  <Button onClick={schedulePost} disabled={!schedPrivacy || (!newPostCaption && !newPostMediaUrl && uploadedFiles.length === 0)} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white gap-2">
+                  <Button onClick={schedulePost} disabled={!schedPrivacy || (!newPostCaption && !newPostMediaUrl && uploadedFiles.length === 0) || (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false))} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white gap-2">
                     {newPostScheduledAt ? <Calendar className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
                     {newPostScheduledAt ? "Schedule Post" : "Save as Draft"}
                   </Button>
                   {(newPostMediaUrl || uploadedFiles.some(f => f.url)) && !newPostScheduledAt && (
                     <Button variant="outline" onClick={async () => {
                       if (!schedPrivacy) { toast.error("Select a privacy level before publishing"); return; }
+                      if (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false)) {
+                        toast.error("Daily posting limit reached — you cannot post more content today."); return;
+                      }
                       const mediaUrl = uploadedFiles.find(f => f.url)?.url || newPostMediaUrl;
                       if (!mediaUrl) return;
                       const finalTitle = withAttribution(newPostCaption || "");
@@ -1569,8 +1685,8 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                           brand_organic_toggle: schedBrandOrganic,
                         });
                       }
-                      toast.success("Published!");
-                    }} disabled={loading || !schedPrivacy} className="gap-2">
+                      toast.success("Content sent to TikTok! It may take a few minutes to appear on your profile.");
+                    }} disabled={loading || !schedPrivacy || (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false))} className="gap-2">
                       <Upload className="h-4 w-4" />Publish Now
                     </Button>
                   )}
