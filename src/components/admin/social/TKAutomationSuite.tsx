@@ -57,23 +57,41 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
   const [tkScanning, setTkScanning] = useState(false);
   const [tkSearchQuery, setTkSearchQuery] = useState("");
 
-  // Check TikTok connection + realtime updates
+  // Connected TikTok account ID (may differ from selectedAccount in multi-account setups)
+  const [connectedTkAccountId, setConnectedTkAccountId] = useState<string | null>(null);
+
+  // Check TikTok connection globally (across all managed accounts)
   useEffect(() => {
-    if (!selectedAccount) { setTiktokConnected(false); return; }
     const check = async () => {
-      const { data } = await supabase.from("social_connections")
-        .select("id")
-        .eq("account_id", selectedAccount)
+      // First check selected account
+      if (selectedAccount) {
+        const { data } = await supabase.from("social_connections")
+          .select("id, account_id")
+          .eq("account_id", selectedAccount)
+          .eq("platform", "tiktok")
+          .eq("is_connected", true)
+          .maybeSingle();
+        if (data) {
+          setTiktokConnected(true);
+          setConnectedTkAccountId(data.account_id);
+          return;
+        }
+      }
+      // Fallback: check ANY managed account with TikTok connected
+      const { data: globalConn } = await supabase.from("social_connections")
+        .select("id, account_id")
         .eq("platform", "tiktok")
         .eq("is_connected", true)
+        .limit(1)
         .maybeSingle();
-      setTiktokConnected(!!data);
+      setTiktokConnected(!!globalConn);
+      setConnectedTkAccountId(globalConn?.account_id || null);
     };
     check();
-    // Realtime: refresh connection status on any change
+    // Realtime: refresh connection status on any change to social_connections
     const channel = supabase
-      .channel(`tk-conn-status-${selectedAccount}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "social_connections", filter: `account_id=eq.${selectedAccount}` }, () => check())
+      .channel(`tk-conn-status-global-${selectedAccount}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "social_connections" }, () => check())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [selectedAccount]);
@@ -225,32 +243,32 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
     return () => { supabase.removeChannel(channel); };
   }, [selectedAccount, loadScheduledPosts]);
 
+  // Use the account that actually has TikTok connected for API calls
+  const effectiveAccountId = connectedTkAccountId || selectedAccount;
+
   const callApi = useCallback(async (action: string, params?: any) => {
     setLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke("tiktok-api", {
-        body: { action, account_id: selectedAccount, params },
+        body: { action, account_id: effectiveAccountId, params },
       });
-      // Handle edge function errors (including 400s) as in-app notifications
       if (error) {
-        // Try to parse the error body for a user-friendly message
         const msg = typeof error === "object" && error.message ? error.message : String(error);
-        toast.info(msg || "TikTok action could not be completed", { description: "Connect your TikTok account to use this feature." });
+        toast.info(msg || "TikTok action could not be completed");
         return null;
       }
       if (!data?.success) {
-        toast.info(data?.error || "TikTok action could not be completed", { description: "Please check your TikTok connection." });
+        toast.info(data?.error || "TikTok action could not be completed");
         return null;
       }
       return data.data;
     } catch (e: any) {
-      // Catch network or unexpected errors as info toasts, not error logs
-      toast.info(e.message || "TikTok API unavailable", { description: "Please try again or reconnect your account." });
+      toast.info(e.message || "TikTok API unavailable", { description: "Please try again later." });
       return null;
     } finally {
       setLoading(false);
     }
-  }, [selectedAccount]);
+  }, [effectiveAccountId]);
 
   // === API HANDLERS ===
   const fetchProfile = async () => {
@@ -815,7 +833,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
     );
   }
 
-  if (!tiktokConnected && !selectedAccount) {
+  if (!tiktokConnected) {
     return <ConnectTikTokCTA />;
   }
 
