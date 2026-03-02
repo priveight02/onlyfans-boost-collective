@@ -78,6 +78,9 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       setExpandedPlatform(platformId);
       // Restore persisted result for this platform
       setResult(persistedResults[platformId] || null);
+      if (platformId === "tiktok" && !ttCreatorInfo && !ttCreatorLoading) {
+        void loadTikTokCreatorInfo();
+      }
     }
   };
 
@@ -104,6 +107,37 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       setLoading(false);
     }
   };
+
+  const loadTikTokCreatorInfo = async () => {
+    setTtCreatorLoading(true);
+    try {
+      const res = await callApi("tiktok-api", "get_creator_info", {});
+      if (res) setTtCreatorInfo((res as any)?.data ?? res);
+    } finally {
+      setTtCreatorLoading(false);
+    }
+  };
+
+  const getRemoteVideoDurationSeconds = (url: string) =>
+    new Promise<number>((resolve, reject) => {
+      const video = document.createElement("video");
+      video.preload = "metadata";
+      video.crossOrigin = "anonymous";
+      video.onloadedmetadata = () => {
+        const duration = Number(video.duration || 0);
+        video.remove();
+        if (!Number.isFinite(duration) || duration <= 0) {
+          reject(new Error("Invalid video metadata"));
+          return;
+        }
+        resolve(duration);
+      };
+      video.onerror = () => {
+        video.remove();
+        reject(new Error("Could not read video metadata"));
+      };
+      video.src = url;
+    });
 
   const iconSize = "h-8 w-8";
   const platformLogos: Record<string, JSX.Element> = {
@@ -744,7 +778,13 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
   );
 
   // ===== TIKTOK =====
-  const renderTikTokContent = () => (
+  const renderTikTokContent = () => {
+    const ttCreator = (ttCreatorInfo as any)?.data ?? ttCreatorInfo;
+    const ttPrivacyOptions = ttCreator?.privacy_level_options || ["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "FOLLOWER_OF_CREATOR", "SELF_ONLY"];
+    const ttMinDuration = Number(ttCreator?.min_video_post_duration_sec || 0);
+    const ttMaxDuration = Number(ttCreator?.max_video_post_duration_sec || 0);
+
+    return (
     <Tabs defaultValue="videos" className="w-full">
       <TabsList className="border border-white/10 p-0.5 rounded-lg gap-0.5 flex-wrap h-auto" style={{ background: "hsl(222, 30%, 12%)" }}>
         {[{v:"videos",l:"Videos",icon:Video},{v:"publish",l:"Publish",icon:Upload},{v:"comments",l:"Comments",icon:MessageSquare},{v:"dms",l:"DMs",icon:Send},{v:"playlists",l:"Playlists",icon:List},{v:"research",l:"Research",icon:Search},{v:"analytics",l:"Analytics",icon:BarChart3},{v:"ai",l:"AI Auto",icon:Brain}].map(t=>(
@@ -762,169 +802,152 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
       </TabsContent>
       <TabsContent value="publish" className="space-y-2 mt-3">
         <div className="space-y-3">
-          {/* POINT 1: Creator Info Display — Show logged-in TikTok identity */}
+          {/* POINT 1: Creator Info Display */}
           <div className="rounded-lg border border-white/10 p-3" style={{ background: "hsl(222, 30%, 10%)" }}>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40 mb-2">Posting As</p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40 mb-2">1) Posting As</p>
             {ttCreatorLoading ? (
               <div className="flex items-center gap-2 text-white/50 text-xs"><RefreshCw className="h-3 w-3 animate-spin" /> Loading creator info...</div>
-            ) : ttCreatorInfo ? (
+            ) : ttCreator ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-3">
-                  {ttCreatorInfo.avatar_url ? (
-                    <img src={ttCreatorInfo.avatar_url} alt="" className="h-10 w-10 rounded-full border-2 border-cyan-500/50 object-cover" />
+                  {ttCreator.avatar_url ? (
+                    <img src={ttCreator.avatar_url} alt="TikTok creator avatar" className="h-10 w-10 rounded-full border-2 border-cyan-500/50 object-cover" />
                   ) : (
                     <div className="h-10 w-10 rounded-full bg-cyan-500/20 flex items-center justify-center"><Users className="h-5 w-5 text-cyan-400" /></div>
                   )}
                   <div>
-                    <p className="text-sm font-semibold text-white">@{ttCreatorInfo.creator_username || ttCreatorInfo.username || "unknown"}</p>
-                    <p className="text-[10px] text-white/40">{ttCreatorInfo.creator_nickname || ttCreatorInfo.display_name || ""}</p>
+                    <p className="text-sm font-semibold text-white">@{ttCreator.creator_username || ttCreator.username || "unknown"}</p>
+                    <p className="text-[10px] text-white/40">{ttCreator.creator_nickname || ttCreator.display_name || ""}</p>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={async () => { setTtCreatorLoading(true); try { const res = await callApi("tiktok-api", "get_creator_info", {}); if (res) setTtCreatorInfo(res); } catch {} setTtCreatorLoading(false); }} className="ml-auto text-white/40 hover:text-white h-7 w-7 p-0"><RefreshCw className="h-3 w-3" /></Button>
+                  <Button variant="ghost" size="sm" onClick={loadTikTokCreatorInfo} className="ml-auto text-white/40 hover:text-white h-7 w-7 p-0"><RefreshCw className="h-3 w-3" /></Button>
                 </div>
-                {/* POINT 1b: Block posting when daily limit reached */}
-                {ttCreatorInfo.max_video_post_per_day_reached && (
+                {ttCreator.max_video_post_per_day_reached && (
                   <div className="rounded-md bg-red-500/10 border border-red-500/30 p-2">
                     <p className="text-[10px] text-red-400 font-medium">⚠️ This creator has reached the maximum number of posts allowed today. Please try again tomorrow.</p>
                   </div>
                 )}
+                {(ttMinDuration > 0 || ttMaxDuration > 0) && (
+                  <p className="text-[10px] text-white/40">
+                    Video duration limits: {ttMinDuration > 0 ? `${ttMinDuration}s min` : "No minimum"}
+                    {ttMinDuration > 0 && ttMaxDuration > 0 ? " • " : ""}
+                    {ttMaxDuration > 0 ? `${ttMaxDuration}s max` : "No maximum"}
+                  </p>
+                )}
               </div>
             ) : (
-              <Button variant="outline" size="sm" onClick={async () => { setTtCreatorLoading(true); try { const res = await callApi("tiktok-api", "get_creator_info", {}); if (res) setTtCreatorInfo(res); } catch {} setTtCreatorLoading(false); }} className="text-xs border-white/20 text-white/60">Load Creator Info</Button>
+              <Button variant="outline" size="sm" onClick={loadTikTokCreatorInfo} className="text-xs border-white/20 text-white/60">Load Creator Info</Button>
             )}
           </div>
 
-          {/* Content Type Selector */}
-          <div className="flex gap-1.5">
-            {([["video", Video, "Video"] as const, ["photo", Image, "Photo"] as const, ["carousel", Layers, "Carousel"] as const]).map(([type, Icon, label]) => (
-              <Button key={type} variant={ttPostType === type ? "default" : "outline"} size="sm" onClick={() => { setTtPostType(type); if (type !== "video") { setTtAllowDuet(false); setTtAllowStitch(false); } else { setTtAllowDuet(true); setTtAllowStitch(true); } }}
-                className={`text-xs gap-1 ${ttPostType === type ? "bg-cyan-600 text-white" : "border-white/20 text-white/60"}`}>
-                <Icon className="h-3 w-3" />{label}
-              </Button>
-            ))}
-          </div>
+          {/* POINT 2: Post Metadata (title, privacy, interaction settings) */}
+          <div className="rounded-lg border border-white/10 p-3 space-y-3" style={{ background: "hsl(222, 30%, 10%)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">2) Post Settings</p>
 
-          {/* Media Input */}
-          {ttPostType === "video" ? (
-            <Input value={ttVideoUrl} onChange={e => setTtVideoUrl(e.target.value)} placeholder="Video URL (publicly accessible)" className="bg-white/5 border-white/10 text-white text-xs" />
-          ) : (
-            <Input value={ttPhotoUrls} onChange={e => setTtPhotoUrls(e.target.value)} placeholder="Image URLs (comma separated, publicly accessible)" className="bg-white/5 border-white/10 text-white text-xs" />
-          )}
+            <div className="flex gap-1.5">
+              {([ ["video", Video, "Video"] as const, ["photo", Image, "Photo"] as const, ["carousel", Layers, "Carousel"] as const ]).map(([type, Icon, label]) => (
+                <Button key={type} variant={ttPostType === type ? "default" : "outline"} size="sm" onClick={() => { setTtPostType(type); if (type !== "video") { setTtAllowDuet(false); setTtAllowStitch(false); } else { setTtAllowDuet(true); setTtAllowStitch(true); } }}
+                  className={`text-xs gap-1 ${ttPostType === type ? "bg-cyan-600 text-white" : "border-white/20 text-white/60"}`}>
+                  <Icon className="h-3 w-3" />{label}
+                </Button>
+              ))}
+            </div>
 
-          {/* POINT 2a: Title / Caption */}
-          <textarea value={ttCaption} onChange={e => setTtCaption(e.target.value)} placeholder="Write a caption... #hashtags" rows={3}
-            className="w-full rounded-md bg-white/5 border border-white/10 text-white text-xs p-2.5 resize-none focus:outline-none focus:border-cyan-500/50 placeholder:text-white/30" />
+            {ttPostType === "video" ? (
+              <Input value={ttVideoUrl} onChange={e => setTtVideoUrl(e.target.value)} placeholder="Video URL (publicly accessible)" className="bg-white/5 border-white/10 text-white text-xs" />
+            ) : (
+              <Input value={ttPhotoUrls} onChange={e => setTtPhotoUrls(e.target.value)} placeholder="Image URLs (comma separated, publicly accessible)" className="bg-white/5 border-white/10 text-white text-xs" />
+            )}
 
-          {/* POINT 5a: Content Preview — display preview of content before posting */}
-          {(ttCaption.trim() || ttVideoUrl.trim() || ttPhotoUrls.trim()) && (
-            <div className="rounded-lg border border-white/10 p-3 space-y-2" style={{ background: "hsl(222, 30%, 10%)" }}>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Content Preview</p>
-              {ttPostType === "video" && ttVideoUrl.trim() && (
-                <div className="flex items-center gap-2 text-xs text-white/60">
-                  <Video className="h-4 w-4 text-cyan-400" />
-                  <span className="truncate">{ttVideoUrl}</span>
+            <textarea value={ttCaption} onChange={e => setTtCaption(e.target.value)} placeholder="Write a caption... #hashtags" rows={3}
+              className="w-full rounded-md bg-white/5 border border-white/10 text-white text-xs p-2.5 resize-none focus:outline-none focus:border-cyan-500/50 placeholder:text-white/30" />
+
+            <div className="space-y-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Privacy Status <span className="text-red-400">*</span></p>
+              <select
+                value={ttPrivacy}
+                onChange={(e) => setTtPrivacy(e.target.value)}
+                className="w-full rounded-md bg-white/5 border border-white/10 text-white text-xs p-2.5 focus:outline-none focus:border-cyan-500/50"
+              >
+                <option value="" disabled>Select privacy level</option>
+                {ttPrivacyOptions.map((opt: string) => {
+                  const privacyLabels: Record<string, string> = {
+                    PUBLIC_TO_EVERYONE: "Public",
+                    MUTUAL_FOLLOW_FRIENDS: "Friends",
+                    FOLLOWER_OF_CREATOR: "Followers",
+                    SELF_ONLY: "Private"
+                  };
+                  return <option key={opt} value={opt}>{privacyLabels[opt] || opt}</option>;
+                })}
+              </select>
+              {!ttPrivacy && <p className="text-[10px] text-amber-400/70">Please select a privacy level manually (no default).</p>}
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Interaction Settings</p>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className="h-3.5 w-3.5 text-white/50" />
+                    <span className="text-xs text-white/70">Allow Comments</span>
+                    {ttCreator?.comment_disabled && <Badge variant="outline" className="text-[8px] border-orange-500/30 text-orange-400 px-1 py-0">Disabled by creator</Badge>}
+                  </div>
+                  <button
+                    onClick={() => !ttCreator?.comment_disabled && setTtAllowComment(!ttAllowComment)}
+                    disabled={ttCreator?.comment_disabled}
+                    className={`relative w-9 h-5 rounded-full transition-colors ${ttAllowComment && !ttCreator?.comment_disabled ? "bg-cyan-600" : "bg-white/10"} ${ttCreator?.comment_disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                  >
+                    <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${ttAllowComment && !ttCreator?.comment_disabled ? "translate-x-4" : ""}`} />
+                  </button>
                 </div>
-              )}
-              {ttPostType !== "video" && ttPhotoUrls.trim() && (
-                <div className="flex gap-1.5 flex-wrap">
-                  {ttPhotoUrls.split(",").map((url, i) => url.trim()).filter(Boolean).map((url, i) => (
-                    <div key={i} className="relative">
-                      <img src={url} alt={`Photo ${i+1}`} className="h-16 w-16 object-cover rounded-md border border-white/10" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                      <span className="absolute bottom-0.5 right-0.5 text-[8px] bg-black/60 text-white px-1 rounded">{i+1}</span>
+
+                {ttPostType === "video" && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Repeat className="h-3.5 w-3.5 text-white/50" />
+                      <span className="text-xs text-white/70">Allow Duet</span>
+                      {ttCreator?.duet_disabled && <Badge variant="outline" className="text-[8px] border-orange-500/30 text-orange-400 px-1 py-0">Disabled by creator</Badge>}
                     </div>
-                  ))}
-                </div>
-              )}
-              {ttCaption.trim() && (
-                <p className="text-xs text-white/70 whitespace-pre-wrap">{ttCaption}</p>
-              )}
-            </div>
-          )}
+                    <button
+                      onClick={() => !ttCreator?.duet_disabled && setTtAllowDuet(!ttAllowDuet)}
+                      disabled={ttCreator?.duet_disabled}
+                      className={`relative w-9 h-5 rounded-full transition-colors ${ttAllowDuet && !ttCreator?.duet_disabled ? "bg-cyan-600" : "bg-white/10"} ${ttCreator?.duet_disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${ttAllowDuet && !ttCreator?.duet_disabled ? "translate-x-4" : ""}`} />
+                    </button>
+                  </div>
+                )}
 
-          {/* POINT 2b: Privacy Level — NO default value, user must select */}
-          <div className="rounded-lg border border-white/10 p-3 space-y-2" style={{ background: "hsl(222, 30%, 10%)" }}>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Who can view this post <span className="text-red-400">*</span></p>
-            {!ttPrivacy && <p className="text-[10px] text-amber-400/70">Please select a privacy level before posting</p>}
-            <div className="flex gap-1.5 flex-wrap">
-              {(ttCreatorInfo?.privacy_level_options || ["PUBLIC_TO_EVERYONE", "MUTUAL_FOLLOW_FRIENDS", "SELF_ONLY"]).map((opt: string) => {
-                const icons: Record<string, any> = { PUBLIC_TO_EVERYONE: Globe, MUTUAL_FOLLOW_FRIENDS: Users, FOLLOWER_OF_CREATOR: Heart, SELF_ONLY: Lock };
-                const Icon = icons[opt] || Globe;
-                const privacyLabels: Record<string, string> = { PUBLIC_TO_EVERYONE: "Public", MUTUAL_FOLLOW_FRIENDS: "Friends", FOLLOWER_OF_CREATOR: "Followers", SELF_ONLY: "Private" };
-                return (
-                  <Button key={opt} variant={ttPrivacy === opt ? "default" : "outline"} size="sm" onClick={() => setTtPrivacy(opt)}
-                    className={`text-[10px] gap-1 ${ttPrivacy === opt ? "bg-cyan-600 text-white" : "border-white/20 text-white/60"}`}>
-                    <Icon className="h-3 w-3" />{privacyLabels[opt] || opt}
-                  </Button>
-                );
-              })}
-            </div>
-          </div>
+                {ttPostType === "video" && (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Layers className="h-3.5 w-3.5 text-white/50" />
+                      <span className="text-xs text-white/70">Allow Stitch</span>
+                      {ttCreator?.stitch_disabled && <Badge variant="outline" className="text-[8px] border-orange-500/30 text-orange-400 px-1 py-0">Disabled by creator</Badge>}
+                    </div>
+                    <button
+                      onClick={() => !ttCreator?.stitch_disabled && setTtAllowStitch(!ttAllowStitch)}
+                      disabled={ttCreator?.stitch_disabled}
+                      className={`relative w-9 h-5 rounded-full transition-colors ${ttAllowStitch && !ttCreator?.stitch_disabled ? "bg-cyan-600" : "bg-white/10"} ${ttCreator?.stitch_disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+                    >
+                      <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${ttAllowStitch && !ttCreator?.stitch_disabled ? "translate-x-4" : ""}`} />
+                    </button>
+                  </div>
+                )}
 
-          {/* POINT 2c: Interaction Settings — Allow Comment, Duet, Stitch */}
-          <div className="rounded-lg border border-white/10 p-3 space-y-2" style={{ background: "hsl(222, 30%, 10%)" }}>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Interaction Settings</p>
-            <div className="flex flex-col gap-2">
-              {/* Allow Comments — always shown */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MessageSquare className="h-3.5 w-3.5 text-white/50" />
-                  <span className="text-xs text-white/70">Allow Comments</span>
-                  {ttCreatorInfo?.comment_disabled && <Badge variant="outline" className="text-[8px] border-orange-500/30 text-orange-400 px-1 py-0">Disabled by creator</Badge>}
-                </div>
-                <button
-                  onClick={() => !ttCreatorInfo?.comment_disabled && setTtAllowComment(!ttAllowComment)}
-                  disabled={ttCreatorInfo?.comment_disabled}
-                  className={`relative w-9 h-5 rounded-full transition-colors ${ttAllowComment && !ttCreatorInfo?.comment_disabled ? "bg-cyan-600" : "bg-white/10"} ${ttCreatorInfo?.comment_disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                >
-                  <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${ttAllowComment && !ttCreatorInfo?.comment_disabled ? "translate-x-4" : ""}`} />
-                </button>
+                {ttPostType !== "video" && (
+                  <p className="text-[9px] text-white/30 italic">Duet and Stitch are only available for video posts</p>
+                )}
               </div>
-              {/* Allow Duet — ONLY for video posts (Point 2c guideline) */}
-              {ttPostType === "video" && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Repeat className="h-3.5 w-3.5 text-white/50" />
-                    <span className="text-xs text-white/70">Allow Duet</span>
-                    {ttCreatorInfo?.duet_disabled && <Badge variant="outline" className="text-[8px] border-orange-500/30 text-orange-400 px-1 py-0">Disabled by creator</Badge>}
-                  </div>
-                  <button
-                    onClick={() => !ttCreatorInfo?.duet_disabled && setTtAllowDuet(!ttAllowDuet)}
-                    disabled={ttCreatorInfo?.duet_disabled}
-                    className={`relative w-9 h-5 rounded-full transition-colors ${ttAllowDuet && !ttCreatorInfo?.duet_disabled ? "bg-cyan-600" : "bg-white/10"} ${ttCreatorInfo?.duet_disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                  >
-                    <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${ttAllowDuet && !ttCreatorInfo?.duet_disabled ? "translate-x-4" : ""}`} />
-                  </button>
-                </div>
-              )}
-              {/* Allow Stitch — ONLY for video posts (Point 2c guideline) */}
-              {ttPostType === "video" && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Layers className="h-3.5 w-3.5 text-white/50" />
-                    <span className="text-xs text-white/70">Allow Stitch</span>
-                    {ttCreatorInfo?.stitch_disabled && <Badge variant="outline" className="text-[8px] border-orange-500/30 text-orange-400 px-1 py-0">Disabled by creator</Badge>}
-                  </div>
-                  <button
-                    onClick={() => !ttCreatorInfo?.stitch_disabled && setTtAllowStitch(!ttAllowStitch)}
-                    disabled={ttCreatorInfo?.stitch_disabled}
-                    className={`relative w-9 h-5 rounded-full transition-colors ${ttAllowStitch && !ttCreatorInfo?.stitch_disabled ? "bg-cyan-600" : "bg-white/10"} ${ttCreatorInfo?.stitch_disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
-                  >
-                    <span className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white transition-transform ${ttAllowStitch && !ttCreatorInfo?.stitch_disabled ? "translate-x-4" : ""}`} />
-                  </button>
-                </div>
-              )}
-              {ttPostType !== "video" && (
-                <p className="text-[9px] text-white/30 italic">Duet and Stitch are only available for video posts</p>
-              )}
             </div>
           </div>
 
-          {/* POINT 4: Commercial Content Disclosure */}
+          {/* POINT 3: Commercial content disclosure */}
           <div className="rounded-lg border border-white/10 p-3 space-y-2" style={{ background: "hsl(222, 30%, 10%)" }}>
-            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">Commercial Content Disclosure</p>
-            <p className="text-[10px] text-white/30 leading-relaxed">If this post promotes a brand, product, or third-party, turn on the appropriate toggle. This lets viewers know the post is commercial. <a href="https://www.tiktok.com/community-guidelines" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">Learn more</a></p>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">3) Commercial Content Disclosure</p>
+            <p className="text-[10px] text-white/30 leading-relaxed">If this post promotes a brand, product, or third-party, turn on the appropriate toggle. <a href="https://www.tiktok.com/community-guidelines" target="_blank" rel="noopener noreferrer" className="text-cyan-400 underline">Learn more</a></p>
             <div className="flex flex-col gap-2 mt-1">
               {[
-                { label: "Branded Content", desc: "You are promoting another brand or third party. Your content will be labeled as 'Paid partnership'.", value: ttBrandContent, setter: setTtBrandContent },
+                { label: "Branded Content", desc: "You are promoting another brand or third party.", value: ttBrandContent, setter: setTtBrandContent },
                 { label: "Your Brand", desc: "You are promoting yourself or your own business.", value: ttBrandOrganic, setter: setTtBrandOrganic },
               ].map(toggle => (
                 <div key={toggle.label} className="flex items-center justify-between">
@@ -941,30 +964,96 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
                 </div>
               ))}
             </div>
-            {(ttBrandContent || ttBrandOrganic) && (
-              <p className="text-[9px] text-amber-400/70 mt-1 leading-relaxed">⚠️ By posting, you agree that your content complies with TikTok's <a href="https://www.tiktok.com/community-guidelines" target="_blank" rel="noopener noreferrer" className="underline">Branded Content Policy</a>. This content will be labeled to viewers.</p>
+          </div>
+
+          {/* POINT 4: User awareness and control */}
+          <div className="rounded-lg border border-white/10 p-3 space-y-2" style={{ background: "hsl(222, 30%, 10%)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-wider text-white/40">4) Review Before Posting</p>
+            {(ttCaption.trim() || ttVideoUrl.trim() || ttPhotoUrls.trim()) ? (
+              <>
+                {ttPostType === "video" && ttVideoUrl.trim() && (
+                  <div className="flex items-center gap-2 text-xs text-white/60">
+                    <Video className="h-4 w-4 text-cyan-400" />
+                    <span className="truncate">{ttVideoUrl}</span>
+                  </div>
+                )}
+                {ttPostType !== "video" && ttPhotoUrls.trim() && (
+                  <div className="flex gap-1.5 flex-wrap">
+                    {ttPhotoUrls.split(",").map((url) => url.trim()).filter(Boolean).map((url, i) => (
+                      <div key={i} className="relative">
+                        <img src={url} alt={`Photo ${i+1}`} className="h-16 w-16 object-cover rounded-md border border-white/10" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        <span className="absolute bottom-0.5 right-0.5 text-[8px] bg-black/60 text-white px-1 rounded">{i+1}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {ttCaption.trim() && <p className="text-xs text-white/70 whitespace-pre-wrap">{ttCaption}</p>}
+              </>
+            ) : (
+              <p className="text-[10px] text-white/40">Add media/caption to preview exactly what will be posted.</p>
             )}
           </div>
 
-          {/* POINT 5: Posted-by Disclosure & Publish Button */}
+          {/* POINT 5: App attribution and explicit publish action */}
           <div className="rounded-lg border border-cyan-500/20 p-3 space-y-2" style={{ background: "hsl(222, 30%, 8%)" }}>
             <p className="text-[10px] text-white/30 text-center">This content will be posted to TikTok via <strong className="text-white/60">Uplyze</strong></p>
             <Button onClick={async () => {
+              if (!ttCreator) { toast.error("Creator info is required. Please load creator info first."); return; }
               if (!ttCaption.trim()) { toast.error("Caption is required"); return; }
               if (!ttPrivacy) { toast.error("Please select a privacy level"); return; }
-              if (ttCreatorInfo?.max_video_post_per_day_reached) { toast.error("Daily posting limit reached. Try again tomorrow."); return; }
+              if (ttCreator.max_video_post_per_day_reached) { toast.error("Daily posting limit reached. Try again tomorrow."); return; }
+              if (ttPostType === "video" && (ttMinDuration > 0 || ttMaxDuration > 0)) {
+                try {
+                  const durationSec = await getRemoteVideoDurationSeconds(ttVideoUrl.trim());
+                  if (ttMinDuration > 0 && durationSec < ttMinDuration) {
+                    toast.error(`Video is too short. Minimum allowed is ${ttMinDuration} seconds.`);
+                    return;
+                  }
+                  if (ttMaxDuration > 0 && durationSec > ttMaxDuration) {
+                    toast.error(`Video is too long. Maximum allowed is ${ttMaxDuration} seconds.`);
+                    return;
+                  }
+                } catch {
+                  toast.error("Could not validate video duration from URL. Use a direct media URL.");
+                  return;
+                }
+              }
+
               setTtPublishing(true);
               try {
                 let action = "publish_video_by_url";
-                let params: any = { title: ttCaption, privacy_level: ttPrivacy, disable_comment: !ttAllowComment, disable_duet: ttPostType !== "video" ? true : !ttAllowDuet, disable_stitch: ttPostType !== "video" ? true : !ttAllowStitch, brand_content_toggle: ttBrandContent, brand_organic_toggle: ttBrandOrganic };
-                if (ttPostType === "video") { action = "publish_video_by_url"; params.video_url = ttVideoUrl; }
-                else if (ttPostType === "photo") { action = "publish_photo"; params.image_urls = ttPhotoUrls.split(",").map(s => s.trim()).filter(Boolean); }
-                else { action = "publish_carousel"; params.image_urls = ttPhotoUrls.split(",").map(s => s.trim()).filter(Boolean); }
+                let params: any = {
+                  title: ttCaption,
+                  privacy_level: ttPrivacy,
+                  disable_comment: !ttAllowComment,
+                  disable_duet: ttPostType !== "video" ? true : !ttAllowDuet,
+                  disable_stitch: ttPostType !== "video" ? true : !ttAllowStitch,
+                  brand_content_toggle: ttBrandContent,
+                  brand_organic_toggle: ttBrandOrganic
+                };
+                if (ttPostType === "video") {
+                  action = "publish_video_by_url";
+                  params.video_url = ttVideoUrl;
+                } else if (ttPostType === "photo") {
+                  action = "publish_photo";
+                  params.image_urls = ttPhotoUrls.split(",").map(s => s.trim()).filter(Boolean);
+                } else {
+                  action = "publish_carousel";
+                  params.image_urls = ttPhotoUrls.split(",").map(s => s.trim()).filter(Boolean);
+                }
                 const res = await callApi("tiktok-api", action, params);
-                if (res) { toast.success("Published to TikTok!"); setTtCaption(""); setTtVideoUrl(""); setTtPhotoUrls(""); setTtPrivacy(""); }
-              } catch (e: any) { toast.error(e.message || "Publish failed"); }
+                if (res) {
+                  toast.success("Published to TikTok!");
+                  setTtCaption("");
+                  setTtVideoUrl("");
+                  setTtPhotoUrls("");
+                  setTtPrivacy("");
+                }
+              } catch (e: any) {
+                toast.error(e.message || "Publish failed");
+              }
               setTtPublishing(false);
-            }} disabled={ttPublishing || !ttCaption.trim() || !ttPrivacy || ttCreatorInfo?.max_video_post_per_day_reached || (ttPostType === "video" ? !ttVideoUrl.trim() : !ttPhotoUrls.trim())}
+            }} disabled={ttPublishing || !ttCreator || !ttCaption.trim() || !ttPrivacy || ttCreator?.max_video_post_per_day_reached || (ttPostType === "video" ? !ttVideoUrl.trim() : !ttPhotoUrls.trim())}
               className="w-full bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold text-sm h-10">
               {ttPublishing ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" />Publishing...</> : <><Upload className="h-4 w-4 mr-2" />Publish to TikTok</>}
             </Button>
@@ -1020,7 +1109,8 @@ const SocialNetworksTab = ({ selectedAccount, onNavigateToConnect }: Props) => {
         {renderInputAction("AI Bio Optimizer","social-ai-responder","generate_caption",[{key:"ai_tt_bio",placeholder:"Your brand/niche"}],()=>({topic:`Write 5 compelling TikTok bio variations (80 chars) with link-in-bio CTAs for: ${getInput("ai_tt_bio")}`,platform:"tiktok",include_cta:false}),Users)}
       </TabsContent>
     </Tabs>
-  );
+    );
+  };
 
   // ===== SNAPCHAT, THREADS, WHATSAPP, SIGNAL, YOUTUBE, PINTEREST, DISCORD, FACEBOOK =====
   // Keeping these the same as before since they already had comprehensive coverage
