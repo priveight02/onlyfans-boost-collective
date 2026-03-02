@@ -1386,7 +1386,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
               {/* Left Column — Caption & Media */}
               <div className="space-y-3">
                 <div>
@@ -1440,7 +1440,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                     <div className="flex gap-2 flex-wrap mt-3">
                       {uploadedFiles.map((f, i) => {
                         const count = uploadedFiles.length;
-                        const size = count <= 1 ? 'h-60 w-60' : count <= 3 ? 'h-40 w-40' : count <= 6 ? 'h-28 w-28' : 'h-20 w-20';
+                        const size = count <= 1 ? 'h-40 w-40' : count <= 3 ? 'h-28 w-28' : count <= 6 ? 'h-20 w-20' : 'h-16 w-16';
                         return (
                           <div key={i} className="relative group">
                             {isVideoMedia(f.file) ? (
@@ -1572,7 +1572,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                 {/* ===== POINT 3: Commercial Content Disclosure ===== */}
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-muted-foreground block">3) Commercial Content Disclosure</label>
-                  <p className="text-[10px] text-muted-foreground">If your content promotes a brand, product, or third party, you must enable the relevant toggle below. Learn more at <a href="https://www.tiktok.com/community-guidelines/en/branded-content/" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">TikTok Branded Content Policy</a>.</p>
+                  <p className="text-[10px] text-muted-foreground">If your content promotes a brand, product, or third party, you must enable the relevant toggle below. Learn more at <a href="https://ads.tiktok.com/help/article/about-the-content-disclosure-setting-for-creators?lang=en" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">TikTok Branded Content Policy</a>.</p>
                   <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
                     <span className="text-xs text-foreground flex items-center gap-2"><Megaphone className="h-3.5 w-3.5 text-muted-foreground" />Branded Content — paid partnership or sponsorship</span>
                     <Switch checked={schedBrandContent} onCheckedChange={setSchedBrandContent} className="scale-75" />
