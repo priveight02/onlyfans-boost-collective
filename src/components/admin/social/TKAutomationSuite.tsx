@@ -674,23 +674,34 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
     });
   };
 
-  // File upload handler — uploads to social-media storage bucket
+  // File upload handler — shows preview instantly, uploads to storage in background
   const handleFileUpload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setFileUploading(true);
-    const newFiles: { file: File; preview: string; url?: string }[] = [];
-    for (const file of Array.from(files)) {
-      const preview = URL.createObjectURL(file);
+    // 1. Show previews instantly using blob URLs
+    const pending: { file: File; preview: string; url?: string }[] = Array.from(files).map(file => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setUploadedFiles(prev => [...prev, ...pending]);
+
+    // 2. Upload to storage in background and patch URLs in
+    let successCount = 0;
+    for (let i = 0; i < pending.length; i++) {
+      const file = pending[i].file;
       const ext = file.name.split(".").pop() || "mp4";
       const path = `${selectedAccount}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
       const { data, error } = await supabase.storage.from("social-media").upload(path, file, { contentType: file.type });
       if (error) { toast.error(`Upload failed: ${error.message}`); continue; }
       const { data: urlData } = supabase.storage.from("social-media").getPublicUrl(data.path);
-      newFiles.push({ file, preview, url: urlData.publicUrl });
+      const publicUrl = urlData.publicUrl;
+      // Patch the URL into the already-visible entry by matching the preview blob
+      const blobUrl = pending[i].preview;
+      setUploadedFiles(prev => prev.map(f => f.preview === blobUrl ? { ...f, url: publicUrl } : f));
+      successCount++;
     }
-    setUploadedFiles(prev => [...prev, ...newFiles]);
     setFileUploading(false);
-    if (newFiles.length > 0) toast.success(`${newFiles.length} file(s) uploaded`);
+    if (successCount > 0) toast.success(`${successCount} file(s) uploaded`);
   };
 
   const removeUploadedFile = (idx: number) => {
