@@ -1189,6 +1189,30 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
           ))}
         </div>
 
+        {/* ===== AI Caption Generator (inline) ===== */}
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Sparkles className="h-4 w-4 text-yellow-400" />AI Caption Generator</h4>
+            <p className="text-[10px] text-muted-foreground">Generate concise, post-relevant captions with trending hashtags</p>
+            <div className="flex gap-2">
+              <Input value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} placeholder="Post topic or keywords..." className="text-sm flex-1 bg-muted/20 border-border/40" />
+              <Button size="sm" onClick={generateCaption} disabled={loading || !aiCaptionTopic} className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white gap-1">
+                {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+                Generate
+              </Button>
+            </div>
+            {aiCaptionResult && (
+              <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.06]">
+                <p className="text-sm text-foreground whitespace-pre-wrap">{aiCaptionResult}</p>
+                <div className="flex gap-2 mt-2">
+                  <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => { navigator.clipboard.writeText(aiCaptionResult); toast.success("Copied"); }}><Copy className="h-3 w-3 mr-1" />Copy</Button>
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] text-cyan-400" onClick={() => { setNewPostCaption(aiCaptionResult); toast.success("Caption applied to post"); }}><CheckCircle2 className="h-3 w-3 mr-1" />Use in Post</Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         {/* ===== NEW FEATURE 1: A/B Caption Testing ===== */}
         <Card className="bg-gradient-to-r from-violet-500/5 to-pink-500/5 border-violet-500/10">
           <div className="h-1 bg-gradient-to-r from-violet-500 to-pink-500" />
@@ -1999,6 +2023,29 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
             <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Share2 className="h-4 w-4 text-cyan-400" />Share Kit</h4>
             <p className="text-[10px] text-muted-foreground">Share content directly to TikTok from your platform using the Share Kit API.</p>
             <Badge variant="outline" className="text-[10px]">Integrated via Content Publishing API</Badge>
+          </CardContent>
+        </Card>
+        {/* AI Caption Generator */}
+        <Card className="bg-white/[0.03] border-white/[0.06] backdrop-blur-sm">
+          <CardContent className="p-4 space-y-3">
+            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2"><Sparkles className="h-4 w-4 text-yellow-400" />AI Caption Generator</h4>
+            <p className="text-[10px] text-muted-foreground">Quick-generate concise captions with keywords & hashtags</p>
+            <div className="flex gap-2">
+              <Input value={aiCaptionTopic} onChange={e => setAiCaptionTopic(e.target.value)} placeholder="Post topic or keywords..." className="text-sm flex-1 bg-muted/20 border-border/40" />
+              <Button size="sm" onClick={generateCaption} disabled={loading || !aiCaptionTopic} className="bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600 text-white gap-1">
+                {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+                Generate
+              </Button>
+            </div>
+            {aiCaptionResult && (
+              <div className="bg-white/[0.04] rounded-lg p-3 border border-white/[0.06]">
+                <p className="text-sm text-foreground whitespace-pre-wrap">{aiCaptionResult}</p>
+                <div className="flex gap-2 mt-2">
+                  <Button size="sm" variant="outline" className="h-6 text-[10px]" onClick={() => { navigator.clipboard.writeText(aiCaptionResult); toast.success("Copied"); }}><Copy className="h-3 w-3 mr-1" />Copy</Button>
+                  <Button size="sm" variant="outline" className="h-6 text-[10px] text-cyan-400" onClick={() => { setNewPostCaption(aiCaptionResult); toast.success("Caption applied to post"); }}><CheckCircle2 className="h-3 w-3 mr-1" />Use in Post</Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </TabsContent>
