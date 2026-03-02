@@ -1573,9 +1573,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
               </div>
             </div>
 
-            {/* ===== Below Grid: Points 3-5 + Schedule (full width) ===== */}
-
-            {/* ===== POINT 3: Commercial Content Disclosure ===== */}
+            {/* ===== POINT 3: Commercial Content Disclosure (full width) ===== */}
             <div className="space-y-2">
               <label className="text-xs font-medium text-muted-foreground block">3) Commercial Content Disclosure</label>
               <p className="text-[10px] text-muted-foreground">If your content promotes a brand, product, or third party, you must enable the relevant toggle below. Learn more at <a href="https://ads.tiktok.com/help/article/about-the-content-disclosure-setting-for-creators?lang=en" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">TikTok Branded Content Policy</a>.</p>
@@ -1592,8 +1590,9 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
               <p className="text-[10px] text-muted-foreground">By publishing, you agree to TikTok's <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">Music Usage Confirmation</a> and <a href="https://www.tiktok.com/community-guidelines" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">Community Guidelines</a>.</p>
             </div>
 
-            {/* ===== POINT 4: Content Preview & Attribution ===== */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* ===== POINT 4 + Schedule: 3-column layout ===== */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              {/* Content Preview */}
               <div className="rounded-lg border border-border/30 bg-muted/20 p-3 space-y-2">
                 <p className="text-xs font-medium text-foreground">4) Content Preview & Attribution</p>
                 <p className="text-[10px] text-muted-foreground">Review what will be posted to your TikTok account before confirming.</p>
@@ -1603,12 +1602,12 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                       <div className="flex gap-1 p-2 flex-wrap">
                         {uploadedFiles.slice(0, 4).map((f, i) => (
                           isVideoMedia(f.file) ? (
-                            <video key={i} src={f.preview} className="h-16 w-16 rounded object-cover" muted playsInline />
+                            <video key={i} src={f.preview} className="h-14 w-14 rounded object-cover" muted playsInline />
                           ) : (
-                            <img key={i} src={f.preview} className="h-16 w-16 rounded object-cover" />
+                            <img key={i} src={f.preview} className="h-14 w-14 rounded object-cover" />
                           )
                         ))}
-                        {uploadedFiles.length > 4 && <div className="h-16 w-16 rounded bg-white/[0.06] flex items-center justify-center text-xs text-muted-foreground">+{uploadedFiles.length - 4}</div>}
+                        {uploadedFiles.length > 4 && <div className="h-14 w-14 rounded bg-white/[0.06] flex items-center justify-center text-[10px] text-muted-foreground">+{uploadedFiles.length - 4}</div>}
                       </div>
                     ) : newPostMediaUrl && (
                       <div className="p-2">
@@ -1624,13 +1623,8 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                 <p className="text-[10px] text-muted-foreground">Privacy: <span className="text-foreground font-medium">{schedPrivacy || "Not selected"}</span></p>
               </div>
 
-              {/* Schedule + Location side by side with preview */}
+              {/* Location + Schedule */}
               <div className="space-y-3">
-                <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.03] p-3">
-                  <p className="text-[10px] text-muted-foreground">
-                    <strong className="text-foreground">⚠️ Note:</strong> After you click "Publish Now", your content will be sent to TikTok for processing. It may take <strong>a few minutes</strong> for your content to appear on TikTok. You can track the publish status below.
-                  </p>
-                </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1.5 block flex items-center gap-1">
                     <MapPin className="h-3 w-3" />Location (optional)
@@ -1645,10 +1639,17 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   <p className="text-[10px] text-muted-foreground mt-1">Leave empty to save as draft</p>
                 </div>
               </div>
+
+              {/* Note */}
+              <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.03] p-3 h-fit">
+                <p className="text-[10px] text-muted-foreground">
+                  <strong className="text-foreground">⚠️ Note:</strong> After you click "Publish Now", your content will be sent to TikTok for processing. It may take <strong>a few minutes</strong> for your content to appear on TikTok. You can track the publish status below.
+                </p>
+              </div>
             </div>
 
             {/* Action Buttons */}
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-2">
               <Button onClick={schedulePost} disabled={!schedPrivacy || (!newPostCaption && !newPostMediaUrl && uploadedFiles.length === 0) || (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false))} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white gap-2">
                 {newPostScheduledAt ? <Calendar className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
                 {newPostScheduledAt ? "Schedule Post" : "Save as Draft"}
