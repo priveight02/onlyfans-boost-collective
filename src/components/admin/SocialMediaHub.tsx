@@ -3354,7 +3354,7 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
                         )}
                         <ConnectCardAccountManager
                           platform="tiktok"
-                          connections={connections}
+                          connections={globalConnections}
                           onAddAccount={() => openTtLoginPopup(true)}
                           onDisconnect={disconnectPlatform}
                           onReconnect={() => openTtLoginPopup(true)}
