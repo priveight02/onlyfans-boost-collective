@@ -1497,7 +1497,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                       <p className="text-[10px] text-amber-400">Sync your TikTok profile first (Dashboard → Sync) to display creator info</p>
                     </div>
                   )}
-                  <p className="text-[10px] text-muted-foreground">App: <span className="text-foreground font-medium">{TIKTOK_APP_NAME}</span> • Org: <span className="text-foreground font-medium">{TIKTOK_ORG_NAME}</span></p>
+                  <p className="text-[10px] text-muted-foreground">App: <span className="text-foreground font-medium">{TIKTOK_APP_NAME}</span> · Organization: <span className="text-foreground font-medium">{TIKTOK_ORG_NAME}</span></p>
                   {/* REQUIRED: Show daily posting limit and block if reached */}
                   <p className="text-[10px] text-muted-foreground">Daily posting limit: <span className="text-foreground font-medium">20 posts per day</span></p>
                 </div>
@@ -2444,7 +2444,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
 
             <div className="rounded-lg border border-border/30 bg-muted/20 p-3">
               <p className="text-[10px] text-muted-foreground">{ATTRIBUTION_LINE}</p>
-              <p className="text-xs text-foreground mt-1">App Name: {TIKTOK_APP_NAME} • Organization Name: {TIKTOK_ORG_NAME}</p>
+              <p className="text-xs text-foreground mt-1">App: {TIKTOK_APP_NAME} · Organization: {TIKTOK_ORG_NAME}</p>
             </div>
 
             <div className="flex gap-2">
