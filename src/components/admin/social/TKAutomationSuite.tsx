@@ -1386,7 +1386,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
               </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-start">
+            <div className="space-y-4">
               {/* Left Column — Caption & Media */}
               <div className="space-y-3">
                 <div>
@@ -1440,7 +1440,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                     <div className="flex gap-2 flex-wrap mt-3">
                       {uploadedFiles.map((f, i) => {
                         const count = uploadedFiles.length;
-                        const size = count <= 1 ? 'h-24 w-24' : count <= 3 ? 'h-20 w-20' : count <= 6 ? 'h-16 w-16' : 'h-14 w-14';
+                        const size = count <= 1 ? 'h-40 w-40' : count <= 3 ? 'h-28 w-28' : count <= 6 ? 'h-20 w-20' : 'h-16 w-16';
                         return (
                           <div key={i} className="relative group">
                             {isVideoMedia(f.file) ? (
@@ -1472,10 +1472,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   </div>
                 </div>
 
-              </div>
-
-              {/* Right Column — TikTok Required UX Flow (Point 1 → 5) */}
-              <div className="space-y-3">
+              {/* TikTok Required UX Flow (Point 1 → 5) */}
                 {/* ===== POINT 1: Creator Info ===== */}
                 <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/[0.03] p-3 space-y-2">
                   <div className="flex items-center justify-between">
@@ -1570,61 +1567,61 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   })()}
                 </div>
 
-              </div>
-            </div>
-
-            {/* ===== POINT 3: Commercial Content Disclosure (full width) ===== */}
-            <div className="space-y-2">
-              <label className="text-xs font-medium text-muted-foreground block">3) Commercial Content Disclosure</label>
-              <p className="text-[10px] text-muted-foreground">If your content promotes a brand, product, or third party, you must enable the relevant toggle below. Learn more at <a href="https://ads.tiktok.com/help/article/about-the-content-disclosure-setting-for-creators?lang=en" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">TikTok Branded Content Policy</a>.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
-                  <span className="text-xs text-foreground flex items-center gap-2"><Megaphone className="h-3.5 w-3.5 text-muted-foreground" />Branded Content — paid partnership or sponsorship</span>
-                  <Switch checked={schedBrandContent} onCheckedChange={setSchedBrandContent} className="scale-75" />
-                </label>
-                <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
-                  <span className="text-xs text-foreground flex items-center gap-2"><Shield className="h-3.5 w-3.5 text-muted-foreground" />Your Brand Promotion — promoting your own business</span>
-                  <Switch checked={schedBrandOrganic} onCheckedChange={setSchedBrandOrganic} className="scale-75" />
-                </label>
-              </div>
-              <p className="text-[10px] text-muted-foreground">By publishing, you agree to TikTok's <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">Music Usage Confirmation</a> and <a href="https://www.tiktok.com/community-guidelines" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">Community Guidelines</a>.</p>
-            </div>
-
-            {/* ===== POINT 4 + Schedule: 3-column layout ===== */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              {/* Content Preview */}
-              <div className="rounded-lg border border-border/30 bg-muted/20 p-3 space-y-2">
-                <p className="text-xs font-medium text-foreground">4) Content Preview & Attribution</p>
-                <p className="text-[10px] text-muted-foreground">Review what will be posted to your TikTok account before confirming.</p>
-                {(uploadedFiles.length > 0 || newPostMediaUrl) && (
-                  <div className="rounded-lg overflow-hidden border border-border/20 bg-black/20">
-                    {uploadedFiles.length > 0 ? (
-                      <div className="flex gap-1 p-2 flex-wrap">
-                        {uploadedFiles.slice(0, 4).map((f, i) => (
-                          isVideoMedia(f.file) ? (
-                            <video key={i} src={f.preview} className="h-14 w-14 rounded object-cover" muted playsInline />
-                          ) : (
-                            <img key={i} src={f.preview} className="h-14 w-14 rounded object-cover" />
-                          )
-                        ))}
-                        {uploadedFiles.length > 4 && <div className="h-14 w-14 rounded bg-white/[0.06] flex items-center justify-center text-[10px] text-muted-foreground">+{uploadedFiles.length - 4}</div>}
-                      </div>
-                    ) : newPostMediaUrl && (
-                      <div className="p-2">
-                        <p className="text-[10px] text-muted-foreground truncate">📎 {newPostMediaUrl}</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div className="bg-white/[0.03] rounded-lg p-2 border border-white/[0.06]">
-                  <p className="text-[10px] text-muted-foreground mb-1">Caption as it will appear:</p>
-                  <p className="text-xs text-foreground whitespace-pre-wrap">{withAttribution(newPostCaption || "") || <span className="text-muted-foreground italic">No caption</span>}</p>
+                {/* ===== POINT 3: Commercial Content Disclosure ===== */}
+                <div className="space-y-2">
+                  <label className="text-xs font-medium text-muted-foreground block">3) Commercial Content Disclosure</label>
+                  <p className="text-[10px] text-muted-foreground">If your content promotes a brand, product, or third party, you must enable the relevant toggle below. Learn more at <a href="https://ads.tiktok.com/help/article/about-the-content-disclosure-setting-for-creators?lang=en" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">TikTok Branded Content Policy</a>.</p>
+                  <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
+                    <span className="text-xs text-foreground flex items-center gap-2"><Megaphone className="h-3.5 w-3.5 text-muted-foreground" />Branded Content — paid partnership or sponsorship</span>
+                    <Switch checked={schedBrandContent} onCheckedChange={setSchedBrandContent} className="scale-75" />
+                  </label>
+                  <label className="flex items-center justify-between p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
+                    <span className="text-xs text-foreground flex items-center gap-2"><Shield className="h-3.5 w-3.5 text-muted-foreground" />Your Brand Promotion — promoting your own business</span>
+                    <Switch checked={schedBrandOrganic} onCheckedChange={setSchedBrandOrganic} className="scale-75" />
+                  </label>
+                  <p className="text-[10px] text-muted-foreground">By publishing, you agree to TikTok's <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">Music Usage Confirmation</a> and <a href="https://www.tiktok.com/community-guidelines" target="_blank" rel="noreferrer" className="text-cyan-400 hover:underline">Community Guidelines</a>.</p>
                 </div>
-                <p className="text-[10px] text-muted-foreground">Privacy: <span className="text-foreground font-medium">{schedPrivacy || "Not selected"}</span></p>
-              </div>
 
-              {/* Location + Schedule */}
-              <div className="space-y-3">
+                {/* ===== POINT 5: Full Awareness & Control — Content Preview ===== */}
+                <div className="rounded-lg border border-border/30 bg-muted/20 p-3 space-y-2">
+                  <p className="text-xs font-medium text-foreground">4) Content Preview & Attribution</p>
+                  <p className="text-[10px] text-muted-foreground">Review what will be posted to your TikTok account before confirming.</p>
+                  {/* Media preview */}
+                  {(uploadedFiles.length > 0 || newPostMediaUrl) && (
+                    <div className="rounded-lg overflow-hidden border border-border/20 bg-black/20">
+                      {uploadedFiles.length > 0 ? (
+                        <div className="flex gap-1 p-2 flex-wrap">
+                          {uploadedFiles.slice(0, 4).map((f, i) => (
+                            isVideoMedia(f.file) ? (
+                              <video key={i} src={f.preview} className="h-20 w-20 rounded object-cover" muted playsInline />
+                            ) : (
+                              <img key={i} src={f.preview} className="h-20 w-20 rounded object-cover" />
+                            )
+                          ))}
+                          {uploadedFiles.length > 4 && <div className="h-20 w-20 rounded bg-white/[0.06] flex items-center justify-center text-xs text-muted-foreground">+{uploadedFiles.length - 4}</div>}
+                        </div>
+                      ) : newPostMediaUrl && (
+                        <div className="p-2">
+                          <p className="text-[10px] text-muted-foreground truncate">📎 {newPostMediaUrl}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* Caption preview with attribution */}
+                  <div className="bg-white/[0.03] rounded-lg p-2 border border-white/[0.06]">
+                    <p className="text-[10px] text-muted-foreground mb-1">Caption as it will appear:</p>
+                    <p className="text-xs text-foreground whitespace-pre-wrap">{withAttribution(newPostCaption || "") || <span className="text-muted-foreground italic">No caption</span>}</p>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">Privacy: <span className="text-foreground font-medium">{schedPrivacy || "Not selected"}</span></p>
+                </div>
+
+                {/* ===== POINT 5 continued: Explicit consent + processing notice ===== */}
+                <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.03] p-3">
+                  <p className="text-[10px] text-muted-foreground">
+                    <strong className="text-foreground">⚠️ Note:</strong> After you click "Publish Now", your content will be sent to TikTok for processing. It may take <strong>a few minutes</strong> for your content to appear on TikTok. You can track the publish status below.
+                  </p>
+                </div>
+
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1.5 block flex items-center gap-1">
                     <MapPin className="h-3 w-3" />Location (optional)
@@ -1638,54 +1635,45 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   <Input type="datetime-local" value={newPostScheduledAt} onChange={e => setNewPostScheduledAt(e.target.value)} className="text-sm bg-muted/20 border-border/40 focus:border-cyan-500/40" />
                   <p className="text-[10px] text-muted-foreground mt-1">Leave empty to save as draft</p>
                 </div>
+                <div className="flex gap-2 pt-1">
+                  <Button onClick={schedulePost} disabled={!schedPrivacy || (!newPostCaption && !newPostMediaUrl && uploadedFiles.length === 0) || (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false))} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white gap-2">
+                    {newPostScheduledAt ? <Calendar className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
+                    {newPostScheduledAt ? "Schedule Post" : "Save as Draft"}
+                  </Button>
+                  {(newPostMediaUrl || uploadedFiles.some(f => f.url)) && !newPostScheduledAt && (
+                    <Button variant="outline" onClick={async () => {
+                      if (!schedPrivacy) { toast.error("Select a privacy level before publishing"); return; }
+                      if (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false)) {
+                        toast.error("Daily posting limit reached — you cannot post more content today."); return;
+                      }
+                      const mediaUrl = uploadedFiles.find(f => f.url)?.url || newPostMediaUrl;
+                      if (!mediaUrl) return;
+                      const finalTitle = withAttribution(newPostCaption || "");
+                      if (schedContentType === "video") {
+                        await callApi("publish_video_by_url", {
+                          video_url: mediaUrl, title: finalTitle,
+                          privacy_level: schedPrivacy, disable_duet: schedDisableDuet,
+                          disable_comment: schedDisableComment, disable_stitch: schedDisableStitch,
+                          brand_content_toggle: schedBrandContent,
+                          brand_organic_toggle: schedBrandOrganic,
+                        });
+                      } else {
+                        const urls = uploadedFiles.filter(f => f.url).map(f => f.url!);
+                        if (newPostMediaUrl) urls.unshift(newPostMediaUrl);
+                        await callApi(schedContentType === "carousel" ? "publish_carousel" : "publish_photo", {
+                          image_urls: urls, title: finalTitle, description: finalTitle,
+                          privacy_level: schedPrivacy, disable_comment: schedDisableComment,
+                          brand_content_toggle: schedBrandContent,
+                          brand_organic_toggle: schedBrandOrganic,
+                        });
+                      }
+                      toast.success("Content sent to TikTok! It may take a few minutes to appear on your profile.");
+                    }} disabled={loading || !schedPrivacy || (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false))} className="gap-2">
+                      <Upload className="h-4 w-4" />Publish Now
+                    </Button>
+                  )}
+                </div>
               </div>
-
-              {/* Note */}
-              <div className="rounded-lg border border-amber-500/20 bg-amber-500/[0.03] p-3 h-fit">
-                <p className="text-[10px] text-muted-foreground">
-                  <strong className="text-foreground">⚠️ Note:</strong> After you click "Publish Now", your content will be sent to TikTok for processing. It may take <strong>a few minutes</strong> for your content to appear on TikTok. You can track the publish status below.
-                </p>
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="flex gap-2">
-              <Button onClick={schedulePost} disabled={!schedPrivacy || (!newPostCaption && !newPostMediaUrl && uploadedFiles.length === 0) || (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false))} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white gap-2">
-                {newPostScheduledAt ? <Calendar className="h-4 w-4" /> : <FolderOpen className="h-4 w-4" />}
-                {newPostScheduledAt ? "Schedule Post" : "Save as Draft"}
-              </Button>
-              {(newPostMediaUrl || uploadedFiles.some(f => f.url)) && !newPostScheduledAt && (
-                <Button variant="outline" onClick={async () => {
-                  if (!schedPrivacy) { toast.error("Select a privacy level before publishing"); return; }
-                  if (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false)) {
-                    toast.error("Daily posting limit reached — you cannot post more content today."); return;
-                  }
-                  const mediaUrl = uploadedFiles.find(f => f.url)?.url || newPostMediaUrl;
-                  if (!mediaUrl) return;
-                  const finalTitle = withAttribution(newPostCaption || "");
-                  if (schedContentType === "video") {
-                    await callApi("publish_video_by_url", {
-                      video_url: mediaUrl, title: finalTitle,
-                      privacy_level: schedPrivacy, disable_duet: schedDisableDuet,
-                      disable_comment: schedDisableComment, disable_stitch: schedDisableStitch,
-                      brand_content_toggle: schedBrandContent,
-                      brand_organic_toggle: schedBrandOrganic,
-                    });
-                  } else {
-                    const urls = uploadedFiles.filter(f => f.url).map(f => f.url!);
-                    if (newPostMediaUrl) urls.unshift(newPostMediaUrl);
-                    await callApi(schedContentType === "carousel" ? "publish_carousel" : "publish_photo", {
-                      image_urls: urls, title: finalTitle, description: finalTitle,
-                      privacy_level: schedPrivacy, disable_comment: schedDisableComment,
-                      brand_content_toggle: schedBrandContent,
-                      brand_organic_toggle: schedBrandOrganic,
-                    });
-                  }
-                  toast.success("Content sent to TikTok! It may take a few minutes to appear on your profile.");
-                }} disabled={loading || !schedPrivacy || (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false))} className="gap-2">
-                  <Upload className="h-4 w-4" />Publish Now
-                </Button>
-              )}
             </div>
           </CardContent>
         </Card>
