@@ -67,7 +67,11 @@ export default function CreatePostDialog({ onCreated, trigger }: Props) {
 
           {preview && (
             <div className="relative rounded-xl overflow-hidden">
-              <img src={preview} alt="Preview" className="w-full max-h-80 object-cover" />
+              {file?.type.startsWith('video/') ? (
+                <video src={preview} className="w-full max-h-80 object-cover" autoPlay loop muted playsInline />
+              ) : (
+                <img src={preview} alt="Preview" className="w-full max-h-80 object-cover" />
+              )}
               <button onClick={() => { setFile(null); setPreview(null); }} className="absolute top-2 right-2 bg-background/80 rounded-full p-1">
                 <X className="h-4 w-4 text-foreground" />
               </button>
