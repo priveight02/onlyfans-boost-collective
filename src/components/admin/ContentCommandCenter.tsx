@@ -938,7 +938,7 @@ Respond ONLY with JSON array.`);
         else if (platform === "threads") { action = mediaUrls.length > 0 ? "create_image_thread" : "create_text_thread"; params = mediaUrls.length > 0 ? { image_url: mediaUrls[0], text: caption } : { text: caption }; }
         else if (platform === "facebook") { action = mediaUrls.length > 0 ? "create_photo_post" : "create_post"; params = mediaUrls.length > 0 ? { image_url: mediaUrls[0], caption } : { message: caption }; }
         else if (platform === "instagram") { action = mediaUrls.length > 1 ? "create_carousel" : "create_photo_post"; params = mediaUrls.length > 1 ? { items: mediaUrls.map(u => ({ image_url: u })), caption } : { image_url: mediaUrls[0], caption }; }
-        else if (platform === "tiktok") { action = "publish_photo"; params = { image_urls: mediaUrls, title: item.title, description: caption, privacy_level: "PUBLIC_TO_EVERYONE" }; }
+        else if (platform === "tiktok") { action = "publish_photo"; params = { image_urls: mediaUrls, title: item.title, description: caption, privacy_level: "PUBLIC_TO_EVERYONE", disable_comment: false, disable_duet: false, disable_stitch: false, brand_content_toggle: false, brand_organic_toggle: false }; }
         else continue;
         const fnName = platform === "twitter" ? "twitter-api" : `${platform}-api`;
         await supabase.functions.invoke(fnName, { body: { action, account_id: conn.account_id, params } });
