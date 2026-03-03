@@ -12,6 +12,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import PlatformAccountSelector from "./PlatformAccountSelector";
+import { TikTokPostPreview } from "./TikTokPostPreview";
 import {
   Music2, Video, Upload, Eye, MessageSquare, Search, Hash,
   ListVideo, Send, RefreshCw, TrendingUp, BarChart3, Users,
@@ -183,6 +184,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
   const [editScheduledAt, setEditScheduledAt] = useState("");
   const [schedBulkSelected, setSchedBulkSelected] = useState<Set<string>>(new Set());
   const [schedViewMode, setSchedViewMode] = useState<"list" | "calendar">("list");
+  const [previewPost, setPreviewPost] = useState<any>(null);
 
   // === Upgraded Content Center State ===
   const [uploadedFiles, setUploadedFiles] = useState<{ file: File; preview: string; url?: string }[]>([]);
@@ -1876,6 +1878,9 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                           </div>
                         </div>
                         <div className="flex gap-1 flex-shrink-0">
+                          <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-cyan-500/10" onClick={() => setPreviewPost(p)} title="Preview on TikTok">
+                            <Eye className="h-3.5 w-3.5 text-cyan-400" />
+                          </Button>
                           {p.status !== "published" && (
                             <Button size="sm" variant="ghost" className="h-7 w-7 p-0 hover:bg-green-500/10" onClick={() => publishPost(p)} title="Publish now">
                               <Play className="h-3.5 w-3.5 text-green-400" />
@@ -1899,6 +1904,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
             )}
           </CardContent>
         </Card>
+        <TikTokPostPreview open={!!previewPost} onOpenChange={(o) => { if (!o) setPreviewPost(null); }} post={previewPost} profile={profile} />
       </TabsContent>
 
       {/* ===== COMMENTS ===== */}
