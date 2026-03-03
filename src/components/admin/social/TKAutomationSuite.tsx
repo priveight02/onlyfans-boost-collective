@@ -1573,30 +1573,32 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
 
                     {contentDisclosureEnabled && (
                       <div className="space-y-1.5 pl-3 border-l-2 border-cyan-500/30">
+                        {/* 3a. Branded Content — disabled when privacy is Private */}
                         <label className={`flex items-center gap-2 px-2 py-1 rounded-md border text-[10px] ${schedPrivacy === "SELF_ONLY" ? "bg-muted/10 border-border/20 opacity-50 cursor-not-allowed" : "bg-muted/20 border-border/30 cursor-pointer hover:bg-muted/30"}`}>
                           <Checkbox checked={schedBrandContent} onCheckedChange={(v) => setSchedBrandContent(!!v)} disabled={schedPrivacy === "SELF_ONLY"} />
                           <span className="text-foreground">Branded Content — paid partnership</span>
                         </label>
                         {schedBrandContent && schedPrivacy !== "SELF_ONLY" && (
                           <p className="text-[9px] text-cyan-400 flex items-center gap-1 p-1.5 rounded bg-cyan-500/[0.06] border border-cyan-500/20">
-                            <Shield className="h-3 w-3 flex-shrink-0" />This video will be labeled as &quot;Paid partnership&quot;. You are promoting another brand or a third party. The branded content label will be added to your video.
+                            <Shield className="h-3 w-3 flex-shrink-0" />By posting, you agree to TikTok&apos;s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="underline">Music Usage Confirmation</a>. This video will be labeled as &quot;Paid partnership&quot;. You are promoting another brand or a third party. The branded content label will be added to your video.
                           </p>
                         )}
-                        <label className={`flex items-center gap-2 px-2 py-1 rounded-md border text-[10px] ${schedPrivacy === "SELF_ONLY" ? "bg-muted/10 border-border/20 opacity-50 cursor-not-allowed" : "bg-muted/20 border-border/30 cursor-pointer hover:bg-muted/30"}`}>
-                          <Checkbox checked={schedBrandOrganic} onCheckedChange={(v) => setSchedBrandOrganic(!!v)} disabled={schedPrivacy === "SELF_ONLY"} />
+                        {/* 3b. Your Brand — NOT disabled when privacy is Private */}
+                        <label className="flex items-center gap-2 px-2 py-1 rounded-md border text-[10px] bg-muted/20 border-border/30 cursor-pointer hover:bg-muted/30">
+                          <Checkbox checked={schedBrandOrganic} onCheckedChange={(v) => setSchedBrandOrganic(!!v)} />
                           <span className="text-foreground">Your Brand Promotion — own business</span>
                         </label>
-                        {schedBrandOrganic && schedPrivacy !== "SELF_ONLY" && (
+                        {schedBrandOrganic && (
                           <p className="text-[9px] text-cyan-400 flex items-center gap-1 p-1.5 rounded bg-cyan-500/[0.06] border border-cyan-500/20">
-                            <Shield className="h-3 w-3 flex-shrink-0" />This video will be labeled as &quot;Promotional content&quot;. You are promoting yourself or your own business.
+                            <Shield className="h-3 w-3 flex-shrink-0" />By posting, you agree to TikTok&apos;s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="underline">Music Usage Confirmation</a>. This video will be labeled as &quot;Promotional content&quot;. You are promoting yourself or your own business.
                           </p>
                         )}
                         {schedPrivacy === "SELF_ONLY" && (
                           <p className="text-[10px] text-amber-400 flex items-center gap-1 p-1.5 rounded bg-amber-500/[0.06] border border-amber-500/20">
-                            <AlertCircle className="h-3 w-3 flex-shrink-0" />Branded content visibility cannot be set to private. Change privacy level to enable branded content options.
+                            <AlertCircle className="h-3 w-3 flex-shrink-0" />Branded content (paid partnership) cannot be set to private visibility. Change privacy level to enable this option.
                           </p>
                         )}
-                        {schedPrivacy !== "SELF_ONLY" && !schedBrandContent && !schedBrandOrganic && (
+                        {!schedBrandContent && !schedBrandOrganic && (
                           <p className="text-[9px] text-amber-400 flex items-center gap-1">
                             <AlertCircle className="h-3 w-3" />You need to indicate if your content promotes yourself, a third party, or both.
                           </p>
@@ -1608,17 +1610,17 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
 
                   <div className="h-px bg-border/20" />
 
-                  {/* --- 4) Compliance Declaration & Preview --- */}
+                   {/* --- 4) Compliance Declaration & Preview --- */}
                   <div className="space-y-1.5">
                     <p className="text-[11px] font-semibold text-foreground">4) Compliance Declaration & Preview</p>
-                    {contentDisclosureEnabled && (schedBrandContent || schedBrandOrganic) && schedPrivacy !== "SELF_ONLY" && (
+                    {contentDisclosureEnabled && (schedBrandContent || schedBrandOrganic) && (
                       <div className="bg-cyan-500/[0.06] border border-cyan-500/20 rounded-lg p-2 space-y-1">
                         <p className="text-[10px] font-semibold text-cyan-400">Content Declaration:</p>
-                        {schedBrandContent && (
-                          <p className="text-[9px] text-foreground">✅ By posting, you confirm this content promotes a brand, product, or service for which you may receive compensation. A &quot;Paid partnership&quot; label will be shown.</p>
+                        {schedBrandContent && schedPrivacy !== "SELF_ONLY" && (
+                          <p className="text-[9px] text-foreground">✅ By posting, you agree to TikTok&apos;s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="text-cyan-400 underline">Music Usage Confirmation</a>. This content promotes a brand, product, or service for which you may receive compensation. A &quot;Paid partnership&quot; label will be shown.</p>
                         )}
                         {schedBrandOrganic && (
-                          <p className="text-[9px] text-foreground">✅ By posting, you confirm this content promotes your own brand or business. A &quot;Promotional content&quot; label will be shown.</p>
+                          <p className="text-[9px] text-foreground">✅ By posting, you agree to TikTok&apos;s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="text-cyan-400 underline">Music Usage Confirmation</a>. This content promotes your own brand or business. A &quot;Promotional content&quot; label will be shown.</p>
                         )}
                       </div>
                     )}
@@ -1661,7 +1663,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                 </div>
 
                 <div className="flex gap-2">
-                  <Button onClick={schedulePost} disabled={!schedPrivacy || (!newPostCaption && !newPostMediaUrl && uploadedFiles.length === 0) || (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false)) || (contentDisclosureEnabled && !schedBrandContent && !schedBrandOrganic) || (contentDisclosureEnabled && schedPrivacy === "SELF_ONLY")} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white gap-1.5 h-9">
+                  <Button onClick={schedulePost} disabled={!schedPrivacy || (!newPostCaption && !newPostMediaUrl && uploadedFiles.length === 0) || (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false)) || (contentDisclosureEnabled && !schedBrandContent && !schedBrandOrganic) || (contentDisclosureEnabled && schedPrivacy === "SELF_ONLY" && schedBrandContent && !schedBrandOrganic)} className="flex-1 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white gap-1.5 h-9">
                     {newPostScheduledAt ? <Calendar className="h-3.5 w-3.5" /> : <FolderOpen className="h-3.5 w-3.5" />}
                     {newPostScheduledAt ? "Schedule Post" : "Save as Draft"}
                   </Button>
@@ -1671,8 +1673,8 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                       if (contentDisclosureEnabled && !schedBrandContent && !schedBrandOrganic) {
                         toast.error("You need to indicate if your content promotes yourself, a third party, or both."); return;
                       }
-                      if (contentDisclosureEnabled && schedPrivacy === "SELF_ONLY") {
-                        toast.error("Branded content visibility cannot be set to private."); return;
+                      if (contentDisclosureEnabled && schedPrivacy === "SELF_ONLY" && schedBrandContent) {
+                        toast.error("Branded content (paid partnership) cannot be set to private visibility."); return;
                       }
                       if (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false)) {
                         toast.error("Daily posting limit reached — you cannot post more content today."); return;
@@ -1699,7 +1701,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                         });
                       }
                       toast.success("Content sent to TikTok! It may take a few minutes to appear on your profile.");
-                    }} disabled={loading || !schedPrivacy || (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false)) || (contentDisclosureEnabled && !schedBrandContent && !schedBrandOrganic) || (contentDisclosureEnabled && schedPrivacy === "SELF_ONLY")} className="gap-1.5 h-9">
+                    }} disabled={loading || !schedPrivacy || (creatorInfo && (creatorInfo?.creator_info?.can_post === false || creatorInfo?.can_post === false)) || (contentDisclosureEnabled && !schedBrandContent && !schedBrandOrganic) || (contentDisclosureEnabled && schedPrivacy === "SELF_ONLY" && schedBrandContent && !schedBrandOrganic)} className="gap-1.5 h-9">
                       <Upload className="h-3.5 w-3.5" />Publish Now
                     </Button>
                   )}
@@ -2483,28 +2485,30 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   </label>
                   {contentDisclosureEnabled && (
                     <div className="space-y-2 pl-2 border-l-2 border-cyan-500/30">
+                      {/* Branded Content — disabled when privacy is Private */}
                       <label className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${schedPrivacy === "SELF_ONLY" ? "bg-muted/10 border-border/20 opacity-50 cursor-not-allowed" : "bg-muted/20 border-border/30 cursor-pointer hover:bg-muted/30"}`}>
                         <Checkbox checked={schedBrandContent} onCheckedChange={(v) => setSchedBrandContent(!!v)} disabled={schedPrivacy === "SELF_ONLY"} />
                         <span className="text-xs text-foreground">Branded Content — paid partnership</span>
                       </label>
                       {schedBrandContent && schedPrivacy !== "SELF_ONLY" && (
                         <p className="text-[10px] text-cyan-400 flex items-center gap-1 p-1.5 rounded bg-cyan-500/[0.06] border border-cyan-500/20">
-                          <Shield className="h-3 w-3 flex-shrink-0" />This video will be labeled as &quot;Paid partnership&quot;. You are promoting another brand or a third party.
+                          <Shield className="h-3 w-3 flex-shrink-0" />By posting, you agree to TikTok&apos;s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="underline">Music Usage Confirmation</a>. This video will be labeled as &quot;Paid partnership&quot;. You are promoting another brand or a third party.
                         </p>
                       )}
-                      <label className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${schedPrivacy === "SELF_ONLY" ? "bg-muted/10 border-border/20 opacity-50 cursor-not-allowed" : "bg-muted/20 border-border/30 cursor-pointer hover:bg-muted/30"}`}>
-                        <Checkbox checked={schedBrandOrganic} onCheckedChange={(v) => setSchedBrandOrganic(!!v)} disabled={schedPrivacy === "SELF_ONLY"} />
+                      {/* Your Brand — NOT disabled when privacy is Private */}
+                      <label className="flex items-center gap-2 p-2 rounded-lg border transition-colors bg-muted/20 border-border/30 cursor-pointer hover:bg-muted/30">
+                        <Checkbox checked={schedBrandOrganic} onCheckedChange={(v) => setSchedBrandOrganic(!!v)} />
                         <span className="text-xs text-foreground">Your Brand Promotion — own business</span>
                       </label>
-                      {schedBrandOrganic && schedPrivacy !== "SELF_ONLY" && (
+                      {schedBrandOrganic && (
                         <p className="text-[10px] text-cyan-400 flex items-center gap-1 p-1.5 rounded bg-cyan-500/[0.06] border border-cyan-500/20">
-                          <Shield className="h-3 w-3 flex-shrink-0" />This video will be labeled as &quot;Promotional content&quot;. You are promoting yourself or your own business.
+                          <Shield className="h-3 w-3 flex-shrink-0" />By posting, you agree to TikTok&apos;s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="underline">Music Usage Confirmation</a>. This video will be labeled as &quot;Promotional content&quot;. You are promoting yourself or your own business.
                         </p>
                       )}
                       {schedPrivacy === "SELF_ONLY" && (
-                        <p className="text-[10px] text-amber-400 flex items-center gap-1"><AlertCircle className="h-3 w-3" />Branded content visibility cannot be set to private. Change privacy level to enable branded content options.</p>
+                        <p className="text-[10px] text-amber-400 flex items-center gap-1"><AlertCircle className="h-3 w-3" />Branded content (paid partnership) cannot be set to private visibility. Change privacy level to enable this option.</p>
                       )}
-                      {schedPrivacy !== "SELF_ONLY" && !schedBrandContent && !schedBrandOrganic && (
+                      {!schedBrandContent && !schedBrandOrganic && (
                         <p className="text-[10px] text-amber-400 flex items-center gap-1"><AlertCircle className="h-3 w-3" />You need to indicate if your content promotes yourself, a third party, or both.</p>
                       )}
                     </div>
@@ -2519,7 +2523,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
             </div>
 
             <div className="flex gap-2">
-              <Button onClick={schedulePost} size="sm" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 gap-1.5" disabled={!schedPrivacy || scheduledPosts.filter(p => p.status === "scheduled").length >= 50 || (contentDisclosureEnabled && !schedBrandContent && !schedBrandOrganic) || (contentDisclosureEnabled && schedPrivacy === "SELF_ONLY")}>
+              <Button onClick={schedulePost} size="sm" className="bg-gradient-to-r from-amber-500 to-orange-500 text-white border-0 gap-1.5" disabled={!schedPrivacy || scheduledPosts.filter(p => p.status === "scheduled").length >= 50 || (contentDisclosureEnabled && !schedBrandContent && !schedBrandOrganic) || (contentDisclosureEnabled && schedPrivacy === "SELF_ONLY" && schedBrandContent && !schedBrandOrganic)}>
                 {newPostScheduledAt ? <><Calendar className="h-3.5 w-3.5" />Schedule</> : <><FolderOpen className="h-3.5 w-3.5" />Save Draft</>}
               </Button>
               {newPostCaption && (
@@ -2531,8 +2535,8 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                     if (contentDisclosureEnabled && !schedBrandContent && !schedBrandOrganic) {
                       toast.error("You need to indicate if your content promotes yourself, a third party, or both."); return;
                     }
-                    if (contentDisclosureEnabled && schedPrivacy === "SELF_ONLY") {
-                      toast.error("Branded content visibility cannot be set to private."); return;
+                    if (contentDisclosureEnabled && schedPrivacy === "SELF_ONLY" && schedBrandContent) {
+                      toast.error("Branded content (paid partnership) cannot be set to private visibility."); return;
                     }
                     publishPost({
                       caption: withAttribution(newPostCaption),
@@ -2550,7 +2554,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                       post_type: schedContentType,
                     });
                   }}
-                  disabled={loading || !schedPrivacy || (contentDisclosureEnabled && !schedBrandContent && !schedBrandOrganic) || (contentDisclosureEnabled && schedPrivacy === "SELF_ONLY")}
+                  disabled={loading || !schedPrivacy || (contentDisclosureEnabled && !schedBrandContent && !schedBrandOrganic) || (contentDisclosureEnabled && schedPrivacy === "SELF_ONLY" && schedBrandContent && !schedBrandOrganic)}
                   className="gap-1.5"
                 >
                   <Zap className="h-3.5 w-3.5" />Publish Now
