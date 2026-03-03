@@ -1573,26 +1573,33 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
 
                     {contentDisclosureEnabled && (
                       <div className="space-y-1.5 pl-3 border-l-2 border-cyan-500/30">
-                        {schedPrivacy === "SELF_ONLY" ? (
-                          <p className="text-[10px] text-amber-400 flex items-center gap-1 p-1.5 rounded bg-amber-500/[0.06] border border-amber-500/20">
-                            <AlertCircle className="h-3 w-3 flex-shrink-0" />Branded content visibility cannot be set to private.
+                        <label className={`flex items-center gap-2 px-2 py-1 rounded-md border text-[10px] ${schedPrivacy === "SELF_ONLY" ? "bg-muted/10 border-border/20 opacity-50 cursor-not-allowed" : "bg-muted/20 border-border/30 cursor-pointer hover:bg-muted/30"}`}>
+                          <Checkbox checked={schedBrandContent} onCheckedChange={(v) => setSchedBrandContent(!!v)} disabled={schedPrivacy === "SELF_ONLY"} />
+                          <span className="text-foreground">Branded Content — paid partnership</span>
+                        </label>
+                        {schedBrandContent && schedPrivacy !== "SELF_ONLY" && (
+                          <p className="text-[9px] text-cyan-400 flex items-center gap-1 p-1.5 rounded bg-cyan-500/[0.06] border border-cyan-500/20">
+                            <Shield className="h-3 w-3 flex-shrink-0" />This video will be labeled as &quot;Paid partnership&quot;. You are promoting another brand or a third party. The branded content label will be added to your video.
                           </p>
-                        ) : (
-                          <>
-                            <label className="flex items-center gap-2 px-2 py-1 rounded-md bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 text-[10px]">
-                              <Checkbox checked={schedBrandContent} onCheckedChange={(v) => setSchedBrandContent(!!v)} />
-                              <span className="text-foreground">Branded Content — paid partnership</span>
-                            </label>
-                            <label className="flex items-center gap-2 px-2 py-1 rounded-md bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 text-[10px]">
-                              <Checkbox checked={schedBrandOrganic} onCheckedChange={(v) => setSchedBrandOrganic(!!v)} />
-                              <span className="text-foreground">Your Brand Promotion — own business</span>
-                            </label>
-                            {!schedBrandContent && !schedBrandOrganic && (
-                              <p className="text-[9px] text-amber-400 flex items-center gap-1">
-                                <AlertCircle className="h-3 w-3" />You need to indicate if your content promotes yourself, a third party, or both.
-                              </p>
-                            )}
-                          </>
+                        )}
+                        <label className={`flex items-center gap-2 px-2 py-1 rounded-md border text-[10px] ${schedPrivacy === "SELF_ONLY" ? "bg-muted/10 border-border/20 opacity-50 cursor-not-allowed" : "bg-muted/20 border-border/30 cursor-pointer hover:bg-muted/30"}`}>
+                          <Checkbox checked={schedBrandOrganic} onCheckedChange={(v) => setSchedBrandOrganic(!!v)} disabled={schedPrivacy === "SELF_ONLY"} />
+                          <span className="text-foreground">Your Brand Promotion — own business</span>
+                        </label>
+                        {schedBrandOrganic && schedPrivacy !== "SELF_ONLY" && (
+                          <p className="text-[9px] text-cyan-400 flex items-center gap-1 p-1.5 rounded bg-cyan-500/[0.06] border border-cyan-500/20">
+                            <Shield className="h-3 w-3 flex-shrink-0" />This video will be labeled as &quot;Promotional content&quot;. You are promoting yourself or your own business.
+                          </p>
+                        )}
+                        {schedPrivacy === "SELF_ONLY" && (
+                          <p className="text-[10px] text-amber-400 flex items-center gap-1 p-1.5 rounded bg-amber-500/[0.06] border border-amber-500/20">
+                            <AlertCircle className="h-3 w-3 flex-shrink-0" />Branded content visibility cannot be set to private. Change privacy level to enable branded content options.
+                          </p>
+                        )}
+                        {schedPrivacy !== "SELF_ONLY" && !schedBrandContent && !schedBrandOrganic && (
+                          <p className="text-[9px] text-amber-400 flex items-center gap-1">
+                            <AlertCircle className="h-3 w-3" />You need to indicate if your content promotes yourself, a third party, or both.
+                          </p>
                         )}
                       </div>
                     )}
@@ -1601,9 +1608,20 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
 
                   <div className="h-px bg-border/20" />
 
-                  {/* --- 4) Content Preview & Attribution --- */}
+                  {/* --- 4) Compliance Declaration & Preview --- */}
                   <div className="space-y-1.5">
-                    <p className="text-[11px] font-semibold text-foreground">4) Content Preview & Attribution</p>
+                    <p className="text-[11px] font-semibold text-foreground">4) Compliance Declaration & Preview</p>
+                    {contentDisclosureEnabled && (schedBrandContent || schedBrandOrganic) && schedPrivacy !== "SELF_ONLY" && (
+                      <div className="bg-cyan-500/[0.06] border border-cyan-500/20 rounded-lg p-2 space-y-1">
+                        <p className="text-[10px] font-semibold text-cyan-400">Content Declaration:</p>
+                        {schedBrandContent && (
+                          <p className="text-[9px] text-foreground">✅ By posting, you confirm this content promotes a brand, product, or service for which you may receive compensation. A &quot;Paid partnership&quot; label will be shown.</p>
+                        )}
+                        {schedBrandOrganic && (
+                          <p className="text-[9px] text-foreground">✅ By posting, you confirm this content promotes your own brand or business. A &quot;Promotional content&quot; label will be shown.</p>
+                        )}
+                      </div>
+                    )}
                     {(uploadedFiles.length > 0 || newPostMediaUrl) && (
                       <div className="flex gap-1 flex-wrap">
                         {uploadedFiles.slice(0, 4).map((f, i) => (
@@ -2465,22 +2483,29 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                   </label>
                   {contentDisclosureEnabled && (
                     <div className="space-y-2 pl-2 border-l-2 border-cyan-500/30">
-                      {schedPrivacy === "SELF_ONLY" ? (
-                        <p className="text-[10px] text-amber-400 flex items-center gap-1"><AlertCircle className="h-3 w-3" />Branded content visibility cannot be set to private.</p>
-                      ) : (
-                        <>
-                          <label className="flex items-center gap-2 p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
-                            <Checkbox checked={schedBrandContent} onCheckedChange={(v) => setSchedBrandContent(!!v)} />
-                            <span className="text-xs text-foreground">Branded Content</span>
-                          </label>
-                          <label className="flex items-center gap-2 p-2 rounded-lg bg-muted/20 border border-border/30 cursor-pointer hover:bg-muted/30 transition-colors">
-                            <Checkbox checked={schedBrandOrganic} onCheckedChange={(v) => setSchedBrandOrganic(!!v)} />
-                            <span className="text-xs text-foreground">Your Brand Promotion</span>
-                          </label>
-                          {!schedBrandContent && !schedBrandOrganic && (
-                            <p className="text-[10px] text-amber-400 flex items-center gap-1"><AlertCircle className="h-3 w-3" />You need to indicate if your content promotes yourself, a third party, or both.</p>
-                          )}
-                        </>
+                      <label className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${schedPrivacy === "SELF_ONLY" ? "bg-muted/10 border-border/20 opacity-50 cursor-not-allowed" : "bg-muted/20 border-border/30 cursor-pointer hover:bg-muted/30"}`}>
+                        <Checkbox checked={schedBrandContent} onCheckedChange={(v) => setSchedBrandContent(!!v)} disabled={schedPrivacy === "SELF_ONLY"} />
+                        <span className="text-xs text-foreground">Branded Content — paid partnership</span>
+                      </label>
+                      {schedBrandContent && schedPrivacy !== "SELF_ONLY" && (
+                        <p className="text-[10px] text-cyan-400 flex items-center gap-1 p-1.5 rounded bg-cyan-500/[0.06] border border-cyan-500/20">
+                          <Shield className="h-3 w-3 flex-shrink-0" />This video will be labeled as &quot;Paid partnership&quot;. You are promoting another brand or a third party.
+                        </p>
+                      )}
+                      <label className={`flex items-center gap-2 p-2 rounded-lg border transition-colors ${schedPrivacy === "SELF_ONLY" ? "bg-muted/10 border-border/20 opacity-50 cursor-not-allowed" : "bg-muted/20 border-border/30 cursor-pointer hover:bg-muted/30"}`}>
+                        <Checkbox checked={schedBrandOrganic} onCheckedChange={(v) => setSchedBrandOrganic(!!v)} disabled={schedPrivacy === "SELF_ONLY"} />
+                        <span className="text-xs text-foreground">Your Brand Promotion — own business</span>
+                      </label>
+                      {schedBrandOrganic && schedPrivacy !== "SELF_ONLY" && (
+                        <p className="text-[10px] text-cyan-400 flex items-center gap-1 p-1.5 rounded bg-cyan-500/[0.06] border border-cyan-500/20">
+                          <Shield className="h-3 w-3 flex-shrink-0" />This video will be labeled as &quot;Promotional content&quot;. You are promoting yourself or your own business.
+                        </p>
+                      )}
+                      {schedPrivacy === "SELF_ONLY" && (
+                        <p className="text-[10px] text-amber-400 flex items-center gap-1"><AlertCircle className="h-3 w-3" />Branded content visibility cannot be set to private. Change privacy level to enable branded content options.</p>
+                      )}
+                      {schedPrivacy !== "SELF_ONLY" && !schedBrandContent && !schedBrandOrganic && (
+                        <p className="text-[10px] text-amber-400 flex items-center gap-1"><AlertCircle className="h-3 w-3" />You need to indicate if your content promotes yourself, a third party, or both.</p>
                       )}
                     </div>
                   )}
