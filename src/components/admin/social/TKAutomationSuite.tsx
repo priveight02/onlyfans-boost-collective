@@ -1580,7 +1580,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                         </label>
                         {schedBrandContent && schedPrivacy !== "SELF_ONLY" && (
                           <p className="text-[9px] text-cyan-400 flex items-center gap-1 p-1.5 rounded bg-cyan-500/[0.06] border border-cyan-500/20">
-                            <Shield className="h-3 w-3 flex-shrink-0" />By posting, you agree to TikTok&apos;s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="underline">Music Usage Confirmation</a>. This video will be labeled as &quot;Paid partnership&quot;. You are promoting another brand or a third party. The branded content label will be added to your video.
+                            <Shield className="h-3 w-3 flex-shrink-0" />By posting, you agree to TikTok&apos;s <a href="https://www.tiktok.com/legal/page/global/bc-policy" target="_blank" rel="noreferrer" className="underline">Branded Content Policy</a> and <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="underline">Music Usage Confirmation</a>. This video will be labeled as &quot;Paid partnership&quot;. You are promoting another brand or a third party. The branded content label will be added to your video.
                           </p>
                         )}
                         {/* 3b. Your Brand — NOT disabled when privacy is Private */}
@@ -1617,7 +1617,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                       <div className="bg-cyan-500/[0.06] border border-cyan-500/20 rounded-lg p-2 space-y-1">
                         <p className="text-[10px] font-semibold text-cyan-400">Content Declaration:</p>
                         {schedBrandContent && schedPrivacy !== "SELF_ONLY" && (
-                          <p className="text-[9px] text-foreground">✅ By posting, you agree to TikTok&apos;s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="text-cyan-400 underline">Music Usage Confirmation</a>. This content promotes a brand, product, or service for which you may receive compensation. A &quot;Paid partnership&quot; label will be shown.</p>
+                          <p className="text-[9px] text-foreground">✅ By posting, you agree to TikTok&apos;s <a href="https://www.tiktok.com/legal/page/global/bc-policy" target="_blank" rel="noreferrer" className="text-cyan-400 underline">Branded Content Policy</a> and <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="text-cyan-400 underline">Music Usage Confirmation</a>. This content promotes a brand, product, or service for which you may receive compensation. A &quot;Paid partnership&quot; label will be shown.</p>
                         )}
                         {schedBrandOrganic && (
                           <p className="text-[9px] text-foreground">✅ By posting, you agree to TikTok&apos;s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="text-cyan-400 underline">Music Usage Confirmation</a>. This content promotes your own brand or business. A &quot;Promotional content&quot; label will be shown.</p>
@@ -2492,7 +2492,7 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
                       </label>
                       {schedBrandContent && schedPrivacy !== "SELF_ONLY" && (
                         <p className="text-[10px] text-cyan-400 flex items-center gap-1 p-1.5 rounded bg-cyan-500/[0.06] border border-cyan-500/20">
-                          <Shield className="h-3 w-3 flex-shrink-0" />By posting, you agree to TikTok&apos;s <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="underline">Music Usage Confirmation</a>. This video will be labeled as &quot;Paid partnership&quot;. You are promoting another brand or a third party.
+                          <Shield className="h-3 w-3 flex-shrink-0" />By posting, you agree to TikTok&apos;s <a href="https://www.tiktok.com/legal/page/global/bc-policy" target="_blank" rel="noreferrer" className="underline">Branded Content Policy</a> and <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noreferrer" className="underline">Music Usage Confirmation</a>. This video will be labeled as &quot;Paid partnership&quot;. You are promoting another brand or a third party.
                         </p>
                       )}
                       {/* Your Brand — NOT disabled when privacy is Private */}
