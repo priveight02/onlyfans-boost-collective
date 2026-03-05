@@ -859,6 +859,620 @@ serve(async (req) => {
         result = { data: {}, _unavailable: true, message: "Research API requires additional TikTok scopes not yet approved." };
         break;
 
+      // =======================================================================
+      // ===== TIKTOK BUSINESS DEVELOPER API v1.3 (Ads / Commercial) ===========
+      // =======================================================================
+      // These are SEPARATE from the standard TikTok Developer API above.
+      // Base URL: https://business-api.tiktok.com/open_api/v1.3
+      // All actions prefixed with "biz_" to differentiate from standard API.
+      // Generic proxy: action = "biz_proxy", params.endpoint, params.method, params.body, params.query
+      // =======================================================================
+
+      case "biz_proxy": {
+        const BIZ_BASE = "https://business-api.tiktok.com/open_api/v1.3";
+        const bizEndpoint = params?.endpoint;
+        if (!bizEndpoint) throw new Error("Missing params.endpoint for biz_proxy");
+        const bizMethod = (params?.method || "GET").toUpperCase();
+        const bizQuery = params?.query ? "?" + new URLSearchParams(params.query).toString() : "";
+        const bizUrl = `${BIZ_BASE}${bizEndpoint}${bizQuery}`;
+        const bizHeaders: Record<string, string> = {
+          "Access-Token": token!,
+          "Content-Type": "application/json",
+        };
+        const bizOpts: RequestInit = { method: bizMethod, headers: bizHeaders };
+        if (params?.body && ["POST", "PUT", "PATCH"].includes(bizMethod)) {
+          bizOpts.body = JSON.stringify(params.body);
+        }
+        console.log(`[BIZ_PROXY] ${bizMethod} ${bizUrl}`);
+        const bizResp = await fetch(bizUrl, bizOpts);
+        const bizData = await bizResp.json();
+        result = bizData;
+        break;
+      }
+
+      // ===== AD ACCOUNT MANAGEMENT =====
+      case "biz_advertiser_info":
+      case "biz_oauth2_advertiser_get":
+      case "biz_term_get":
+      case "biz_term_check":
+      case "biz_term_confirm":
+      case "biz_pangle_block_list_get":
+      case "biz_pangle_block_list_update":
+      case "biz_pangle_block_list_campaign_update":
+      case "biz_pangle_block_list_campaign_get":
+      case "biz_pangle_block_list_report_get":
+      case "biz_pangle_audience_package_get":
+      case "biz_bc_inspiration_audience_insight":
+      case "biz_bc_inspiration_ad_performance":
+      case "biz_bc_get":
+      case "biz_bc_balance_get":
+      case "biz_bc_transaction_get":
+      case "biz_bc_image_upload":
+      case "biz_bc_advertiser_create":
+      case "biz_advertiser_update":
+      case "biz_bc_advertiser_disable":
+      case "biz_bc_advertiser_qualification_get":
+      case "biz_bc_advertiser_attribute":
+      case "biz_bc_advertiser_unionpay_check":
+      case "biz_bc_advertiser_unionpay_submit":
+      case "biz_bc_transfer":
+      case "biz_advertiser_balance_get":
+      case "biz_advertiser_transaction_get":
+      case "biz_bc_account_transaction_get":
+      case "biz_bc_account_cost_get":
+      case "biz_bc_account_budget_changelog_get":
+      case "biz_bc_asset_get":
+      case "biz_bc_asset_admin_get":
+      case "biz_bc_asset_assign":
+      case "biz_bc_asset_unassign":
+      case "biz_bc_asset_partner_get":
+      case "biz_bc_asset_member_get":
+      case "biz_bc_asset_admin_delete":
+      case "biz_bc_pixel_link_update":
+      case "biz_bc_pixel_link_get":
+      case "biz_bc_pixel_transfer":
+      case "biz_asset_bind_quota":
+      case "biz_bc_pixel_get":
+      case "biz_bc_asset_account_authorization":
+      case "biz_bc_asset_advertiser_assign":
+      case "biz_bc_asset_advertiser_unassign":
+      case "biz_bc_asset_advertiser_assigned":
+      case "biz_bc_oa_create":
+      case "biz_bc_partner_asset_get":
+      case "biz_bc_partner_delete":
+      case "biz_bc_partner_add":
+      case "biz_bc_partner_get":
+      case "biz_bc_partner_asset_delete":
+      case "biz_bc_member_delete":
+      case "biz_bc_member_update":
+      case "biz_bc_member_get":
+      case "biz_bc_member_invite":
+      case "biz_bc_member_assign":
+      case "biz_bc_billing_group_update":
+      case "biz_bc_billing_group_get":
+      case "biz_bc_billing_group_create":
+      case "biz_bc_billing_group_advertiser_list":
+      case "biz_bc_invoice_task_create":
+      case "biz_bc_invoice_get":
+      case "biz_bc_invoice_download":
+      case "biz_bc_invoice_task_get":
+      case "biz_bc_invoice_unpaid_get":
+      case "biz_bc_invoice_task_list":
+      case "biz_bc_invoice_billing_report_get":
+      case "biz_bc_asset_group_create":
+      case "biz_bc_asset_group_get":
+      case "biz_bc_asset_group_update":
+      case "biz_bc_asset_group_list":
+      case "biz_bc_asset_group_delete":
+      case "biz_bc_child_invite":
+      case "biz_bc_child_unbind":
+      // ===== ADS MANAGEMENT =====
+      case "biz_campaign_get":
+      case "biz_campaign_quota_get":
+      case "biz_campaign_quota_info":
+      case "biz_campaign_spc_get":
+      case "biz_campaign_copy_task_check":
+      case "biz_campaign_gmv_max_info":
+      case "biz_gmv_max_bid_recommend":
+      case "biz_gmv_max_campaign_get":
+      case "biz_campaign_spc_quota_get":
+      case "biz_campaign_create":
+      case "biz_campaign_update":
+      case "biz_campaign_status_update":
+      case "biz_campaign_spc_create":
+      case "biz_campaign_spc_update":
+      case "biz_campaign_copy_task_create":
+      case "biz_campaign_gmv_max_create":
+      case "biz_campaign_gmv_max_update":
+      case "biz_business_spark_ad_create":
+      case "biz_campaign_spc_material_status_update":
+      case "biz_adgroup_get":
+      case "biz_adgroup_review_info":
+      case "biz_adgroup_quota":
+      case "biz_adgroup_create":
+      case "biz_adgroup_update":
+      case "biz_ad_audience_size_estimate":
+      case "biz_adgroup_status_update":
+      case "biz_adgroup_budget_update":
+      case "biz_ad_get":
+      case "biz_ad_review_info":
+      case "biz_ad_aco_get":
+      case "biz_showcase_product_get":
+      case "biz_showcase_identity_get":
+      case "biz_showcase_region_get":
+      case "biz_smart_plus_mmt_ad_get":
+      case "biz_ad_create":
+      case "biz_ad_update":
+      case "biz_ad_aco_create":
+      case "biz_ad_aco_update":
+      case "biz_ad_status_update":
+      case "biz_ad_aco_material_status_update":
+      case "biz_changelog_task_create":
+      case "biz_changelog_task_download":
+      case "biz_changelog_task_check":
+      case "biz_changelog_get":
+      case "biz_split_test_promote":
+      case "biz_split_test_result_get":
+      case "biz_split_test_create":
+      case "biz_split_test_end":
+      case "biz_split_test_update":
+      case "biz_split_test_power_value_estimate":
+      case "biz_search_ad_negative_keyword_download":
+      case "biz_search_ad_negative_keyword_add":
+      case "biz_search_ad_negative_keyword_delete":
+      case "biz_search_ad_negative_keyword_update":
+      case "biz_search_ad_negative_keyword_get":
+      case "biz_tool_search_keyword_recommend":
+      case "biz_account_optimization_account":
+      case "biz_account_optimization_entity":
+      case "biz_gmv_max_exclusive_authorization_create":
+      case "biz_gmv_max_exclusive_authorization_get":
+      case "biz_gmv_max_store_list":
+      case "biz_gmv_max_store_shop_ad_usage_check":
+      case "biz_gmv_max_occupied_custom_shop_ads_list":
+      case "biz_gmv_max_identity_get":
+      case "biz_gmv_max_video_get":
+      case "biz_gmv_max_custom_anchor_video_list_get":
+      case "biz_campaign_gmv_max_creative_update":
+      case "biz_campaign_gmv_max_session_update":
+      case "biz_campaign_gmv_max_session_delete":
+      case "biz_campaign_gmv_max_session_list":
+      case "biz_campaign_gmv_max_session_get":
+      case "biz_campaign_gmv_max_session_create":
+      case "biz_smart_plus_campaign_get":
+      case "biz_smart_plus_adgroup_get":
+      case "biz_smart_plus_ad_get":
+      case "biz_smart_plus_material_review_info":
+      case "biz_smart_plus_ad_review_info":
+      case "biz_smart_plus_campaign_create":
+      case "biz_smart_plus_campaign_update":
+      case "biz_smart_plus_campaign_status_update":
+      case "biz_smart_plus_adgroup_create":
+      case "biz_smart_plus_adgroup_update":
+      case "biz_smart_plus_ad_create":
+      case "biz_smart_plus_ad_update":
+      case "biz_smart_plus_ad_status_update":
+      case "biz_smart_plus_ad_material_status_update":
+      case "biz_smart_plus_ad_appeal":
+      case "biz_smart_plus_adgroup_status_update":
+      case "biz_smart_plus_adgroup_budget_update":
+      case "biz_campaign_label_get":
+      // ===== AUDIENCE MANAGEMENT =====
+      case "biz_dmp_custom_audience_list":
+      case "biz_dmp_custom_audience_get":
+      case "biz_dmp_saved_audience_list":
+      case "biz_dmp_custom_audience_overlap":
+      case "biz_dmp_custom_audience_potential":
+      case "biz_audience_insight_overlap":
+      case "biz_audience_insight_info":
+      case "biz_dmp_custom_audience_file_upload":
+      case "biz_dmp_custom_audience_create":
+      case "biz_dmp_custom_audience_update":
+      case "biz_dmp_custom_audience_delete":
+      case "biz_dmp_custom_audience_rule_create":
+      case "biz_dmp_custom_audience_lookalike_create":
+      case "biz_dmp_custom_audience_apply":
+      case "biz_dmp_custom_audience_apply_log":
+      case "biz_dmp_custom_audience_lookalike_update":
+      case "biz_dmp_saved_audience_delete":
+      case "biz_dmp_saved_audience_create":
+      case "biz_dmp_custom_audience_share_cancel":
+      case "biz_dmp_custom_audience_share_log":
+      case "biz_dmp_custom_audience_share":
+      // ===== REPORTING =====
+      case "biz_report_integrated_get":
+      case "biz_report_task_download":
+      case "biz_report_task_create":
+      case "biz_report_task_check":
+      case "biz_report_subscription_subscribe":
+      case "biz_report_subscription_unsubscribe":
+      case "biz_report_subscription_update":
+      case "biz_report_subscription_get":
+      case "biz_campaign_spc_report_get":
+      case "biz_report_task_cancel":
+      case "biz_report_ad_benchmark_get":
+      case "biz_report_video_performance_get":
+      case "biz_creative_fatigue_get":
+      case "biz_gmv_max_report_get":
+      case "biz_smart_plus_material_report_overview":
+      case "biz_smart_plus_material_report_breakdown":
+      // ===== MEASUREMENT =====
+      case "biz_app_track":
+      case "biz_app_batch":
+      case "biz_business_sdk_config_get":
+      case "biz_open_api_business_sdk_config_get":
+      case "biz_app_monitor":
+      case "biz_app_s2s_deeplink":
+      case "biz_pixel_track":
+      case "biz_pixel_batch":
+      case "biz_event_track":
+      case "biz_pps_advertiser_verify":
+      case "biz_pps_advertiser_event_update":
+      case "biz_pps_survey_upload":
+      case "biz_pps_survey_metric":
+      // ===== CREATIVE MANAGEMENT =====
+      case "biz_file_image_ad_search":
+      case "biz_file_image_ad_info":
+      case "biz_file_image_ad_upload":
+      case "biz_file_image_ad_update":
+      case "biz_file_video_ad_search":
+      case "biz_file_video_ad_info":
+      case "biz_file_video_ad_upload":
+      case "biz_file_video_ad_update":
+      case "biz_file_video_smart_tag_programs":
+      case "biz_file_video_smart_tag_upload":
+      case "biz_file_video_suggestcover":
+      case "biz_video_template_task_create":
+      case "biz_video_template_status_get":
+      case "biz_file_music_get":
+      case "biz_file_music_upload":
+      case "biz_creative_status_get":
+      case "biz_creative_quick_optimization_create":
+      case "biz_creative_smart_video_create":
+      case "biz_creative_ads_preview_create":
+      case "biz_creative_video_soundtrack_create":
+      case "biz_creative_image_edit":
+      case "biz_creative_asset_share":
+      case "biz_creative_shareable_link_create":
+      case "biz_creative_app_center_user_record":
+      case "biz_creative_app_center_advanced_function_check":
+      case "biz_file_delete":
+      case "biz_creative_asset_delete":
+      case "biz_smart_plus_ad_preview":
+      case "biz_creative_report_get":
+      case "biz_playable_get":
+      case "biz_playable_validate":
+      case "biz_playable_upload":
+      case "biz_playable_save":
+      case "biz_playable_delete":
+      case "biz_audit_machine_audit":
+      case "biz_page_get":
+      case "biz_tt_video_info":
+      case "biz_tt_video_authorize":
+      case "biz_tt_video_unbind":
+      case "biz_tt_video_list":
+      case "biz_identity_create":
+      case "biz_identity_get":
+      case "biz_identity_info":
+      case "biz_identity_video_get":
+      case "biz_identity_video_info":
+      case "biz_identity_music_authorization":
+      case "biz_identity_live_get":
+      case "biz_identity_delete":
+      case "biz_creative_tag_report_get":
+      case "biz_creative_portfolio_create":
+      case "biz_creative_portfolio_get":
+      case "biz_creative_cta_recommend":
+      case "biz_creative_portfolio_list":
+      case "biz_creative_portfolio_delete":
+      case "biz_creative_smart_text_generate":
+      case "biz_creative_smart_text_feedback":
+      case "biz_dynamic_scene_material_submit":
+      case "biz_dynamic_scene_task_create":
+      case "biz_dynamic_scene_get":
+      case "biz_dynamic_scene_task_get":
+      case "biz_dynamic_scene_report_get":
+      case "biz_video_fix_task_create":
+      case "biz_video_fix_task_get":
+      case "biz_file_name_check":
+      case "biz_discovery_trending_list":
+      case "biz_discovery_detail":
+      case "biz_discovery_video_list":
+      case "biz_discovery_cml_video_list":
+      case "biz_discovery_cml_trending_list":
+      case "biz_discovery_trending_search":
+      case "biz_discovery_trending_search_keyword":
+      case "biz_discovery_trending_hashtag_list":
+      case "biz_discovery_trending_hashtag_detail_get":
+      case "biz_discovery_cml_list":
+      case "biz_discovery_search":
+      case "biz_discovery_search_recommend":
+      case "biz_discovery_cml_post_list":
+      case "biz_discovery_hashtag_post_list":
+      case "biz_creative_shared_folder_associated_advertiser":
+      case "biz_creative_shared_folder_create":
+      case "biz_creative_shared_folder_advertiser_authorize":
+      case "biz_creative_shared_folder_partner":
+      case "biz_creative_shared_folder_detail":
+      case "biz_creative_auto_message_get":
+      case "biz_creative_auto_message_create":
+      case "biz_creative_pre_review_task_get":
+      case "biz_creative_pre_review_task_create":
+      case "biz_creative_gmv_max_pre_review_task_create":
+      case "biz_creative_gmv_max_pre_review_task_get":
+      // ===== APP MANAGEMENT =====
+      case "biz_app_list":
+      case "biz_app_info":
+      case "biz_app_optimization_event":
+      case "biz_app_optimization_event_retargeting":
+      case "biz_app_create":
+      case "biz_app_update":
+      // ===== PIXEL MANAGEMENT =====
+      case "biz_pixel_list":
+      case "biz_pixel_create":
+      case "biz_pixel_update":
+      case "biz_pixel_event_create":
+      case "biz_pixel_event_update":
+      case "biz_pixel_event_delete":
+      case "biz_pixel_instant_page_event":
+      case "biz_pixel_event_stats":
+      case "biz_pixel_event_health_reporting":
+      // ===== DPA CATALOG MANAGEMENT =====
+      case "biz_catalog_get":
+      case "biz_catalog_lexicon_get":
+      case "biz_catalog_overview":
+      case "biz_catalog_location_currency_get":
+      case "biz_catalog_available_country_get":
+      case "biz_catalog_create":
+      case "biz_catalog_update":
+      case "biz_catalog_delete":
+      case "biz_catalog_capitalize":
+      case "biz_catalog_product_get":
+      case "biz_catalog_product_log":
+      case "biz_catalog_product_upload":
+      case "biz_catalog_product_delete":
+      case "biz_catalog_product_upload_file":
+      case "biz_catalog_product_file":
+      case "biz_catalog_product_update":
+      case "biz_catalog_product_appeal":
+      case "biz_catalog_product_single_upload":
+      case "biz_catalog_set_get":
+      case "biz_catalog_set_product_get":
+      case "biz_catalog_set_create":
+      case "biz_catalog_set_update":
+      case "biz_catalog_set_delete":
+      case "biz_catalog_set_upload":
+      case "biz_catalog_video_package_get":
+      case "biz_catalog_video_log":
+      case "biz_catalog_video_package_update":
+      case "biz_catalog_video_package_create":
+      case "biz_catalog_video_package_delete":
+      case "biz_catalog_video_package_audit":
+      case "biz_catalog_video_file":
+      case "biz_catalog_video_delete":
+      case "biz_catalog_template_upload":
+      case "biz_catalog_template_preview_create":
+      case "biz_catalog_eventsource_bind_get":
+      case "biz_diagnostic_catalog_eventsource_metric":
+      case "biz_diagnostic_catalog_eventsource_issue":
+      case "biz_catalog_eventsource_bind":
+      case "biz_catalog_eventsource_unbind":
+      case "biz_catalog_feed_get":
+      case "biz_catalog_feed_log":
+      case "biz_catalog_feed_create":
+      case "biz_catalog_feed_update":
+      case "biz_catalog_feed_delete":
+      case "biz_catalog_feed_switch":
+      case "biz_diagnostic_catalog_product_task_create":
+      case "biz_diagnostic_catalog":
+      case "biz_diagnostic_catalog_product_task_get":
+      case "biz_catalog_insight_product_get":
+      case "biz_catalog_insight_filter_get":
+      case "biz_catalog_insight_category_get":
+      // ===== REACH & FREQUENCY =====
+      case "biz_adgroup_rf_create":
+      case "biz_adgroup_rf_update":
+      case "biz_adgroup_rf_estimated_info":
+      case "biz_rf_inventory_estimate":
+      case "biz_rf_order_cancel":
+      case "biz_rf_contract_query":
+      case "biz_rf_delivery_timezone":
+      // ===== LEAD MANAGEMENT =====
+      case "biz_pages_fields_get":
+      case "biz_page_lead_get":
+      case "biz_lead_field_get":
+      case "biz_lead_get":
+      case "biz_page_lead_mock_create":
+      case "biz_page_lead_mock_get":
+      case "biz_page_lead_mock_delete":
+      case "biz_page_field_get":
+      case "biz_page_lead_task_download":
+      case "biz_page_lead_task":
+      // ===== TCM (CREATOR MARKETPLACE) =====
+      case "biz_tto_tcm_campaign_create":
+      case "biz_tto_tcm_campaign_link":
+      case "biz_tto_tcm_anchor_create":
+      case "biz_tto_tcm_anchor_delete":
+      case "biz_tto_tcm_brand_profile_create":
+      case "biz_tto_tcm_campaign_update":
+      case "biz_tto_brand_profile_create":
+      case "biz_tto_campaign_create":
+      case "biz_tto_campaign_update":
+      case "biz_tto_campaign_link":
+      case "biz_tto_anchor_create":
+      case "biz_tto_anchor_delete":
+      case "biz_tcm_order_get_v2":
+      case "biz_tto_tcm_campaign":
+      case "biz_tto_tcm_report":
+      case "biz_tto_tcm_category_label":
+      case "biz_tto_tcm_rank":
+      case "biz_tto_tcm_creator_discover":
+      case "biz_tto_tcm_campaign_link_status":
+      case "biz_tto_tcm_anchor_get":
+      case "biz_tto_tcm_brand_profile_get":
+      case "biz_tto_oauth2_info":
+      case "biz_tto_tcm_audience_match":
+      case "biz_tcm_report_get_v2":
+      case "biz_tto_oauth2_tcm":
+      case "biz_tto_oauth2_get":
+      case "biz_tto_info_get":
+      case "biz_tto_audience_creator_match":
+      case "biz_tto_creator_category_label":
+      case "biz_tto_creator_rank_scoreboard":
+      case "biz_tto_creator_discover":
+      case "biz_tto_brand_profile_get":
+      case "biz_tto_campaign_get":
+      case "biz_tto_campaign_link_status_get":
+      case "biz_tto_campaign_report_get":
+      case "biz_tto_anchor_get":
+      case "biz_tto_tcm_creator_status_get":
+      case "biz_tto_creator_status_get":
+      case "biz_tcm_tt_video_status":
+      case "biz_tcm_tt_video_apply":
+      case "biz_tto_campaign_video_auth_apply":
+      case "biz_tto_campaign_video_auth_status_get":
+      // ===== TIKTOK CREATOR =====
+      case "biz_tcm_creator_authorized":
+      case "biz_tto_tcm_creator_public":
+      case "biz_tto_creator_authorized":
+      case "biz_tto_creator_authorized_get":
+      case "biz_tto_creator_public_get":
+      case "biz_tcm_creator_authorized_video_list":
+      case "biz_tto_tcm_creator_public_video_list":
+      case "biz_tto_creator_authorized_video_list":
+      case "biz_tto_creator_public_video_list":
+      case "biz_tto_creator_campaign_join":
+      case "biz_tto_creator_campaign_video_link":
+      case "biz_tto_creator_link_request_confirm":
+      case "biz_tto_creator_link_request_get":
+      // ===== AD COMMENTS =====
+      case "biz_comment_list":
+      case "biz_comment_reference":
+      case "biz_comment_task_create":
+      case "biz_comment_task_check":
+      case "biz_comment_task_download":
+      case "biz_comment_status_update":
+      case "biz_comment_delete":
+      case "biz_comment_post":
+      case "biz_blockedword_list":
+      case "biz_blockedword_task_create":
+      case "biz_blockedword_task_check":
+      case "biz_blockedword_task_download":
+      case "biz_blockedword_check":
+      case "biz_blockedword_create":
+      case "biz_blockedword_update":
+      case "biz_blockedword_delete":
+      // ===== TIKTOK BUSINESS PLUGIN =====
+      case "biz_tbp_business_profile_get":
+      case "biz_tbp_business_profile_disconnect":
+      // ===== AUTOMATED RULES =====
+      case "biz_optimizer_rule_create":
+      case "biz_optimizer_rule_update":
+      case "biz_optimizer_rule_batch_bind":
+      case "biz_optimizer_rule_update_status":
+      case "biz_optimizer_rule_get":
+      case "biz_optimizer_rule_list":
+      case "biz_optimizer_rule_result_get":
+      case "biz_optimizer_rule_result_list":
+      // ===== ONSITE COMMERCE STORE =====
+      case "biz_commerce_store_create":
+      case "biz_commerce_store_bind_to_catalog":
+      case "biz_commerce_window_update":
+      case "biz_commerce_store_get":
+      case "biz_commerce_store_product_get":
+      case "biz_commerce_store_trusted_create":
+      case "biz_store_list":
+      case "biz_store_product_get":
+      // ===== OFFLINE EVENTS MANAGEMENT =====
+      case "biz_offline_create":
+      case "biz_offline_update":
+      case "biz_offline_delete":
+      case "biz_offline_track":
+      case "biz_offline_batch":
+      case "biz_offline_get":
+      // ===== AD DIAGNOSIS =====
+      case "biz_tool_diagnosis_get":
+      // ===== MENTIONS =====
+      case "biz_business_mention_top_word_list":
+      case "biz_business_mention_top_hashtag_list":
+      case "biz_business_mention_video_list":
+      case "biz_business_mention_hashtag_video_list":
+      case "biz_business_mention_video_get":
+      case "biz_business_mention_hashtag_verify_list":
+      case "biz_business_mention_hashtag_manage_list":
+      case "biz_business_mention_hashtag_add":
+      case "biz_business_mention_hashtag_remove":
+      case "biz_business_mention_comment_list":
+      case "biz_business_mention_comment_get":
+      // ===== CRM EVENT MANAGEMENT =====
+      case "biz_crm_list":
+      case "biz_crm_create":
+      // ===== BUSINESS RECOMMENDATION =====
+      case "biz_business_video_recommend":
+      case "biz_spark_ad_recommend":
+      case "biz_tto_post_recommend":
+      // ===== CTX EVENTS MANAGEMENT =====
+      case "biz_ctm_create":
+      case "biz_ctm_get_or_create":
+      case "biz_ctm_message_event_set_get":
+      case "biz_ctm_list":
+      // ===== BRAND SAFETY =====
+      case "biz_video_exclusion_list_get":
+      case "biz_video_exclusion_list_update":
+      case "biz_video_exclusion_list_change_log":
+      case "biz_video_exclusion_list_change_log_id":
+      case "biz_tiktok_inventory_filters_get":
+      case "biz_tiktok_inventory_filters_update":
+      case "biz_profile_exclusion_list_get":
+      case "biz_profile_exclusion_list_update":
+      case "biz_profile_exclusion_list_change_log":
+      // ===== PARTNER INSIGHTS =====
+      case "biz_partner_insights_update":
+      // ===== PAYMENT PORTFOLIO =====
+      case "biz_payment_portfolio_create":
+      case "biz_payment_portfolio_advertiser_update":
+      case "biz_payment_portfolio_credit_line_update":
+      case "biz_payment_portfolio_get":
+      case "biz_payment_portfolio_advertiser_get":
+      case "biz_payment_portfolio_user_get":
+      // ===== CUSTOM CONVERSION MANAGEMENT =====
+      case "biz_custom_conversion_create":
+      case "biz_custom_conversion_update":
+      case "biz_custom_conversion_delete":
+      case "biz_custom_conversion_get":
+      case "biz_custom_conversion_list":
+      // ===== MINIS MANAGEMENT =====
+      case "biz_minis_get":
+      // ===== DIRECT MESSAGES (Business API) =====
+      case "biz_direct_message_send":
+      case "biz_direct_message_get":
+      case "biz_direct_message_list":
+      case "biz_message_send":
+      case "biz_message_list":
+      case "biz_conversation_list":
+      case "biz_conversation_get": {
+        // All Business API v1.3 actions route through the same proxy logic
+        const BIZ_BASE = "https://business-api.tiktok.com/open_api/v1.3";
+        // Convert action name to API path: biz_campaign_get → /campaign/get/
+        const actionPath = action.replace(/^biz_/, "").replace(/_/g, "/");
+        const bizEndpoint = params?.endpoint || `/${actionPath}/`;
+        const bizMethod = (params?.method || "GET").toUpperCase();
+        const bizQuery = params?.query ? "?" + new URLSearchParams(params.query).toString() : "";
+        const bizUrl = `${BIZ_BASE}${bizEndpoint}${bizQuery}`;
+        const bizHeaders: Record<string, string> = {
+          "Access-Token": token!,
+          "Content-Type": "application/json",
+        };
+        const bizOpts: RequestInit = { method: bizMethod, headers: bizHeaders };
+        if (params?.body && ["POST", "PUT", "PATCH"].includes(bizMethod)) {
+          bizOpts.body = JSON.stringify(params.body);
+        }
+        console.log(`[BIZ_API] ${bizMethod} ${bizUrl}`);
+        const bizResp = await fetch(bizUrl, bizOpts);
+        result = await bizResp.json();
+        break;
+      }
+
       default:
         throw new Error(`Unknown action: ${action}`);
     }
