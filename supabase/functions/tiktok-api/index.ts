@@ -1450,7 +1450,66 @@ serve(async (req) => {
       case "biz_message_send":
       case "biz_message_list":
       case "biz_conversation_list":
-      case "biz_conversation_get": {
+      case "biz_conversation_get":
+      // ===== BUSINESS MESSAGING API (Organic - DMs for Business Accounts) =====
+      // Direct Message Management
+      case "biz_business_message_send":
+      case "biz_business_message_list":
+      case "biz_business_message_get":
+      case "biz_business_conversation_list":
+      case "biz_business_conversation_get":
+      case "biz_business_conversation_read":
+      case "biz_business_dm_send":
+      case "biz_business_dm_list":
+      case "biz_business_dm_get":
+      case "biz_business_dm_conversation_list":
+      case "biz_business_dm_conversation_get":
+      // Welcome Message Management
+      case "biz_business_welcome_message_get":
+      case "biz_business_welcome_message_create":
+      case "biz_business_welcome_message_update":
+      case "biz_business_welcome_message_delete":
+      // Suggested Questions Management
+      case "biz_business_suggested_question_get":
+      case "biz_business_suggested_question_create":
+      case "biz_business_suggested_question_update":
+      case "biz_business_suggested_question_delete":
+      case "biz_business_suggested_question_list":
+      // Chat Prompts Management
+      case "biz_business_chat_prompt_get":
+      case "biz_business_chat_prompt_create":
+      case "biz_business_chat_prompt_update":
+      case "biz_business_chat_prompt_delete":
+      case "biz_business_chat_prompt_list":
+      // Keyword Reply / Auto-Reply
+      case "biz_business_keyword_reply_get":
+      case "biz_business_keyword_reply_create":
+      case "biz_business_keyword_reply_update":
+      case "biz_business_keyword_reply_delete":
+      case "biz_business_keyword_reply_list":
+      // Unlock Conversations
+      case "biz_business_unlock_conversation":
+      case "biz_business_conversation_unlock":
+      // Messaging Limits
+      case "biz_business_messaging_limit_get":
+      case "biz_business_messaging_quota_get":
+      // Business Messaging Webhooks
+      case "biz_business_messaging_webhook_create":
+      case "biz_business_messaging_webhook_get":
+      case "biz_business_messaging_webhook_update":
+      case "biz_business_messaging_webhook_delete":
+      // Auto Message (Organic Accounts API)
+      case "biz_business_auto_message_get":
+      case "biz_business_auto_message_create":
+      case "biz_business_auto_message_update":
+      case "biz_business_auto_message_delete":
+      case "biz_business_auto_message_list":
+      // Mentions Comments (messaging-related)
+      case "biz_business_mention_comment_reply":
+      // Subscription / Webhook for Business Messaging events
+      case "biz_business_messaging_subscription_create":
+      case "biz_business_messaging_subscription_get":
+      case "biz_business_messaging_subscription_delete": {
         // All Business API v1.3 actions route through the same proxy logic
         const BIZ_BASE = "https://business-api.tiktok.com/open_api/v1.3";
         // Convert action name to API path: biz_campaign_get → /campaign/get/
