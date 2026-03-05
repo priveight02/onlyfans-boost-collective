@@ -144,6 +144,7 @@ serve(async (req) => {
     let followsCount = 0;
     let mediaCount = 0;
     let resolvedIgUserId = igUserId ? String(igUserId) : null;
+    let profileLimited = false;
 
     const profileFieldsFull = "user_id,id,username,name,account_type,profile_picture_url,followers_count,follows_count,media_count";
     const profileFieldsLite = "user_id,id,username,name,account_type,profile_picture_url";
@@ -208,23 +209,41 @@ serve(async (req) => {
     };
 
     const profileCandidates = [
+      // Versioned Instagram Graph
       {
-        label: "IG /me full",
+        label: "IG /me full v25",
         url: `https://graph.instagram.com/v25.0/me?fields=${encodeURIComponent(profileFieldsFull)}`,
       },
       {
-        label: "IG /me lite",
+        label: "IG /me lite v25",
         url: `https://graph.instagram.com/v25.0/me?fields=${encodeURIComponent(profileFieldsLite)}`,
+      },
+      // Unversioned Instagram Graph (fallback)
+      {
+        label: "IG /me full",
+        url: `https://graph.instagram.com/me?fields=${encodeURIComponent(profileFieldsFull)}`,
+      },
+      {
+        label: "IG /me lite",
+        url: `https://graph.instagram.com/me?fields=${encodeURIComponent(profileFieldsLite)}`,
       },
       ...(igUserId
         ? [
             {
-              label: `IG /${igUserId} full`,
+              label: `IG /${igUserId} full v25`,
               url: `https://graph.instagram.com/v25.0/${igUserId}?fields=${encodeURIComponent(profileFieldsFull)}`,
             },
             {
-              label: `IG /${igUserId} lite`,
+              label: `IG /${igUserId} lite v25`,
               url: `https://graph.instagram.com/v25.0/${igUserId}?fields=${encodeURIComponent(profileFieldsLite)}`,
+            },
+            {
+              label: `IG /${igUserId} full`,
+              url: `https://graph.instagram.com/${igUserId}?fields=${encodeURIComponent(profileFieldsFull)}`,
+            },
+            {
+              label: `IG /${igUserId} lite`,
+              url: `https://graph.instagram.com/${igUserId}?fields=${encodeURIComponent(profileFieldsLite)}`,
             },
             {
               label: `FB /${igUserId} full`,
@@ -253,13 +272,27 @@ serve(async (req) => {
       break;
     }
 
-    // FAIL HARD if no username was found — no fake placeholders
+    // Fallback mode: allow connection even if profile endpoints are blocked (e.g. personal/restricted account)
+    if (!username && finalToken && resolvedIgUserId) {
+      const suffix = String(resolvedIgUserId).slice(-8);
+      username = `ig_user_${suffix}`;
+      name = `Instagram User ${suffix}`;
+      accountType = accountType || "PERSONAL_OR_RESTRICTED";
+      profilePictureUrl = null;
+      profileLimited = true;
+      console.warn("Proceeding in limited profile mode (username unavailable from Meta Graph).", {
+        user_id: resolvedIgUserId,
+        errors_count: errors.length,
+      });
+    }
+
+    // Still fail only if we don't even have enough info to create a stable connection identity
     if (!username) {
       const errorDetail = errors.join(" | ");
       console.error("FAILED to get Instagram username. All attempts:", errorDetail);
       return new Response(JSON.stringify({
         success: false,
-        error: "Could not retrieve Instagram username from Meta API.",
+        error: "Could not retrieve Instagram profile from Meta API.",
         error_detail: errorDetail,
         error_code: 403,
       }), {
@@ -283,6 +316,9 @@ serve(async (req) => {
         follows_count: followsCount,
         media_count: mediaCount,
         expires_in: expiresIn,
+        profile_limited: profileLimited,
+        profile_error_detail: profileLimited ? errors.join(" | ") : null,
+        granted_permissions: tokenData?.permissions || [],
       },
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

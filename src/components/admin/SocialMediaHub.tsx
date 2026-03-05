@@ -1827,9 +1827,13 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
         window.removeEventListener("message", handleMessage);
         setIgLoginPopupLoading(false);
         const payload = event.data.payload || {};
-        const { access_token, user_id, username: rawUsername, expires_in, name: rawName, profile_picture_url, session_id, csrf_token, ds_user_id, followers_count, media_count } = payload;
+        const { access_token, user_id, username: rawUsername, expires_in, name: rawName, profile_picture_url, session_id, csrf_token, ds_user_id, followers_count, media_count, profile_limited, profile_error_detail, granted_permissions } = payload;
         const username = rawUsername || rawName || `ig_${user_id || "user"}`;
         const name = rawName || rawUsername || username;
+
+        if (profile_limited) {
+          toast.info("Instagram connected in limited profile mode (personal/restricted account). Some API features may be unavailable.");
+        }
         
         if (!access_token && !session_id) return;
 
@@ -1924,6 +1928,9 @@ const SocialMediaHub = ({ subTab: urlSubTab, onSubTabChange, urlPlatform, onPlat
             profile_picture_url: profile_picture_url || existingMeta.profile_picture_url,
             name: name || existingMeta.name,
             connected_via: "ig_oauth_popup",
+            ig_profile_limited: Boolean(profile_limited),
+            ig_profile_error_detail: profile_limited ? (profile_error_detail || null) : null,
+            ig_granted_permissions: Array.isArray(granted_permissions) ? granted_permissions : (existingMeta.ig_granted_permissions || []),
             ...(access_token && {
               ig_access_token: access_token,
               ig_account_type: payload.account_type,
