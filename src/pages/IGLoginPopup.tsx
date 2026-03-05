@@ -64,6 +64,9 @@ const IGLoginPopup = () => {
         expires_in: data.data.expires_in,
         name: data.data.name,
         profile_picture_url: data.data.profile_picture_url,
+        profile_limited: data.data.profile_limited || false,
+        profile_error_detail: data.data.profile_error_detail || null,
+        granted_permissions: data.data.granted_permissions || [],
       };
 
       // Try to extract session cookies from the browser
