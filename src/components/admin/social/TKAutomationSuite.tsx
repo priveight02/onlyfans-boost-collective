@@ -24,7 +24,10 @@ import {
   MapPin, FileVideo, FileImage, X, Trash2, Edit3, Filter,
   CalendarDays, LayoutGrid, Save, MoreHorizontal,
   Flame, RotateCcw, TrendingDown, Percent, MousePointerClick,
+  Database,
 } from "lucide-react";
+import TKDataPortability from "./TKDataPortability";
+import TKCommercialContent from "./TKCommercialContent";
 // TikTok-native DM conversations — no Instagram dependency
 
 interface Props {
@@ -907,6 +910,8 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
           { v: "auto-dm", icon: Brain, l: "Auto-DM" },
           { v: "content", icon: Layers, l: "Content" },
           { v: "schedule", icon: Calendar, l: "Schedule" },
+          { v: "data-portability", icon: Database, l: "Data Portability" },
+          { v: "commercial", icon: Megaphone, l: "Commercial" },
           { v: "comments", icon: MessageSquare, l: "Comments" },
           { v: "dms", icon: Send, l: "DMs" },
           { v: "search", icon: Search, l: "Search" },
@@ -1925,6 +1930,16 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
           </CardContent>
         </Card>
         <TikTokPostPreview open={!!previewPost} onOpenChange={(o) => { if (!o) setPreviewPost(null); }} post={previewPost} profile={profile} />
+      </TabsContent>
+
+      {/* ===== DATA PORTABILITY ===== */}
+      <TabsContent value="data-portability" className="mt-4">
+        <TKDataPortability selectedAccount={selectedAccount} callApi={callApi} loading={loading} profile={profile} />
+      </TabsContent>
+
+      {/* ===== COMMERCIAL CONTENT ===== */}
+      <TabsContent value="commercial" className="mt-4">
+        <TKCommercialContent selectedAccount={selectedAccount} callApi={callApi} loading={loading} />
       </TabsContent>
 
       {/* ===== COMMENTS ===== */}
