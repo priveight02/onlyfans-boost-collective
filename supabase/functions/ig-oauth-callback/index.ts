@@ -88,28 +88,53 @@ serve(async (req) => {
 
     console.log(`Got short-lived token, user_id: ${igUserId}`);
 
-    // Step 2: Exchange for long-lived token
+    // Step 2: Try long-lived token exchange (best effort)
     let finalToken = shortLivedToken;
-    let expiresIn = 3600;
+    let expiresIn = tokenData?.expires_in || 3600;
 
     try {
-      const llRes = await fetch(
-        `https://graph.instagram.com/access_token?grant_type=ig_exchange_token&client_secret=${appSecret}&access_token=${shortLivedToken}`
-      );
-      const llRaw = await llRes.json();
-      const llData = llRaw?.data?.[0] || llRaw;
-      if (llData?.access_token) {
-        finalToken = llData.access_token;
-        expiresIn = llData.expires_in || 5184000;
-        console.log(`Long-lived token obtained, expires in ${expiresIn}s`);
-      } else {
-        console.warn("Long-lived exchange did not return token:", JSON.stringify(llRaw));
+      const llParams = new URLSearchParams({
+        grant_type: "ig_exchange_token",
+        client_secret: appSecret,
+        access_token: shortLivedToken,
+      });
+
+      const llAttempts = [
+        {
+          label: "GET",
+          url: `https://graph.instagram.com/access_token?${llParams.toString()}`,
+          init: { method: "GET" as const },
+        },
+        {
+          label: "POST",
+          url: "https://graph.instagram.com/access_token",
+          init: {
+            method: "POST" as const,
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: llParams,
+          },
+        },
+      ];
+
+      for (const attempt of llAttempts) {
+        const llRes = await fetch(attempt.url, attempt.init);
+        const llRaw = await llRes.json();
+        const llData = llRaw?.data?.[0] || llRaw;
+
+        if (llData?.access_token) {
+          finalToken = llData.access_token;
+          expiresIn = llData.expires_in || 5184000;
+          console.log(`Long-lived token obtained via ${attempt.label}, expires in ${expiresIn}s`);
+          break;
+        }
+
+        console.warn(`Long-lived exchange (${attempt.label}) did not return token:`, JSON.stringify(llRaw));
       }
     } catch (e) {
       console.warn("Long-lived exchange error (continuing with short-lived):", e);
     }
 
-    // Step 3: Get user profile — try Instagram Graph API, collect ALL errors
+    // Step 3: Get user profile — try multiple endpoint/token formats and collect ALL errors
     const errors: string[] = [];
     let username: string | null = null;
     let name: string | null = null;
@@ -118,72 +143,114 @@ serve(async (req) => {
     let followersCount = 0;
     let followsCount = 0;
     let mediaCount = 0;
+    let resolvedIgUserId = igUserId ? String(igUserId) : null;
 
-    // Attempt 1: /me with full fields
-    try {
-      const res = await fetch(
-        `https://graph.instagram.com/v25.0/me?fields=user_id,username,name,account_type,profile_picture_url,followers_count,follows_count,media_count&access_token=${finalToken}`
-      );
-      const raw = await res.json();
-      console.log("Profile /me response:", JSON.stringify(raw));
+    const profileFieldsFull = "user_id,id,username,name,account_type,profile_picture_url,followers_count,follows_count,media_count";
+    const profileFieldsLite = "user_id,id,username,name,account_type,profile_picture_url";
+
+    const parseProfile = (raw: any) => {
       const p = raw?.data?.[0] || (raw && !raw.error ? raw : null);
-      if (p?.username) {
-        username = p.username;
-        name = p.name || null;
-        profilePictureUrl = p.profile_picture_url || null;
-        accountType = p.account_type || null;
-        followersCount = p.followers_count || 0;
-        followsCount = p.follows_count || 0;
-        mediaCount = p.media_count || 0;
-      } else {
-        errors.push(`/me full: ${JSON.stringify(raw?.error || raw)}`);
-      }
-    } catch (e) {
-      errors.push(`/me full exception: ${e.message}`);
-    }
+      if (!p) return null;
 
-    // Attempt 2: /{user_id} if /me didn't work
-    if (!username && igUserId) {
-      try {
-        const res = await fetch(
-          `https://graph.instagram.com/v25.0/${igUserId}?fields=username,name,profile_picture_url,account_type,followers_count,follows_count,media_count&access_token=${finalToken}`
-        );
-        const raw = await res.json();
-        console.log("Profile /{id} response:", JSON.stringify(raw));
-        const p = raw?.data?.[0] || (raw && !raw.error ? raw : null);
-        if (p?.username) {
-          username = p.username;
-          name = p.name || name;
-          profilePictureUrl = p.profile_picture_url || profilePictureUrl;
-          accountType = p.account_type || accountType;
-          followersCount = p.followers_count || followersCount;
-          followsCount = p.follows_count || followsCount;
-          mediaCount = p.media_count || mediaCount;
-        } else {
-          errors.push(`/${igUserId}: ${JSON.stringify(raw?.error || raw)}`);
-        }
-      } catch (e) {
-        errors.push(`/${igUserId} exception: ${e.message}`);
-      }
-    }
+      const parsed = {
+        user_id: p.user_id || p.id || null,
+        username: p.username || null,
+        name: p.name || null,
+        account_type: p.account_type || null,
+        profile_picture_url: p.profile_picture_url || p.profile_pic || null,
+        followers_count: Number(p.followers_count || 0),
+        follows_count: Number(p.follows_count || 0),
+        media_count: Number(p.media_count || 0),
+      };
 
-    // Attempt 3: Facebook Graph /me (some Business Login tokens need this)
-    if (!username) {
-      try {
-        const res = await fetch(
-          `https://graph.facebook.com/v25.0/me?fields=id,name&access_token=${finalToken}`
-        );
-        const raw = await res.json();
-        console.log("FB /me response:", JSON.stringify(raw));
-        if (raw?.name && !raw?.error) {
-          name = raw.name;
-          // Still no IG username — don't fake it
-        } else {
-          errors.push(`FB /me: ${JSON.stringify(raw?.error || raw)}`);
+      return parsed;
+    };
+
+    const tryProfileRequest = async (label: string, baseUrl: string) => {
+      const attempts = [
+        {
+          mode: "query",
+          url: `${baseUrl}${baseUrl.includes("?") ? "&" : "?"}access_token=${encodeURIComponent(finalToken)}`,
+          init: { method: "GET" as const },
+        },
+        {
+          mode: "bearer",
+          url: baseUrl,
+          init: {
+            method: "GET" as const,
+            headers: { Authorization: `Bearer ${finalToken}` },
+          },
+        },
+      ];
+
+      for (const attempt of attempts) {
+        try {
+          const res = await fetch(attempt.url, attempt.init);
+          const raw = await res.json();
+          console.log(`${label} (${attempt.mode}) response:`, JSON.stringify(raw));
+
+          const parsed = parseProfile(raw);
+          if (parsed?.username) {
+            return parsed;
+          }
+
+          if (raw?.error) {
+            errors.push(`${label} (${attempt.mode}): ${JSON.stringify(raw.error)}`);
+          } else {
+            errors.push(`${label} (${attempt.mode}): ${JSON.stringify(raw)}`);
+          }
+        } catch (e: any) {
+          errors.push(`${label} (${attempt.mode}) exception: ${e?.message || String(e)}`);
         }
-      } catch (e) {
-        errors.push(`FB /me exception: ${e.message}`);
       }
+
+      return null;
+    };
+
+    const profileCandidates = [
+      {
+        label: "IG /me full",
+        url: `https://graph.instagram.com/v25.0/me?fields=${encodeURIComponent(profileFieldsFull)}`,
+      },
+      {
+        label: "IG /me lite",
+        url: `https://graph.instagram.com/v25.0/me?fields=${encodeURIComponent(profileFieldsLite)}`,
+      },
+      ...(igUserId
+        ? [
+            {
+              label: `IG /${igUserId} full`,
+              url: `https://graph.instagram.com/v25.0/${igUserId}?fields=${encodeURIComponent(profileFieldsFull)}`,
+            },
+            {
+              label: `IG /${igUserId} lite`,
+              url: `https://graph.instagram.com/v25.0/${igUserId}?fields=${encodeURIComponent(profileFieldsLite)}`,
+            },
+            {
+              label: `FB /${igUserId} full`,
+              url: `https://graph.facebook.com/v25.0/${igUserId}?fields=${encodeURIComponent(profileFieldsFull)}`,
+            },
+            {
+              label: `FB /${igUserId} lite`,
+              url: `https://graph.facebook.com/v25.0/${igUserId}?fields=${encodeURIComponent(profileFieldsLite)}`,
+            },
+          ]
+        : []),
+    ];
+
+    for (const candidate of profileCandidates) {
+      const profile = await tryProfileRequest(candidate.label, candidate.url);
+      if (!profile?.username) continue;
+
+      username = profile.username;
+      name = profile.name || null;
+      profilePictureUrl = profile.profile_picture_url || null;
+      accountType = profile.account_type || null;
+      followersCount = profile.followers_count || 0;
+      followsCount = profile.follows_count || 0;
+      mediaCount = profile.media_count || 0;
+      resolvedIgUserId = profile.user_id ? String(profile.user_id) : resolvedIgUserId;
+      break;
     }
 
     // FAIL HARD if no username was found — no fake placeholders
@@ -192,7 +259,7 @@ serve(async (req) => {
       console.error("FAILED to get Instagram username. All attempts:", errorDetail);
       return new Response(JSON.stringify({
         success: false,
-        error: `Could not retrieve Instagram username. Your account may not have the required permissions or the app may be in Development mode. Make sure this account is added as a Tester in the Meta Developer Portal.`,
+        error: "Could not retrieve Instagram username from Meta API.",
         error_detail: errorDetail,
         error_code: 403,
       }), {
@@ -207,7 +274,7 @@ serve(async (req) => {
       success: true,
       data: {
         access_token: finalToken,
-        user_id: igUserId,
+        user_id: resolvedIgUserId || igUserId,
         username: username,
         account_type: accountType,
         name: name || username,
