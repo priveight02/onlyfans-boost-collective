@@ -1509,7 +1509,21 @@ serve(async (req) => {
       // Subscription / Webhook for Business Messaging events
       case "biz_business_messaging_subscription_create":
       case "biz_business_messaging_subscription_get":
-      case "biz_business_messaging_subscription_delete": {
+      case "biz_business_messaging_subscription_delete":
+      // ===== TIKTOK CREATOR MARKETING (TCM) =====
+      case "biz_tcm_creator_authorized":
+      case "biz_tto_tcm_creator_public":
+      case "biz_tto_creator_authorized":
+      case "biz_tto_creator_authorized_get":
+      case "biz_tto_creator_public_get":
+      case "biz_tcm_creator_authorized_video_list":
+      case "biz_tto_tcm_creator_public_video_list":
+      case "biz_tto_creator_authorized_video_list":
+      case "biz_tto_creator_public_video_list":
+      case "biz_tto_creator_campaign_join":
+      case "biz_tto_creator_campaign_video_link":
+      case "biz_tto_creator_link_request_confirm":
+      case "biz_tto_creator_link_request_get": {
         // All Business API v1.3 actions route through the same proxy logic
         const BIZ_BASE = "https://business-api.tiktok.com/open_api/v1.3";
         // Convert action name to API path: biz_campaign_get → /campaign/get/
