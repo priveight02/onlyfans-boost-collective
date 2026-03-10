@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -1509,25 +1509,7 @@ serve(async (req) => {
       // Subscription / Webhook for Business Messaging events
       case "biz_business_messaging_subscription_create":
       case "biz_business_messaging_subscription_get":
-      case "biz_business_messaging_subscription_delete":
-      // ===== TIKTOK CREATOR MARKETPLACE (TCM) =====
-      // Creator Authorization & Discovery
-      case "biz_tcm_creator_authorized":
-      case "biz_tto_tcm_creator_public":
-      case "biz_tto_creator_authorized":
-      case "biz_tto_creator_authorized_get":
-      case "biz_tto_creator_public_get":
-      // Creator Video Lists
-      case "biz_tcm_creator_authorized_video_list":
-      case "biz_tto_tcm_creator_public_video_list":
-      case "biz_tto_creator_authorized_video_list":
-      case "biz_tto_creator_public_video_list":
-      // Creator Campaign Management
-      case "biz_tto_creator_campaign_join":
-      case "biz_tto_creator_campaign_video_link":
-      // Creator Link Requests
-      case "biz_tto_creator_link_request_confirm":
-      case "biz_tto_creator_link_request_get": {
+      case "biz_business_messaging_subscription_delete": {
         // All Business API v1.3 actions route through the same proxy logic
         const BIZ_BASE = "https://business-api.tiktok.com/open_api/v1.3";
         // Convert action name to API path: biz_campaign_get → /campaign/get/
