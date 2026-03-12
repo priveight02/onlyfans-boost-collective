@@ -233,48 +233,31 @@ const ReviewsSection = () => {
           ))}
         </div>
 
-        {/* Peek row + fog overlay when collapsed */}
+        {/* Peek cards (always rendered, fog when collapsed) */}
         <div className="relative">
-          <AnimatePresence mode="wait">
-            {!expanded ? (
-              <motion.div
-                key="peek"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className="relative"
-              >
-                <div className="columns-1 md:columns-2 lg:columns-3 gap-4 max-h-[220px] overflow-hidden">
-                  {peekReviews.map((review, i) => (
-                    <ReviewCard key={review.name} review={review} index={i} />
-                  ))}
-                </div>
-                {/* Fog gradient overlay */}
-                <div
-                  className="absolute inset-0 pointer-events-none"
-                  style={{
-                    background: "linear-gradient(to bottom, transparent 0%, hsl(var(--background)) 85%)",
-                  }}
-                />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="expanded"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.4 }}
-              >
-                <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
-                  {[...peekReviews, ...restReviews].map((review, i) => (
-                    <ReviewCard key={review.name} review={review} index={i} />
-                  ))}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div className={`columns-1 md:columns-2 lg:columns-3 gap-4 ${!expanded ? "max-h-[220px] overflow-hidden" : ""}`}>
+            {peekReviews.map((review, i) => (
+              <ReviewCard key={review.name} review={review} index={i} />
+            ))}
+          </div>
+          {!expanded && (
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: "linear-gradient(to bottom, transparent 0%, hsl(var(--background)) 85%)",
+              }}
+            />
+          )}
         </div>
+
+        {/* Extra reviews - simple conditional render, no AnimatePresence */}
+        {expanded && (
+          <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
+            {restReviews.map((review, i) => (
+              <ReviewCard key={review.name} review={review} index={i} />
+            ))}
+          </div>
+        )}
 
         {/* Pill toggle button */}
         <div className="flex justify-center mt-8">
