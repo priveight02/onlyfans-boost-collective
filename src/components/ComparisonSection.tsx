@@ -30,7 +30,7 @@ const ComparisonSection = () => {
 
   return (
     <section className="relative -mt-8 py-24">
-      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
