@@ -143,7 +143,7 @@ const ComparisonSection = () => {
                     transition={{ duration: 0.3, delay: 0.25 + i * 0.04 }}
                     className="group flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors duration-200 hover:bg-emerald-500/[0.03]"
                   >
-                    <span className="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/[0.08]">
+                    <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/[0.08]">
                       <Check className="h-2 w-2 text-emerald-400/60" />
                     </span>
                     <span className="text-white/50 text-[13px] leading-relaxed">
