@@ -53,7 +53,6 @@ const SuccessIcon = () => (
 const ComparisonSection = () => {
   return (
     <section className="relative -mt-8 py-24">
-
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <motion.h2
           initial={{ opacity: 0, y: 20 }}
@@ -64,9 +63,7 @@ const ComparisonSection = () => {
         >
           Why This Works
           <br />
-          <span className="bg-clip-text text-transparent pb-1" style={{ backgroundImage: 'linear-gradient(135deg, #c084fc, #60a5fa)' }}>
-            When Nothing Else Did
-          </span>
+          <span className="uplyze-highlight pb-1">When Nothing Else Did</span>
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 10 }}
@@ -98,7 +95,7 @@ const ComparisonSection = () => {
               </div>
 
               <h3 className="text-xl lg:text-2xl font-bold mb-6">
-                <span className="text-red-400">Most businesses fail</span>
+                <span className="uplyze-highlight">Most businesses fail</span>
                 <span className="text-white"> at scaling because:</span>
               </h3>
 
@@ -109,7 +106,9 @@ const ComparisonSection = () => {
                       <X className="w-4 h-4 text-red-400" />
                     </span>
                     <span className="text-white/70 text-[15px] leading-relaxed">
-                      {item.text}<span className="text-red-400 font-medium">{item.highlight}</span>{item.suffix || ""}
+                      {item.text}
+                      <span className="uplyze-highlight font-medium">{item.highlight}</span>
+                      {item.suffix || ""}
                     </span>
                   </li>
                 ))}
@@ -137,7 +136,7 @@ const ComparisonSection = () => {
 
               <h3 className="text-xl lg:text-2xl font-bold mb-6">
                 <span className="text-white">Uplyze wins because </span>
-                <span className="text-emerald-400">it's built to scale:</span>
+                <span className="uplyze-highlight">it's built to scale:</span>
               </h3>
 
               <ul className="space-y-4">
@@ -147,7 +146,9 @@ const ComparisonSection = () => {
                       <Check className="w-4 h-4 text-emerald-400" />
                     </span>
                     <span className="text-white/70 text-[15px] leading-relaxed">
-                      {item.text}<span className="text-emerald-400 font-medium">{item.highlight}</span>{item.suffix || ""}
+                      {item.text}
+                      <span className="uplyze-highlight font-medium">{item.highlight}</span>
+                      {item.suffix || ""}
                     </span>
                   </li>
                 ))}

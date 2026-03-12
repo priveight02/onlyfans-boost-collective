@@ -49,26 +49,14 @@ const Hero = () => {
             <br />
             for{" "}
             <span className="relative inline-block pb-10 md:pb-12">
-              <span
-                className="bg-clip-text pb-2 text-transparent animate-logo-shimmer"
-                style={{
-                  backgroundImage:
-                    "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--primary)) 100%)",
-                  backgroundSize: "220% 100%",
-                }}
-              >
+              <span className="uplyze-highlight pb-2">
                 Creators & Agencies
               </span>
               <motion.span
                 initial={{ opacity: 0, scale: 0.8, y: -8 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.6, type: "spring" }}
-                className="absolute left-1/2 top-[70%] inline-flex -translate-x-1/2 items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
-                style={{
-                  background: "hsl(52 95% 72%)",
-                  color: "hsl(222 35% 12%)",
-                  boxShadow: "0 4px 20px hsl(52 95% 55% / 0.3)",
-                }}
+                className="growth-pill absolute left-1/2 top-[70%] inline-flex -translate-x-1/2 items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
               >
                 <Zap className="h-4 w-4" />
                 10x faster growth

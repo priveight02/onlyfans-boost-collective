@@ -30,7 +30,9 @@ const WorkflowSection = () => {
           transition={{ duration: 0.55 }}
           className="mb-14 text-center"
         >
-          <h2 className="text-3xl font-bold text-foreground md:text-5xl">From Setup to Sales</h2>
+          <h2 className="text-3xl font-bold text-foreground md:text-5xl">
+            From Setup to <span className="uplyze-highlight">Sales</span>
+          </h2>
           <motion.span
             initial={{ opacity: 0, y: -6, rotate: -5 }}
             whileInView={{ opacity: 1, y: 0, rotate: -3 }}

@@ -91,15 +91,7 @@ const Services = () => {
         >
           <h2 className="text-3xl md:text-5xl font-bold font-heading mb-4 text-white">
             How Uplyze{" "}
-            <motion.span
-              className="inline-block bg-clip-text text-transparent"
-              style={{
-                backgroundImage: 'linear-gradient(135deg, #c084fc 0%, #818cf8 25%, #60a5fa 50%, #818cf8 75%, #c084fc 100%)',
-                backgroundSize: '200% auto',
-              }}
-              animate={{ backgroundPosition: ['0% center', '200% center'] }}
-              transition={{ duration: 4, repeat: Infinity, ease: "linear" }}
-            >
+            <motion.span className="uplyze-highlight inline-block">
               Grows Your Business
             </motion.span>
           </h2>
