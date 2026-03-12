@@ -9,16 +9,21 @@ import { useEffect, useRef, useCallback } from "react";
 
 const Index = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const sizeRef = useRef({ w: 0, h: 0, dpr: 1 });
 
   const syncSize = useCallback(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    const content = contentRef.current;
+    if (!canvas || !content) return;
+
     const parent = canvas.parentElement;
     if (!parent) return;
+
     const dpr = Math.min(window.devicePixelRatio, 2);
-    const w = parent.scrollWidth;
-    const h = parent.scrollHeight;
+    const w = parent.clientWidth;
+    const h = Math.max(window.innerHeight, content.offsetHeight);
+
     if (sizeRef.current.w === w && sizeRef.current.h === h && sizeRef.current.dpr === dpr) return;
     sizeRef.current = { w, h, dpr };
     canvas.width = w * dpr;
