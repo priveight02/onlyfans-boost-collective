@@ -265,7 +265,7 @@ const ReviewsSection = () => {
           <button
             onClick={() => setExpanded((prev) => !prev)}
             className={cn(
-              "inline-flex items-center gap-3 rounded-full bg-card/60 px-5 py-2.5 text-foreground",
+              "inline-flex items-center gap-3 rounded-full bg-card/60 px-5 py-2.5 text-white",
               "transition-all duration-300 hover:scale-[1.015] hover:bg-card/75 active:scale-[0.985]"
             )}
           >
