@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Star, ChevronDown, BadgeCheck } from "lucide-react";
+import { ChevronDown, BadgeCheck } from "lucide-react";
 import reviewPhoto1 from "@/assets/review-photo-1.jpg";
 import reviewPhoto2 from "@/assets/review-photo-2.jpg";
 import reviewPhoto3 from "@/assets/review-photo-3.jpg";
@@ -17,27 +17,24 @@ const reviews = [
     photo: reviewPhoto1,
     location: "CH",
     date: "Dec 2025",
-    rating: 5,
   },
   {
     name: "Mike Ross",
     avatar: "https://i.pravatar.cc/80?img=12",
     verified: true,
     text: "Getting started was easy, way easier than any other tool. Took about 10 min to connect my ad account and my first campaign was live.",
-    photo: reviewPhoto3,
+    photo: reviewPhoto2,
     location: "US",
     date: "Jan 15, 2026",
-    rating: 5,
   },
   {
     name: "Ruta Pukene",
     avatar: "https://i.pravatar.cc/80?img=16",
     verified: false,
     text: "Tried a few AI tools before but none of them actually understood what I was selling. Uplyze generated creatives that genuinely matched our brand. Went from struggling to break even to scaling profitably within a month. Can't imagine going back.",
-    photo: reviewPhoto4,
+    photo: null,
     location: "LT",
     date: "Jan 18, 2026",
-    rating: 5,
   },
   // Expansion reviews
   {
@@ -45,20 +42,36 @@ const reviews = [
     avatar: "https://i.pravatar.cc/80?img=53",
     verified: true,
     text: "Was worried it would just be another 'ChatGPT wrapper' but this actually runs the automations. The AI DM feature saved me from wasting hours on manual outreach. Great tool for busy founders.",
-    photo: reviewPhoto5,
+    photo: reviewPhoto3,
     location: "IE",
-    date: "Feb 2026",
-    rating: 5,
+    date: "Feb 8, 2026",
+  },
+  {
+    name: "Philip Jenkins",
+    avatar: "https://i.pravatar.cc/80?img=33",
+    verified: false,
+    text: "I run everything solo and Uplyze basically replaced my media buyer lol. Ad copy, visuals, and the actual launching is done without me babysitting the dashboard. 10/10.",
+    photo: null,
+    location: "CA",
+    date: "Feb 2, 2026",
   },
   {
     name: "Marcus Thompson",
     avatar: "https://i.pravatar.cc/80?img=14",
     verified: false,
     text: "My whole thing is testing a ton of creatives fast and killing what doesn't work. Uplyze does that automatically now so I'm not sitting in Ads Manager all day. Makes it almost too easy honestly.",
-    photo: reviewPhoto2,
+    photo: reviewPhoto4,
     location: "US",
     date: "Feb 2026",
-    rating: 5,
+  },
+  {
+    name: "Jessica Li",
+    avatar: "https://i.pravatar.cc/80?img=45",
+    verified: true,
+    text: "I had low expectations bc every other AI ad tool I tried made ugly images. Uplyze was different. It actually understood the product. No long onboarding either. Literally getting clicks the same day. If you're a small brand you need this.",
+    photo: null,
+    location: "UK",
+    date: "Jan 22, 2026",
   },
   {
     name: "Elena Vasquez",
@@ -68,7 +81,33 @@ const reviews = [
     photo: reviewPhoto6,
     location: "ES",
     date: "Mar 2026",
-    rating: 5,
+  },
+  {
+    name: "Elena Kowalski",
+    avatar: "https://i.pravatar.cc/80?img=29",
+    verified: false,
+    text: "Fast, reliable, and exactly as described. Process was clear, delivery was prompt, and the result met expectations.",
+    photo: null,
+    location: "DE",
+    date: "Feb 12, 2026",
+  },
+  {
+    name: "Sofia Ricci",
+    avatar: "https://i.pravatar.cc/80?img=23",
+    verified: true,
+    text: "I run a small shop, and Uplyze basically made my ads look like a pro agency did them.",
+    photo: null,
+    location: "IT",
+    date: "Jan 8, 2026",
+  },
+  {
+    name: "Daniela Kim",
+    avatar: "https://i.pravatar.cc/80?img=41",
+    verified: false,
+    text: "Been using Uplyze for about 3 months now. Launches are faster, CPA is down, and I'm not stuck spending $2k/mo on an agency anymore. It's not perfect but 90% of the heavy lifting is done for you.",
+    photo: reviewPhoto5,
+    location: "US",
+    date: "Feb 2026",
   },
 ];
 
@@ -118,15 +157,10 @@ const ReviewCard = ({ review }: { review: typeof reviews[0] }) => (
     )}
 
     {/* Footer */}
-    <div className="flex items-center justify-between">
+    <div className="flex items-center">
       <span className="text-xs" style={{ color: "hsla(215, 20%, 55%, 0.5)" }}>
         {review.location} – {review.date}
       </span>
-      <div className="flex items-center gap-0.5">
-        {Array.from({ length: review.rating }).map((_, i) => (
-          <Star key={i} className="h-3 w-3 fill-current" style={{ color: "hsl(45, 93%, 58%)" }} />
-        ))}
-      </div>
     </div>
   </motion.div>
 );
