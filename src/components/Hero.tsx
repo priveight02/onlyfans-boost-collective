@@ -68,7 +68,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="mx-auto mb-8 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg"
+            className="mx-auto mb-8 max-w-2xl text-base leading-relaxed text-white/70 md:text-lg"
           >
             Automate engagement, close more sales, and scale revenue on autopilot.
             <br className="hidden sm:block" />
