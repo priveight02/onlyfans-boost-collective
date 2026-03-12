@@ -84,7 +84,7 @@ const Hero = () => {
             {features.map((feature) => (
               <div
                 key={feature.label}
-                className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/40 px-4 py-2 text-sm font-medium text-muted-foreground"
+                className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/40 px-4 py-2 text-sm font-medium text-white/75"
               >
                 <feature.icon className="h-4 w-4 text-primary" />
                 {feature.label}
