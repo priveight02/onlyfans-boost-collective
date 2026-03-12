@@ -63,9 +63,9 @@ const ComparisonSection = () => {
 
             <div className="relative">
               {/* Header row with mascot */}
-              <div className="flex items-center gap-4 mb-5">
-                <div className="relative w-16 h-16 flex-shrink-0">
-                  <div className="absolute inset-0 rounded-full bg-red-400/10 blur-lg" />
+              <div className="flex items-center gap-5 mb-7">
+                <div className="relative w-20 h-20 flex-shrink-0">
+                  <div className="absolute inset-0 rounded-full bg-red-400/10 blur-xl" />
                   <img src={mascotWithout} alt="Without Uplyze" className="relative w-full h-full object-contain drop-shadow-lg" />
                 </div>
                 <div>
