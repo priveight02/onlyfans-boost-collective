@@ -286,7 +286,7 @@ const ReviewsSection = () => {
 
             <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
               {expanded ? "View less" : "View more"}
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/20 text-accent-foreground">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-white">
                 {expanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
               </span>
             </span>

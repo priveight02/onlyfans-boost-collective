@@ -135,7 +135,7 @@ const Hero = () => {
               <Star className="h-4 w-4 fill-current text-primary" />
               <span className="text-sm font-semibold text-white">4.9/5</span>
               <span className="text-sm text-white/50">from 700+ users</span>
-              <ArrowRight className="ml-1 h-3.5 w-3.5 text-muted-foreground/70" />
+              <ArrowRight className="ml-1 h-3.5 w-3.5 text-white/50" />
             </div>
           </motion.div>
         </motion.div>
