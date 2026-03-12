@@ -39,7 +39,7 @@ const ComparisonSection = () => {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 font-heading tracking-tight">
+          <h2 className="text-3xl md:text-5xl font-bold text-white mb-3 font-heading tracking-tight">
             Why This Works
             <br />
             <span className="uplyze-highlight pb-1">When Nothing Else Did</span>
