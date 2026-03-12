@@ -2,6 +2,7 @@ import Hero from "@/components/Hero";
 import ComparisonSection from "@/components/ComparisonSection";
 import AutopilotShowcase from "@/components/AutopilotShowcase";
 import Services from "@/components/Services";
+import ReviewsSection from "@/components/ReviewsSection";
 import Footer from "@/components/Footer";
 import PageSEO from "@/components/PageSEO";
 import { useEffect, useRef, useCallback } from "react";
