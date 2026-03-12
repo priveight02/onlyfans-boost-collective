@@ -29,8 +29,8 @@ const ComparisonSection = () => {
   const goToPricing = () => navigate(user ? "/pricing" : "/auth");
 
   return (
-    <section className="relative -mt-8 py-20">
-      <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="relative -mt-8 py-24">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -39,7 +39,7 @@ const ComparisonSection = () => {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 font-heading tracking-tight">
+          <h2 className="text-3xl md:text-5xl font-bold text-white mb-3 font-heading tracking-tight">
             Why This Works
             <br />
             <span className="uplyze-highlight pb-1">When Nothing Else Did</span>
@@ -57,15 +57,15 @@ const ComparisonSection = () => {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.15 }}
-            className="relative rounded-2xl border border-red-500/15 bg-white/[0.015] p-6 lg:p-8 overflow-hidden"
+            className="relative rounded-2xl border border-red-500/15 bg-white/[0.015] p-8 lg:p-10 overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-red-500/[0.04] to-transparent pointer-events-none" />
 
             <div className="relative">
               {/* Header row with mascot */}
-              <div className="flex items-center gap-4 mb-5">
-                <div className="relative w-16 h-16 flex-shrink-0">
-                  <div className="absolute inset-0 rounded-full bg-red-400/10 blur-lg" />
+              <div className="flex items-center gap-5 mb-7">
+                <div className="relative w-20 h-20 flex-shrink-0">
+                  <div className="absolute inset-0 rounded-full bg-red-400/10 blur-xl" />
                   <img src={mascotWithout} alt="Without Uplyze" className="relative w-full h-full object-contain drop-shadow-lg" />
                 </div>
                 <div>
@@ -80,7 +80,7 @@ const ComparisonSection = () => {
               </div>
 
               {/* Items */}
-              <ul className="space-y-0">
+              <ul className="space-y-1">
                 {withoutItems.map((item, i) => (
                   <motion.li
                     key={i}
@@ -88,12 +88,12 @@ const ComparisonSection = () => {
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.3, delay: 0.2 + i * 0.04 }}
-                    className="group flex items-start gap-2.5 rounded-lg px-2 py-2 transition-colors duration-200 hover:bg-red-500/[0.03]"
+                    className="group flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors duration-200 hover:bg-red-500/[0.03]"
                   >
-                    <span className="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-red-500/[0.08]">
+                    <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-red-500/[0.08]">
                       <X className="h-2 w-2 text-red-400/60" />
                     </span>
-                    <span className="text-white/45 text-[13px] leading-relaxed">
+                    <span className="text-white/45 text-sm leading-relaxed">
                       {item.text || ""}
                       <span className="text-red-400/75 font-medium">{item.highlight}</span>
                       {item.suffix || ""}
@@ -110,15 +110,15 @@ const ComparisonSection = () => {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.25 }}
-            className="relative rounded-2xl border border-emerald-500/15 bg-white/[0.015] p-6 lg:p-8 overflow-hidden"
+            className="relative rounded-2xl border border-emerald-500/15 bg-white/[0.015] p-8 lg:p-10 overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-to-bl from-emerald-500/[0.04] to-transparent pointer-events-none" />
 
             <div className="relative">
               {/* Header row with mascot */}
-              <div className="flex items-center gap-4 mb-5">
-                <div className="relative w-16 h-16 flex-shrink-0">
-                  <div className="absolute inset-0 rounded-full bg-emerald-400/10 blur-lg" />
+              <div className="flex items-center gap-5 mb-7">
+                <div className="relative w-20 h-20 flex-shrink-0">
+                  <div className="absolute inset-0 rounded-full bg-emerald-400/10 blur-xl" />
                   <img src={mascotWith} alt="With Uplyze" className="relative w-full h-full object-contain drop-shadow-lg" />
                 </div>
                 <div>
@@ -133,7 +133,7 @@ const ComparisonSection = () => {
               </div>
 
               {/* Items */}
-              <ul className="space-y-0">
+              <ul className="space-y-1">
                 {withItems.map((item, i) => (
                   <motion.li
                     key={i}
@@ -141,12 +141,12 @@ const ComparisonSection = () => {
                     whileInView={{ opacity: 1, x: 0 }}
                     viewport={{ once: true }}
                     transition={{ duration: 0.3, delay: 0.25 + i * 0.04 }}
-                    className="group flex items-start gap-2.5 rounded-lg px-2 py-2 transition-colors duration-200 hover:bg-emerald-500/[0.03]"
+                    className="group flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors duration-200 hover:bg-emerald-500/[0.03]"
                   >
-                    <span className="mt-0.5 flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/[0.08]">
+                    <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/[0.08]">
                       <Check className="h-2 w-2 text-emerald-400/60" />
                     </span>
-                    <span className="text-white/50 text-[13px] leading-relaxed">
+                    <span className="text-white/50 text-sm leading-relaxed">
                       {item.text || ""}
                       <span className="text-emerald-400/75 font-medium">{item.highlight}</span>
                       {item.suffix || ""}
