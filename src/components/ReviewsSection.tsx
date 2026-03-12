@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Minus, BadgeCheck } from "lucide-react";
 import reviewPhoto1 from "@/assets/review-photo-1.jpg";
 import reviewPhoto2 from "@/assets/review-photo-2.jpg";
