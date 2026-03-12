@@ -252,49 +252,32 @@ const ReviewsSection = () => {
           ))}
         </div>
 
-        {/* ── Collapsed peek / Expanded list (smooth switch) ── */}
-        <AnimatePresence mode="wait" initial={false}>
-          {!expanded ? (
-            <motion.div
-              key="collapsed"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="relative mt-4 h-52 overflow-hidden"
-            >
-              <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
-                {expandedReviews.slice(0, 3).map((review) => (
-                  <ReviewCard key={review.name} review={review} />
-                ))}
-              </div>
+        {/* ── Collapsed peek / Expanded list ── */}
+        <div className="relative mt-4">
+          {/* Always-rendered expanded cards */}
+          <motion.div
+            animate={{ height: expanded ? "auto" : 180 }}
+            transition={{ duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
+              {expandedReviews.map((review) => (
+                <ReviewCard key={review.name} review={review} />
+              ))}
+            </div>
+          </motion.div>
 
-              {/* Soft bottom fog (non-cubic, natural fade) */}
-              <div
-                className="absolute inset-x-0 bottom-0 h-40 pointer-events-none"
-                style={{
-                  background:
-                    "linear-gradient(180deg, hsl(var(--background) / 0) 0%, hsl(var(--background) / 0.08) 35%, hsl(var(--background) / 0.2) 58%, hsl(var(--background) / 0.42) 76%, hsl(var(--background) / 0.7) 90%, hsl(var(--background) / 0.92) 100%)",
-                }}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="expanded"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="overflow-hidden mt-4"
-            >
-              <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
-                {expandedReviews.map((review) => (
-                  <ReviewCard key={review.name} review={review} />
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+          {/* Fog overlay – fades out when expanded */}
+          <motion.div
+            animate={{ opacity: expanded ? 0 : 1 }}
+            transition={{ duration: 0.4, ease: "easeInOut" }}
+            className="absolute inset-x-0 bottom-0 h-44 pointer-events-none"
+            style={{
+              background:
+                "linear-gradient(180deg, transparent 0%, hsl(220 100% 10% / 0.15) 30%, hsl(220 100% 10% / 0.55) 60%, hsl(220 100% 10% / 0.85) 80%, hsl(220 100% 10%) 100%)",
+            }}
+          />
+        </div>
 
         {/* ── Pill button (avatar stack + count + toggle) ── */}
         <div className="flex justify-center mt-10">
