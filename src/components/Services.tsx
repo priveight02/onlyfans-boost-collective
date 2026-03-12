@@ -1,4 +1,4 @@
-import { Workflow, TrendingUp, Crosshair, Network, Send, LineChart, CheckCircle2, ArrowRight } from "lucide-react";
+import { Workflow, TrendingUp, Crosshair, Network, Send, LineChart, CheckCircle2, ArrowRight, Zap, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,69 +7,63 @@ const container = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: { staggerChildren: 0.1 }
+    transition: { staggerChildren: 0.08 }
   }
 };
 
 const item = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5 } }
+  hidden: { opacity: 0, y: 24, scale: 0.97 },
+  show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] } }
 };
 
 const services = [
   {
     title: "Automated Outreach",
-    description: "Reach the right people at the right time. AI handles DMs, follow-ups, and conversations 24/7 so you never miss an opportunity.",
+    description: "AI handles DMs, follow-ups, and conversations 24/7 so you never miss an opportunity.",
     icon: Send,
     bullets: ["Smart DM sequences", "Auto follow-ups", "Lead qualification"],
-    gradient: "from-orange-500/20 to-pink-500/20",
-    accentColor: "text-orange-400",
-    borderHover: "hover:border-orange-500/30",
+    iconGradient: "from-orange-500 to-pink-500",
+    glowColor: "orange",
   },
   {
     title: "Growth Pipeline",
-    description: "Turn strangers into loyal customers with an AI-driven pipeline that scores leads, predicts conversions, and closes deals for you.",
+    description: "AI-driven pipeline that scores leads, predicts conversions, and closes deals for you.",
     icon: TrendingUp,
     bullets: ["AI lead scoring", "Conversion prediction", "Auto deal flow"],
-    gradient: "from-purple-500/15 to-indigo-500/15",
-    accentColor: "text-purple-400",
-    borderHover: "hover:border-purple-500/30"
+    iconGradient: "from-purple-500 to-indigo-500",
+    glowColor: "purple",
   },
   {
     title: "Smart Automation",
-    description: "Stop doing repetitive work. Build powerful no-code workflows that handle scheduling, responses, and tasks while you sleep.",
+    description: "Build powerful no-code workflows that handle scheduling, responses, and tasks while you sleep.",
     icon: Workflow,
     bullets: ["No-code workflows", "Smart triggers", "Always-on systems"],
-    gradient: "from-blue-500/15 to-cyan-500/15",
-    accentColor: "text-blue-400",
-    borderHover: "hover:border-blue-500/30"
+    iconGradient: "from-blue-500 to-cyan-500",
+    glowColor: "blue",
   },
   {
     title: "Digital Presence",
-    description: "Manage every platform from one dashboard. AI schedules content, analyzes trends, and maximizes your visibility everywhere.",
+    description: "Manage every platform from one dashboard. AI schedules content and maximizes visibility.",
     icon: Network,
     bullets: ["Multi-platform sync", "Trend detection", "AI scheduling"],
-    gradient: "from-pink-500/15 to-rose-500/15",
-    accentColor: "text-pink-400",
-    borderHover: "hover:border-pink-500/30"
+    iconGradient: "from-pink-500 to-rose-500",
+    glowColor: "pink",
   },
   {
     title: "Audience Targeting",
-    description: "Find your ideal audience with AI-powered discovery. Identify high-value prospects across platforms and engage them automatically.",
+    description: "Find your ideal audience with AI-powered discovery. Engage high-value prospects automatically.",
     icon: Crosshair,
     bullets: ["Audience discovery", "Competitor analysis", "Engagement signals"],
-    gradient: "from-violet-500/15 to-purple-500/15",
-    accentColor: "text-violet-400",
-    borderHover: "hover:border-violet-500/30"
+    iconGradient: "from-violet-500 to-purple-500",
+    glowColor: "violet",
   },
   {
     title: "Revenue Intelligence",
-    description: "See exactly what's working. Real-time analytics, revenue forecasting, and performance insights to scale what matters.",
+    description: "Real-time analytics, revenue forecasting, and performance insights to scale what matters.",
     icon: LineChart,
     bullets: ["Live dashboards", "Revenue forecasting", "Growth tracking"],
-    gradient: "from-cyan-500/15 to-blue-500/15",
-    accentColor: "text-cyan-400",
-    borderHover: "hover:border-cyan-500/30"
+    iconGradient: "from-emerald-500 to-teal-500",
+    glowColor: "emerald",
   }
 ];
 
@@ -79,86 +73,123 @@ const Services = () => {
   const ctaPath = user ? '/pricing' : '/auth';
 
   return (
-    <section id="services" className="py-24 relative">
-      
+    <section id="services" className="py-24 relative overflow-hidden">
+      {/* Subtle ambient glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] rounded-full bg-purple-500/[0.03] blur-[120px] pointer-events-none" />
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <motion.div 
+        {/* Header */}
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.5 }}
-          className="text-center mb-14"
+          transition={{ duration: 0.6 }}
+          className="text-center mb-16"
         >
-          <h2 className="text-3xl md:text-5xl font-bold font-heading mb-4 text-white">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] mb-6"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-purple-400" />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/50">
+              All-in-One Platform
+            </span>
+          </motion.div>
+
+          <h2 className="text-3xl md:text-5xl font-bold font-heading mb-4 text-white tracking-tight">
             How Uplyze{" "}
-            <motion.span className="uplyze-highlight inline-block">
-              Grows Your Business
-            </motion.span>
+            <span className="uplyze-highlight">Grows Your Business</span>
           </h2>
-          <p className="text-lg text-white/50 max-w-2xl mx-auto">
-            Whether you're a creator, agency, or brand, Uplyze AI works around the clock to expand your reach, convert leads, and drive revenue at uplyze.ai.
+          <p className="text-base text-white/40 max-w-xl mx-auto leading-relaxed">
+            Whether you're a creator, agency, or brand — Uplyze AI works around the clock to expand your reach and drive revenue.
           </p>
         </motion.div>
-        
-        <motion.div 
+
+        {/* Cards Grid */}
+        <motion.div
           variants={container}
           initial="hidden"
           whileInView="show"
           viewport={{ once: true }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-14"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-16"
         >
           {services.map((service) => (
             <motion.div
               key={service.title}
               variants={item}
-              className="group"
+              className="group relative"
             >
-              <div className={`relative bg-[hsl(222,30%,11%)]/90 backdrop-blur-xl rounded-2xl p-6 border border-white/[0.06] ${service.borderHover} transition-all duration-500 hover:bg-[hsl(222,28%,13%)]/90 h-full hover:-translate-y-1`}>
-                <div className={`w-11 h-11 bg-gradient-to-br ${service.gradient} rounded-xl flex items-center justify-center mb-4 border border-white/[0.08]`}>
-                  <service.icon className="h-5 w-5 text-white" />
+              {/* Card */}
+              <div className="relative h-full rounded-2xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-sm p-7 transition-all duration-500 hover:border-white/[0.12] hover:bg-white/[0.04] hover:-translate-y-1">
+                {/* Top gradient line */}
+                <div className={`absolute top-0 left-6 right-6 h-px bg-gradient-to-r ${service.iconGradient} opacity-0 group-hover:opacity-40 transition-opacity duration-500`} />
+
+                {/* Icon */}
+                <div className="relative mb-5">
+                  <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${service.iconGradient} flex items-center justify-center shadow-lg`}>
+                    <service.icon className="h-5 w-5 text-white" />
+                  </div>
+                  {/* Icon glow on hover */}
+                  <div className={`absolute inset-0 w-12 h-12 rounded-xl bg-gradient-to-br ${service.iconGradient} opacity-0 group-hover:opacity-30 blur-xl transition-opacity duration-500`} />
                 </div>
-                
-                <h3 className="text-lg font-bold text-white mb-2">
+
+                {/* Title */}
+                <h3 className="text-lg font-bold text-white mb-2.5 tracking-tight">
                   {service.title}
                 </h3>
-                
-                <p className="text-white/55 mb-4 text-sm leading-relaxed">
+
+                {/* Description */}
+                <p className="text-white/40 text-sm leading-relaxed mb-5">
                   {service.description}
                 </p>
-                
-                <ul className="space-y-1.5">
+
+                {/* Bullets */}
+                <ul className="space-y-2">
                   {service.bullets.map((bullet) => (
-                    <li key={bullet} className="flex items-center gap-2 text-white/50 text-xs group-hover:text-white/60 transition-colors">
-                      <CheckCircle2 className={`h-3 w-3 ${service.accentColor} shrink-0 opacity-60`} />
+                    <li key={bullet} className="flex items-center gap-2.5 text-white/45 text-xs group-hover:text-white/60 transition-colors duration-300">
+                      <div className={`h-1 w-1 rounded-full bg-gradient-to-r ${service.iconGradient} flex-shrink-0`} />
                       <span>{bullet}</span>
                     </li>
                   ))}
                 </ul>
+
+                {/* Hover arrow */}
+                <div className="absolute bottom-6 right-6 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-x-1 group-hover:translate-x-0">
+                  <ArrowRight className="h-4 w-4 text-white/30" />
+                </div>
               </div>
             </motion.div>
           ))}
         </motion.div>
 
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
+        {/* CTA */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.3 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4"
+          className="flex flex-col items-center gap-3"
         >
-          <button 
+          <button
             onClick={() => navigate(ctaPath)}
-            className="inline-flex items-center px-10 py-4 text-lg font-semibold rounded-xl text-white transition-all duration-300 hover:scale-105 shadow-lg shadow-purple-500/20"
-            style={{ background: 'linear-gradient(135deg, #9333ea 0%, #6366f1 50%, #3b82f6 100%)' }}
+            className="group inline-flex items-center gap-2.5 rounded-2xl px-9 py-3.5 text-sm font-semibold text-white transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
+            style={{
+              background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))",
+              boxShadow: "0 6px 24px hsl(var(--primary) / 0.3), inset 0 1px 0 hsl(0 0% 100% / 0.1)",
+            }}
           >
+            <Zap className="h-4 w-4" />
             Start Growing Today
+            <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
           </button>
           <button
             onClick={() => navigate('/services')}
-            className="inline-flex items-center px-10 py-4 text-lg font-semibold rounded-xl border border-white/10 text-white/50 hover:text-white/80 hover:border-white/20 hover:bg-white/[0.03] transition-all duration-300"
+            className="inline-flex items-center gap-2 text-sm text-white/35 hover:text-white/60 transition-colors duration-300"
           >
-            Explore Features
-            <ArrowRight className="ml-2 h-4 w-4" />
+            Explore All Features
+            <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </motion.div>
       </div>
