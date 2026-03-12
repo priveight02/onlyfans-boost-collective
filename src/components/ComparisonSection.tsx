@@ -50,7 +50,7 @@ const ComparisonSection = () => {
         </motion.div>
 
         {/* Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {/* WITHOUT card */}
           <motion.div
             initial={{ opacity: 0, x: -15 }}
@@ -62,22 +62,18 @@ const ComparisonSection = () => {
             <div className="absolute inset-0 bg-gradient-to-br from-red-500/[0.04] to-transparent pointer-events-none" />
 
             <div className="relative">
-              {/* Header row with mascot */}
-              <div className="flex items-center gap-5 mb-7">
-                <div className="relative w-20 h-20 flex-shrink-0">
-                  <div className="absolute inset-0 rounded-full bg-red-400/10 blur-xl" />
-                  <img src={mascotWithout} alt="Without Uplyze" className="relative w-full h-full object-contain drop-shadow-lg" />
-                </div>
-                <div>
-                  <span className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-red-500/[0.1]">
-                      <X className="h-3 w-3 text-red-400" />
-                    </span>
-                    <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-red-400/70">Without Uplyze</span>
-                  </span>
-                  <span className="block text-[10px] text-white/25 mt-0.5 ml-8">The old way</span>
+              {/* Mascot centered at top */}
+              <div className="flex justify-center mb-6">
+                <div className="relative w-40 h-40">
+                  <div className="absolute inset-2 rounded-full bg-red-400/[0.08] blur-2xl" />
+                  <img src={mascotWithout} alt="Without Uplyze" className="relative w-full h-full object-contain drop-shadow-xl" />
                 </div>
               </div>
+
+              {/* Title sentence */}
+              <h3 className="text-lg lg:text-xl font-bold text-white mb-5">
+                Most businesses <span className="text-red-400">fail</span> at scaling because:
+              </h3>
 
               {/* Items */}
               <ul className="space-y-1">
@@ -91,7 +87,7 @@ const ComparisonSection = () => {
                     className="group flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors duration-200 hover:bg-red-500/[0.03]"
                   >
                     <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-red-500/[0.08]">
-                      <X className="h-2 w-2 text-red-400/60" />
+                      <X className="h-2.5 w-2.5 text-red-400/60" />
                     </span>
                     <span className="text-white/45 text-sm leading-relaxed">
                       {item.text || ""}
@@ -115,22 +111,18 @@ const ComparisonSection = () => {
             <div className="absolute inset-0 bg-gradient-to-bl from-emerald-500/[0.04] to-transparent pointer-events-none" />
 
             <div className="relative">
-              {/* Header row with mascot */}
-              <div className="flex items-center gap-5 mb-7">
-                <div className="relative w-20 h-20 flex-shrink-0">
-                  <div className="absolute inset-0 rounded-full bg-emerald-400/10 blur-xl" />
-                  <img src={mascotWith} alt="With Uplyze" className="relative w-full h-full object-contain drop-shadow-lg" />
-                </div>
-                <div>
-                  <span className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-emerald-500/[0.1]">
-                      <Check className="h-3 w-3 text-emerald-400" />
-                    </span>
-                    <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-400/70">With <span className="uplyze-highlight">Uplyze</span></span>
-                  </span>
-                  <span className="block text-[10px] text-white/25 mt-0.5 ml-8">The smart way</span>
+              {/* Mascot centered at top */}
+              <div className="flex justify-center mb-6">
+                <div className="relative w-40 h-40">
+                  <div className="absolute inset-2 rounded-full bg-emerald-400/[0.08] blur-2xl" />
+                  <img src={mascotWith} alt="With Uplyze" className="relative w-full h-full object-contain drop-shadow-xl" />
                 </div>
               </div>
+
+              {/* Title sentence */}
+              <h3 className="text-lg lg:text-xl font-bold text-white mb-5">
+                <span className="uplyze-highlight">Uplyze</span> wins because it's <span className="text-emerald-400">built to scale:</span>
+              </h3>
 
               {/* Items */}
               <ul className="space-y-1">
@@ -144,7 +136,7 @@ const ComparisonSection = () => {
                     className="group flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors duration-200 hover:bg-emerald-500/[0.03]"
                   >
                     <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/[0.08]">
-                      <Check className="h-2 w-2 text-emerald-400/60" />
+                      <Check className="h-2.5 w-2.5 text-emerald-400/60" />
                     </span>
                     <span className="text-white/50 text-sm leading-relaxed">
                       {item.text || ""}
