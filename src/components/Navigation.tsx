@@ -53,7 +53,6 @@ const Navigation = () => {
     { name: "FAQ", href: "/faq", icon: HelpCircle },
   ];
 
-  // On /platform pages, hide Services and FAQ from navbar
   const platformFilteredItems: MenuItem[] = isPlatform
     ? [
         { name: "Home", href: "/", icon: Home },
@@ -70,68 +69,72 @@ const Navigation = () => {
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
   return (
-    <div className={`${isPlatform ? 'absolute' : 'fixed'} top-0 ${isPlatform ? 'flex justify-end items-center pointer-events-none' : 'w-full flex justify-center pt-4 px-4'}`} style={isPlatform ? { left: '240px', right: searchFocused ? '520px' : '440px', zIndex: 40, transition: 'right 0.3s ease', height: '56px' } : { zIndex: 50 }}>
+    <div className={`${isPlatform ? 'absolute' : 'fixed'} top-0 ${isPlatform ? 'flex justify-end items-center pointer-events-none' : 'w-full flex justify-center pt-5 px-4'}`} style={isPlatform ? { left: '240px', right: searchFocused ? '520px' : '440px', zIndex: 40, transition: 'right 0.3s ease', height: '56px' } : { zIndex: 50 }}>
       <nav
-        className={`transition-all duration-500 pointer-events-auto ${isPlatform ? 'rounded-xl' : 'w-full max-w-4xl rounded-2xl'}`}
+        className={`transition-all duration-500 pointer-events-auto ${isPlatform ? 'rounded-xl' : 'w-full max-w-3xl rounded-2xl'}`}
         style={{
           fontFamily: "'Montserrat', sans-serif",
           background: isScrolled
-            ? "hsl(222 47% 10% / 0.75)"
-            : "hsl(222 47% 12% / 0.55)",
-          backdropFilter: "blur(24px) saturate(1.4)",
-          border: "1px solid hsl(215 25% 40% / 0.12)",
+            ? "hsla(0, 0%, 100%, 0.92)"
+            : "hsla(0, 0%, 100%, 0.08)",
+          backdropFilter: "blur(20px) saturate(1.6)",
+          border: isScrolled
+            ? "1px solid hsla(0, 0%, 0%, 0.06)"
+            : "1px solid hsla(0, 0%, 100%, 0.1)",
           boxShadow: isScrolled
-            ? "0 8px 32px hsl(222 47% 4% / 0.4), 0 0 0 1px hsl(215 25% 50% / 0.05) inset"
-            : "0 4px 20px hsl(222 47% 4% / 0.25), 0 0 0 1px hsl(215 25% 50% / 0.04) inset",
+            ? "0 8px 32px hsla(0, 0%, 0%, 0.08), 0 1px 3px hsla(0, 0%, 0%, 0.04)"
+            : "0 4px 24px hsla(0, 0%, 0%, 0.15)",
         }}
       >
-        <div className={isPlatform ? "px-2" : "px-4 sm:px-5"}>
-          <div className={`flex items-center ${isPlatform ? 'h-10 gap-0' : 'justify-between h-14'}`}>
+        <div className={isPlatform ? "px-2" : "px-5"}>
+          <div className={`flex items-center ${isPlatform ? 'h-10 gap-0' : 'justify-between h-[52px]'}`}>
             <div className="flex-shrink-0">
               <Link to="/" className="flex items-center group transition-all duration-300 hover:scale-105">
-                <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className={`${isPlatform ? 'h-[38px]' : 'h-[55px]'} w-auto object-contain`} />
+                <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className={`${isPlatform ? 'h-[38px]' : 'h-[42px]'} w-auto object-contain`} style={isScrolled ? { filter: 'brightness(0.2)' } : {}} />
               </Link>
             </div>
 
             {/* Desktop menu */}
-            <div className="hidden md:flex items-center gap-1">
+            <div className="hidden md:flex items-center gap-0.5">
               {finalMenuItems.map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
                   <Link
                     key={item.name}
                     to={item.href}
-                    className={`relative ${isPlatform ? 'px-1.5' : 'px-3.5'} py-2 rounded-xl text-[13px] font-medium transition-all duration-300 group`}
+                    className={`relative ${isPlatform ? 'px-1.5' : 'px-3.5'} py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 group`}
                     style={{
-                      color: isActive ? "white" : "hsl(215 25% 65%)",
+                      color: isScrolled
+                        ? isActive ? "hsl(222, 47%, 11%)" : "hsl(215, 16%, 47%)"
+                        : isActive ? "white" : "hsla(215, 25%, 65%, 1)",
                     }}
                   >
                     {isActive && (
                       <div
-                        className="absolute inset-0 rounded-xl"
+                        className="absolute inset-0 rounded-lg"
                         style={{
-                          background: "hsl(217 91% 55% / 0.1)",
+                          background: isScrolled ? "hsla(215, 25%, 50%, 0.08)" : "hsla(0, 0%, 100%, 0.08)",
                         }}
                       />
                     )}
-                    <span className="relative group-hover:text-white transition-colors duration-200">{item.name}</span>
+                    <span className="relative transition-colors duration-200" style={{}}>{item.name}</span>
                   </Link>
                 );
               })}
 
-              {/* Auth buttons - hidden on platform */}
+              {/* Auth buttons */}
               {!isPlatform && (
-                <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-white/10">
+                <div className="flex items-center gap-1.5 ml-3 pl-3" style={{ borderLeft: isScrolled ? "1px solid hsla(0, 0%, 0%, 0.08)" : "1px solid hsla(0, 0%, 100%, 0.1)" }}>
                   <CreditsDisplay />
                   {user ? (
                     <>
                       <Link to="/profile">
                         <button
-                          className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-bold transition-all duration-300 hover:scale-105"
+                          className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 hover:scale-105"
                           title={`@${profile?.username || 'profile'}`}
                           style={{
-                            background: "linear-gradient(135deg, hsl(217 91% 55% / 0.3), hsl(262 83% 58% / 0.2))",
-                            border: "1px solid hsl(217 91% 60% / 0.15)",
+                            background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(217, 91%, 55%))",
+                            color: "white",
                           }}
                         >
                           {userInitial}
@@ -140,26 +143,26 @@ const Navigation = () => {
                       <Button
                         variant="ghost"
                         onClick={handleLogout}
-                        className="transition-all duration-200 hover:bg-white/[0.06] text-white/40 hover:text-white/80 rounded-xl h-8 w-8 p-0"
+                        className="transition-all duration-200 rounded-lg h-8 w-8 p-0"
                         title="Log out"
+                        style={{
+                          color: isScrolled ? "hsl(215, 16%, 47%)" : "hsla(0, 0%, 100%, 0.5)",
+                        }}
                       >
                         <LogOut className="h-3.5 w-3.5" />
                       </Button>
                     </>
                   ) : (
                     <Link to="/auth">
-                      <Button
-                        variant="ghost"
-                        className="rounded-xl gap-2 text-[13px] font-medium transition-all duration-300 h-8 px-3.5"
+                      <button
+                        className="rounded-lg text-[13px] font-semibold transition-all duration-300 h-8 px-4 hover:scale-[1.02]"
                         style={{
-                          color: "hsl(215 25% 80%)",
-                          background: "hsl(217 91% 55% / 0.08)",
-                          border: "1px solid hsl(217 91% 60% / 0.1)",
+                          background: isScrolled ? "hsl(222, 47%, 11%)" : "white",
+                          color: isScrolled ? "white" : "hsl(222, 47%, 11%)",
                         }}
                       >
-                        <LogIn className="h-3.5 w-3.5" />
                         Login
-                      </Button>
+                      </button>
                     </Link>
                   )}
                 </div>
@@ -171,17 +174,16 @@ const Navigation = () => {
               {user && (
                 <Link to="/profile">
                   <button
-                    className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-xs font-bold"
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
                     style={{
-                      background: "linear-gradient(135deg, hsl(217 91% 55% / 0.3), hsl(262 83% 58% / 0.2))",
-                      border: "1px solid hsl(217 91% 60% / 0.15)",
+                      background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(217, 91%, 55%))",
                     }}
                   >
                     {userInitial}
                   </button>
                 </Link>
               )}
-              <button onClick={() => setIsOpen(!isOpen)} className="text-white/70 hover:text-white transition-colors">
+              <button onClick={() => setIsOpen(!isOpen)} style={{ color: isScrolled ? "hsl(222, 47%, 11%)" : "hsla(0, 0%, 100%, 0.7)" }} className="transition-colors">
                 {isOpen ? <X size={22} /> : <Menu size={22} />}
               </button>
             </div>
@@ -200,34 +202,31 @@ const Navigation = () => {
                       onClick={() => setIsOpen(false)}
                       className="block w-full text-left px-4 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 flex items-center gap-3"
                       style={{
-                        color: isActive ? "white" : "hsl(215 25% 70%)",
-                        background: isActive ? "hsl(217 91% 55% / 0.1)" : "transparent",
+                        color: isScrolled
+                          ? isActive ? "hsl(222, 47%, 11%)" : "hsl(215, 16%, 47%)"
+                          : isActive ? "white" : "hsla(215, 25%, 70%, 1)",
+                        background: isActive ? (isScrolled ? "hsla(215, 25%, 50%, 0.08)" : "hsla(0, 0%, 100%, 0.06)") : "transparent",
                       }}
                     >
-                      {item.icon && (
-                        <item.icon
-                          className="h-4 w-4"
-                          style={{ color: isActive ? "hsl(217 91% 65%)" : "hsl(215 25% 50%)" }}
-                        />
-                      )}
+                      {item.icon && <item.icon className="h-4 w-4" />}
                       {item.name}
                     </Link>
                   );
                 })}
                 {user ? (
                   <>
-                    <Link to="/profile" onClick={() => setIsOpen(false)} className="block w-full text-left px-4 py-2.5 rounded-xl text-[13px] font-medium flex items-center gap-3" style={{ color: "hsl(215 25% 70%)" }}>
-                      <User className="h-4 w-4" style={{ color: "hsl(215 25% 50%)" }} /> My Profile (@{profile?.username || "..."})
+                    <Link to="/profile" onClick={() => setIsOpen(false)} className="block w-full text-left px-4 py-2.5 rounded-xl text-[13px] font-medium flex items-center gap-3" style={{ color: isScrolled ? "hsl(215, 16%, 47%)" : "hsla(215, 25%, 70%, 1)" }}>
+                      <User className="h-4 w-4" /> My Profile
                     </Link>
                     <Button variant="ghost" onClick={() => { handleLogout(); setIsOpen(false); }}
-                      className="w-full justify-start text-[13px] font-medium rounded-xl px-4" style={{ color: "hsl(215 25% 70%)" }}>
-                      <LogOut className="mr-3 h-4 w-4" style={{ color: "hsl(215 25% 50%)" }} /> Logout
+                      className="w-full justify-start text-[13px] font-medium rounded-xl px-4" style={{ color: isScrolled ? "hsl(215, 16%, 47%)" : "hsla(215, 25%, 70%, 1)" }}>
+                      <LogOut className="mr-3 h-4 w-4" /> Logout
                     </Button>
                   </>
                 ) : (
                   <Link to="/auth" className="block" onClick={() => setIsOpen(false)}>
-                    <Button variant="ghost" className="w-full justify-start text-[13px] font-medium rounded-xl px-4" style={{ color: "hsl(215 25% 70%)" }}>
-                      <LogIn className="mr-3 h-4 w-4" style={{ color: "hsl(215 25% 50%)" }} /> Login
+                    <Button variant="ghost" className="w-full justify-start text-[13px] font-medium rounded-xl px-4" style={{ color: isScrolled ? "hsl(215, 16%, 47%)" : "hsla(215, 25%, 70%, 1)" }}>
+                      <LogIn className="mr-3 h-4 w-4" /> Login
                     </Button>
                   </Link>
                 )}
