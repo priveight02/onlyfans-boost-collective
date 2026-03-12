@@ -48,23 +48,25 @@ const ComparisonSection = () => {
 
         {/* Two-column comparison */}
         <div className="relative">
-          {/* Center arrow pill */}
+          {/* Center arrow pill — absolutely centered on the divider */}
           <motion.div
             initial={{ opacity: 0, scale: 0.7 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.5, type: "spring", stiffness: 200 }}
-            className="absolute left-1/2 top-1/2 z-20 -translate-x-1/2 -translate-y-1/2 hidden md:flex"
+            className="absolute inset-0 z-20 hidden md:flex items-center justify-center pointer-events-none"
           >
-            <div
-              className="flex h-11 w-11 items-center justify-center rounded-full"
+            <button
+              onClick={() => navigate(user ? "/pricing" : "/auth")}
+              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full cursor-pointer transition-transform duration-300 hover:scale-110 active:scale-95"
               style={{
                 background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))",
                 boxShadow: "0 0 24px hsl(var(--primary) / 0.4), 0 0 60px hsl(var(--primary) / 0.15)",
               }}
+              title="Start scaling"
             >
               <ArrowRight className="h-5 w-5 text-white" />
-            </div>
+            </button>
           </motion.div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 overflow-hidden rounded-2xl border border-white/[0.06]">
@@ -125,7 +127,7 @@ const ComparisonSection = () => {
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
                     <Check className="h-4 w-4 text-emerald-400" />
                   </span>
-                  <span className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-400/80">With Uplyze</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-400/80">With <span className="uplyze-highlight">Uplyze</span></span>
                 </div>
 
                 <ul className="space-y-1">
