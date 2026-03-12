@@ -34,6 +34,7 @@ import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import CustomerPortal from "./pages/CustomerPortal";
 import ThankYou from "./pages/ThankYou";
+import Workflow from "./pages/Workflow";
 
 const OWNER_EMAIL = "contact@uplyze.ai";
 
@@ -84,6 +85,7 @@ const AppContent = () => {
       {!isPopupRoute && <AdminNotificationPopup />}
       <Routes>
         <Route path="/" element={<Index />} />
+        <Route path="/workflow" element={<Workflow />} />
         <Route path="/about" element={<About />} />
         <Route path="/services" element={<Services />} />
         <Route path="/pricing" element={<Pricing />} />

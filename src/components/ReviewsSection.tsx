@@ -140,6 +140,7 @@ const reviews = [
 
 type Review = (typeof reviews)[number];
 
+const COLLAPSED_COUNT = 6;
 const collapsedCardTextStyle = {
   display: "-webkit-box",
   WebkitLineClamp: 5,
@@ -147,32 +148,37 @@ const collapsedCardTextStyle = {
   overflow: "hidden",
 };
 
-const ReviewCard = ({ review, index, expanded }: { review: Review; index: number; expanded: boolean }) => (
+const ReviewCard = ({
+  review,
+  expanded,
+  index,
+  animateIn,
+}: {
+  review: Review;
+  expanded: boolean;
+  index: number;
+  animateIn: boolean;
+}) => (
   <motion.article
-    layout={false}
-    initial={{ opacity: 0, y: 14, scale: 0.99 }}
-    animate={{ opacity: 1, y: 0, scale: 1 }}
-    exit={{ opacity: 0, y: 12, scale: 0.99 }}
-    transition={{ duration: 0.32, ease: "easeOut", delay: expanded ? Math.min(index * 0.025, 0.2) : 0 }}
-    className={cn(
-      "mb-4 break-inside-avoid rounded-2xl border border-border/40 bg-card/35 p-5",
-      !expanded && "min-h-[250px]"
-    )}
+    initial={animateIn ? { opacity: 0, y: 14, filter: "blur(5px)" } : false}
+    animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+    transition={{ duration: 0.4, ease: "easeOut", delay: animateIn ? Math.min(index * 0.045, 0.25) : 0 }}
+    className="mb-4 break-inside-avoid rounded-2xl bg-card/55 p-5 shadow-[0_14px_34px_hsl(var(--background)/0.45)] backdrop-blur-sm"
   >
     <div className="mb-3 flex items-center gap-3">
       <img
         src={review.avatar}
         alt={review.name}
-        className="h-9 w-9 rounded-full border border-border/50 object-cover"
+        className="h-9 w-9 rounded-full object-cover"
         loading="lazy"
       />
       <div className="flex items-center gap-1.5">
-        <span className="text-sm font-semibold text-foreground/95">{review.name}</span>
+        <span className="text-sm font-semibold text-foreground">{review.name}</span>
         {review.verified && <BadgeCheck className="h-4 w-4 text-primary" />}
       </div>
     </div>
 
-    <p className="text-sm leading-relaxed text-muted-foreground" style={!expanded ? collapsedCardTextStyle : undefined}>
+    <p className="text-sm leading-relaxed text-foreground/80" style={!expanded ? collapsedCardTextStyle : undefined}>
       {review.text}
     </p>
 
@@ -180,13 +186,12 @@ const ReviewCard = ({ review, index, expanded }: { review: Review; index: number
       <img
         src={review.photo}
         alt={`${review.name} using Uplyze`}
-        className="mt-4 w-full rounded-xl object-cover"
-        style={{ maxHeight: "320px" }}
+        className="mt-4 h-48 w-full rounded-xl object-cover"
         loading="lazy"
       />
     )}
 
-    <span className="mt-4 block text-xs text-muted-foreground/70">
+    <span className="mt-4 block text-xs text-muted-foreground">
       {review.location} – {review.date}
     </span>
   </motion.article>
@@ -199,11 +204,10 @@ const pillAvatars = [
   "https://i.pravatar.cc/40?img=53",
 ];
 
-const COLLAPSED_COUNT = 6;
-
 const ReviewsSection = () => {
   const [expanded, setExpanded] = useState(false);
-  const visibleReviews = expanded ? reviews : reviews.slice(0, COLLAPSED_COUNT);
+  const peekReviews = reviews.slice(0, COLLAPSED_COUNT);
+  const extraReviews = reviews.slice(COLLAPSED_COUNT);
 
   return (
     <section id="reviews-section" className="relative -mt-8 pb-24 pt-20">
@@ -216,21 +220,52 @@ const ReviewsSection = () => {
           className="mb-14 text-center"
         >
           <h2 className="mb-4 text-3xl font-bold text-foreground md:text-5xl">Trusted by those who move fast.</h2>
-          <p className="text-base text-muted-foreground md:text-lg">Creators & agencies scaling with Uplyze</p>
+          <p className="text-base text-muted-foreground md:text-lg">
+            <span
+              className="bg-clip-text text-transparent animate-logo-shimmer"
+              style={{
+                backgroundImage:
+                  "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--primary)) 100%)",
+                backgroundSize: "220% 100%",
+              }}
+            >
+              Creators & agencies
+            </span>{" "}
+            scaling with Uplyze
+          </p>
         </motion.div>
 
         <div className="columns-1 [column-gap:1rem] md:columns-2 lg:columns-3">
-          <AnimatePresence initial={false} mode="popLayout">
-            {visibleReviews.map((review, i) => (
-              <ReviewCard key={review.name} review={review} index={i} expanded={expanded} />
-            ))}
-          </AnimatePresence>
+          {peekReviews.map((review, i) => (
+            <ReviewCard key={review.name} review={review} expanded={expanded} index={i} animateIn={false} />
+          ))}
         </div>
+
+        <AnimatePresence initial={false}>
+          {expanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              className="overflow-hidden"
+            >
+              <div className="mt-4 columns-1 [column-gap:1rem] md:columns-2 lg:columns-3">
+                {extraReviews.map((review, i) => (
+                  <ReviewCard key={review.name} review={review} expanded index={i} animateIn />
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="mt-8 flex justify-center">
           <button
             onClick={() => setExpanded((prev) => !prev)}
-            className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/45 px-5 py-2.5 text-foreground transition-all duration-300 hover:scale-[1.015] hover:bg-card/60 active:scale-[0.985]"
+            className={cn(
+              "inline-flex items-center gap-3 rounded-full bg-card/60 px-5 py-2.5 text-foreground",
+              "transition-all duration-300 hover:scale-[1.015] hover:bg-card/75 active:scale-[0.985]"
+            )}
           >
             <div className="flex -space-x-2">
               {pillAvatars.map((src, i) => (
@@ -245,7 +280,7 @@ const ReviewsSection = () => {
             </div>
 
             <span className="text-sm font-medium text-foreground/90">9,400+ founders love Uplyze</span>
-            <span className="h-5 w-px bg-border/70" aria-hidden="true" />
+            <span className="h-5 w-px bg-border/60" aria-hidden="true" />
 
             <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
               {expanded ? "View less" : "View more"}
