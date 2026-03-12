@@ -1,52 +1,14 @@
-import { Send, TrendingUp, Workflow, Network, Crosshair, LineChart, Zap, ArrowRight, Sparkles } from "lucide-react";
+import { Send, TrendingUp, Workflow, Crosshair, LineChart, Zap, ArrowRight, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import conductorImg from "@/assets/train-conductor.png";
 
 const services = [
-  {
-    title: "Automated Outreach",
-    description: "AI handles DMs, follow-ups & conversations 24/7 so you never miss a lead.",
-    icon: Send,
-    color: "#f97316",
-    gradient: "from-orange-500 to-pink-500",
-  },
-  {
-    title: "Growth Pipeline",
-    description: "AI-driven pipeline that scores leads, predicts conversions & closes deals.",
-    icon: TrendingUp,
-    color: "#a855f7",
-    gradient: "from-purple-500 to-indigo-500",
-  },
-  {
-    title: "Smart Automation",
-    description: "No-code workflows that handle scheduling, responses & tasks while you sleep.",
-    icon: Workflow,
-    color: "#3b82f6",
-    gradient: "from-blue-500 to-cyan-500",
-  },
-  {
-    title: "Digital Presence",
-    description: "Manage every platform from one dashboard. AI schedules & maximizes visibility.",
-    icon: Network,
-    color: "#ec4899",
-    gradient: "from-pink-500 to-rose-500",
-  },
-  {
-    title: "Audience Targeting",
-    description: "Find ideal audiences with AI-powered discovery. Engage high-value prospects.",
-    icon: Crosshair,
-    color: "#8b5cf6",
-    gradient: "from-violet-500 to-purple-500",
-  },
-  {
-    title: "Revenue Intelligence",
-    description: "Real-time analytics, revenue forecasting & performance insights to scale.",
-    icon: LineChart,
-    color: "#10b981",
-    gradient: "from-emerald-500 to-teal-500",
-  },
+  { title: "Automated Outreach", description: "AI handles DMs & follow-ups 24/7", icon: Send, color: "#f97316", gradient: "from-orange-500 to-pink-500" },
+  { title: "Growth Pipeline", description: "AI scores leads & closes deals", icon: TrendingUp, color: "#a855f7", gradient: "from-purple-500 to-indigo-500" },
+  { title: "Smart Automation", description: "No-code workflows, always on", icon: Workflow, color: "#3b82f6", gradient: "from-blue-500 to-cyan-500" },
+  { title: "Audience Targeting", description: "Find & engage ideal prospects", icon: Crosshair, color: "#8b5cf6", gradient: "from-violet-500 to-purple-500" },
+  { title: "Revenue Intelligence", description: "Real-time analytics & forecasting", icon: LineChart, color: "#10b981", gradient: "from-emerald-500 to-teal-500" },
 ];
 
 const Services = () => {
@@ -56,8 +18,6 @@ const Services = () => {
 
   return (
     <section id="services" className="py-24 relative overflow-hidden">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[600px] rounded-full bg-purple-500/[0.03] blur-[120px] pointer-events-none" />
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         {/* Header */}
         <motion.div
@@ -67,376 +27,209 @@ const Services = () => {
           transition={{ duration: 0.6 }}
           className="text-center mb-12"
         >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] mb-6"
-          >
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] mb-6">
             <Sparkles className="h-3.5 w-3.5 text-purple-400" />
-            <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/50">
-              All-in-One Platform
-            </span>
-          </motion.div>
-
+            <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-white/50">All-in-One Platform</span>
+          </div>
           <h2 className="text-3xl md:text-5xl font-bold font-heading mb-4 text-white tracking-tight">
-            The Uplyze{" "}
-            <span className="uplyze-highlight">Express</span>
+            The Uplyze <span className="uplyze-highlight">Express</span>
           </h2>
           <p className="text-base text-white/40 max-w-xl mx-auto leading-relaxed">
-            Hop aboard — 6 powerful features, one unstoppable train. Your growth engine runs 24/7.
+            Hop aboard — 5 powerful features, one unstoppable train. Your growth engine runs 24/7.
           </p>
         </motion.div>
 
-        {/* Train Scene */}
+        {/* Train Scene — pure CSS, no JS animations for perf */}
         <motion.div
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.8 }}
-          className="relative w-full overflow-hidden rounded-2xl border border-white/[0.06]"
-          style={{ height: "460px", background: "linear-gradient(180deg, hsl(222 45% 8%) 0%, hsl(222 40% 11%) 30%, hsl(222 35% 9%) 70%, hsl(222 30% 5%) 100%)" }}
+          className="train-scene"
         >
-          {/* Stars */}
-          <div className="absolute inset-0 overflow-hidden">
-            {[...Array(60)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute rounded-full bg-white"
-                style={{
-                  width: `${Math.random() * 2.5 + 0.5}px`,
-                  height: `${Math.random() * 2.5 + 0.5}px`,
-                  top: `${Math.random() * 35}%`,
-                  left: `${Math.random() * 100}%`,
-                  opacity: Math.random() * 0.5 + 0.15,
-                  animation: `star-twinkle ${Math.random() * 3 + 2}s ease-in-out infinite`,
-                  animationDelay: `${Math.random() * 4}s`,
-                }}
-              />
-            ))}
+          {/* ── SKY ── */}
+          <div className="train-sky">
+            {/* Stars - static dots, twinkle via CSS */}
+            <div className="train-star" style={{ top: "8%", left: "10%", width: 2, height: 2 }} />
+            <div className="train-star" style={{ top: "15%", left: "30%", width: 1.5, height: 1.5 }} />
+            <div className="train-star" style={{ top: "5%", left: "55%", width: 2, height: 2 }} />
+            <div className="train-star" style={{ top: "12%", left: "75%", width: 1, height: 1 }} />
+            <div className="train-star" style={{ top: "20%", left: "90%", width: 1.5, height: 1.5 }} />
+            <div className="train-star" style={{ top: "3%", left: "45%", width: 2.5, height: 2.5 }} />
+            <div className="train-star" style={{ top: "18%", left: "65%", width: 1, height: 1 }} />
+            <div className="train-star" style={{ top: "7%", left: "85%", width: 2, height: 2 }} />
+
+            {/* Moon */}
+            <div className="train-moon" />
           </div>
 
-          {/* Moon with glow */}
-          <div className="absolute top-10 left-20">
-            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-yellow-100 via-yellow-50 to-amber-100 shadow-[0_0_60px_20px_rgba(255,255,200,0.12)]" />
-            <div className="absolute top-1 left-3 w-4 h-4 rounded-full bg-gradient-to-br from-yellow-200/30 to-transparent" />
+          {/* ── CITY SKYLINE ── */}
+          <svg className="train-skyline-far" viewBox="0 0 2800 200" preserveAspectRatio="none">
+            <rect x="40" y="60" width="35" height="140" fill="hsl(222,25%,14%)" rx="2" />
+            <rect x="42" y="68" width="6" height="8" fill="hsl(45,80%,50%)" opacity="0.3" rx="1" />
+            <rect x="52" y="68" width="6" height="8" fill="hsl(45,80%,50%)" opacity="0.15" rx="1" />
+            <rect x="42" y="82" width="6" height="8" fill="hsl(45,80%,50%)" opacity="0.2" rx="1" />
+
+            <rect x="100" y="30" width="50" height="170" fill="hsl(222,28%,12%)" rx="2" />
+            <rect x="105" y="38" width="8" height="10" fill="hsl(200,60%,40%)" opacity="0.25" rx="1" />
+            <rect x="118" y="38" width="8" height="10" fill="hsl(45,80%,50%)" opacity="0.35" rx="1" />
+            <rect x="131" y="38" width="8" height="10" fill="hsl(200,60%,40%)" opacity="0.15" rx="1" />
+            <rect x="105" y="55" width="8" height="10" fill="hsl(45,80%,50%)" opacity="0.2" rx="1" />
+            <rect x="118" y="55" width="8" height="10" fill="hsl(200,60%,40%)" opacity="0.3" rx="1" />
+            <rect x="131" y="55" width="8" height="10" fill="hsl(45,80%,50%)" opacity="0.1" rx="1" />
+            {/* Antenna */}
+            <rect x="124" y="20" width="2" height="12" fill="hsl(222,20%,18%)" />
+            <circle cx="125" cy="18" r="2" fill="hsl(0,80%,50%)" opacity="0.6" />
+
+            <rect x="180" y="50" width="40" height="150" fill="hsl(222,22%,13%)" rx="2" />
+            <rect x="185" y="58" width="6" height="8" fill="hsl(45,80%,50%)" opacity="0.2" rx="1" />
+            <rect x="195" y="58" width="6" height="8" fill="hsl(45,80%,50%)" opacity="0.35" rx="1" />
+            <rect x="205" y="58" width="6" height="8" fill="hsl(200,60%,40%)" opacity="0.2" rx="1" />
+
+            <rect x="250" y="15" width="60" height="185" fill="hsl(222,30%,11%)" rx="3" />
+            <rect x="255" y="22" width="9" height="11" fill="hsl(45,80%,50%)" opacity="0.3" rx="1" />
+            <rect x="269" y="22" width="9" height="11" fill="hsl(200,60%,40%)" opacity="0.15" rx="1" />
+            <rect x="283" y="22" width="9" height="11" fill="hsl(45,80%,50%)" opacity="0.25" rx="1" />
+            <rect x="255" y="40" width="9" height="11" fill="hsl(200,60%,40%)" opacity="0.2" rx="1" />
+            <rect x="269" y="40" width="9" height="11" fill="hsl(45,80%,50%)" opacity="0.35" rx="1" />
+            <rect x="283" y="40" width="9" height="11" fill="hsl(200,60%,40%)" opacity="0.1" rx="1" />
+            <rect x="255" y="58" width="9" height="11" fill="hsl(45,80%,50%)" opacity="0.15" rx="1" />
+            <rect x="269" y="58" width="9" height="11" fill="hsl(200,60%,40%)" opacity="0.3" rx="1" />
+            {/* Spire */}
+            <polygon points="275,15 280,0 285,15" fill="hsl(222,25%,15%)" />
+
+            <rect x="340" y="45" width="45" height="155" fill="hsl(222,26%,12%)" rx="2" />
+            <rect x="345" y="52" width="7" height="9" fill="hsl(45,80%,50%)" opacity="0.25" rx="1" />
+            <rect x="357" y="52" width="7" height="9" fill="hsl(200,60%,40%)" opacity="0.2" rx="1" />
+            <rect x="369" y="52" width="7" height="9" fill="hsl(45,80%,50%)" opacity="0.3" rx="1" />
+
+            <rect x="410" y="70" width="30" height="130" fill="hsl(222,24%,13%)" rx="2" />
+            <rect x="415" y="78" width="6" height="8" fill="hsl(45,80%,50%)" opacity="0.2" rx="1" />
+            <rect x="425" y="78" width="6" height="8" fill="hsl(200,60%,40%)" opacity="0.3" rx="1" />
+
+            <rect x="470" y="25" width="55" height="175" fill="hsl(222,28%,11%)" rx="3" />
+            <rect x="475" y="33" width="8" height="10" fill="hsl(45,80%,50%)" opacity="0.3" rx="1" />
+            <rect x="488" y="33" width="8" height="10" fill="hsl(200,60%,40%)" opacity="0.2" rx="1" />
+            <rect x="501" y="33" width="8" height="10" fill="hsl(45,80%,50%)" opacity="0.15" rx="1" />
+            <rect x="475" y="50" width="8" height="10" fill="hsl(200,60%,40%)" opacity="0.25" rx="1" />
+            <rect x="488" y="50" width="8" height="10" fill="hsl(45,80%,50%)" opacity="0.35" rx="1" />
+
+            <rect x="550" y="55" width="38" height="145" fill="hsl(222,23%,14%)" rx="2" />
+            <rect x="620" y="35" width="48" height="165" fill="hsl(222,27%,12%)" rx="2" />
+            <rect x="625" y="42" width="7" height="9" fill="hsl(45,80%,50%)" opacity="0.2" rx="1" />
+            <rect x="637" y="42" width="7" height="9" fill="hsl(200,60%,40%)" opacity="0.3" rx="1" />
+            <rect x="649" y="42" width="7" height="9" fill="hsl(45,80%,50%)" opacity="0.15" rx="1" />
+
+            {/* Repeat for seamless scroll */}
+            <rect x="740" y="60" width="35" height="140" fill="hsl(222,25%,14%)" rx="2" />
+            <rect x="800" y="30" width="50" height="170" fill="hsl(222,28%,12%)" rx="2" />
+            <rect x="880" y="50" width="40" height="150" fill="hsl(222,22%,13%)" rx="2" />
+            <rect x="950" y="15" width="60" height="185" fill="hsl(222,30%,11%)" rx="3" />
+            <polygon points="975,15 980,0 985,15" fill="hsl(222,25%,15%)" />
+            <rect x="1040" y="45" width="45" height="155" fill="hsl(222,26%,12%)" rx="2" />
+            <rect x="1110" y="70" width="30" height="130" fill="hsl(222,24%,13%)" rx="2" />
+            <rect x="1170" y="25" width="55" height="175" fill="hsl(222,28%,11%)" rx="3" />
+            <rect x="1250" y="55" width="38" height="145" fill="hsl(222,23%,14%)" rx="2" />
+            <rect x="1320" y="35" width="48" height="165" fill="hsl(222,27%,12%)" rx="2" />
+            <rect x="1400" y="60" width="35" height="140" fill="hsl(222,25%,14%)" rx="2" />
+          </svg>
+
+          {/* ── GROUND ── */}
+          <div className="train-ground" />
+
+          {/* ── GRAVEL BED ── */}
+          <div className="train-gravel" />
+
+          {/* ── RAILS ── */}
+          <div className="train-rails">
+            <div className="train-ties" />
+            <div className="train-rail train-rail-top" />
+            <div className="train-rail train-rail-bottom" />
           </div>
 
-          {/* Far mountains with snow caps */}
-          <svg className="absolute bottom-[120px] left-0 w-[200%]" viewBox="0 0 2800 150" preserveAspectRatio="none" style={{ animation: "landscape-far 60s linear infinite" }}>
-            <defs>
-              <linearGradient id="mtnFar" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="hsl(222, 30%, 18%)" />
-                <stop offset="100%" stopColor="hsl(222, 30%, 12%)" />
-              </linearGradient>
-            </defs>
-            <polygon points="0,150 80,50 160,90 280,20 400,75 520,35 640,65 760,10 900,60 1020,30 1140,70 1300,15 1400,55 1400,150" fill="url(#mtnFar)" />
-            <polygon points="1400,150 1480,50 1560,90 1680,20 1800,75 1920,35 2040,65 2160,10 2300,60 2420,30 2540,70 2700,15 2800,55 2800,150" fill="url(#mtnFar)" />
-            {/* Snow caps */}
-            <polygon points="280,20 260,35 300,35" fill="hsl(222, 20%, 30%)" opacity="0.5" />
-            <polygon points="760,10 740,28 780,28" fill="hsl(222, 20%, 30%)" opacity="0.5" />
-            <polygon points="1300,15 1280,32 1320,32" fill="hsl(222, 20%, 30%)" opacity="0.5" />
-          </svg>
-
-          {/* Near mountains / hills */}
-          <svg className="absolute bottom-[100px] left-0 w-[200%]" viewBox="0 0 2800 100" preserveAspectRatio="none" style={{ animation: "landscape-near 35s linear infinite" }}>
-            <defs>
-              <linearGradient id="mtnNear" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="hsl(222, 28%, 12%)" />
-                <stop offset="100%" stopColor="hsl(222, 25%, 8%)" />
-              </linearGradient>
-            </defs>
-            <polygon points="0,100 120,35 240,60 360,15 500,50 620,25 780,55 900,20 1060,48 1200,12 1400,40 1400,100" fill="url(#mtnNear)" />
-            <polygon points="1400,100 1520,35 1640,60 1760,15 1900,50 2020,25 2180,55 2300,20 2460,48 2600,12 2800,40 2800,100" fill="url(#mtnNear)" />
-          </svg>
-
-          {/* Trees silhouettes scrolling */}
-          <svg className="absolute bottom-[90px] left-0 w-[200%] h-[50px]" viewBox="0 0 2800 50" preserveAspectRatio="none" style={{ animation: "landscape-trees 20s linear infinite" }}>
-            {[...Array(40)].map((_, i) => {
-              const x = i * 70 + Math.random() * 30;
-              const h = 15 + Math.random() * 25;
-              return (
-                <polygon
-                  key={i}
-                  points={`${x},50 ${x + 5},${50 - h} ${x + 10},50`}
-                  fill="hsl(222, 25%, 7%)"
-                />
-              );
-            })}
-          </svg>
-
-          {/* Ground with grass texture */}
-          <div className="absolute bottom-0 left-0 right-0 h-[100px]">
-            <div className="absolute inset-0 bg-gradient-to-t from-[hsl(140,15%,6%)] via-[hsl(150,12%,8%)] to-[hsl(160,10%,9%)]" />
-            {/* Grass tufts */}
-            <div className="absolute top-0 left-0 w-[200%] h-3" style={{ animation: "landscape-trees 15s linear infinite" }}>
-              {[...Array(80)].map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute bottom-0 w-1 bg-green-900/30 rounded-t"
-                  style={{
-                    left: `${i * 2.5}%`,
-                    height: `${4 + Math.random() * 8}px`,
-                  }}
-                />
-              ))}
-            </div>
+          {/* ── SPEED LINES (left side = back of train) ── */}
+          <div className="train-speed-lines">
+            <div className="train-speed-line" style={{ top: "20%", animationDuration: "0.6s" }} />
+            <div className="train-speed-line" style={{ top: "35%", animationDuration: "0.45s", animationDelay: "0.15s" }} />
+            <div className="train-speed-line" style={{ top: "50%", animationDuration: "0.55s", animationDelay: "0.3s" }} />
+            <div className="train-speed-line" style={{ top: "65%", animationDuration: "0.5s", animationDelay: "0.1s" }} />
+            <div className="train-speed-line" style={{ top: "80%", animationDuration: "0.65s", animationDelay: "0.25s" }} />
           </div>
 
-          {/* Gravel bed under rails */}
-          <div className="absolute bottom-[56px] left-0 right-0 h-5 bg-gradient-to-t from-amber-950/40 to-amber-900/20 rounded-t-sm" />
+          {/* ── SMOKE ── */}
+          <div className="train-smoke-container">
+            <div className="train-smoke-puff" style={{ animationDelay: "0s" }} />
+            <div className="train-smoke-puff" style={{ animationDelay: "0.6s" }} />
+            <div className="train-smoke-puff" style={{ animationDelay: "1.2s" }} />
+            <div className="train-smoke-puff" style={{ animationDelay: "1.8s" }} />
+          </div>
 
-          {/* Rails */}
-          <div className="absolute bottom-[60px] left-0 right-0">
-            {/* Rail ties */}
-            <div className="relative h-5 overflow-hidden">
-              <div className="flex gap-[18px] absolute w-[200%]" style={{ animation: "rails-scroll 0.6s linear infinite" }}>
-                {[...Array(200)].map((_, i) => (
-                  <div key={i} className="w-5 h-4 bg-gradient-to-b from-amber-800/70 to-amber-950/50 rounded-[1px] flex-shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.3)]" />
-                ))}
+          {/* ══════ THE TRAIN (faces RIGHT) ══════ */}
+          <div className="train-body">
+
+            {/* ── LOCOMOTIVE ── */}
+            <div className="loco">
+              {/* Chimney */}
+              <div className="loco-chimney">
+                <div className="loco-chimney-cap" />
               </div>
-            </div>
-            {/* Steel rails */}
-            <div className="h-[3px] bg-gradient-to-r from-gray-400/70 via-gray-300/50 to-gray-400/70 shadow-[0_0_4px_rgba(200,200,200,0.15),0_1px_0_rgba(255,255,255,0.1)]" style={{ marginTop: "-2px" }} />
-            <div className="h-[3px] bg-gradient-to-r from-gray-400/70 via-gray-300/50 to-gray-400/70 shadow-[0_0_4px_rgba(200,200,200,0.15),0_1px_0_rgba(255,255,255,0.1)]" style={{ marginTop: "10px" }} />
-          </div>
-
-          {/* Speed lines at the LEFT (back of train since it faces right) */}
-          <div className="absolute bottom-[65px] left-0 w-36 h-24 overflow-hidden pointer-events-none z-10">
-            {[...Array(12)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute h-[2px] rounded-full"
-                style={{
-                  top: `${8 + i * 7}%`,
-                  left: 0,
-                  width: `${30 + Math.random() * 70}%`,
-                  background: `linear-gradient(to right, rgba(255,255,255,${0.15 + Math.random() * 0.15}), transparent)`,
-                  animation: `speed-line-right ${0.3 + Math.random() * 0.4}s linear infinite`,
-                  animationDelay: `${Math.random() * 0.5}s`,
-                }}
-              />
-            ))}
-          </div>
-
-          {/* Spark particles from wheels */}
-          <div className="absolute bottom-[60px] left-[15%] pointer-events-none">
-            {[...Array(6)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute w-1 h-1 rounded-full bg-yellow-400"
-                style={{
-                  animation: `spark ${0.4 + Math.random() * 0.3}s ease-out infinite`,
-                  animationDelay: `${Math.random() * 0.8}s`,
-                }}
-              />
-            ))}
-          </div>
-
-          {/* === THE TRAIN — faces RIGHT === */}
-          <div className="absolute bottom-[72px] left-0 right-0 flex items-end flex-row-reverse pr-6" style={{ animation: "train-idle 2.5s ease-in-out infinite" }}>
-
-            {/* ═══ LOCOMOTIVE (rightmost, faces right) ═══ */}
-            <div className="relative flex-shrink-0" style={{ width: "140px" }}>
-              {/* Smoke stack */}
-              <div className="absolute -top-14 right-8 w-6 h-14 bg-gradient-to-t from-gray-600 via-gray-500 to-gray-600 rounded-t-md border border-white/10 shadow-inner">
-                <div className="absolute inset-x-0 -top-2 h-3 bg-gradient-to-t from-gray-500 to-gray-400 rounded-t-lg border border-white/10" style={{ width: "130%", left: "-15%" }} />
-              </div>
-
               {/* Steam dome */}
-              <div className="absolute -top-6 right-20 w-8 h-6 rounded-t-full bg-gradient-to-t from-red-700 to-red-600 border border-white/10" />
-
-              {/* Boiler (cylindrical look) */}
-              <div className="h-[52px] rounded-r-[28px] rounded-l-lg bg-gradient-to-b from-red-500 via-red-700 to-red-900 border border-red-400/20 relative overflow-hidden shadow-[inset_0_2px_4px_rgba(255,255,255,0.15),inset_0_-3px_6px_rgba(0,0,0,0.3)]">
-                {/* Boiler bands */}
-                <div className="absolute top-3 left-0 right-0 h-[2px] bg-yellow-400/50" />
-                <div className="absolute top-[18px] left-0 right-0 h-[1px] bg-yellow-400/30" />
-                <div className="absolute bottom-3 left-0 right-0 h-[2px] bg-yellow-400/50" />
-                {/* Rivets */}
-                {[...Array(6)].map((_, i) => (
-                  <div key={i} className="absolute w-1.5 h-1.5 rounded-full bg-yellow-600/40 shadow-[inset_0_1px_1px_rgba(255,255,255,0.2)]" style={{ top: "6px", left: `${12 + i * 18}px` }} />
-                ))}
-                {/* Headlight */}
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-gradient-to-br from-yellow-200 to-yellow-400 shadow-[0_0_20px_6px_rgba(255,255,100,0.4)]">
-                  <div className="absolute inset-1 rounded-full bg-yellow-100/80" />
-                </div>
-                {/* Light beam */}
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-20 h-12 pointer-events-none" style={{ background: "linear-gradient(to right, rgba(255,255,150,0.08), transparent)", clipPath: "polygon(0 30%, 100% 0, 100% 100%, 0 70%)" }} />
+              <div className="loco-dome" />
+              {/* Boiler */}
+              <div className="loco-boiler">
+                <div className="loco-boiler-band" style={{ top: 8 }} />
+                <div className="loco-boiler-band" style={{ top: 24 }} />
+                <div className="loco-boiler-band" style={{ bottom: 8 }} />
+                <div className="loco-headlight" />
               </div>
-
               {/* Cab */}
-              <div className="absolute left-0 -top-[30px] w-[50px] h-[82px] bg-gradient-to-b from-red-600 to-red-800 rounded-t-lg border border-red-400/20 overflow-hidden shadow-[inset_0_2px_4px_rgba(255,255,255,0.1)]">
-                {/* Windows */}
-                <div className="absolute top-2 left-2 right-2 h-6 rounded-sm bg-sky-400/15 border border-white/10 shadow-[inset_0_0_6px_rgba(100,200,255,0.1)]" />
-                {/* Window reflection */}
-                <div className="absolute top-2 left-2 w-2 h-5 bg-white/10 rounded-sm" />
-                {/* Door line */}
-                <div className="absolute top-10 left-1/2 -translate-x-1/2 w-[1px] h-[42px] bg-white/10" />
-                {/* Roof overhang */}
-                <div className="absolute -top-1 -left-1 -right-1 h-3 bg-gradient-to-b from-gray-700 to-gray-800 rounded-t-lg border border-white/10" />
-              </div>
-
-              {/* Cowcatcher (pilot) on the right */}
-              <div className="absolute -right-4 bottom-0 w-8" style={{ height: "20px" }}>
-                <svg viewBox="0 0 32 20" className="w-full h-full">
-                  <polygon points="0,0 32,10 0,20" fill="hsl(0, 0%, 35%)" />
-                  <line x1="0" y1="0" x2="32" y2="10" stroke="hsl(0, 0%, 45%)" strokeWidth="1" />
-                  <line x1="0" y1="7" x2="24" y2="10" stroke="hsl(0, 0%, 45%)" strokeWidth="0.5" />
-                  <line x1="0" y1="13" x2="24" y2="10" stroke="hsl(0, 0%, 45%)" strokeWidth="0.5" />
-                  <line x1="0" y1="20" x2="32" y2="10" stroke="hsl(0, 0%, 45%)" strokeWidth="1" />
-                </svg>
-              </div>
-
-              {/* Drive wheels - big */}
-              {[20, 55, 90].map((pos, i) => (
-                <div
-                  key={i}
-                  className="absolute -bottom-4 rounded-full bg-gradient-to-br from-gray-600 to-gray-900 border-[2.5px] border-gray-400 shadow-[0_2px_8px_rgba(0,0,0,0.5)]"
-                  style={{
-                    left: `${pos}px`,
-                    width: i === 1 ? "28px" : "24px",
-                    height: i === 1 ? "28px" : "24px",
-                    animation: "wheel-spin 0.5s linear infinite",
-                  }}
-                >
-                  <div className="absolute inset-[3px] rounded-full border border-gray-500/40" />
-                  <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-gray-400/50" />
-                  <div className="absolute left-1/2 top-0 bottom-0 w-[1px] bg-gray-400/50" />
-                  <div className="absolute inset-0 rotate-45">
-                    <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-gray-400/30" />
-                    <div className="absolute left-1/2 top-0 bottom-0 w-[1px] bg-gray-400/30" />
-                  </div>
-                  {/* Hub */}
-                  <div className="absolute inset-[35%] rounded-full bg-gray-500 shadow-inner" />
+              <div className="loco-cab">
+                <div className="loco-cab-window" />
+                <div className="loco-cab-roof" />
+                {/* UPLYZE LOGO on the cab */}
+                <div className="loco-logo">
+                  <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze" className="loco-logo-img" />
                 </div>
-              ))}
-
-              {/* Connecting rod between wheels */}
-              <div className="absolute bottom-[-2px] left-[28px] w-[72px] h-[3px] bg-gray-500/50 rounded" style={{ animation: "rod-slide 0.5s ease-in-out infinite" }} />
-
-              {/* Conductor image - visible in cab */}
-              <div className="absolute -top-[100px] left-[-20px] w-[80px] h-[80px] z-20">
-                <img
-                  src={conductorImg}
-                  alt="Uplyze Train Conductor"
-                  className="w-full h-full object-contain drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
-                />
               </div>
+              {/* Cowcatcher */}
+              <div className="loco-cowcatcher" />
+              {/* Wheels */}
+              <div className="loco-wheel loco-wheel-1" />
+              <div className="loco-wheel loco-wheel-2" />
+              <div className="loco-wheel loco-wheel-3" />
             </div>
 
-            {/* Coupler loco → tender */}
-            <div className="flex-shrink-0 w-4 h-3 bg-gradient-to-b from-gray-500 to-gray-700 rounded self-center mb-5 shadow-md" />
+            {/* Coupler */}
+            <div className="train-coupler" />
 
-            {/* ═══ WAGONS (trail to the left) ═══ */}
+            {/* ── WAGONS ── */}
             {services.map((service, idx) => (
-              <div key={service.title} className="flex items-end flex-shrink-0">
-                {/* Coupler */}
-                {idx > 0 && (
-                  <div className="flex-shrink-0 w-3 h-2 bg-gradient-to-b from-gray-500 to-gray-700 rounded self-center mb-5 shadow-md" />
-                )}
-
-                {/* Wagon */}
-                <div className="relative flex-shrink-0" style={{ width: "160px" }}>
-                  {/* Wagon body - realistic boxcar shape */}
-                  <div className="relative h-[110px] overflow-hidden" style={{
-                    background: "linear-gradient(180deg, hsl(222, 30%, 16%) 0%, hsl(222, 25%, 11%) 50%, hsl(222, 20%, 8%) 100%)",
-                    borderRadius: "6px 6px 2px 2px",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    boxShadow: "inset 0 1px 2px rgba(255,255,255,0.05), inset 0 -2px 4px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.4)",
-                  }}>
-                    {/* Roof with slight curve */}
-                    <div className="absolute -top-[2px] -left-[1px] -right-[1px] h-[6px] rounded-t-md" style={{
-                      background: "linear-gradient(180deg, hsl(222, 25%, 20%), hsl(222, 28%, 15%))",
-                      borderBottom: "1px solid rgba(255,255,255,0.05)",
-                    }} />
-
-                    {/* Top color accent stripe */}
-                    <div className={`absolute top-[6px] left-0 right-0 h-[3px] bg-gradient-to-r ${service.gradient} opacity-70`} />
-
-                    {/* Panel lines (riveted look) */}
-                    <div className="absolute top-[6px] left-[53px] w-[1px] h-full bg-white/[0.04]" />
-                    <div className="absolute top-[6px] left-[106px] w-[1px] h-full bg-white/[0.04]" />
-
-                    {/* Rivets along top */}
-                    <div className="absolute top-[12px] left-2 right-2 flex justify-between">
-                      {[...Array(8)].map((_, ri) => (
-                        <div key={ri} className="w-1 h-1 rounded-full bg-white/[0.06]" />
-                      ))}
-                    </div>
-
-                    {/* Content inside wagon */}
-                    <div className="relative z-10 p-3 pt-5 flex flex-col items-center text-center h-full justify-center">
-                      <div
-                        className="w-9 h-9 rounded-lg flex items-center justify-center mb-2 shadow-lg"
-                        style={{
-                          background: `linear-gradient(135deg, ${service.color}, ${service.color}88)`,
-                          boxShadow: `0 4px 14px ${service.color}30`,
-                        }}
-                      >
-                        <service.icon className="h-4 w-4 text-white" />
+              <div key={service.title} className="wagon-group">
+                {idx > 0 && <div className="train-coupler" />}
+                <div className="wagon">
+                  <div className="wagon-body">
+                    <div className={`wagon-stripe bg-gradient-to-r ${service.gradient}`} />
+                    <div className="wagon-content">
+                      <div className="wagon-icon" style={{ background: `linear-gradient(135deg, ${service.color}, ${service.color}88)`, boxShadow: `0 3px 10px ${service.color}30` }}>
+                        <service.icon className="wagon-icon-svg" />
                       </div>
-                      <h4 className="text-[11px] font-bold text-white leading-tight mb-1 tracking-tight">{service.title}</h4>
-                      <p className="text-[8.5px] text-white/35 leading-snug px-1">{service.description}</p>
+                      <h4 className="wagon-title">{service.title}</h4>
+                      <p className="wagon-desc">{service.description}</p>
                     </div>
-
-                    {/* Wagon number plate */}
-                    <div className="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-white/[0.04] border border-white/[0.06]">
-                      <span className="text-[7px] font-mono text-white/20">UPL-{String(idx + 1).padStart(2, "0")}</span>
-                    </div>
-
-                    {/* Bottom frame */}
-                    <div className="absolute bottom-0 left-0 right-0 h-[4px] bg-gradient-to-b from-gray-800/80 to-gray-900 border-t border-white/[0.04]" />
+                    <div className="wagon-plate">UPL-{String(idx + 1).padStart(2, "0")}</div>
                   </div>
-
-                  {/* Undercarriage / truck frame */}
-                  <div className="absolute -bottom-1 left-3 right-3 h-[6px] bg-gradient-to-b from-gray-700 to-gray-800 rounded-b shadow-md" />
-
-                  {/* Wheel trucks (bogies) */}
-                  {[16, 116].map((wx) => (
-                    <div key={wx} className="absolute -bottom-4 flex gap-1" style={{ left: `${wx}px` }}>
-                      {[0, 1].map((wi) => (
-                        <div
-                          key={wi}
-                          className="w-5 h-5 rounded-full bg-gradient-to-br from-gray-600 to-gray-900 border-2 border-gray-400 shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
-                          style={{ animation: "wheel-spin 0.5s linear infinite" }}
-                        >
-                          <div className="absolute inset-[2px] rounded-full border border-gray-500/30" />
-                          <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-gray-400/40" />
-                          <div className="absolute left-1/2 top-0 bottom-0 w-[1px] bg-gray-400/40" />
-                          <div className="absolute inset-[30%] rounded-full bg-gray-500/60" />
-                        </div>
-                      ))}
-                    </div>
-                  ))}
+                  <div className="wagon-frame" />
+                  <div className="wagon-wheel wagon-wheel-l1" />
+                  <div className="wagon-wheel wagon-wheel-l2" />
+                  <div className="wagon-wheel wagon-wheel-r1" />
+                  <div className="wagon-wheel wagon-wheel-r2" />
                 </div>
               </div>
             ))}
 
-            {/* Caboose end lantern */}
-            <div className="flex-shrink-0 relative self-center mb-8 ml-1">
-              <div className="w-3 h-4 bg-gradient-to-t from-red-700 to-red-500 rounded-t-full border border-white/10 shadow-[0_0_8px_rgba(255,50,50,0.3)]" />
-            </div>
+            {/* End lantern */}
+            <div className="train-lantern" />
           </div>
-
-          {/* Smoke / Steam from chimney */}
-          <div className="absolute right-[85px] bottom-[280px] pointer-events-none z-10">
-            {[...Array(7)].map((_, i) => (
-              <div
-                key={i}
-                className="absolute rounded-full"
-                style={{
-                  width: `${10 + i * 8}px`,
-                  height: `${10 + i * 8}px`,
-                  background: `radial-gradient(circle, rgba(200,200,200,${0.12 - i * 0.012}) 0%, transparent 70%)`,
-                  animation: `smoke-puff-right ${2 + i * 0.5}s ease-out infinite`,
-                  animationDelay: `${i * 0.35}s`,
-                }}
-              />
-            ))}
-          </div>
-
-          {/* Ambient lighting effect */}
-          <div className="absolute bottom-[60px] right-[10%] w-40 h-20 bg-yellow-400/[0.03] blur-2xl rounded-full pointer-events-none" />
         </motion.div>
 
         {/* CTA */}
@@ -459,62 +252,326 @@ const Services = () => {
             All Aboard — Start Growing
             <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
           </button>
-          <button
-            onClick={() => navigate("/services")}
-            className="inline-flex items-center gap-2 text-sm text-white/35 hover:text-white/60 transition-colors duration-300"
-          >
-            Explore All Features
-            <ArrowRight className="h-3.5 w-3.5" />
+          <button onClick={() => navigate("/services")} className="inline-flex items-center gap-2 text-sm text-white/35 hover:text-white/60 transition-colors duration-300">
+            Explore All Features <ArrowRight className="h-3.5 w-3.5" />
           </button>
         </motion.div>
       </div>
 
+      {/* All train styles — GPU-accelerated, will-change optimized */}
       <style>{`
-        @keyframes wheel-spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+        /* ── SCENE ── */
+        .train-scene {
+          position: relative; width: 100%; height: 480px; overflow: hidden;
+          border-radius: 16px; border: 1px solid rgba(255,255,255,0.06);
+          background: linear-gradient(180deg, hsl(222 45% 6%) 0%, hsl(222 40% 9%) 40%, hsl(222 30% 7%) 100%);
+          contain: layout style paint;
         }
-        @keyframes train-idle {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-1px); }
+
+        /* ── SKY ── */
+        .train-sky { position: absolute; inset: 0; }
+        .train-star {
+          position: absolute; border-radius: 50%; background: white;
+          animation: star-tw 3s ease-in-out infinite alternate;
+          will-change: opacity;
         }
-        @keyframes rod-slide {
-          0%, 100% { transform: translateX(0); }
-          50% { transform: translateX(3px); }
+        .train-star:nth-child(2) { animation-delay: 0.5s; }
+        .train-star:nth-child(4) { animation-delay: 1s; }
+        .train-star:nth-child(6) { animation-delay: 1.5s; }
+        @keyframes star-tw { from { opacity: 0.15; } to { opacity: 0.6; } }
+
+        .train-moon {
+          position: absolute; top: 32px; left: 72px; width: 48px; height: 48px;
+          border-radius: 50%;
+          background: radial-gradient(circle at 35% 35%, hsl(45,60%,90%), hsl(45,50%,75%));
+          box-shadow: 0 0 40px 12px rgba(255,255,200,0.08);
         }
-        @keyframes speed-line-right {
-          0% { opacity: 0; transform: translateX(0); }
+
+        /* ── SKYLINE ── */
+        .train-skyline-far {
+          position: absolute; bottom: 115px; left: 0; width: 200%; height: 200px;
+          animation: skyline-scroll 50s linear infinite;
+          will-change: transform;
+        }
+        @keyframes skyline-scroll { to { transform: translate3d(-50%, 0, 0); } }
+
+        /* ── GROUND ── */
+        .train-ground {
+          position: absolute; bottom: 0; left: 0; right: 0; height: 115px;
+          background: linear-gradient(to top, hsl(222,20%,4%), hsl(222,18%,7%) 60%, hsl(222,15%,9%));
+        }
+
+        /* ── GRAVEL ── */
+        .train-gravel {
+          position: absolute; bottom: 68px; left: 0; right: 0; height: 16px;
+          background: linear-gradient(to top, hsl(30,10%,12%), hsl(30,8%,16%));
+          border-radius: 2px 2px 0 0;
+        }
+
+        /* ── RAILS ── */
+        .train-rails { position: absolute; bottom: 72px; left: 0; right: 0; height: 20px; }
+        .train-ties {
+          position: absolute; inset: 0; overflow: hidden;
+          background: repeating-linear-gradient(90deg, hsl(30,15%,14%) 0px, hsl(30,15%,14%) 6px, transparent 6px, transparent 20px);
+          animation: ties-scroll 0.5s linear infinite;
+          will-change: transform;
+        }
+        @keyframes ties-scroll { to { transform: translate3d(-20px, 0, 0); } }
+
+        .train-rail {
+          position: absolute; left: 0; right: 0; height: 3px;
+          background: linear-gradient(90deg, hsl(0,0%,45%) 0%, hsl(0,0%,55%) 50%, hsl(0,0%,45%) 100%);
+          box-shadow: 0 0 3px rgba(200,200,200,0.1), 0 1px 0 rgba(255,255,255,0.08);
+        }
+        .train-rail-top { top: 2px; }
+        .train-rail-bottom { bottom: 2px; }
+
+        /* ── SPEED LINES ── */
+        .train-speed-lines {
+          position: absolute; bottom: 68px; left: 0; width: 120px; height: 60px;
+          overflow: hidden; pointer-events: none; z-index: 5;
+        }
+        .train-speed-line {
+          position: absolute; left: 0; height: 2px; width: 70%;
+          background: linear-gradient(to right, rgba(255,255,255,0.2), transparent);
+          border-radius: 1px;
+          animation: spd-line 0.5s linear infinite;
+          will-change: transform, opacity;
+        }
+        @keyframes spd-line {
+          0% { opacity: 0; transform: translate3d(20px, 0, 0); }
           20% { opacity: 1; }
-          100% { opacity: 0; transform: translateX(-50px); }
+          100% { opacity: 0; transform: translate3d(-60px, 0, 0); }
         }
-        @keyframes smoke-puff-right {
-          0% { opacity: 0.2; transform: translate(0, 0) scale(0.4); }
-          40% { opacity: 0.1; }
-          100% { opacity: 0; transform: translate(30px, -50px) scale(2.5); }
+
+        /* ── SMOKE ── */
+        .train-smoke-container {
+          position: absolute; right: 100px; bottom: 370px; pointer-events: none; z-index: 6;
         }
-        @keyframes spark {
-          0% { opacity: 1; transform: translate(0, 0) scale(1); }
-          100% { opacity: 0; transform: translate(${-10 + Math.random() * -20}px, ${-5 + Math.random() * -15}px) scale(0); }
+        .train-smoke-puff {
+          position: absolute; width: 18px; height: 18px; border-radius: 50%;
+          background: radial-gradient(circle, rgba(180,180,180,0.12) 0%, transparent 70%);
+          animation: smoke 2.5s ease-out infinite;
+          will-change: transform, opacity;
         }
-        @keyframes star-twinkle {
-          0%, 100% { opacity: 0.2; }
-          50% { opacity: 0.7; }
+        @keyframes smoke {
+          0% { opacity: 0.15; transform: translate3d(0, 0, 0) scale(0.5); }
+          100% { opacity: 0; transform: translate3d(25px, -45px, 0) scale(3); }
         }
-        @keyframes landscape-far {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
+
+        /* ══════ TRAIN BODY ══════ */
+        .train-body {
+          position: absolute; bottom: 84px; right: 16px; display: flex;
+          align-items: flex-end; flex-direction: row-reverse;
+          animation: train-bob 2.5s ease-in-out infinite;
+          will-change: transform;
         }
-        @keyframes landscape-near {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
+        @keyframes train-bob {
+          0%, 100% { transform: translate3d(0, 0, 0); }
+          50% { transform: translate3d(0, -1px, 0); }
         }
-        @keyframes landscape-trees {
-          from { transform: translateX(0); }
-          to { transform: translateX(-50%); }
+
+        /* ── LOCOMOTIVE ── */
+        .loco { position: relative; width: 170px; height: 70px; flex-shrink: 0; }
+
+        .loco-chimney {
+          position: absolute; top: -18px; right: 30px; width: 10px; height: 18px;
+          background: linear-gradient(to top, hsl(0,0%,30%), hsl(0,0%,40%));
+          border-radius: 3px 3px 0 0; border: 1px solid rgba(255,255,255,0.08);
         }
-        @keyframes rails-scroll {
-          from { transform: translateX(0); }
-          to { transform: translateX(-23px); }
+        .loco-chimney-cap {
+          position: absolute; top: -4px; left: -4px; right: -4px; height: 6px;
+          background: linear-gradient(to top, hsl(0,0%,35%), hsl(0,0%,45%));
+          border-radius: 4px 4px 0 0; border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .loco-dome {
+          position: absolute; top: -10px; right: 60px; width: 16px; height: 10px;
+          background: linear-gradient(to top, hsl(0,65%,35%), hsl(0,65%,45%));
+          border-radius: 8px 8px 0 0; border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .loco-boiler {
+          position: absolute; top: 0; right: 0; width: 120px; height: 52px;
+          background: linear-gradient(180deg, hsl(0,60%,42%), hsl(0,65%,30%));
+          border-radius: 0 26px 4px 4px;
+          border: 1px solid rgba(255,100,100,0.15);
+          box-shadow: inset 0 2px 4px rgba(255,255,255,0.1), inset 0 -3px 6px rgba(0,0,0,0.3);
+          overflow: hidden;
+        }
+        .loco-boiler-band {
+          position: absolute; left: 0; right: 0; height: 2px;
+          background: hsl(45,70%,50%); opacity: 0.35;
+        }
+        .loco-headlight {
+          position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+          width: 12px; height: 12px; border-radius: 50%;
+          background: radial-gradient(circle, hsl(45,100%,85%), hsl(45,90%,60%));
+          box-shadow: 0 0 16px 4px rgba(255,255,100,0.35);
+        }
+
+        .loco-cab {
+          position: absolute; top: -10px; left: 0; width: 55px; height: 80px;
+          background: linear-gradient(180deg, hsl(0,55%,38%), hsl(0,60%,28%));
+          border-radius: 6px 6px 2px 2px;
+          border: 1px solid rgba(255,100,100,0.12);
+          box-shadow: inset 0 1px 3px rgba(255,255,255,0.08);
+          overflow: hidden;
+        }
+        .loco-cab-window {
+          position: absolute; top: 8px; left: 6px; right: 6px; height: 18px;
+          background: rgba(100,180,255,0.1); border-radius: 3px;
+          border: 1px solid rgba(255,255,255,0.1);
+          box-shadow: inset 0 0 6px rgba(100,200,255,0.08);
+        }
+        .loco-cab-roof {
+          position: absolute; top: -3px; left: -3px; right: -3px; height: 6px;
+          background: linear-gradient(180deg, hsl(0,0%,32%), hsl(0,0%,25%));
+          border-radius: 4px 4px 0 0;
+        }
+        .loco-logo {
+          position: absolute; top: 32px; left: 50%; transform: translateX(-50%);
+          width: 28px; height: 28px; border-radius: 6px; overflow: hidden;
+          background: hsl(222,35%,8%); border: 1px solid rgba(255,255,255,0.15);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+          display: flex; align-items: center; justify-content: center;
+        }
+        .loco-logo-img { width: 100%; height: 100%; object-fit: cover; }
+
+        .loco-cowcatcher {
+          position: absolute; right: -8px; bottom: 4px; width: 0; height: 0;
+          border-left: 12px solid hsl(0,0%,35%);
+          border-top: 8px solid transparent;
+          border-bottom: 8px solid transparent;
+        }
+
+        .loco-wheel {
+          position: absolute; bottom: -6px; width: 22px; height: 22px;
+          border-radius: 50%;
+          background: radial-gradient(circle at 40% 40%, hsl(0,0%,40%), hsl(0,0%,15%));
+          border: 2px solid hsl(0,0%,45%);
+          box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+          animation: wh-spin 0.5s linear infinite;
+          will-change: transform;
+        }
+        .loco-wheel::after {
+          content: ''; position: absolute; inset: 30%; border-radius: 50%;
+          background: hsl(0,0%,38%);
+        }
+        .loco-wheel-1 { left: 10px; width: 26px; height: 26px; bottom: -8px; }
+        .loco-wheel-2 { left: 50px; }
+        .loco-wheel-3 { right: 20px; }
+        @keyframes wh-spin { to { transform: rotate(360deg); } }
+
+        /* ── COUPLER ── */
+        .train-coupler {
+          flex-shrink: 0; width: 10px; height: 6px; align-self: center; margin-bottom: 16px;
+          background: linear-gradient(180deg, hsl(0,0%,38%), hsl(0,0%,28%));
+          border-radius: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        /* ── WAGON ── */
+        .wagon-group { display: flex; align-items: flex-end; flex-shrink: 0; }
+        .wagon { position: relative; width: 155px; flex-shrink: 0; }
+
+        .wagon-body {
+          position: relative; height: 120px; overflow: hidden;
+          background: linear-gradient(180deg, hsl(222,30%,15%) 0%, hsl(222,25%,10%) 50%, hsl(222,20%,7%) 100%);
+          border-radius: 5px 5px 2px 2px;
+          border: 1px solid rgba(255,255,255,0.07);
+          box-shadow: inset 0 1px 2px rgba(255,255,255,0.04), inset 0 -2px 4px rgba(0,0,0,0.3), 0 3px 10px rgba(0,0,0,0.35);
+        }
+
+        .wagon-stripe {
+          position: absolute; top: 0; left: 0; right: 0; height: 3px; opacity: 0.65;
+        }
+
+        .wagon-content {
+          display: flex; flex-direction: column; align-items: center;
+          justify-content: center; text-align: center;
+          padding: 14px 10px; height: 100%;
+        }
+        .wagon-icon {
+          width: 32px; height: 32px; border-radius: 8px;
+          display: flex; align-items: center; justify-content: center;
+          margin-bottom: 6px;
+        }
+        .wagon-icon-svg { width: 16px; height: 16px; color: white; }
+        .wagon-title {
+          font-size: 11px; font-weight: 700; color: white;
+          line-height: 1.2; margin-bottom: 2px; letter-spacing: -0.01em;
+        }
+        .wagon-desc {
+          font-size: 8.5px; color: rgba(255,255,255,0.3); line-height: 1.35;
+        }
+        .wagon-plate {
+          position: absolute; bottom: 4px; right: 5px;
+          font-size: 7px; font-family: monospace; color: rgba(255,255,255,0.15);
+          padding: 1px 4px; border-radius: 2px;
+          background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.04);
+        }
+
+        .wagon-frame {
+          position: absolute; bottom: -2px; left: 8px; right: 8px; height: 5px;
+          background: linear-gradient(180deg, hsl(0,0%,28%), hsl(0,0%,18%));
+          border-radius: 0 0 2px 2px;
+        }
+
+        .wagon-wheel {
+          position: absolute; bottom: -6px; width: 14px; height: 14px;
+          border-radius: 50%;
+          background: radial-gradient(circle at 40% 40%, hsl(0,0%,38%), hsl(0,0%,12%));
+          border: 1.5px solid hsl(0,0%,42%);
+          box-shadow: 0 1px 4px rgba(0,0,0,0.4);
+          animation: wh-spin 0.5s linear infinite;
+          will-change: transform;
+        }
+        .wagon-wheel::after {
+          content: ''; position: absolute; inset: 28%; border-radius: 50%;
+          background: hsl(0,0%,35%);
+        }
+        .wagon-wheel-l1 { left: 14px; }
+        .wagon-wheel-l2 { left: 30px; }
+        .wagon-wheel-r1 { right: 14px; }
+        .wagon-wheel-r2 { right: 30px; }
+
+        /* ── LANTERN ── */
+        .train-lantern {
+          flex-shrink: 0; width: 6px; height: 10px; align-self: center; margin-bottom: 22px; margin-left: 4px;
+          background: linear-gradient(to top, hsl(0,70%,40%), hsl(0,60%,55%));
+          border-radius: 3px 3px 0 0; border: 1px solid rgba(255,255,255,0.1);
+          box-shadow: 0 0 6px rgba(255,50,50,0.25);
+        }
+
+        /* ── PERF: reduce motion for users who prefer it ── */
+        @media (prefers-reduced-motion: reduce) {
+          .train-star, .train-skyline-far, .train-ties, .train-speed-line,
+          .train-smoke-puff, .train-body, .loco-wheel, .wagon-wheel { animation: none !important; }
+        }
+
+        /* ── MOBILE: smaller scene ── */
+        @media (max-width: 768px) {
+          .train-scene { height: 360px; }
+          .loco { width: 130px; height: 56px; }
+          .loco-boiler { width: 90px; height: 42px; }
+          .loco-cab { width: 44px; height: 66px; top: -8px; }
+          .wagon { width: 115px; }
+          .wagon-body { height: 90px; }
+          .wagon-title { font-size: 9px; }
+          .wagon-desc { font-size: 7px; }
+          .wagon-icon { width: 24px; height: 24px; }
+          .wagon-icon-svg { width: 12px; height: 12px; }
+          .train-body { right: 8px; }
+        }
+
+        @media (max-width: 480px) {
+          .train-scene { height: 300px; }
+          .wagon { width: 90px; }
+          .wagon-body { height: 75px; }
+          .wagon-desc { display: none; }
+          .loco { width: 100px; height: 46px; }
+          .loco-boiler { width: 70px; height: 36px; }
+          .loco-cab { width: 35px; height: 56px; }
         }
       `}</style>
     </section>
