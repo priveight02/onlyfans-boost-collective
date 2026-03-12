@@ -110,7 +110,7 @@ const ComparisonSection = () => {
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.25 }}
-            className="relative rounded-2xl border border-emerald-500/15 bg-white/[0.015] p-6 lg:p-8 overflow-hidden"
+            className="relative rounded-2xl border border-emerald-500/15 bg-white/[0.015] p-8 lg:p-10 overflow-hidden"
           >
             <div className="absolute inset-0 bg-gradient-to-bl from-emerald-500/[0.04] to-transparent pointer-events-none" />
 
