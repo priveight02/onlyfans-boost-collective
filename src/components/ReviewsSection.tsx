@@ -293,8 +293,7 @@ const ReviewsSection = () => {
                   key={i}
                   src={src}
                   alt=""
-                  className="w-7 h-7 rounded-full object-cover ring-2"
-                  style={{ ["--tw-ring-color" as string]: "hsl(var(--background))" }}
+                  className="w-7 h-7 rounded-full object-cover border-2 border-background"
                 />
               ))}
             </div>
