@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { X, Check } from "lucide-react";
+import { X, Check, ArrowRight, Sparkles } from "lucide-react";
 
 const withoutItems = [
   { text: "", highlight: "Manually managing", suffix: " DMs across 10+ platforms" },
@@ -19,138 +19,138 @@ const withItems = [
   { text: "One ", highlight: "all-in-one AI suite replacing 10+ tools", suffix: ", CRM, scheduling, analytics & more" },
 ];
 
-const FailIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="24" cy="24" r="22" stroke="url(#failGrad)" strokeWidth="2" opacity="0.6" />
-    <path d="M16 16L32 32M32 16L16 32" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round" />
-    <defs>
-      <linearGradient id="failGrad" x1="4" y1="4" x2="44" y2="44">
-        <stop stopColor="#ef4444" stopOpacity="0.8" />
-        <stop offset="1" stopColor="#dc2626" stopOpacity="0.3" />
-      </linearGradient>
-    </defs>
-  </svg>
-);
-
-const SuccessIcon = () => (
-  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="24" cy="24" r="22" stroke="url(#successGrad)" strokeWidth="2" opacity="0.6" />
-    <path d="M14 24L21 31L34 17" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M24 6C24 6 28 10 28 14C28 18 24 20 24 20C24 20 20 18 20 14C20 10 24 6 24 6Z" fill="url(#sparkGrad)" opacity="0.3" />
-    <defs>
-      <linearGradient id="successGrad" x1="4" y1="4" x2="44" y2="44">
-        <stop stopColor="#10b981" stopOpacity="0.8" />
-        <stop offset="1" stopColor="#059669" stopOpacity="0.3" />
-      </linearGradient>
-      <linearGradient id="sparkGrad" x1="20" y1="6" x2="28" y2="20">
-        <stop stopColor="#34d399" />
-        <stop offset="1" stopColor="#10b981" stopOpacity="0" />
-      </linearGradient>
-    </defs>
-  </svg>
-);
-
 const ComparisonSection = () => {
   return (
     <section className="relative -mt-8 py-24">
       <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <motion.h2
+        {/* Header */}
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="text-4xl md:text-5xl lg:text-6xl font-bold text-center text-white mb-4 font-heading tracking-tight"
+          className="text-center mb-16"
         >
-          Why This Works
-          <br />
-          <span className="uplyze-highlight pb-1">When Nothing Else Did</span>
-        </motion.h2>
-        <motion.p
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="text-white/50 text-center text-lg mb-16 max-w-xl mx-auto"
-        >
-          Stop juggling tools. Start scaling with AI.
-        </motion.p>
+          <motion.span
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.4, delay: 0.05 }}
+            className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-white/[0.04] px-4 py-1.5 text-xs font-medium text-white/70 backdrop-blur-sm"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-primary" />
+            Before & After Uplyze
+          </motion.span>
+          <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 font-heading tracking-tight">
+            Why This Works
+            <br />
+            <span className="uplyze-highlight pb-1">When Nothing Else Did</span>
+          </h2>
+          <p className="text-white/50 text-lg max-w-xl mx-auto">
+            Stop juggling tools. Start scaling with AI.
+          </p>
+        </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
-          {/* WITHOUT card */}
+        {/* Comparison layout */}
+        <div className="relative grid grid-cols-1 md:grid-cols-2 gap-0">
+          {/* Diagonal divider pill */}
           <motion.div
-            initial={{ opacity: 0, x: -30 }}
+            initial={{ opacity: 0, scale: 0.8 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 hidden md:flex"
+          >
+            <div className="flex h-12 w-12 items-center justify-center rounded-full border border-white/[0.1] bg-background shadow-[0_0_30px_hsl(var(--primary)/0.2)]">
+              <ArrowRight className="h-5 w-5 text-primary" />
+            </div>
+          </motion.div>
+
+          {/* WITHOUT side */}
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative rounded-2xl p-8 lg:p-10 border border-red-500/20 overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, hsl(222, 35%, 10%) 0%, hsl(222, 35%, 12%) 100%)' }}
+            className="relative rounded-2xl md:rounded-r-none border border-white/[0.06] bg-white/[0.02] p-8 lg:p-10 overflow-hidden"
           >
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #ef4444, transparent 70%)' }} />
+            {/* Subtle red glow */}
+            <div className="absolute -top-20 -right-20 w-40 h-40 rounded-full bg-red-500/[0.06] blur-3xl pointer-events-none" />
 
             <div className="relative">
-              <div className="flex justify-center mb-8">
-                <div className="w-24 h-24 rounded-full flex items-center justify-center" style={{ background: 'radial-gradient(circle, rgba(239,68,68,0.15), rgba(239,68,68,0.05))' }}>
-                  <FailIcon />
-                </div>
+              <div className="mb-6 flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/10 ring-1 ring-red-500/20">
+                  <X className="h-5 w-5 text-red-400" />
+                </span>
+                <h3 className="text-lg lg:text-xl font-bold text-white">
+                  Without <span className="text-red-400">Uplyze</span>
+                </h3>
               </div>
 
-              <h3 className="text-xl lg:text-2xl font-bold mb-6">
-                <span className="uplyze-highlight">Most businesses fail</span>
-                <span className="text-white"> at scaling because:</span>
-              </h3>
-
-              <ul className="space-y-4">
+              <ul className="space-y-3.5">
                 {withoutItems.map((item, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="mt-0.5 flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.12)' }}>
-                      <X className="w-4 h-4 text-red-400" />
+                  <motion.li
+                    key={i}
+                    initial={{ opacity: 0, x: -10 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.35, delay: 0.25 + i * 0.06 }}
+                    className="flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-white/[0.02]"
+                  >
+                    <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-red-500/10">
+                      <X className="h-3 w-3 text-red-400/80" />
                     </span>
-                    <span className="text-white/70 text-[15px] leading-relaxed">
+                    <span className="text-white/60 text-sm leading-relaxed">
                       {item.text}
-                      <span className="uplyze-highlight font-medium">{item.highlight}</span>
+                      <span className="text-red-400/90 font-medium">{item.highlight}</span>
                       {item.suffix || ""}
                     </span>
-                  </li>
+                  </motion.li>
                 ))}
               </ul>
             </div>
           </motion.div>
 
-          {/* WITH card */}
+          {/* WITH side */}
           <motion.div
-            initial={{ opacity: 0, x: 30 }}
+            initial={{ opacity: 0, x: 20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="relative rounded-2xl p-8 lg:p-10 border border-emerald-500/20 overflow-hidden"
-            style={{ background: 'linear-gradient(135deg, hsl(222, 35%, 10%) 0%, hsl(222, 35%, 12%) 100%)' }}
+            className="relative rounded-2xl md:rounded-l-none border border-white/[0.06] md:border-l-0 bg-white/[0.02] p-8 lg:p-10 overflow-hidden"
           >
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #10b981, transparent 70%)' }} />
+            {/* Subtle green glow */}
+            <div className="absolute -top-20 -left-20 w-40 h-40 rounded-full bg-emerald-500/[0.06] blur-3xl pointer-events-none" />
 
             <div className="relative">
-              <div className="flex justify-center mb-8">
-                <div className="w-24 h-24 rounded-full flex items-center justify-center" style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.15), rgba(16,185,129,0.05))' }}>
-                  <SuccessIcon />
-                </div>
+              <div className="mb-6 flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 ring-1 ring-emerald-500/20">
+                  <Check className="h-5 w-5 text-emerald-400" />
+                </span>
+                <h3 className="text-lg lg:text-xl font-bold text-white">
+                  With <span className="uplyze-highlight">Uplyze</span>
+                </h3>
               </div>
 
-              <h3 className="text-xl lg:text-2xl font-bold mb-6">
-                <span className="text-white">Uplyze wins because </span>
-                <span className="uplyze-highlight">it's built to scale:</span>
-              </h3>
-
-              <ul className="space-y-4">
+              <ul className="space-y-3.5">
                 {withItems.map((item, i) => (
-                  <li key={i} className="flex items-start gap-3">
-                    <span className="mt-0.5 flex-shrink-0 w-6 h-6 rounded-md flex items-center justify-center" style={{ background: 'rgba(16,185,129,0.12)' }}>
-                      <Check className="w-4 h-4 text-emerald-400" />
+                  <motion.li
+                    key={i}
+                    initial={{ opacity: 0, x: 10 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.35, delay: 0.3 + i * 0.06 }}
+                    className="flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors hover:bg-white/[0.02]"
+                  >
+                    <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/10">
+                      <Check className="h-3 w-3 text-emerald-400/80" />
                     </span>
-                    <span className="text-white/70 text-[15px] leading-relaxed">
+                    <span className="text-white/60 text-sm leading-relaxed">
                       {item.text}
-                      <span className="uplyze-highlight font-medium">{item.highlight}</span>
+                      <span className="text-emerald-400/90 font-medium">{item.highlight}</span>
                       {item.suffix || ""}
                     </span>
-                  </li>
+                  </motion.li>
                 ))}
               </ul>
             </div>
