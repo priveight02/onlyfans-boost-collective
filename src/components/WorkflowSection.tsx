@@ -30,7 +30,7 @@ const WorkflowSection = () => {
           transition={{ duration: 0.55 }}
           className="mb-14 text-center"
         >
-          <h2 className="text-3xl font-bold text-foreground md:text-5xl">
+          <h2 className="text-3xl font-bold text-white md:text-5xl">
             From Setup to <span className="uplyze-highlight">Sales</span>
           </h2>
           <motion.span
