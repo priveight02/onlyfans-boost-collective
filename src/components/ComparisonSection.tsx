@@ -93,7 +93,7 @@ const ComparisonSection = () => {
                     <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-red-500/[0.08]">
                       <X className="h-2 w-2 text-red-400/60" />
                     </span>
-                    <span className="text-white/45 text-[13px] leading-relaxed">
+                    <span className="text-white/45 text-sm leading-relaxed">
                       {item.text || ""}
                       <span className="text-red-400/75 font-medium">{item.highlight}</span>
                       {item.suffix || ""}
