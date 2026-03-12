@@ -281,10 +281,10 @@ const ReviewsSection = () => {
               ))}
             </div>
 
-            <span className="text-sm font-medium text-foreground/90">9,400+ founders love Uplyze</span>
+            <span className="text-sm font-medium text-white/90">9,400+ founders love Uplyze</span>
             <span className="h-5 w-px bg-border/60" aria-hidden="true" />
 
-            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
               {expanded ? "View less" : "View more"}
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/20 text-accent-foreground">
                 {expanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
