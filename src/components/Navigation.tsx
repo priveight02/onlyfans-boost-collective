@@ -75,14 +75,14 @@ const Navigation = () => {
         style={{
           fontFamily: "'Montserrat', sans-serif",
           background: isScrolled
-            ? "hsla(0, 0%, 100%, 0.92)"
-            : "hsla(0, 0%, 100%, 0.08)",
-          backdropFilter: "blur(20px) saturate(1.6)",
+            ? "hsla(222, 35%, 12%, 0.85)"
+            : "hsla(0, 0%, 100%, 0.06)",
+          backdropFilter: "blur(24px) saturate(1.8)",
           border: isScrolled
-            ? "1px solid hsla(0, 0%, 0%, 0.06)"
-            : "1px solid hsla(0, 0%, 100%, 0.1)",
+            ? "1px solid hsla(0, 0%, 100%, 0.08)"
+            : "1px solid hsla(0, 0%, 100%, 0.08)",
           boxShadow: isScrolled
-            ? "0 8px 32px hsla(0, 0%, 0%, 0.08), 0 1px 3px hsla(0, 0%, 0%, 0.04)"
+            ? "0 8px 32px hsla(0, 0%, 0%, 0.3), 0 0 0 1px hsla(0, 0%, 100%, 0.04) inset"
             : "0 4px 24px hsla(0, 0%, 0%, 0.15)",
         }}
       >
@@ -90,7 +90,7 @@ const Navigation = () => {
           <div className={`flex items-center ${isPlatform ? 'h-10 gap-0' : 'justify-between h-[52px]'}`}>
             <div className="flex-shrink-0">
               <Link to="/" className="flex items-center group transition-all duration-300 hover:scale-105">
-                <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className={`${isPlatform ? 'h-[38px]' : 'h-[42px]'} w-auto object-contain`} style={isScrolled ? { filter: 'brightness(0.2)' } : {}} />
+                <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className={`${isPlatform ? 'h-[38px]' : 'h-[42px]'} w-auto object-contain`} />
               </Link>
             </div>
 
@@ -104,27 +104,25 @@ const Navigation = () => {
                     to={item.href}
                     className={`relative ${isPlatform ? 'px-1.5' : 'px-3.5'} py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 group`}
                     style={{
-                      color: isScrolled
-                        ? isActive ? "hsl(222, 47%, 11%)" : "hsl(215, 16%, 47%)"
-                        : isActive ? "white" : "hsla(215, 25%, 65%, 1)",
+                      color: isActive ? "white" : "hsla(215, 25%, 65%, 1)",
                     }}
                   >
                     {isActive && (
                       <div
                         className="absolute inset-0 rounded-lg"
                         style={{
-                          background: isScrolled ? "hsla(215, 25%, 50%, 0.08)" : "hsla(0, 0%, 100%, 0.08)",
+                          background: "hsla(0, 0%, 100%, 0.08)",
                         }}
                       />
                     )}
-                    <span className="relative transition-colors duration-200" style={{}}>{item.name}</span>
+                    <span className="relative transition-colors duration-200 hover:text-white">{item.name}</span>
                   </Link>
                 );
               })}
 
               {/* Auth buttons */}
               {!isPlatform && (
-                <div className="flex items-center gap-1.5 ml-3 pl-3" style={{ borderLeft: isScrolled ? "1px solid hsla(0, 0%, 0%, 0.08)" : "1px solid hsla(0, 0%, 100%, 0.1)" }}>
+                <div className="flex items-center gap-1.5 ml-3 pl-3" style={{ borderLeft: "1px solid hsla(0, 0%, 100%, 0.1)" }}>
                   <CreditsDisplay />
                   {user ? (
                     <>
@@ -146,7 +144,7 @@ const Navigation = () => {
                         className="transition-all duration-200 rounded-lg h-8 w-8 p-0"
                         title="Log out"
                         style={{
-                          color: isScrolled ? "hsl(215, 16%, 47%)" : "hsla(0, 0%, 100%, 0.5)",
+                          color: "hsla(0, 0%, 100%, 0.5)",
                         }}
                       >
                         <LogOut className="h-3.5 w-3.5" />
@@ -157,8 +155,8 @@ const Navigation = () => {
                       <button
                         className="rounded-lg text-[13px] font-semibold transition-all duration-300 h-8 px-4 hover:scale-[1.02]"
                         style={{
-                          background: isScrolled ? "hsl(222, 47%, 11%)" : "white",
-                          color: isScrolled ? "white" : "hsl(222, 47%, 11%)",
+                          background: "white",
+                          color: "hsl(222, 47%, 11%)",
                         }}
                       >
                         Login
@@ -183,7 +181,7 @@ const Navigation = () => {
                   </button>
                 </Link>
               )}
-              <button onClick={() => setIsOpen(!isOpen)} style={{ color: isScrolled ? "hsl(222, 47%, 11%)" : "hsla(0, 0%, 100%, 0.7)" }} className="transition-colors">
+              <button onClick={() => setIsOpen(!isOpen)} style={{ color: "hsla(0, 0%, 100%, 0.7)" }} className="transition-colors">
                 {isOpen ? <X size={22} /> : <Menu size={22} />}
               </button>
             </div>
@@ -202,10 +200,8 @@ const Navigation = () => {
                       onClick={() => setIsOpen(false)}
                       className="block w-full text-left px-4 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 flex items-center gap-3"
                       style={{
-                        color: isScrolled
-                          ? isActive ? "hsl(222, 47%, 11%)" : "hsl(215, 16%, 47%)"
-                          : isActive ? "white" : "hsla(215, 25%, 70%, 1)",
-                        background: isActive ? (isScrolled ? "hsla(215, 25%, 50%, 0.08)" : "hsla(0, 0%, 100%, 0.06)") : "transparent",
+                        color: isActive ? "white" : "hsla(215, 25%, 70%, 1)",
+                        background: isActive ? "hsla(0, 0%, 100%, 0.06)" : "transparent",
                       }}
                     >
                       {item.icon && <item.icon className="h-4 w-4" />}
@@ -215,17 +211,17 @@ const Navigation = () => {
                 })}
                 {user ? (
                   <>
-                    <Link to="/profile" onClick={() => setIsOpen(false)} className="block w-full text-left px-4 py-2.5 rounded-xl text-[13px] font-medium flex items-center gap-3" style={{ color: isScrolled ? "hsl(215, 16%, 47%)" : "hsla(215, 25%, 70%, 1)" }}>
+                    <Link to="/profile" onClick={() => setIsOpen(false)} className="block w-full text-left px-4 py-2.5 rounded-xl text-[13px] font-medium flex items-center gap-3" style={{ color: "hsla(215, 25%, 70%, 1)" }}>
                       <User className="h-4 w-4" /> My Profile
                     </Link>
                     <Button variant="ghost" onClick={() => { handleLogout(); setIsOpen(false); }}
-                      className="w-full justify-start text-[13px] font-medium rounded-xl px-4" style={{ color: isScrolled ? "hsl(215, 16%, 47%)" : "hsla(215, 25%, 70%, 1)" }}>
+                      className="w-full justify-start text-[13px] font-medium rounded-xl px-4" style={{ color: "hsla(215, 25%, 70%, 1)" }}>
                       <LogOut className="mr-3 h-4 w-4" /> Logout
                     </Button>
                   </>
                 ) : (
                   <Link to="/auth" className="block" onClick={() => setIsOpen(false)}>
-                    <Button variant="ghost" className="w-full justify-start text-[13px] font-medium rounded-xl px-4" style={{ color: isScrolled ? "hsl(215, 16%, 47%)" : "hsla(215, 25%, 70%, 1)" }}>
+                    <Button variant="ghost" className="w-full justify-start text-[13px] font-medium rounded-xl px-4" style={{ color: "hsla(215, 25%, 70%, 1)" }}>
                       <LogIn className="mr-3 h-4 w-4" /> Login
                     </Button>
                   </Link>
