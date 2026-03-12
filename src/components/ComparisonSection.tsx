@@ -49,7 +49,7 @@ const ComparisonSection = () => {
 
         {/* Comparison container */}
         <div className="relative">
-          {/* Arrow button — pinned to vertical & horizontal center of the grid */}
+          {/* Arrow button — centered on the vertical divider line */}
           <motion.div
             initial={{ opacity: 0, scale: 0.7 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -59,7 +59,7 @@ const ComparisonSection = () => {
           >
             <button
               onClick={goToPricing}
-              className="flex h-13 w-13 items-center justify-center rounded-full cursor-pointer transition-all duration-300 hover:scale-110 active:scale-95"
+              className="flex h-14 w-14 items-center justify-center rounded-full cursor-pointer transition-all duration-300 hover:scale-110 active:scale-95"
               style={{
                 background: "linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)))",
                 boxShadow: "0 0 20px hsl(var(--primary) / 0.45), 0 0 50px hsl(var(--primary) / 0.12), inset 0 1px 0 hsl(0 0% 100% / 0.15)",
