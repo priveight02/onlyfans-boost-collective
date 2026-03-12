@@ -60,53 +60,57 @@
   * {
     @apply border-border;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.12) transparent;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
   }
+
+  html {
+    scroll-behavior: smooth;
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+    background-color: hsl(var(--background));
+  }
+
   body {
     @apply bg-background text-foreground;
     font-family: 'Montserrat', sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
+    min-height: 100%;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  #root {
+    min-height: 100%;
+    background-color: hsl(var(--background));
+    isolation: isolate;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.28);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.42);
+    background-clip: padding-box;
+  }
+
+  *::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }
 
-/* Custom adaptive scrollbar - hidden by default, visible on scroll */
-* {
-  scrollbar-width: none; /* Firefox: hide by default */
-}
-*::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-*::-webkit-scrollbar-track {
-  background: transparent;
-}
-*::-webkit-scrollbar-thumb {
-  background: transparent;
-  border-radius: 3px;
-  transition: background 0.3s ease;
-}
-*::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-/* Show scrollbar when .scrolling class is present */
-.scrolling,
-.scrolling * {
-  scrollbar-width: thin !important;
-  scrollbar-color: rgba(255, 255, 255, 0.12) transparent !important;
-}
-.scrolling::-webkit-scrollbar-thumb,
-.scrolling *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1) !important;
-}
-.scrolling::-webkit-scrollbar-thumb:hover,
-.scrolling *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2) !important;
-}
-
-html {
-  scroll-behavior: smooth;
-}
 
 /* Custom animations for progress bar */
 @keyframes slide {

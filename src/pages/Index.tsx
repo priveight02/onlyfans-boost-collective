@@ -1,6 +1,7 @@
 import Hero from "@/components/Hero";
 import ComparisonSection from "@/components/ComparisonSection";
 import AutopilotShowcase from "@/components/AutopilotShowcase";
+import WorkflowSection from "@/components/WorkflowSection";
 import Services from "@/components/Services";
 import ReviewsSection from "@/components/ReviewsSection";
 import Footer from "@/components/Footer";
@@ -112,14 +113,14 @@ const Index = () => {
   }, [syncSize]);
 
   return (
-    <div className="relative min-h-screen" style={{ background: "hsl(222, 35%, 8%)" }}>
+    <div className="dark relative min-h-screen overflow-x-clip" style={{ background: "hsl(222, 35%, 8%)" }}>
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 w-full h-full"
+        className="absolute inset-0 h-full w-full"
         style={{ position: "absolute", top: 0, left: 0 }}
       />
       <div
-        className="absolute inset-0 opacity-[0.025] pointer-events-none"
+        className="pointer-events-none absolute inset-0 opacity-[0.025]"
         style={{
           backgroundImage:
             "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)",
@@ -152,6 +153,7 @@ const Index = () => {
         <Hero />
         <ComparisonSection />
         <AutopilotShowcase />
+        <WorkflowSection />
         <Services />
         <ReviewsSection />
         <Footer />
