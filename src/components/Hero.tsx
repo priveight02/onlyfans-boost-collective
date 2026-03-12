@@ -68,7 +68,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="mx-auto mb-8 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg"
+            className="mx-auto mb-8 max-w-2xl text-base leading-relaxed text-white/70 md:text-lg"
           >
             Automate engagement, close more sales, and scale revenue on autopilot.
             <br className="hidden sm:block" />
@@ -84,7 +84,7 @@ const Hero = () => {
             {features.map((feature) => (
               <div
                 key={feature.label}
-                className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/40 px-4 py-2 text-sm font-medium text-muted-foreground"
+                className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-card/40 px-4 py-2 text-sm font-medium text-white/75"
               >
                 <feature.icon className="h-4 w-4 text-primary" />
                 {feature.label}
@@ -135,7 +135,7 @@ const Hero = () => {
               <Star className="h-4 w-4 fill-current text-primary" />
               <span className="text-sm font-semibold text-white">4.9/5</span>
               <span className="text-sm text-white/50">from 700+ users</span>
-              <ArrowRight className="ml-1 h-3.5 w-3.5 text-muted-foreground/70" />
+              <ArrowRight className="ml-1 h-3.5 w-3.5 text-white/50" />
             </div>
           </motion.div>
         </motion.div>

@@ -163,7 +163,7 @@ const ReviewCard = ({
     initial={animateIn ? { opacity: 0, y: 14, filter: "blur(5px)" } : false}
     animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
     transition={{ duration: 0.4, ease: "easeOut", delay: animateIn ? Math.min(index * 0.045, 0.25) : 0 }}
-    className="mb-4 break-inside-avoid rounded-2xl bg-card/65 p-5 shadow-[0_14px_34px_hsl(var(--background)/0.45)] backdrop-blur-sm"
+    className="mb-4 break-inside-avoid rounded-2xl border border-white/[0.06] bg-white/[0.03] p-5"
   >
     <div className="mb-3 flex items-center gap-3">
       <img
@@ -286,7 +286,7 @@ const ReviewsSection = () => {
 
             <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
               {expanded ? "View less" : "View more"}
-              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/20 text-accent-foreground">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-white">
                 {expanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
               </span>
             </span>
