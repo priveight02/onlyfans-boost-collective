@@ -254,17 +254,17 @@ const ReviewsSection = () => {
 
         {/* ── Fog peek area (visible when collapsed) ── */}
         {!expanded && (
-          <div className="relative mt-4 h-44 overflow-hidden">
+          <div className="relative mt-4 h-56 overflow-hidden">
             <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
               {expandedReviews.slice(0, 3).map((review) => (
                 <ReviewCard key={review.name} review={review} />
               ))}
             </div>
-            {/* Fog gradient overlay */}
+            {/* Smooth fog gradient overlay */}
             <div
               className="absolute inset-0 pointer-events-none"
               style={{
-                background: "linear-gradient(to bottom, transparent 0%, hsl(var(--background)) 85%)",
+                background: "linear-gradient(to bottom, transparent 0%, transparent 15%, hsla(var(--background) / 0.3) 35%, hsla(var(--background) / 0.7) 55%, hsl(var(--background)) 80%)",
               }}
             />
           </div>
