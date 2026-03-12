@@ -133,7 +133,7 @@ const ComparisonSection = () => {
               </div>
 
               {/* Items */}
-              <ul className="space-y-0">
+              <ul className="space-y-1">
                 {withItems.map((item, i) => (
                   <motion.li
                     key={i}
