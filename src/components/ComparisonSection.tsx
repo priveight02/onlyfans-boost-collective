@@ -29,7 +29,7 @@ const ComparisonSection = () => {
   const goToPricing = () => navigate(user ? "/pricing" : "/auth");
 
   return (
-    <section className="relative -mt-8 py-20">
+    <section className="relative -mt-8 py-24">
       <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
