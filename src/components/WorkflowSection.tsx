@@ -61,7 +61,7 @@ const WorkflowSection = () => {
                 )}
 
                 <span className="absolute left-0 top-0 text-4xl font-black tracking-tight text-primary/70">{step.id}</span>
-                <h3 className="mb-3 text-3xl font-bold text-foreground md:text-4xl">{step.title}</h3>
+                <h3 className="mb-3 text-3xl font-bold text-white md:text-4xl">{step.title}</h3>
                 <p className="max-w-xl text-lg leading-relaxed text-muted-foreground">{step.description}</p>
               </div>
 
