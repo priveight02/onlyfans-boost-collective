@@ -92,7 +92,7 @@ const WorkflowSection = () => {
                       <div key={source} className="flex items-center justify-between rounded-xl border border-border/55 bg-background/35 px-4 py-3">
                         <div>
                           <p className="text-base font-semibold text-foreground">{source}</p>
-                          <p className="text-xs text-emerald-400">Connected</p>
+                          <p className="text-xs text-primary">Connected</p>
                         </div>
                         <ToggleRight className={`h-7 w-7 ${sourceIndex < 2 ? "text-primary" : "text-muted-foreground/40"}`} />
                       </div>
@@ -108,15 +108,15 @@ const WorkflowSection = () => {
                     <div className="rounded-xl border border-border/55 bg-background/35 p-4">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Return on Ad Spend</p>
                       <p className="mt-1 text-3xl font-bold text-foreground">4.5x</p>
-                      <p className="text-xs font-medium text-emerald-400">+12.5% this week</p>
+                      <p className="text-xs font-medium text-primary">+12.5% this week</p>
                     </div>
                     <div className="rounded-xl border border-border/55 bg-background/35 p-4">
                       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Revenue</p>
                       <p className="mt-1 text-3xl font-bold text-foreground">$12,450</p>
-                      <p className="text-xs font-medium text-emerald-400">+8.2% this week</p>
+                      <p className="text-xs font-medium text-primary">+8.2% this week</p>
                     </div>
                   </div>
-                  <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-400/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-semibold text-emerald-300">
+                  <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary">
                     <CheckCircle2 className="h-3.5 w-3.5" />
                     Campaign active
                   </div>
