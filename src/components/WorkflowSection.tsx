@@ -30,7 +30,7 @@ const WorkflowSection = () => {
           transition={{ duration: 0.55 }}
           className="mb-14 text-center"
         >
-          <h2 className="text-3xl font-bold text-foreground md:text-5xl">
+          <h2 className="text-3xl font-bold text-white md:text-5xl">
             From Setup to <span className="uplyze-highlight">Sales</span>
           </h2>
           <motion.span
@@ -61,22 +61,22 @@ const WorkflowSection = () => {
                 )}
 
                 <span className="absolute left-0 top-0 text-4xl font-black tracking-tight text-primary/70">{step.id}</span>
-                <h3 className="mb-3 text-3xl font-bold text-foreground md:text-4xl">{step.title}</h3>
-                <p className="max-w-xl text-lg leading-relaxed text-muted-foreground">{step.description}</p>
+                <h3 className="mb-3 text-3xl font-bold text-white md:text-4xl">{step.title}</h3>
+                <p className="max-w-xl text-lg leading-relaxed text-white/50">{step.description}</p>
               </div>
 
               {index === 0 && (
                 <div className="rounded-2xl border border-border/50 bg-card/65 p-6 shadow-[0_16px_35px_hsl(var(--background)/0.55)] backdrop-blur-md">
                   <p className="mb-3 text-xs font-semibold tracking-[0.18em] text-primary/90">STEP 1 OF 3</p>
-                  <h4 className="mb-5 text-xl font-semibold text-foreground">What is your main advertising goal?</h4>
+                  <h4 className="mb-5 text-xl font-semibold text-white">What is your main advertising goal?</h4>
                   <div className="space-y-3">
                     {["Scale revenue", "Brand awareness", "Lead generation"].map((goal, goalIndex) => (
                       <div
                         key={goal}
                         className={`rounded-xl border px-4 py-3 text-sm font-medium ${
                           goalIndex === 0
-                            ? "border-primary/70 bg-primary/10 text-foreground"
-                            : "border-border/55 bg-background/30 text-muted-foreground"
+                            ? "border-primary/70 bg-primary/10 text-white"
+                            : "border-white/10 bg-white/[0.03] text-white/50"
                         }`}
                       >
                         {goal}
@@ -91,12 +91,12 @@ const WorkflowSection = () => {
                   <p className="mb-4 text-xs font-semibold tracking-[0.18em] text-primary/90">DATA SOURCES</p>
                   <div className="space-y-3">
                     {["Facebook Ads", "Instagram", "TikTok"].map((source, sourceIndex) => (
-                      <div key={source} className="flex items-center justify-between rounded-xl border border-border/55 bg-background/35 px-4 py-3">
+                      <div key={source} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3">
                         <div>
-                          <p className="text-base font-semibold text-foreground">{source}</p>
+                          <p className="text-base font-semibold text-white">{source}</p>
                           <p className="text-xs text-primary">Connected</p>
                         </div>
-                        <ToggleRight className={`h-7 w-7 ${sourceIndex < 2 ? "text-primary" : "text-muted-foreground/40"}`} />
+                        <ToggleRight className={`h-7 w-7 ${sourceIndex < 2 ? "text-primary" : "text-white/20"}`} />
                       </div>
                     ))}
                   </div>
@@ -107,14 +107,14 @@ const WorkflowSection = () => {
                 <div className="rounded-2xl border border-border/50 bg-card/65 p-6 shadow-[0_16px_35px_hsl(var(--background)/0.55)] backdrop-blur-md">
                   <p className="mb-4 text-xs font-semibold tracking-[0.18em] text-primary/90">LAUNCH STATUS</p>
                   <div className="space-y-3">
-                    <div className="rounded-xl border border-border/55 bg-background/35 p-4">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Return on Ad Spend</p>
-                      <p className="mt-1 text-3xl font-bold text-foreground">4.5x</p>
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                      <p className="text-xs font-medium uppercase tracking-wide text-white/40">Return on Ad Spend</p>
+                      <p className="mt-1 text-3xl font-bold text-white">4.5x</p>
                       <p className="text-xs font-medium text-primary">+12.5% this week</p>
                     </div>
-                    <div className="rounded-xl border border-border/55 bg-background/35 p-4">
-                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total Revenue</p>
-                      <p className="mt-1 text-3xl font-bold text-foreground">$12,450</p>
+                    <div className="rounded-xl border border-white/10 bg-white/[0.03] p-4">
+                      <p className="text-xs font-medium uppercase tracking-wide text-white/40">Total Revenue</p>
+                      <p className="mt-1 text-3xl font-bold text-white">$12,450</p>
                       <p className="text-xs font-medium text-primary">+8.2% this week</p>
                     </div>
                   </div>

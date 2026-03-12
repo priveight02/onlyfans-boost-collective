@@ -246,10 +246,10 @@ const ReviewsSection = () => {
         <AnimatePresence initial={false}>
           {expanded && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              initial={{ height: 0 }}
+              animate={{ height: "auto" }}
+              exit={{ height: 0 }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
               className="overflow-hidden"
             >
               <div className="mt-4 columns-1 [column-gap:1rem] md:columns-2 lg:columns-3">
@@ -265,7 +265,7 @@ const ReviewsSection = () => {
           <button
             onClick={() => setExpanded((prev) => !prev)}
             className={cn(
-              "inline-flex items-center gap-3 rounded-full bg-card/60 px-5 py-2.5 text-foreground",
+              "inline-flex items-center gap-3 rounded-full bg-card/60 px-5 py-2.5 text-white",
               "transition-all duration-300 hover:scale-[1.015] hover:bg-card/75 active:scale-[0.985]"
             )}
           >
@@ -281,10 +281,10 @@ const ReviewsSection = () => {
               ))}
             </div>
 
-            <span className="text-sm font-medium text-foreground/90">9,400+ founders love Uplyze</span>
+            <span className="text-sm font-medium text-white/90">9,400+ founders love Uplyze</span>
             <span className="h-5 w-px bg-border/60" aria-hidden="true" />
 
-            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
               {expanded ? "View less" : "View more"}
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/20 text-accent-foreground">
                 {expanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}

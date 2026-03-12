@@ -43,7 +43,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, delay: 0.15 }}
-            className="mb-6 text-5xl font-bold leading-[1.05] tracking-tight text-foreground md:text-7xl lg:text-[5.5rem]"
+            className="mb-6 text-5xl font-bold leading-[1.05] tracking-tight text-white md:text-7xl lg:text-[5.5rem]"
           >
             The #1 AI Platform
             <br />
@@ -133,8 +133,8 @@ const Hero = () => {
 
             <div className="flex items-center gap-1.5">
               <Star className="h-4 w-4 fill-current text-primary" />
-              <span className="text-sm font-semibold text-foreground">4.9/5</span>
-              <span className="text-sm text-muted-foreground">from 700+ users</span>
+              <span className="text-sm font-semibold text-white">4.9/5</span>
+              <span className="text-sm text-white/50">from 700+ users</span>
               <ArrowRight className="ml-1 h-3.5 w-3.5 text-muted-foreground/70" />
             </div>
           </motion.div>
