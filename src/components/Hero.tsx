@@ -1,4 +1,4 @@
-import { ArrowRight, Sparkles, Globe, Zap, Shield, Star } from "lucide-react";
+import { ArrowRight, Zap, Globe, Shield, Star, TrendingUp, Bot, MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -11,10 +11,21 @@ const Hero = () => {
     navigate(user ? '/pricing' : '/auth');
   };
 
+  const handleScrollToReviews = () => {
+    const el = document.getElementById('reviews-section');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
   const features = [
     { icon: Globe, label: "Multi-Platform AI" },
-    { icon: Zap, label: "24/7 Autopilot" },
+    { icon: Bot, label: "24/7 Autopilot" },
     { icon: Shield, label: "Enterprise Security" },
+  ];
+
+  const stats = [
+    { value: "10x", label: "Faster Growth" },
+    { value: "700+", label: "Active Users" },
+    { value: "24/7", label: "AI Automation" },
   ];
 
   const avatars = [
@@ -27,23 +38,23 @@ const Hero = () => {
 
   return (
     <div className="relative flex items-center min-h-screen pt-16 overflow-hidden">
-      {/* Warm gradient glow - inspired by reference */}
+      {/* Warm gradient glow */}
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[40%] pointer-events-none"
         style={{
-          width: "900px",
-          height: "700px",
-          background: "radial-gradient(ellipse at center, hsla(270, 80%, 65%, 0.15) 0%, hsla(200, 90%, 55%, 0.08) 40%, transparent 70%)",
-          filter: "blur(60px)",
+          width: "1000px",
+          height: "800px",
+          background: "radial-gradient(ellipse at center, hsla(270, 80%, 65%, 0.12) 0%, hsla(200, 90%, 55%, 0.06) 40%, transparent 70%)",
+          filter: "blur(80px)",
         }}
       />
       <div
-        className="absolute top-[30%] left-[35%] pointer-events-none"
+        className="absolute top-[20%] left-[30%] pointer-events-none"
         style={{
-          width: "500px",
-          height: "500px",
-          background: "radial-gradient(ellipse at center, hsla(50, 90%, 65%, 0.08) 0%, hsla(140, 70%, 50%, 0.04) 50%, transparent 70%)",
-          filter: "blur(80px)",
+          width: "600px",
+          height: "600px",
+          background: "radial-gradient(ellipse at center, hsla(50, 90%, 65%, 0.06) 0%, hsla(140, 70%, 50%, 0.03) 50%, transparent 70%)",
+          filter: "blur(100px)",
         }}
       />
 
@@ -54,60 +65,45 @@ const Hero = () => {
           transition={{ duration: 0.8 }}
           className="text-center"
         >
-          {/* Announcement pill */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8"
-            style={{
-              background: "hsla(270, 80%, 65%, 0.1)",
-              border: "1px solid hsla(270, 80%, 65%, 0.2)",
-            }}
-          >
-            <Sparkles className="h-3.5 w-3.5" style={{ color: "hsl(270, 80%, 70%)" }} />
-            <span className="text-xs font-medium" style={{ color: "hsl(270, 80%, 80%)" }}>
-              Trusted by 700+ creators & agencies
-            </span>
-          </motion.div>
-
           {/* Main heading */}
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.9, delay: 0.2 }}
-            className="text-5xl md:text-7xl lg:text-[5.2rem] font-bold mb-6 font-heading tracking-tight leading-[1.05]"
+            transition={{ duration: 0.9, delay: 0.15 }}
+            className="text-5xl md:text-7xl lg:text-[5.5rem] font-bold mb-4 font-heading tracking-tight leading-[1.05]"
             style={{ color: "hsla(0, 0%, 100%, 0.95)" }}
           >
             The #1 AI Platform
             <br />
-            <span className="relative inline-block">
-              for Creators & Agencies
-              {/* Highlighted callout badge */}
-              <motion.span
-                initial={{ opacity: 0, scale: 0.8, rotate: -5 }}
-                animate={{ opacity: 1, scale: 1, rotate: 2 }}
-                transition={{ duration: 0.5, delay: 0.8, type: "spring" }}
-                className="absolute -right-4 md:-right-12 -bottom-2 md:bottom-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs md:text-sm font-semibold whitespace-nowrap"
-                style={{
-                  background: "hsl(52, 95%, 72%)",
-                  color: "hsl(222, 35%, 12%)",
-                  boxShadow: "0 4px 20px hsla(52, 95%, 55%, 0.3)",
-                  transform: "rotate(2deg)",
-                }}
-              >
-                <Zap className="h-3.5 w-3.5" />
-                10x faster growth
-              </motion.span>
-            </span>
+            for Creators & Agencies
           </motion.h1>
+
+          {/* 10x faster growth badge - below heading */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.6, type: "spring" }}
+            className="flex justify-center mb-6"
+          >
+            <span
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold"
+              style={{
+                background: "hsl(52, 95%, 72%)",
+                color: "hsl(222, 35%, 12%)",
+                boxShadow: "0 4px 20px hsla(52, 95%, 55%, 0.3)",
+              }}
+            >
+              <Zap className="h-4 w-4" />
+              10x faster growth
+            </span>
+          </motion.div>
 
           {/* Subtitle */}
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.4 }}
-            className="text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-10"
+            transition={{ duration: 0.8, delay: 0.3 }}
+            className="text-base md:text-lg max-w-2xl mx-auto leading-relaxed mb-8"
             style={{ color: "hsla(215, 25%, 65%, 0.9)" }}
           >
             Automate engagement, close more sales, and scale revenue on autopilot.
@@ -119,10 +115,10 @@ const Hero = () => {
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.5 }}
+            transition={{ duration: 0.7, delay: 0.4 }}
             className="flex flex-wrap justify-center gap-3 mb-10"
           >
-            {features.map((feature, i) => (
+            {features.map((feature) => (
               <div
                 key={feature.label}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium"
@@ -142,16 +138,15 @@ const Hero = () => {
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.6 }}
-            className="flex justify-center mb-10"
+            transition={{ duration: 0.8, delay: 0.5 }}
+            className="flex justify-center mb-8"
           >
             <button
               onClick={handleGetStarted}
               className="group inline-flex items-center px-10 py-4 text-base font-semibold rounded-2xl text-white transition-all duration-300 transform hover:scale-[1.03] active:scale-[0.98]"
               style={{
-                background: "hsl(222, 35%, 12%)",
-                border: "1px solid hsla(215, 25%, 40%, 0.2)",
-                boxShadow: "0 4px 24px hsla(222, 35%, 4%, 0.5), 0 0 0 1px hsla(215, 25%, 50%, 0.05) inset",
+                background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(217, 91%, 55%))",
+                boxShadow: "0 4px 24px hsla(262, 83%, 58%, 0.3), 0 0 0 1px hsla(0, 0%, 100%, 0.05) inset",
               }}
             >
               Get Started Free
@@ -159,16 +154,37 @@ const Hero = () => {
             </button>
           </motion.div>
 
-          {/* Social proof bar */}
+          {/* Stats row */}
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.8 }}
-            className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full"
+            transition={{ duration: 0.7, delay: 0.6 }}
+            className="flex justify-center gap-8 md:gap-12 mb-8"
+          >
+            {stats.map((stat) => (
+              <div key={stat.label} className="text-center">
+                <div className="text-2xl md:text-3xl font-bold" style={{ color: "hsla(0, 0%, 100%, 0.95)" }}>
+                  {stat.value}
+                </div>
+                <div className="text-xs md:text-sm mt-1" style={{ color: "hsla(215, 25%, 65%, 0.7)" }}>
+                  {stat.label}
+                </div>
+              </div>
+            ))}
+          </motion.div>
+
+          {/* Social proof bar - clickable to scroll to reviews */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.7 }}
+            className="inline-flex items-center gap-3 px-5 py-2.5 rounded-full cursor-pointer transition-all duration-300 hover:scale-[1.03]"
+            onClick={handleScrollToReviews}
             style={{
               background: "hsla(215, 25%, 50%, 0.06)",
               border: "1px solid hsla(215, 25%, 50%, 0.1)",
             }}
+            title="See reviews"
           >
             {/* Avatar stack */}
             <div className="flex -space-x-2.5">
@@ -194,6 +210,7 @@ const Hero = () => {
               <span className="text-sm" style={{ color: "hsla(215, 25%, 65%, 0.7)" }}>
                 from 700+ users
               </span>
+              <ArrowRight className="h-3.5 w-3.5 ml-1" style={{ color: "hsla(215, 25%, 65%, 0.5)" }} />
             </div>
           </motion.div>
         </motion.div>
