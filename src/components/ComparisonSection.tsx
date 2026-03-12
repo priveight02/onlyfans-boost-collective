@@ -127,7 +127,7 @@ const ComparisonSection = () => {
                   <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
                     <Check className="h-4 w-4 text-emerald-400" />
                   </span>
-                  <span className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-400/80">With Uplyze</span>
+                  <span className="text-xs font-semibold uppercase tracking-[0.15em] text-emerald-400/80">With <span className="uplyze-highlight">Uplyze</span></span>
                 </div>
 
                 <ul className="space-y-1">
