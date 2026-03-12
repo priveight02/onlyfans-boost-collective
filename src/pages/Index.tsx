@@ -134,6 +134,7 @@ const Index = () => {
         <ComparisonSection />
         <AutopilotShowcase />
         <Services />
+        <ReviewsSection />
         <Footer />
       </div>
     </div>
