@@ -9,36 +9,49 @@ import { useEffect, useRef, useCallback } from "react";
 
 const Index = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const sizeRef = useRef({ w: 0, h: 0, dpr: 1 });
 
   const syncSize = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
     const parent = canvas.parentElement;
     if (!parent) return;
-    const dpr = Math.min(window.devicePixelRatio, 2);
-    const w = parent.scrollWidth;
-    const h = parent.scrollHeight;
+
+    const content = contentRef.current;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(parent.clientWidth, 1);
+    const contentHeight = content
+      ? content.getBoundingClientRect().height
+      : parent.getBoundingClientRect().height;
+    const h = Math.max(Math.ceil(contentHeight), window.innerHeight);
+
     if (sizeRef.current.w === w && sizeRef.current.h === h && sizeRef.current.dpr === dpr) return;
+
     sizeRef.current = { w, h, dpr };
     canvas.width = w * dpr;
     canvas.height = h * dpr;
-    canvas.style.width = w + 'px';
-    canvas.style.height = h + 'px';
+    canvas.style.width = `${w}px`;
+    canvas.style.height = `${h}px`;
   }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d', { alpha: false });
+
+    const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
     let animationId: number;
     let time = 0;
 
     syncSize();
+
     const resizeObserver = new ResizeObserver(syncSize);
     if (canvas.parentElement) resizeObserver.observe(canvas.parentElement);
+    if (contentRef.current) resizeObserver.observe(contentRef.current);
+    window.addEventListener("resize", syncSize);
 
     const nodes = [
       { x: 0.12, y: 0.05, r: 500, color: [124, 58, 237], speed: 0.0002, phase: 0 },
@@ -54,10 +67,13 @@ const Index = () => {
     const draw = () => {
       time++;
       const { w, h, dpr } = sizeRef.current;
-      if (w === 0 || h === 0) { animationId = requestAnimationFrame(draw); return; }
+      if (w === 0 || h === 0) {
+        animationId = requestAnimationFrame(draw);
+        return;
+      }
 
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.fillStyle = 'hsl(222, 35%, 8%)';
+      ctx.fillStyle = "hsl(222, 35%, 8%)";
       ctx.fillRect(0, 0, w, h);
 
       for (const node of nodes) {
@@ -91,43 +107,46 @@ const Index = () => {
     return () => {
       cancelAnimationFrame(animationId);
       resizeObserver.disconnect();
+      window.removeEventListener("resize", syncSize);
     };
   }, [syncSize]);
 
   return (
-    <div className="relative min-h-screen" style={{ background: 'hsl(222, 35%, 8%)' }}>
+    <div className="relative min-h-screen" style={{ background: "hsl(222, 35%, 8%)" }}>
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full"
-        style={{ position: 'absolute', top: 0, left: 0 }}
+        style={{ position: "absolute", top: 0, left: 0 }}
       />
       <div
         className="absolute inset-0 opacity-[0.025] pointer-events-none"
         style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px',
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
         }}
       />
-      <div className="relative z-10">
-         <PageSEO
-             title="Uplyze - All-in-One Growth AI for Creators, Agencies & Businesses"
-             description="Automate marketing, close more deals, and scale revenue with one AI platform. Trusted by 700+ creators, agencies, and businesses to replace 10+ tools."
-            ogTitle="Uplyze - AI Platform for Marketing & Business Growth"
-            ogDescription="Automate marketing, manage customers, and scale revenue with Uplyze. AI CRM, content creation, social media automation, DM outreach, and analytics in one platform."
+      <div className="relative z-10" ref={contentRef}>
+        <PageSEO
+          title="Uplyze - All-in-One Growth AI for Creators, Agencies & Businesses"
+          description="Automate marketing, close more deals, and scale revenue with one AI platform. Trusted by 700+ creators, agencies, and businesses to replace 10+ tools."
+          ogTitle="Uplyze - AI Platform for Marketing & Business Growth"
+          ogDescription="Automate marketing, manage customers, and scale revenue with Uplyze. AI CRM, content creation, social media automation, DM outreach, and analytics in one platform."
           jsonLd={{
             "@context": "https://schema.org",
             "@type": "WebPage",
-            "name": "Uplyze - AI Platform, AI Tool, AI CRM & All-in-One AI Suite",
-            "description": "Uplyze is the best AI platform, AI tool, and all-in-one AI suite for creators, agencies, entrepreneurs, and businesses.",
-            "url": "https://uplyze.ai",
-            "isPartOf": { "@type": "WebSite", "name": "Uplyze", "url": "https://uplyze.ai" },
-            "mainEntity": {
+            name: "Uplyze - AI Platform, AI Tool, AI CRM & All-in-One AI Suite",
+            description:
+              "Uplyze is the best AI platform, AI tool, and all-in-one AI suite for creators, agencies, entrepreneurs, and businesses.",
+            url: "https://uplyze.ai",
+            isPartOf: { "@type": "WebSite", name: "Uplyze", url: "https://uplyze.ai" },
+            mainEntity: {
               "@type": "SoftwareApplication",
-              "name": "Uplyze",
-              "applicationCategory": "BusinessApplication",
-              "operatingSystem": "Web",
-              "offers": { "@type": "AggregateOffer", "lowPrice": "0", "highPrice": "499.99", "priceCurrency": "USD" }
-            }
+              name: "Uplyze",
+              applicationCategory: "BusinessApplication",
+              operatingSystem: "Web",
+              offers: { "@type": "AggregateOffer", lowPrice: "0", highPrice: "499.99", priceCurrency: "USD" },
+            },
           }}
         />
         <Hero />

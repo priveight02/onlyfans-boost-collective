@@ -233,21 +233,11 @@ const ReviewsSection = () => {
           ))}
         </div>
 
-        {/* Peek cards (always rendered, fog when collapsed) */}
-        <div className="relative">
-          <div className={`columns-1 md:columns-2 lg:columns-3 gap-4 ${!expanded ? "max-h-[220px] overflow-hidden" : ""}`}>
-            {peekReviews.map((review, i) => (
-              <ReviewCard key={review.name} review={review} index={i} />
-            ))}
-          </div>
-          {!expanded && (
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background: "linear-gradient(to bottom, transparent 0%, hsl(var(--background)) 85%)",
-              }}
-            />
-          )}
+        {/* Peek cards (always rendered, clipped when collapsed) */}
+        <div className={`columns-1 md:columns-2 lg:columns-3 gap-4 ${!expanded ? "max-h-[220px] overflow-hidden" : ""}`}>
+          {peekReviews.map((review, i) => (
+            <ReviewCard key={review.name} review={review} index={i} />
+          ))}
         </div>
 
         {/* Extra reviews - simple conditional render, no AnimatePresence */}
