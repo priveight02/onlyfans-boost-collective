@@ -265,8 +265,8 @@ const ReviewsSection = () => {
           <button
             onClick={() => setExpanded((prev) => !prev)}
             className={cn(
-              "inline-flex items-center gap-3 rounded-full bg-card/60 px-5 py-2.5 text-white",
-              "transition-all duration-300 hover:scale-[1.015] hover:bg-card/75 active:scale-[0.985]"
+              "inline-flex items-center gap-3 rounded-full border border-white/[0.08] bg-white/[0.05] px-5 py-2.5 text-white",
+              "transition-all duration-300 hover:scale-[1.015] hover:bg-white/[0.08] active:scale-[0.985]"
             )}
           >
             <div className="flex -space-x-2">
@@ -282,11 +282,11 @@ const ReviewsSection = () => {
             </div>
 
             <span className="text-sm font-medium text-white/90">9,400+ founders love Uplyze</span>
-            <span className="h-5 w-px bg-border/60" aria-hidden="true" />
+            <span className="h-5 w-px bg-white/15" aria-hidden="true" />
 
             <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-white">
               {expanded ? "View less" : "View more"}
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-white">
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/10 text-white">
                 {expanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
               </span>
             </span>
