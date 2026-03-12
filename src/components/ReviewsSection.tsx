@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { motion } from "framer-motion";
-import { BadgeCheck, Plus, Minus } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { BadgeCheck, Minus, Plus } from "lucide-react";
+import { cn } from "@/lib/utils";
 import reviewPhoto1 from "@/assets/review-photo-1.jpg";
 import reviewPhoto2 from "@/assets/review-photo-2.jpg";
 import reviewPhoto3 from "@/assets/review-photo-3.jpg";
@@ -9,7 +10,6 @@ import reviewPhoto5 from "@/assets/review-photo-5.jpg";
 import reviewPhoto6 from "@/assets/review-photo-6.jpg";
 
 const reviews = [
-  // === INITIAL 3 (collapsed - no photos, uniform) ===
   {
     name: "Samuel Brunner",
     avatar: "https://i.pravatar.cc/80?img=11",
@@ -37,7 +37,6 @@ const reviews = [
     location: "LT",
     date: "Jan 18, 2026",
   },
-  // === PEEK ROW (visible behind fog) ===
   {
     name: "Chris O'Donnell",
     avatar: "https://i.pravatar.cc/80?img=53",
@@ -65,7 +64,6 @@ const reviews = [
     location: "US",
     date: "Feb 2026",
   },
-  // === REST (only when expanded) ===
   {
     name: "Jessica Li",
     avatar: "https://i.pravatar.cc/80?img=45",
@@ -140,54 +138,58 @@ const reviews = [
   },
 ];
 
-type Review = typeof reviews[0];
+type Review = (typeof reviews)[number];
 
-const ReviewCard = ({ review, index }: { review: Review; index: number }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 16 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4, delay: index * 0.05 }}
-    className="rounded-2xl p-5 flex flex-col gap-3 break-inside-avoid mb-4"
-    style={{
-      background: "hsla(0, 0%, 100%, 0.04)",
-      border: "1px solid hsla(0, 0%, 100%, 0.07)",
-    }}
+const collapsedCardTextStyle = {
+  display: "-webkit-box",
+  WebkitLineClamp: 5,
+  WebkitBoxOrient: "vertical" as const,
+  overflow: "hidden",
+};
+
+const ReviewCard = ({ review, index, expanded }: { review: Review; index: number; expanded: boolean }) => (
+  <motion.article
+    layout={false}
+    initial={{ opacity: 0, y: 14, scale: 0.99 }}
+    animate={{ opacity: 1, y: 0, scale: 1 }}
+    exit={{ opacity: 0, y: 12, scale: 0.99 }}
+    transition={{ duration: 0.32, ease: "easeOut", delay: expanded ? Math.min(index * 0.025, 0.2) : 0 }}
+    className={cn(
+      "mb-4 break-inside-avoid rounded-2xl border border-border/40 bg-card/35 p-5",
+      !expanded && "min-h-[250px]"
+    )}
   >
-    <div className="flex items-center gap-3">
+    <div className="mb-3 flex items-center gap-3">
       <img
         src={review.avatar}
         alt={review.name}
-        className="w-9 h-9 rounded-full object-cover"
-        style={{ border: "2px solid hsla(0, 0%, 100%, 0.1)" }}
+        className="h-9 w-9 rounded-full border border-border/50 object-cover"
+        loading="lazy"
       />
       <div className="flex items-center gap-1.5">
-        <span className="text-sm font-semibold" style={{ color: "hsla(0, 0%, 100%, 0.92)" }}>
-          {review.name}
-        </span>
-        {review.verified && (
-          <BadgeCheck className="h-4 w-4" style={{ color: "hsl(217, 91%, 65%)" }} />
-        )}
+        <span className="text-sm font-semibold text-foreground/95">{review.name}</span>
+        {review.verified && <BadgeCheck className="h-4 w-4 text-primary" />}
       </div>
     </div>
 
-    <p className="text-sm leading-relaxed" style={{ color: "hsla(215, 20%, 70%, 0.9)" }}>
+    <p className="text-sm leading-relaxed text-muted-foreground" style={!expanded ? collapsedCardTextStyle : undefined}>
       {review.text}
     </p>
 
-    {review.photo && (
+    {expanded && review.photo && (
       <img
         src={review.photo}
         alt={`${review.name} using Uplyze`}
-        className="w-full rounded-xl object-cover"
-        style={{ maxHeight: "260px" }}
+        className="mt-4 w-full rounded-xl object-cover"
+        style={{ maxHeight: "320px" }}
         loading="lazy"
       />
     )}
 
-    <span className="text-xs mt-1" style={{ color: "hsla(215, 20%, 55%, 0.5)" }}>
+    <span className="mt-4 block text-xs text-muted-foreground/70">
       {review.location} – {review.date}
     </span>
-  </motion.div>
+  </motion.article>
 );
 
 const pillAvatars = [
@@ -197,101 +199,58 @@ const pillAvatars = [
   "https://i.pravatar.cc/40?img=53",
 ];
 
+const COLLAPSED_COUNT = 6;
+
 const ReviewsSection = () => {
   const [expanded, setExpanded] = useState(false);
-
-  const collapsedReviews = reviews.slice(0, 3);
-  const peekReviews = reviews.slice(3, 6);
-  const restReviews = reviews.slice(6);
+  const visibleReviews = expanded ? reviews : reviews.slice(0, COLLAPSED_COUNT);
 
   return (
-    <section id="reviews-section" className="py-24 relative">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
+    <section id="reviews-section" className="relative -mt-8 pb-24 pt-20">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-16"
+          transition={{ duration: 0.55 }}
+          className="mb-14 text-center"
         >
-          <h2
-            className="text-3xl md:text-5xl font-bold font-heading mb-4"
-            style={{ color: "hsla(0, 0%, 100%, 0.95)" }}
-          >
-            Trusted by those who move fast.
-          </h2>
-          <p className="text-base md:text-lg" style={{ color: "hsla(215, 25%, 65%, 0.7)" }}>
-            Creators & agencies scaling with Uplyze
-          </p>
+          <h2 className="mb-4 text-3xl font-bold text-foreground md:text-5xl">Trusted by those who move fast.</h2>
+          <p className="text-base text-muted-foreground md:text-lg">Creators & agencies scaling with Uplyze</p>
         </motion.div>
 
-        {/* Always-visible initial cards (uniform, no photos) */}
-        <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
-          {collapsedReviews.map((review, i) => (
-            <ReviewCard key={review.name} review={review} index={i} />
-          ))}
-        </div>
-
-        {/* Peek cards (always rendered, clipped when collapsed) */}
-        <div className={`columns-1 md:columns-2 lg:columns-3 gap-4 ${!expanded ? "max-h-[220px] overflow-hidden" : ""}`}>
-          {peekReviews.map((review, i) => (
-            <ReviewCard key={review.name} review={review} index={i} />
-          ))}
-        </div>
-
-        {/* Extra reviews - simple conditional render, no AnimatePresence */}
-        {expanded && (
-          <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
-            {restReviews.map((review, i) => (
-              <ReviewCard key={review.name} review={review} index={i} />
+        <div className="columns-1 [column-gap:1rem] md:columns-2 lg:columns-3">
+          <AnimatePresence initial={false} mode="popLayout">
+            {visibleReviews.map((review, i) => (
+              <ReviewCard key={review.name} review={review} index={i} expanded={expanded} />
             ))}
-          </div>
-        )}
+          </AnimatePresence>
+        </div>
 
-        {/* Pill toggle button */}
-        <div className="flex justify-center mt-8">
+        <div className="mt-8 flex justify-center">
           <button
-            onClick={() => setExpanded(!expanded)}
-            className="inline-flex items-center gap-3 rounded-full px-5 py-2.5 transition-all duration-300 hover:scale-[1.02] active:scale-[0.98]"
-            style={{
-              background: "hsla(0, 0%, 100%, 0.06)",
-              border: "1px solid hsla(0, 0%, 100%, 0.12)",
-            }}
+            onClick={() => setExpanded((prev) => !prev)}
+            className="inline-flex items-center gap-3 rounded-full border border-border/60 bg-card/45 px-5 py-2.5 text-foreground transition-all duration-300 hover:scale-[1.015] hover:bg-card/60 active:scale-[0.985]"
           >
-            {/* Avatar stack */}
             <div className="flex -space-x-2">
               {pillAvatars.map((src, i) => (
                 <img
                   key={i}
                   src={src}
                   alt=""
-                  className="w-7 h-7 rounded-full object-cover border-2 border-background"
+                  className="h-7 w-7 rounded-full border-2 border-background object-cover"
+                  loading="lazy"
                 />
               ))}
             </div>
 
-            <span className="text-sm font-medium" style={{ color: "hsla(0, 0%, 100%, 0.85)" }}>
-              9,400+ founders love Uplyze
-            </span>
+            <span className="text-sm font-medium text-foreground/90">9,400+ founders love Uplyze</span>
+            <span className="h-5 w-px bg-border/70" aria-hidden="true" />
 
-            <div
-              className="h-5 w-px"
-              style={{ background: "hsla(0, 0%, 100%, 0.15)" }}
-            />
-
-            <span
-              className="inline-flex items-center gap-1.5 text-sm font-semibold"
-              style={{ color: "hsla(0, 0%, 100%, 0.9)" }}
-            >
+            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-foreground">
               {expanded ? "View less" : "View more"}
-              <span
-                className="flex items-center justify-center w-5 h-5 rounded-full"
-                style={{
-                  background: "hsla(0, 0%, 100%, 0.12)",
-                }}
-              >
-                {expanded ? <Minus className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-accent/20 text-accent-foreground">
+                {expanded ? <Minus className="h-3 w-3" /> : <Plus className="h-3 w-3" />}
               </span>
             </span>
           </button>
