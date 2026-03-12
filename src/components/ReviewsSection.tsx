@@ -163,7 +163,7 @@ const ReviewCard = ({
     initial={animateIn ? { opacity: 0, y: 14, filter: "blur(5px)" } : false}
     animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
     transition={{ duration: 0.4, ease: "easeOut", delay: animateIn ? Math.min(index * 0.045, 0.25) : 0 }}
-    className="mb-4 break-inside-avoid rounded-2xl bg-card/55 p-5 shadow-[0_14px_34px_hsl(var(--background)/0.45)] backdrop-blur-sm"
+    className="mb-4 break-inside-avoid rounded-2xl bg-card/65 p-5 shadow-[0_14px_34px_hsl(var(--background)/0.45)] backdrop-blur-sm"
   >
     <div className="mb-3 flex items-center gap-3">
       <img
@@ -173,12 +173,12 @@ const ReviewCard = ({
         loading="lazy"
       />
       <div className="flex items-center gap-1.5">
-        <span className="text-sm font-semibold text-foreground">{review.name}</span>
+        <span className="text-sm font-semibold text-white">{review.name}</span>
         {review.verified && <BadgeCheck className="h-4 w-4 text-primary" />}
       </div>
     </div>
 
-    <p className="text-sm leading-relaxed text-foreground/80" style={!expanded ? collapsedCardTextStyle : undefined}>
+    <p className="text-sm leading-relaxed text-white/85" style={!expanded ? collapsedCardTextStyle : undefined}>
       {review.text}
     </p>
 
@@ -191,7 +191,7 @@ const ReviewCard = ({
       />
     )}
 
-    <span className="mt-4 block text-xs text-muted-foreground">
+    <span className="mt-4 block text-xs text-white/60">
       {review.location} – {review.date}
     </span>
   </motion.article>
@@ -219,20 +219,22 @@ const ReviewsSection = () => {
           transition={{ duration: 0.55 }}
           className="mb-14 text-center"
         >
-          <h2 className="mb-4 text-3xl font-bold text-foreground md:text-5xl">Trusted by those who move fast.</h2>
-          <p className="text-base text-muted-foreground md:text-lg">
-            <span
-              className="bg-clip-text text-transparent animate-logo-shimmer"
-              style={{
-                backgroundImage:
-                  "linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--accent)) 50%, hsl(var(--primary)) 100%)",
-                backgroundSize: "220% 100%",
-              }}
-            >
-              Creators & agencies
-            </span>{" "}
-            scaling with Uplyze
+          <h2 className="mb-4 text-3xl font-bold text-white md:text-5xl">
+            <span className="uplyze-highlight">Trusted</span> by teams who <span className="uplyze-highlight">move fast</span>.
+          </h2>
+          <p className="mx-auto max-w-2xl text-base text-white/75 md:text-lg">
+            Real reviews from creators and agencies closing more deals with Uplyze every single week.
           </p>
+          <motion.span
+            initial={{ opacity: 0, y: -6, rotate: -4 }}
+            whileInView={{ opacity: 1, y: 0, rotate: -2 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.45, delay: 0.08 }}
+            className="mt-4 inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card/70 px-5 py-2 text-sm font-semibold text-white shadow-[0_10px_24px_hsl(var(--background)/0.5)] backdrop-blur-md"
+          >
+            <BadgeCheck className="h-4 w-4 text-primary" />
+            9,400+ teams scaling weekly
+          </motion.span>
         </motion.div>
 
         <div className="columns-1 [column-gap:1rem] md:columns-2 lg:columns-3">

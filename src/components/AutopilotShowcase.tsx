@@ -894,9 +894,7 @@ const AutopilotShowcase = () => {
         >
           <h2 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 font-heading tracking-tight">
             See your business run on{" "}
-            <span className="bg-clip-text text-transparent pb-2" style={{ backgroundImage: 'linear-gradient(135deg, #a78bfa, #60a5fa)' }}>
-              autopilot
-            </span>
+            <span className="uplyze-highlight pb-2">autopilot</span>
           </h2>
           <p className="text-white/50 text-lg max-w-2xl mx-auto">
             See how Uplyze runs your marketing, content, and sales on full autopilot so you can focus on what matters most
