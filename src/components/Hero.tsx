@@ -43,7 +43,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, delay: 0.15 }}
-            className="mb-6 text-5xl font-bold leading-[1.05] tracking-tight text-foreground md:text-7xl lg:text-[5.5rem]"
+            className="mb-6 text-5xl font-bold leading-[1.05] tracking-tight text-white md:text-7xl lg:text-[5.5rem]"
           >
             The #1 AI Platform
             <br />
