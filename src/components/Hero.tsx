@@ -38,25 +38,6 @@ const Hero = () => {
 
   return (
     <div className="relative flex items-center min-h-screen pt-16 overflow-hidden">
-      {/* Warm gradient glow */}
-      <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[40%] pointer-events-none"
-        style={{
-          width: "1000px",
-          height: "800px",
-          background: "radial-gradient(ellipse at center, hsla(270, 80%, 65%, 0.12) 0%, hsla(200, 90%, 55%, 0.06) 40%, transparent 70%)",
-          filter: "blur(80px)",
-        }}
-      />
-      <div
-        className="absolute top-[20%] left-[30%] pointer-events-none"
-        style={{
-          width: "600px",
-          height: "600px",
-          background: "radial-gradient(ellipse at center, hsla(50, 90%, 65%, 0.06) 0%, hsla(140, 70%, 50%, 0.03) 50%, transparent 70%)",
-          filter: "blur(100px)",
-        }}
-      />
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 w-full">
         <motion.div

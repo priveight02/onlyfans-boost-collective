@@ -80,17 +80,6 @@ const Services = () => {
 
   return (
     <section id="services" className="py-24 relative">
-      {/* Ambient glows */}
-      <motion.div
-        animate={{ opacity: [0.04, 0.08, 0.04] }}
-        transition={{ duration: 8, repeat: Infinity }}
-        className="absolute top-0 right-1/4 w-[500px] h-[500px] bg-purple-600 rounded-full blur-[140px]"
-      />
-      <motion.div
-        animate={{ opacity: [0.03, 0.06, 0.03] }}
-        transition={{ duration: 10, repeat: Infinity, delay: 3 }}
-        className="absolute bottom-0 left-1/3 w-[400px] h-[400px] bg-blue-600 rounded-full blur-[120px]"
-      />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <motion.div 
