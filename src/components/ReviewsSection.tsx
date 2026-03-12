@@ -252,33 +252,39 @@ const ReviewsSection = () => {
           ))}
         </div>
 
-        {/* ── Fog peek area (visible when collapsed) ── */}
-        {!expanded && (
-          <div className="relative mt-4 h-48 overflow-hidden">
-            <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
-              {expandedReviews.slice(0, 3).map((review) => (
-                <ReviewCard key={review.name} review={review} />
-              ))}
-            </div>
-            {/* Soft dark fade overlay */}
-            <div
-              className="absolute inset-0 pointer-events-none"
-              style={{
-                background:
-                  "linear-gradient(180deg, hsl(224 70% 6% / 0) 0%, hsl(224 70% 6% / 0.03) 32%, hsl(224 70% 6% / 0.12) 50%, hsl(224 70% 6% / 0.28) 66%, hsl(224 70% 6% / 0.52) 80%, hsl(224 70% 6% / 0.78) 91%, hsl(224 70% 6% / 0.94) 100%)",
-              }}
-            />
-          </div>
-        )}
-
-        {/* ── Expanded cards (masonry, mixed sizes) ── */}
-        <AnimatePresence>
-          {expanded && (
+        {/* ── Collapsed peek / Expanded list (smooth switch) ── */}
+        <AnimatePresence mode="wait" initial={false}>
+          {!expanded ? (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.5 }}
+              key="collapsed"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="relative mt-4 h-52 overflow-hidden"
+            >
+              <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
+                {expandedReviews.slice(0, 3).map((review) => (
+                  <ReviewCard key={review.name} review={review} />
+                ))}
+              </div>
+
+              {/* Soft bottom fog (non-cubic, natural fade) */}
+              <div
+                className="absolute inset-x-0 bottom-0 h-40 pointer-events-none"
+                style={{
+                  background:
+                    "linear-gradient(180deg, hsl(var(--background) / 0) 0%, hsl(var(--background) / 0.08) 35%, hsl(var(--background) / 0.2) 58%, hsl(var(--background) / 0.42) 76%, hsl(var(--background) / 0.7) 90%, hsl(var(--background) / 0.92) 100%)",
+                }}
+              />
+            </motion.div>
+          ) : (
+            <motion.div
+              key="expanded"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
               className="overflow-hidden mt-4"
             >
               <div className="columns-1 md:columns-2 lg:columns-3 gap-4">
