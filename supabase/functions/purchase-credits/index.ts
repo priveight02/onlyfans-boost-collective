@@ -46,6 +46,7 @@ const getVolumeDiscountPercent = (credits: number): number => {
 
 const getDiscountTier = (purchaseCount: number, useRetention: boolean, retentionUsed: boolean): string => {
   if (useRetention && !retentionUsed) return "retention_50";
+  if (purchaseCount === 0) return "first_order_40";
   if (purchaseCount === 1) return "loyalty_30";
   if (purchaseCount === 2) return "loyalty_20";
   if (purchaseCount === 3) return "loyalty_10";
