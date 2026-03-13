@@ -88,7 +88,7 @@ const Navigation = () => {
         }}
       >
         <div className={isPlatform ? "px-2" : "px-3"}>
-          <div className={`flex items-center ${isPlatform ? 'h-10 gap-0' : 'justify-between h-[52px]'}`}>
+          <div className={`flex items-center ${isPlatform ? 'h-10 gap-0' : 'h-[52px] gap-0'}`}>
             <div className="flex-shrink-0">
               <Link to="/" className="flex items-center group transition-all duration-300 hover:scale-105">
                 <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze Logo" className={`${isPlatform ? 'h-[38px]' : 'h-[42px]'} w-auto object-contain`} />
@@ -96,7 +96,7 @@ const Navigation = () => {
             </div>
 
             {/* Desktop menu */}
-            <div className="hidden md:flex items-center gap-0.5">
+            <div className="hidden md:flex items-center gap-0.5 flex-1 justify-end">
               {finalMenuItems.map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
