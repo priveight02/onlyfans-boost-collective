@@ -834,18 +834,24 @@ const AutopilotShowcase = () => {
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<number>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => setIsVisible(entry.isIntersecting),
-      { threshold: 0.2 }
+      { threshold: 0.15 }
     );
     if (sectionRef.current) observer.observe(sectionRef.current);
     return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible) {
+      // Pause everything when off-screen
+      if (progressRef.current) cancelAnimationFrame(progressRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      return;
+    }
     const scene = scenes[sceneIdx];
     const startTime = performance.now();
 
@@ -856,14 +862,17 @@ const AutopilotShowcase = () => {
       if (p < 1) {
         progressRef.current = requestAnimationFrame(tick);
       } else {
-        setTimeout(() => {
+        timeoutRef.current = setTimeout(() => {
           setSceneIdx((prev) => (prev + 1) % scenes.length);
           setProgress(0);
         }, 700);
       }
     };
     progressRef.current = requestAnimationFrame(tick);
-    return () => { if (progressRef.current) cancelAnimationFrame(progressRef.current); };
+    return () => {
+      if (progressRef.current) cancelAnimationFrame(progressRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, [sceneIdx, isVisible]);
 
   const scene = scenes[sceneIdx];
