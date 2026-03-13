@@ -40,7 +40,6 @@ const InsufficientCreditsModal = ({ open, onClose, requiredCredits, actionName }
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [loading, setLoading] = useState(true);
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   const isPurchaseMode = actionName === "Add Credits";
 
