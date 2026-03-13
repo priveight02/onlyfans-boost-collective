@@ -110,6 +110,7 @@ const Navigation = () => {
                   <Link
                     key={item.name}
                     to={item.href}
+                    onClick={(e) => handlePlatformClick(e, item.href)}
                     className={`relative ${isPlatform ? 'px-1.5' : 'px-3.5'} py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 group`}
                     style={{
                       color: isActive ? "white" : "hsla(215, 25%, 65%, 1)",
