@@ -195,9 +195,6 @@ serve(async (req) => {
       // ═══════════ CHECKOUT ═══════════
       case "checkout.created": {
         log("Checkout created", { id: data?.id, status: data?.status });
-        if (userId) {
-          await notify(userId, "Checkout Started", "Your checkout session has been created. Complete your purchase to receive credits.", "checkout", { checkout_id: data?.id });
-        }
         break;
       }
       case "checkout.updated": {
@@ -209,9 +206,6 @@ serve(async (req) => {
       }
       case "checkout.expired": {
         log("Checkout expired", { id: data?.id });
-        if (userId) {
-          await notify(userId, "Checkout Expired", "Your checkout session has expired. You can start a new purchase anytime.", "checkout", { checkout_id: data?.id });
-        }
         break;
       }
 
