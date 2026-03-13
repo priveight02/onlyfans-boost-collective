@@ -157,7 +157,7 @@ serve(async (req) => {
             volume_discount: String(volumeDiscountPercent),
             retention_used: String(useRetentionDiscount || false),
           },
-          success_url: `${origin}/pricing?success=true`,
+          success_url: `${origin}/checkout?success=true`,
           allow_discount_codes: false,
           embed_origin: origin,
         }),
