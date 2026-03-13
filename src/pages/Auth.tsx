@@ -174,7 +174,7 @@ const Auth = () => {
   return (
     <div className="flex min-h-screen" style={{ background: "hsl(222, 35%, 5%)" }}>
       {/* Left Side - Full bleed image */}
-      <div className="hidden lg:block lg:w-[38%] relative overflow-hidden">
+      <div className="hidden lg:block lg:w-[42%] relative overflow-hidden">
         <img
           src={authHeroFull}
           alt="Uplyze AI Platform"
