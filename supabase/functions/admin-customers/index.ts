@@ -1135,11 +1135,22 @@ Return this exact JSON structure:
           break;
         }
         case "reset_discount": {
-          // Reset the user's purchase_count to 0 so they get the 40% first-order discount again
           await supabaseAdmin.from("wallets").update({ purchase_count: 0 }).eq("user_id", userId);
           await supabaseAdmin.from("wallet_transactions").insert({
             user_id: userId, type: "admin_grant", amount: 0,
             description: `Discount state reset (purchase_count → 0): ${reason || "No reason"}`, balance_after: null,
+          });
+          break;
+        }
+        case "set_discount": {
+          const newCount = parseInt(actionData?.purchase_count ?? 0);
+          if (isNaN(newCount) || newCount < 0) return err("Invalid purchase_count", 400);
+          const { data: wBefore } = await supabaseAdmin.from("wallets").select("purchase_count").eq("user_id", userId).single();
+          const oldCount = wBefore?.purchase_count ?? 0;
+          await supabaseAdmin.from("wallets").update({ purchase_count: newCount }).eq("user_id", userId);
+          await supabaseAdmin.from("wallet_transactions").insert({
+            user_id: userId, type: "admin_grant", amount: 0,
+            description: `Discount state set (purchase_count ${oldCount} → ${newCount}): ${reason || "No reason"}`, balance_after: null,
           });
           break;
         }

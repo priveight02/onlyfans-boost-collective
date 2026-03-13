@@ -161,6 +161,11 @@ const AdminCustomers = () => {
   const [bulkGrantAmount, setBulkGrantAmount] = useState("100");
   const [bulkGrantReason, setBulkGrantReason] = useState("Promotional bonus");
 
+  // Discount state dialog
+  const [showSetDiscountDialog, setShowSetDiscountDialog] = useState(false);
+  const [discountPurchaseCount, setDiscountPurchaseCount] = useState("0");
+  const [discountReason, setDiscountReason] = useState("");
+
   // New action states
   const [showChangeEmailDialog, setShowChangeEmailDialog] = useState(false);
   const [showChangeUsernameDialog, setShowChangeUsernameDialog] = useState(false);
@@ -468,8 +473,8 @@ const AdminCustomers = () => {
 
               {/* Discount */}
               <Button size="sm" variant="outline" className="text-emerald-400 border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 text-xs h-7"
-                onClick={() => setShowConfirmDialog({ action: "reset_discount", label: "Reset Discount State" })}>
-                <RotateCcw className="h-3 w-3" /> Reset Discount
+                onClick={() => { setDiscountPurchaseCount(String(detail?.wallet?.purchase_count ?? 0)); setDiscountReason(""); setShowSetDiscountDialog(true); }}>
+                <RotateCcw className="h-3 w-3" /> Set Discount
               </Button>
 
               {/* Data */}
@@ -918,6 +923,71 @@ const AdminCustomers = () => {
               <Button variant="ghost" onClick={() => setShowConfirmDialog(null)} className="text-white/50">Cancel</Button>
               <Button onClick={() => performAction(showConfirmDialog!.action)} disabled={actionLoading} className="bg-red-600 text-white hover:bg-red-700">
                 {actionLoading ? "Processing..." : "Confirm"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Set Discount State Dialog */}
+        <Dialog open={showSetDiscountDialog} onOpenChange={setShowSetDiscountDialog}>
+          <DialogContent className="bg-[hsl(220,30%,12%)] border-white/10 text-white max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <RotateCcw className="h-5 w-5 text-emerald-400" /> Set User Discount State
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs text-white/40 mb-1">Current purchase_count: <span className="text-white font-mono">{detail?.wallet?.purchase_count ?? "N/A"}</span></p>
+                <p className="text-xs text-white/50 mb-3">Users with purchase_count = 0 receive the 40% first-order discount. Higher values indicate returning customers.</p>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-white/60">Discount Preset</label>
+                <Select value={discountPurchaseCount} onValueChange={setDiscountPurchaseCount}>
+                  <SelectTrigger className="bg-white/5 border-white/10 text-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-[hsl(220,30%,15%)] border-white/10">
+                    <SelectItem value="0" className="text-white">Reset to 0 — Re-enable 40% first-order discount</SelectItem>
+                    <SelectItem value="1" className="text-white">Set to 1 — Standard returning customer (no discount)</SelectItem>
+                    <SelectItem value="2" className="text-white">Set to 2 — Repeat buyer</SelectItem>
+                    <SelectItem value="5" className="text-white">Set to 5 — Loyal customer</SelectItem>
+                    <SelectItem value="10" className="text-white">Set to 10 — VIP / Power buyer</SelectItem>
+                    <SelectItem value="custom" className="text-white">Custom value…</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {discountPurchaseCount === "custom" && (
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium text-white/60">Custom purchase_count</label>
+                  <Input type="number" min="0" value={discountPurchaseCount === "custom" ? "" : discountPurchaseCount} onChange={e => setDiscountPurchaseCount(e.target.value || "custom")} placeholder="Enter value..." className="bg-white/5 border-white/10 text-white placeholder:text-white/25" />
+                </div>
+              )}
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-white/60">Reason (optional)</label>
+                <Input value={discountReason} onChange={e => setDiscountReason(e.target.value)} placeholder="e.g. Customer requested discount reset" className="bg-white/5 border-white/10 text-white placeholder:text-white/25" />
+              </div>
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
+                <p className="text-xs text-amber-300">
+                  <AlertCircle className="h-3 w-3 inline mr-1" />
+                  This will set purchase_count to <strong>{discountPurchaseCount === "custom" ? "?" : discountPurchaseCount}</strong> for this user. {discountPurchaseCount === "0" ? "They will see the 40% discount on their next checkout." : "They will NOT receive the first-order discount."}
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="ghost" onClick={() => setShowSetDiscountDialog(false)} className="text-white/50">Cancel</Button>
+              <Button
+                disabled={actionLoading || discountPurchaseCount === "custom"}
+                onClick={async () => {
+                  const count = parseInt(discountPurchaseCount);
+                  if (isNaN(count) || count < 0) { toast.error("Invalid value"); return; }
+                  setActionReason(discountReason);
+                  await performAction("set_discount", { purchase_count: count });
+                  setShowSetDiscountDialog(false);
+                }}
+                className="bg-emerald-600 text-white hover:bg-emerald-700"
+              >
+                {actionLoading ? "Processing..." : "Apply"}
               </Button>
             </DialogFooter>
           </DialogContent>
