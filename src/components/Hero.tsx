@@ -127,11 +127,6 @@ const Hero = () => {
                   alt=""
                   className="relative h-8 w-8 rounded-full border-2 border-background object-cover"
                   style={{ zIndex: avatars.length - i }}
-                  loading="eager"
-                  fetchPriority="low"
-                  decoding="async"
-                  width={32}
-                  height={32}
                 />
               ))}
             </div>

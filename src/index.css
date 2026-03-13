@@ -1,34 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
 
-/* ═══ GLOBAL PERFORMANCE ═══ */
-/* content-visibility on below-fold sections for rendering skip */
-section {
-  content-visibility: auto;
-  contain-intrinsic-size: auto 600px;
-}
-
-/* GPU-layer promotion for animated containers */
-.uplyze-highlight,
-[class*="animate-"],
-.animate-pulse {
-  will-change: opacity, transform;
-}
-
-/* Reduce paint area for fixed/absolute containers */
-canvas {
-  contain: strict;
-}
-
-/* Reduced motion: kill all transitions & animations globally */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -88,8 +59,8 @@ canvas {
 @layer base {
   * {
     @apply border-border;
-    scrollbar-width: auto;
-    scrollbar-color: hsl(var(--primary) / 0.45) hsl(var(--muted) / 0.15);
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.35) transparent;
   }
 
   html {
@@ -115,28 +86,28 @@ canvas {
   }
 
   *::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
   }
 
   *::-webkit-scrollbar-track {
-    background: hsl(var(--background) / 0.6);
+    background: transparent;
   }
 
   *::-webkit-scrollbar-thumb {
-    background: hsl(var(--primary) / 0.4);
+    background: hsl(var(--muted-foreground) / 0.28);
     border-radius: 9999px;
-    border: 2px solid hsl(var(--background) / 0.3);
+    border: 2px solid transparent;
     background-clip: padding-box;
   }
 
   *::-webkit-scrollbar-thumb:hover {
-    background: hsl(var(--primary) / 0.6);
+    background: hsl(var(--muted-foreground) / 0.42);
     background-clip: padding-box;
   }
 
   *::-webkit-scrollbar-corner {
-    background: hsl(var(--background) / 0.6);
+    background: transparent;
   }
 }
 
