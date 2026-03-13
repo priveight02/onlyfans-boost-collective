@@ -740,6 +740,17 @@ const Checkout = () => {
               transition={{ delay: 0.3 }}
               className="flex gap-3"
             >
+              {/* Retry button - retries the exact same transaction */}
+              <Button
+                onClick={() => window.location.reload()}
+                className="px-7 py-5 rounded-xl text-white font-semibold text-sm border-0"
+                style={{
+                  background: "linear-gradient(135deg, hsl(262, 83%, 55%), hsl(240, 75%, 50%))",
+                  boxShadow: "0 4px 16px hsla(262, 83%, 55%, 0.3), inset 0 1px 0 hsla(0, 0%, 100%, 0.15)",
+                }}
+              >
+                <ArrowRight className="h-4 w-4 mr-2" /> Retry Transaction
+              </Button>
               <Button
                 onClick={() => navigate("/pricing")}
                 className="px-7 py-5 rounded-xl text-white/50 hover:text-white/70 font-medium text-sm"

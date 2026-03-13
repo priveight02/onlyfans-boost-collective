@@ -81,7 +81,8 @@ const AppContent = () => {
   const location = useLocation();
   const isPopupRoute = location.pathname === "/ig-login" || location.pathname === "/tt-login" || location.pathname === "/threads-login" || location.pathname === "/fb-login";
   const isCheckoutRoute = location.pathname === "/checkout";
-  const hideNav = isPopupRoute || isCheckoutRoute;
+  const isThankYouRoute = location.pathname === "/thank-you";
+  const hideNav = isPopupRoute || isCheckoutRoute || isThankYouRoute;
 
   return (
     <MaintenanceGuard>
