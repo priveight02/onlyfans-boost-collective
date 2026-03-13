@@ -10,12 +10,12 @@ import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { trackAdminLogin } from "@/hooks/useVisitorTracking";
-import AnimatedBackground from "@/components/AnimatedBackground";
-import Navigation from "@/components/Navigation";
+import authHero from "@/assets/auth-hero.png";
 import {
   Eye, EyeOff, LogIn, Lock, Mail, User, ArrowLeft,
   Sparkles, KeyRound, Send, UserPlus, Chrome,
-  CheckCircle2, AlertCircle, XCircle, X
+  CheckCircle2, AlertCircle, XCircle, X, Shield,
+  Zap, TrendingUp, MessageCircle
 } from "lucide-react";
 
 type CardNotification = {
@@ -111,10 +111,7 @@ const Auth = () => {
 
   const checkAccountExists = async (emailToCheck: string): Promise<boolean> => {
     const { data, error } = await supabase.rpc('check_email_exists', { email_input: emailToCheck.trim().toLowerCase() });
-    if (error) {
-      console.error("Email check error:", error);
-      return true;
-    }
+    if (error) { console.error("Email check error:", error); return true; }
     return !!data;
   };
 
@@ -125,17 +122,12 @@ const Auth = () => {
     try {
       setIsSubmitting(true);
       const exists = await checkAccountExists(email);
-      if (!exists) {
-        setNotification({ type: "error", message: "No account found with this email address." });
-        return;
-      }
+      if (!exists) { setNotification({ type: "error", message: "No account found with this email address." }); return; }
       await resetPassword(email);
       setNotification({ type: "success", message: "Password reset link sent! Check your email." });
     } catch (error: any) {
       setNotification({ type: "error", message: error.message || "Failed to send reset link" });
-    } finally {
-      setIsSubmitting(false);
-    }
+    } finally { setIsSubmitting(false); }
   };
 
   const handleMagicLink = async (e: React.FormEvent) => {
@@ -145,32 +137,25 @@ const Auth = () => {
     try {
       setIsSubmitting(true);
       const exists = await checkAccountExists(email);
-      if (!exists) {
-        setNotification({ type: "error", message: "No account found with this email address." });
-        return;
-      }
+      if (!exists) { setNotification({ type: "error", message: "No account found with this email address." }); return; }
       await signInWithMagicLink(email);
       setNotification({ type: "success", message: "Magic link sent! Check your email (expires in 24h)." });
     } catch (error: any) {
       setNotification({ type: "error", message: error.message || "Failed to send magic link" });
-    } finally {
-      setIsSubmitting(false);
-    }
+    } finally { setIsSubmitting(false); }
   };
 
   const handleGoogleLogin = async () => {
     if (siteSettings.maintenance_mode || siteSettings.logins_paused) {
-      setNotification({ type: "error", message: siteSettings.maintenance_mode ? "The site is currently under maintenance. Logins are temporarily disabled." : "Logins have been temporarily disabled by an administrator." });
+      setNotification({ type: "error", message: siteSettings.maintenance_mode ? "The site is currently under maintenance." : "Logins have been temporarily disabled." });
       return;
     }
     if (mode === "register" && (siteSettings.maintenance_mode || siteSettings.registrations_paused)) {
-      setNotification({ type: "error", message: siteSettings.maintenance_mode ? "The site is currently under maintenance. Registrations are temporarily disabled." : "Registrations have been temporarily disabled by an administrator." });
+      setNotification({ type: "error", message: "Registrations have been temporarily disabled." });
       return;
     }
     try {
-      const { error } = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: window.location.origin,
-      });
+      const { error } = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
       if (error) throw error;
     } catch (error: any) {
       setNotification({ type: "error", message: error.message || "Google login failed" });
@@ -178,328 +163,382 @@ const Auth = () => {
   };
 
   const titles: Record<AuthMode, { title: string; subtitle: string; icon: typeof LogIn }> = {
-    login: { title: "Welcome Back", subtitle: "Sign in to your account", icon: LogIn },
-    register: { title: "Create Account", subtitle: "Join the community", icon: UserPlus },
-    forgot: { title: "Reset Password", subtitle: "We'll send you a reset link", icon: KeyRound },
-    magic: { title: "Magic Link", subtitle: "Login with a one-time link (24h)", icon: Sparkles },
+    login: { title: "Welcome back", subtitle: "Sign in to continue growing with AI-powered tools", icon: LogIn },
+    register: { title: "Get started", subtitle: "Create your account and start scaling", icon: UserPlus },
+    forgot: { title: "Reset password", subtitle: "We'll send you a reset link", icon: KeyRound },
+    magic: { title: "Magic link", subtitle: "Login with a one-time link (24h)", icon: Sparkles },
   };
 
   const current = titles[mode];
+  const inputClass = "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:border-purple-500/40 focus:bg-white/[0.07] rounded-xl h-12 text-sm transition-all duration-200";
 
-  const inputClass = "pl-10 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-white/25 focus:border-purple-500/40 focus:bg-white/[0.06] rounded-xl h-11 text-sm transition-all duration-200";
+  const features = [
+    { icon: Zap, title: "AI-Powered Automation", desc: "Automate DMs, comments, and engagement" },
+    { icon: TrendingUp, title: "Growth Analytics", desc: "Track performance across all platforms" },
+    { icon: MessageCircle, title: "Smart Messaging", desc: "AI conversations that convert" },
+  ];
 
   return (
-    <AnimatedBackground variant="default">
-      <Navigation />
-      <div className="relative min-h-screen flex items-center justify-center py-20 px-4">
-        <motion.div
-          initial={{ opacity: 0, y: 24, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="w-full max-w-[420px]"
-        >
-          {/* Outer glow */}
-          <div className="absolute -inset-px rounded-[20px] bg-gradient-to-b from-purple-500/20 via-transparent to-blue-500/10 blur-sm pointer-events-none" />
-          
-          <div
-            className="relative rounded-[20px] overflow-hidden"
-            style={{
-              background: "linear-gradient(180deg, hsla(222, 35%, 13%, 0.9) 0%, hsla(222, 35%, 9%, 0.95) 100%)",
-              backdropFilter: "blur(40px) saturate(1.5)",
-              border: "1px solid hsla(0, 0%, 100%, 0.07)",
-              boxShadow: "0 24px 64px -12px hsla(0, 0%, 0%, 0.5), 0 0 0 1px hsla(0, 0%, 100%, 0.03) inset, 0 1px 0 hsla(0, 0%, 100%, 0.05) inset",
-            }}
+    <div className="flex min-h-screen" style={{ background: "hsl(222, 35%, 5%)" }}>
+      {/* Left Side - Hero */}
+      <div className="hidden lg:flex lg:w-[50%] xl:w-[55%] relative overflow-hidden flex-col">
+        {/* Animated gradient background */}
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-[hsl(222,35%,8%)] to-blue-900/20" />
+          <div className="absolute top-0 left-0 w-full h-full">
+            <div className="absolute top-[10%] left-[15%] w-[500px] h-[500px] bg-purple-600/8 rounded-full blur-[100px] animate-pulse" />
+            <div className="absolute bottom-[20%] right-[10%] w-[400px] h-[400px] bg-blue-600/8 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '1s' }} />
+            <div className="absolute top-[50%] left-[50%] w-[300px] h-[300px] bg-violet-500/6 rounded-full blur-[60px] animate-pulse" style={{ animationDelay: '2s' }} />
+          </div>
+        </div>
+
+        {/* Logo */}
+        <div className="relative z-10 p-8">
+          <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze" className="h-10 w-auto" />
+        </div>
+
+        {/* Center content */}
+        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-12 pb-12">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           >
-            {/* Top accent line */}
-            <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-purple-500/60 to-transparent" />
-            
-            <div className="p-7">
-              {/* Header */}
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={mode}
-                  initial={{ opacity: 0, y: -8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 8 }}
-                  transition={{ duration: 0.25 }}
-                  className="text-center mb-7"
+            <img
+              src={authHero}
+              alt="Uplyze AI Platform"
+              className="w-[380px] h-auto mb-8 drop-shadow-2xl"
+              style={{ filter: "drop-shadow(0 20px 40px hsla(262, 83%, 58%, 0.15))" }}
+            />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.6 }}
+            className="text-center max-w-md"
+          >
+            <h2 className="text-[28px] font-bold text-white mb-3 leading-tight tracking-tight">
+              Scale Your Social Empire<br />
+              <span className="uplyze-highlight">with AI Intelligence</span>
+            </h2>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5, duration: 0.6 }}
+            className="mt-8 space-y-4 w-full max-w-sm"
+          >
+            {features.map((f, i) => (
+              <motion.div
+                key={f.title}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.6 + i * 0.15, duration: 0.5 }}
+                className="flex items-center gap-4 px-5 py-3 rounded-2xl"
+                style={{
+                  background: "hsla(0, 0%, 100%, 0.04)",
+                  border: "1px solid hsla(0, 0%, 100%, 0.06)",
+                }}
+              >
+                <div
+                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                  style={{
+                    background: "linear-gradient(135deg, hsla(262, 83%, 58%, 0.2), hsla(217, 91%, 55%, 0.15))",
+                    border: "1px solid hsla(262, 83%, 58%, 0.15)",
+                  }}
                 >
-                  <div className="flex justify-center mb-4">
-                    <div
-                      className="rounded-2xl p-3.5"
-                      style={{
-                        background: "linear-gradient(135deg, hsla(262, 83%, 58%, 0.15), hsla(217, 91%, 55%, 0.1))",
-                        border: "1px solid hsla(262, 83%, 58%, 0.2)",
-                        boxShadow: "0 0 24px hsla(262, 83%, 58%, 0.1)",
-                      }}
-                    >
-                      <current.icon className="w-6 h-6 text-purple-400" />
-                    </div>
-                  </div>
-                  <h1 className="text-[22px] font-bold font-heading text-white tracking-tight">
-                    {current.title}
-                  </h1>
-                  <p className="text-white/40 text-sm mt-1">{current.subtitle}</p>
-                </motion.div>
-              </AnimatePresence>
+                  <f.icon className="h-4 w-4 text-purple-400" />
+                </div>
+                <div>
+                  <p className="text-white/90 text-sm font-semibold">{f.title}</p>
+                  <p className="text-white/35 text-xs">{f.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </motion.div>
+        </div>
+      </div>
 
-              {/* Inline Notification */}
-              <AnimatePresence>
-                {notification && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0, marginBottom: 0 }}
-                    animate={{ opacity: 1, height: "auto", marginBottom: 16 }}
-                    exit={{ opacity: 0, height: 0, marginBottom: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className={`relative flex items-start gap-3 px-4 py-3 rounded-xl text-sm ${
-                      notification.type === "success"
-                        ? "bg-emerald-500/10 border border-emerald-500/15 text-emerald-400"
-                        : notification.type === "error"
-                        ? "bg-red-500/10 border border-red-500/15 text-red-400"
-                        : "bg-blue-500/10 border border-blue-500/15 text-blue-400"
-                    }`}
-                  >
-                    {notification.type === "success" ? (
-                      <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
-                    ) : notification.type === "error" ? (
-                      <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                    ) : (
-                      <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
-                    )}
-                    <span className="flex-1 leading-snug">{notification.message}</span>
-                    <button onClick={() => setNotification(null)} className="shrink-0 mt-0.5 opacity-60 hover:opacity-100 transition-opacity">
-                      <X className="h-3.5 w-3.5" />
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+      {/* Right Side - Form */}
+      <div className="flex-1 flex flex-col relative overflow-hidden">
+        {/* Subtle gradient overlay */}
+        <div className="absolute inset-0" style={{
+          background: "linear-gradient(135deg, hsla(222, 35%, 10%, 1) 0%, hsla(222, 35%, 7%, 1) 50%, hsla(225, 35%, 9%, 1) 100%)",
+        }} />
+        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-purple-500/[0.03] rounded-full blur-[100px]" />
+        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-500/[0.03] rounded-full blur-[80px]" />
 
-              {/* Google OAuth */}
-              {(mode === "login" || mode === "register") && (
-                <div className="mb-5">
-                  <button
-                    type="button"
-                    onClick={handleGoogleLogin}
-                    className="w-full flex items-center justify-center gap-2.5 h-11 rounded-xl text-sm font-medium text-white/90 transition-all duration-200 hover:bg-white/[0.08]"
-                    style={{
-                      background: "hsla(0, 0%, 100%, 0.04)",
-                      border: "1px solid hsla(0, 0%, 100%, 0.08)",
-                    }}
-                  >
-                    <Chrome className="h-[18px] w-[18px] text-white/70" />
-                    Continue with Google
+        {/* Mobile logo */}
+        <div className="lg:hidden relative z-10 p-6 pb-0">
+          <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze" className="h-8 w-auto" />
+        </div>
+
+        <div className="relative z-10 flex-1 flex items-center justify-center p-6 sm:p-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+            className="w-full max-w-[400px]"
+          >
+            {/* Header */}
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={mode}
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 8 }}
+                transition={{ duration: 0.2 }}
+                className="mb-8"
+              >
+                <h1 className="text-[30px] font-bold text-white tracking-tight leading-tight">
+                  {current.title}
+                </h1>
+                <p className="text-white/40 text-[15px] mt-2 leading-relaxed">{current.subtitle}</p>
+              </motion.div>
+            </AnimatePresence>
+
+            {/* Notification */}
+            <AnimatePresence>
+              {notification && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  animate={{ opacity: 1, height: "auto", marginBottom: 20 }}
+                  exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+                  transition={{ duration: 0.25 }}
+                  className={`relative flex items-start gap-3 px-4 py-3 rounded-xl text-sm ${
+                    notification.type === "success"
+                      ? "bg-emerald-500/10 border border-emerald-500/15 text-emerald-400"
+                      : notification.type === "error"
+                      ? "bg-red-500/10 border border-red-500/15 text-red-400"
+                      : "bg-blue-500/10 border border-blue-500/15 text-blue-400"
+                  }`}
+                >
+                  {notification.type === "success" ? <CheckCircle2 className="h-4 w-4 mt-0.5 shrink-0" />
+                    : notification.type === "error" ? <XCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    : <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />}
+                  <span className="flex-1 leading-snug">{notification.message}</span>
+                  <button onClick={() => setNotification(null)} className="shrink-0 mt-0.5 opacity-60 hover:opacity-100 transition-opacity">
+                    <X className="h-3.5 w-3.5" />
                   </button>
-                  <div className="flex items-center gap-4 my-5">
-                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
-                    <span className="text-white/30 text-[11px] uppercase tracking-[0.15em] font-medium">or</span>
-                    <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Google OAuth - Primary CTA */}
+            {(mode === "login" || mode === "register") && (
+              <div className="mb-6">
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  className="w-full flex items-center justify-center gap-3 h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.01]"
+                  style={{
+                    background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(262, 70%, 48%))",
+                    boxShadow: "0 4px 20px hsla(262, 83%, 58%, 0.25), 0 0 0 1px hsla(262, 83%, 58%, 0.1) inset",
+                    color: "white",
+                  }}
+                >
+                  <Chrome className="h-[18px] w-[18px]" />
+                  Continue with Google
+                </button>
+
+                <div className="flex items-center gap-4 my-6">
+                  <div className="flex-1 h-px bg-white/[0.06]" />
+                  <span className="text-white/25 text-[11px] uppercase tracking-[0.2em] font-medium">or</span>
+                  <div className="flex-1 h-px bg-white/[0.06]" />
+                </div>
+              </div>
+            )}
+
+            {/* Login Form */}
+            {mode === "login" && (
+              <form onSubmit={handleLogin} className="space-y-5">
+                <div className="space-y-1.5">
+                  <label className="block text-[13px] font-medium text-white/60">Email address</label>
+                  <Input
+                    type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+                    className={inputClass}
+                    placeholder="your@email.com"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[13px] font-medium text-white/60">Password</label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required
+                      className={`${inputClass} pr-11`}
+                      placeholder="Enter your password"
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/50 transition-colors">
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
-              )}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Checkbox
+                      id="remember" checked={rememberMe}
+                      onCheckedChange={(c) => setRememberMe(!!c)}
+                      className="border-white/15 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-500 h-4 w-4"
+                    />
+                    <label htmlFor="remember" className="text-[13px] text-white/40 cursor-pointer">Remember me (30 days)</label>
+                  </div>
+                  <button type="button" onClick={() => setMode("forgot")} className="text-[13px] text-purple-400/70 hover:text-purple-400 transition-colors">
+                    Forgot?
+                  </button>
+                </div>
+                <Button type="submit" disabled={isSubmitting}
+                  className="w-full h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.01]"
+                  style={{
+                    background: "hsla(0, 0%, 100%, 0.08)",
+                    border: "1px solid hsla(0, 0%, 100%, 0.1)",
+                    color: "white",
+                  }}
+                >
+                  <LogIn className="mr-2 h-4 w-4" />
+                  {isSubmitting ? "Signing in..." : "Sign In"}
+                </Button>
+              </form>
+            )}
 
-              {/* Login Form */}
+            {/* Register Form */}
+            {mode === "register" && (
+              <form onSubmit={handleRegister} className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-[13px] font-medium text-white/60">Username</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 text-sm font-medium">@</span>
+                      <Input
+                        value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} required
+                        className={`${inputClass} pl-8`}
+                        placeholder="username"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-[13px] font-medium text-white/60">Display name</label>
+                    <Input
+                      value={displayName} onChange={(e) => setDisplayName(e.target.value)} required
+                      className={inputClass}
+                      placeholder="John"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[13px] font-medium text-white/60">Email address</label>
+                  <Input
+                    type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+                    className={inputClass}
+                    placeholder="your@email.com"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-[13px] font-medium text-white/60">Password</label>
+                  <div className="relative">
+                    <Input
+                      type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required
+                      className={`${inputClass} pr-11`}
+                      placeholder="Min 8 characters"
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/50 transition-colors">
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <Button type="submit" disabled={isSubmitting}
+                  className="w-full h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.01]"
+                  style={{
+                    background: "hsla(0, 0%, 100%, 0.08)",
+                    border: "1px solid hsla(0, 0%, 100%, 0.1)",
+                    color: "white",
+                  }}
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  {isSubmitting ? "Creating Account..." : "Create Account"}
+                </Button>
+              </form>
+            )}
+
+            {/* Forgot Password */}
+            {mode === "forgot" && (
+              <form onSubmit={handleForgotPassword} className="space-y-5">
+                <div className="space-y-1.5">
+                  <label className="block text-[13px] font-medium text-white/60">Email address</label>
+                  <Input
+                    type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+                    className={inputClass}
+                    placeholder="your@email.com"
+                  />
+                </div>
+                <Button type="submit" disabled={isSubmitting}
+                  className="w-full h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.01]"
+                  style={{ background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(262, 70%, 48%))", color: "white" }}
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  {isSubmitting ? "Sending..." : "Send Reset Link"}
+                </Button>
+              </form>
+            )}
+
+            {/* Magic Link */}
+            {mode === "magic" && (
+              <form onSubmit={handleMagicLink} className="space-y-5">
+                <div className="space-y-1.5">
+                  <label className="block text-[13px] font-medium text-white/60">Email address</label>
+                  <Input
+                    type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
+                    className={inputClass}
+                    placeholder="your@email.com"
+                  />
+                </div>
+                <p className="text-white/25 text-xs">We'll send a one-time login link that expires after 24 hours.</p>
+                <Button type="submit" disabled={isSubmitting}
+                  className="w-full h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.01]"
+                  style={{ background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(262, 70%, 48%))", color: "white" }}
+                >
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  {isSubmitting ? "Sending..." : "Send Magic Link"}
+                </Button>
+              </form>
+            )}
+
+            {/* Mode Switchers */}
+            <div className="mt-8 space-y-3 text-center">
+              {mode !== "login" && (
+                <button onClick={() => setMode("login")} className="flex items-center justify-center gap-2 w-full text-[13px] text-white/35 hover:text-white/60 transition-colors">
+                  <ArrowLeft className="h-3.5 w-3.5" /> Back to Sign In
+                </button>
+              )}
               {mode === "login" && (
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-white/45 uppercase tracking-[0.12em]">Email</label>
-                    <div className="relative">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 h-4 w-4" />
-                      <Input
-                        type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-                        className={inputClass}
-                        placeholder="your@email.com"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-white/45 uppercase tracking-[0.12em]">Password</label>
-                    <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 h-4 w-4" />
-                      <Input
-                        type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required
-                        className={`${inputClass} pr-10`}
-                        placeholder="••••••••"
-                      />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/50 transition-colors">
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="remember"
-                        checked={rememberMe}
-                        onCheckedChange={(c) => setRememberMe(!!c)}
-                        className="border-white/15 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-500 h-3.5 w-3.5"
-                      />
-                      <label htmlFor="remember" className="text-[12px] text-white/40 cursor-pointer">
-                        Remember me (30 days)
-                      </label>
-                    </div>
-                    <button type="button" onClick={() => setMode("forgot")} className="text-[12px] text-purple-400/60 hover:text-purple-400 transition-colors">
-                      Forgot?
-                    </button>
-                  </div>
-                  <Button type="submit" disabled={isSubmitting}
-                    className="w-full h-11 rounded-xl text-sm font-semibold shadow-lg shadow-purple-500/20 transition-all duration-200 hover:shadow-purple-500/30 hover:scale-[1.01]"
-                    style={{
-                      background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(262, 70%, 50%))",
-                    }}
-                  >
-                    <LogIn className="mr-2 h-4 w-4" />
-                    {isSubmitting ? "Signing in..." : "Sign In"}
-                  </Button>
-                </form>
+                <>
+                  <button onClick={() => setMode("register")} className="block w-full text-[14px] text-white/35 hover:text-white/55 transition-colors">
+                    New to Uplyze? <span className="font-semibold text-purple-400">Get Started</span>
+                  </button>
+                  <button onClick={() => setMode("magic")} className="block w-full text-[13px] text-white/25 hover:text-white/40 transition-colors">
+                    <Sparkles className="inline h-3 w-3 mr-1 opacity-50" /> Login with magic link
+                  </button>
+                </>
               )}
-
-              {/* Register Form */}
               {mode === "register" && (
-                <form onSubmit={handleRegister} className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <label className="block text-[11px] font-semibold text-white/45 uppercase tracking-[0.12em]">Username</label>
-                      <div className="relative">
-                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 text-sm font-medium">@</span>
-                        <Input
-                          value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))} required
-                          className="pl-8 bg-white/[0.04] border-white/[0.06] text-white placeholder:text-white/25 focus:border-purple-500/40 focus:bg-white/[0.06] rounded-xl h-11 text-sm transition-all duration-200"
-                          placeholder="username"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="block text-[11px] font-semibold text-white/45 uppercase tracking-[0.12em]">Display Name</label>
-                      <div className="relative">
-                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 h-4 w-4" />
-                        <Input
-                          value={displayName} onChange={(e) => setDisplayName(e.target.value)} required
-                          className={inputClass}
-                          placeholder="John"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-white/45 uppercase tracking-[0.12em]">Email</label>
-                    <div className="relative">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 h-4 w-4" />
-                      <Input
-                        type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-                        className={inputClass}
-                        placeholder="your@email.com"
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-white/45 uppercase tracking-[0.12em]">Password</label>
-                    <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 h-4 w-4" />
-                      <Input
-                        type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required
-                        className={`${inputClass} pr-10`}
-                        placeholder="Min 8 characters"
-                      />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/50 transition-colors">
-                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                      </button>
-                    </div>
-                  </div>
-                  <Button type="submit" disabled={isSubmitting}
-                    className="w-full h-11 rounded-xl text-sm font-semibold shadow-lg shadow-purple-500/20 transition-all duration-200 hover:shadow-purple-500/30 hover:scale-[1.01]"
-                    style={{
-                      background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(262, 70%, 50%))",
-                    }}
-                  >
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    {isSubmitting ? "Creating Account..." : "Create Account"}
-                  </Button>
-                </form>
+                <button onClick={() => setMode("login")} className="block w-full text-[14px] text-white/35 hover:text-white/55 transition-colors">
+                  Already have an account? <span className="font-semibold text-purple-400">Sign In</span>
+                </button>
               )}
-
-              {/* Forgot Password */}
-              {mode === "forgot" && (
-                <form onSubmit={handleForgotPassword} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-white/45 uppercase tracking-[0.12em]">Email</label>
-                    <div className="relative">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 h-4 w-4" />
-                      <Input
-                        type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-                        className={inputClass}
-                        placeholder="your@email.com"
-                      />
-                    </div>
-                  </div>
-                  <Button type="submit" disabled={isSubmitting}
-                    className="w-full h-11 rounded-xl text-sm font-semibold shadow-lg shadow-purple-500/20 transition-all duration-200 hover:shadow-purple-500/30 hover:scale-[1.01]"
-                    style={{
-                      background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(262, 70%, 50%))",
-                    }}
-                  >
-                    <Send className="mr-2 h-4 w-4" />
-                    {isSubmitting ? "Sending..." : "Send Reset Link"}
-                  </Button>
-                </form>
-              )}
-
-              {/* Magic Link */}
-              {mode === "magic" && (
-                <form onSubmit={handleMagicLink} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="block text-[11px] font-semibold text-white/45 uppercase tracking-[0.12em]">Email</label>
-                    <div className="relative">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 h-4 w-4" />
-                      <Input
-                        type="email" value={email} onChange={(e) => setEmail(e.target.value)} required
-                        className={inputClass}
-                        placeholder="your@email.com"
-                      />
-                    </div>
-                  </div>
-                  <p className="text-white/30 text-xs">We'll send a one-time login link that expires after 24 hours.</p>
-                  <Button type="submit" disabled={isSubmitting}
-                    className="w-full h-11 rounded-xl text-sm font-semibold shadow-lg shadow-purple-500/20 transition-all duration-200 hover:shadow-purple-500/30 hover:scale-[1.01]"
-                    style={{
-                      background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(262, 70%, 50%))",
-                    }}
-                  >
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    {isSubmitting ? "Sending..." : "Send Magic Link"}
-                  </Button>
-                </form>
-              )}
-
-              {/* Mode Switchers */}
-              <div className="mt-6 space-y-2.5 text-center">
-                {mode !== "login" && (
-                  <button onClick={() => setMode("login")} className="flex items-center justify-center gap-2 w-full text-[13px] text-white/40 hover:text-white/70 transition-colors">
-                    <ArrowLeft className="h-3.5 w-3.5" /> Back to Sign In
-                  </button>
-                )}
-                {mode === "login" && (
-                  <>
-                    <button onClick={() => setMode("register")} className="block w-full text-[13px] text-white/40 hover:text-white/60 transition-colors">
-                      Don't have an account? <span className="font-semibold text-purple-400">Sign Up</span>
-                    </button>
-                    <button onClick={() => setMode("magic")} className="block w-full text-[13px] text-white/30 hover:text-white/50 transition-colors">
-                      <Sparkles className="inline h-3 w-3 mr-1 opacity-60" /> Login with magic link
-                    </button>
-                  </>
-                )}
-                {mode === "register" && (
-                  <button onClick={() => setMode("login")} className="block w-full text-[13px] text-white/40 hover:text-white/60 transition-colors">
-                    Already have an account? <span className="font-semibold text-purple-400">Sign In</span>
-                  </button>
-                )}
-              </div>
             </div>
-          </div>
-        </motion.div>
+
+            {/* Security badge */}
+            <div className="mt-8 flex items-center justify-center gap-2 text-white/20 text-xs">
+              <Shield className="h-3.5 w-3.5" />
+              <span>Secure encrypted login</span>
+            </div>
+          </motion.div>
+        </div>
       </div>
-    </AnimatedBackground>
+    </div>
   );
 };
 
