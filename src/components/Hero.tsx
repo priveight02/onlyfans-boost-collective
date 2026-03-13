@@ -56,7 +56,7 @@ const Hero = () => {
                 initial={{ opacity: 0, scale: 0.7, rotate: 0 }}
                 animate={{ opacity: 1, scale: 1, rotate: -6 }}
                 transition={{ duration: 0.6, delay: 0.6, type: "spring", stiffness: 160, damping: 12 }}
-                className="absolute -right-6 top-[40%] md:-right-10 md:top-[35%] z-20 inline-flex items-center gap-2 rounded-2xl px-6 py-3 md:px-8 md:py-4 text-sm md:text-lg font-black shadow-2xl whitespace-nowrap"
+                className="absolute -right-2 top-[55%] md:-right-4 md:top-[50%] z-20 inline-flex items-center gap-2 rounded-2xl px-6 py-3 md:px-8 md:py-4 text-sm md:text-lg font-black shadow-2xl whitespace-nowrap"
                 style={{
                   background: 'linear-gradient(135deg, hsl(65,90%,72%), hsl(80,95%,78%), hsl(65,85%,70%))',
                   color: 'hsl(222,35%,10%)',
@@ -74,7 +74,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
-            className="mx-auto mb-8 max-w-2xl text-base leading-relaxed text-white/70 md:text-lg"
+            className="mx-auto mb-6 max-w-2xl text-base leading-relaxed text-white/70 md:text-lg"
           >
             Automate engagement, close more sales, and scale revenue on autopilot.
             <br className="hidden sm:block" />
@@ -85,7 +85,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.4 }}
-            className="mb-10 flex flex-wrap justify-center gap-3"
+            className="mb-6 flex flex-wrap justify-center gap-3"
           >
             {features.map((feature) => (
               <div
@@ -102,7 +102,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.5 }}
-            className="mb-8 flex justify-center"
+            className="mb-6 flex justify-center"
           >
             <button
               onClick={handleGetStarted}
