@@ -35,7 +35,7 @@ const cardAccents = [
 
 const InsufficientCreditsModal = ({ open, onClose, requiredCredits, actionName }: InsufficientCreditsModalProps) => {
   const { user } = useAuth();
-  const { balance, refreshWallet } = useWallet();
+  const { balance, purchaseCount, refreshWallet } = useWallet();
   const navigate = useNavigate();
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const [loading, setLoading] = useState(true);

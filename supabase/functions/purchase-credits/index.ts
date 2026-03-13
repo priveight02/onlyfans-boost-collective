@@ -88,6 +88,25 @@ const findCustomCreditsProduct = async (): Promise<{ productId: string } | null>
   return null;
 };
 
+// Find the 40% discount on Polar
+const find40PercentDiscount = async (): Promise<string | null> => {
+  const res = await polarFetch("/discounts?limit=50");
+  if (!res.ok) return null;
+  const data = await res.json();
+  const discounts = data.items || [];
+  for (const d of discounts) {
+    // Match any 40% percentage discount
+    if (d.type === "percentage" && d.basis_points === 4000) {
+      return d.id;
+    }
+    // Also check name
+    if (d.name && d.name.toLowerCase().includes("40")) {
+      return d.id;
+    }
+  }
+  return null;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
