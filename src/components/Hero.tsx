@@ -45,21 +45,27 @@ const Hero = () => {
             transition={{ duration: 0.9, delay: 0.15 }}
             className="mb-6 text-5xl font-bold leading-[1.05] tracking-tight text-white md:text-7xl lg:text-[5.5rem]"
           >
-            The #1 AI Platform
+            Automate Marketing &
             <br />
-            for{" "}
+            Close More{" "}
             <span className="relative inline-block pb-10 md:pb-12">
               <span className="uplyze-highlight pb-2">
-                Creators & Agencies
+                Sales
               </span>
               <motion.span
-                initial={{ opacity: 0, scale: 0.8, y: -8 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.6, type: "spring" }}
-                className="growth-pill absolute left-1/2 top-[70%] inline-flex -translate-x-1/2 items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
+                initial={{ opacity: 0, scale: 0.85, rotate: 0 }}
+                animate={{ opacity: 1, scale: 1, rotate: -3 }}
+                transition={{ duration: 0.5, delay: 0.6, type: "spring", stiffness: 200 }}
+                className="absolute -right-2 top-[55%] md:-right-4 md:top-[50%] z-20 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 md:px-4 md:py-2 text-[11px] md:text-sm font-bold shadow-lg"
+                style={{
+                  background: 'linear-gradient(135deg, hsl(65,85%,75%), hsl(75,90%,82%))',
+                  color: 'hsl(222,30%,12%)',
+                  transform: 'rotate(-3deg)',
+                  boxShadow: '0 4px 20px rgba(200,230,100,0.25)',
+                }}
               >
-                <Zap className="h-4 w-4" />
-                10x faster growth
+                <Zap className="h-3.5 w-3.5" />
+                Without lifting a finger
               </motion.span>
             </span>
           </motion.h1>
