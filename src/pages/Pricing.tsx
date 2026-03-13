@@ -80,19 +80,17 @@ const Pricing = () => {
     fetchCirculation();
   }, []);
 
+  // Retention is ONLY activated via URL param from billing tab flow
   useEffect(() => {
-    if (!user) return;
-    const checkRetention = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("billing-info", { body: { action: "info" } });
-        if (!error && data) {
-          setRetentionActive(data.eligible_for_retention && !data.retention_credits_used);
-          setRetentionUsed(data.retention_credits_used || false);
-        }
-      } catch {}
-    };
-    checkRetention();
-  }, [user]);
+    const retentionParam = searchParams.get("retention");
+    if (retentionParam === "1" && user && totalSpent >= 2500) {
+      setRetentionActive(true);
+      // Clean up URL param
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("retention");
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [user, searchParams, totalSpent]);
 
   // Handle success redirect from checkout page
   useEffect(() => {
