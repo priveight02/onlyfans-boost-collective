@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { X, Coins, ArrowRight, Gift, Zap, Lock, Check, Clock, Infinity } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import CheckoutModal from "@/components/CheckoutModal";
+
 
 interface CreditPackage {
   id: string;
