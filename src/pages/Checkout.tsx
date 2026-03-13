@@ -37,7 +37,7 @@ const Checkout = () => {
   const [creditsAdded, setCreditsAdded] = useState(0);
   const [verifyStatus, setVerifyStatus] = useState("");
   const [verifyStep, setVerifyStep] = useState(0);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const pkgId = searchParams.get("pkg");
