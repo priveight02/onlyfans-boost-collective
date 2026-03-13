@@ -404,6 +404,7 @@ const Pricing = () => {
             </div>
           )}
 
+        </div>
       </div>
 
       <Footer />
