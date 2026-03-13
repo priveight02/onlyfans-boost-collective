@@ -115,7 +115,7 @@ const AppContent = () => {
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/customer-portal" element={<CustomerPortal />} />
-        <Route path="/thank-you" element={<ThankYou />} />
+        <Route path="/thank-you" element={<ProtectedRoute><ThankYou /></ProtectedRoute>} />
         <Route path="/maintenance" element={<Maintenance />} />
       </Routes>
     </MaintenanceGuard>
