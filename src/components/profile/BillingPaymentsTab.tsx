@@ -492,14 +492,9 @@ const BillingPaymentsTab = () => {
                 <div className="space-y-3">
                   <Button
                     onClick={handleAcceptRetention}
-                    disabled={applyingDiscount}
-                    className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-semibold text-sm h-11 rounded-xl border-0"
+                    className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-400 hover:to-blue-500 text-white font-semibold text-sm h-11 rounded-xl border-0"
                   >
-                    {applyingDiscount ? (
-                      <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Applying...</>
-                    ) : (
-                      <><Gift className="h-4 w-4 mr-2" /> Yes! Apply 50% Discount</>
-                    )}
+                    <Gift className="h-4 w-4 mr-2" /> Yes! Claim 50% Discount
                   </Button>
                   <button
                     onClick={() => setRetentionStep("confirm-cancel")}
