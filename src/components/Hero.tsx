@@ -45,30 +45,40 @@ const Hero = () => {
             transition={{ duration: 0.9, delay: 0.15 }}
             className="mb-6 text-5xl font-bold leading-[1.05] tracking-tight text-white md:text-7xl lg:text-[5.5rem]"
           >
-            Automate Marketing &
+            Turn Followers Into
             <br />
-            Close More{" "}
-            <span className="relative inline-block pb-10 md:pb-12">
-              <span className="uplyze-highlight pb-2">
-                Sales
+            Paying{" "}
+            <span className="relative inline-block">
+              <span className="uplyze-highlight">
+                Customers
               </span>
               <motion.span
-                initial={{ opacity: 0, scale: 0.85, rotate: 0 }}
-                animate={{ opacity: 1, scale: 1, rotate: -3 }}
-                transition={{ duration: 0.5, delay: 0.6, type: "spring", stiffness: 200 }}
-                className="absolute -right-2 top-[55%] md:-right-4 md:top-[50%] z-20 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 md:px-4 md:py-2 text-[11px] md:text-sm font-bold shadow-lg"
+                initial={{ opacity: 0, scale: 0.7, rotate: 0 }}
+                animate={{ opacity: 1, scale: 1, rotate: -6 }}
+                transition={{ duration: 0.6, delay: 0.7, type: "spring", stiffness: 180, damping: 12 }}
+                className="absolute z-20 inline-flex items-center gap-2 whitespace-nowrap"
                 style={{
-                  background: 'linear-gradient(135deg, hsl(65,85%,75%), hsl(75,90%,82%))',
-                  color: 'hsl(222,30%,12%)',
-                  transform: 'rotate(-3deg)',
-                  boxShadow: '0 4px 20px rgba(200,230,100,0.25)',
+                  right: '-30px',
+                  top: '45%',
+                  background: 'linear-gradient(135deg, hsl(68,92%,72%), hsl(78,95%,80%))',
+                  color: 'hsl(222,30%,10%)',
+                  transform: 'rotate(-6deg)',
+                  boxShadow: '0 6px 30px rgba(200,240,80,0.3), 0 2px 8px rgba(0,0,0,0.15)',
+                  padding: '10px 22px',
+                  borderRadius: '14px',
+                  fontSize: 'clamp(14px, 1.8vw, 20px)',
+                  fontWeight: 800,
+                  letterSpacing: '-0.02em',
                 }}
               >
-                <Zap className="h-3.5 w-3.5" />
-                Without lifting a finger
+                <Zap className="h-5 w-5 md:h-6 md:w-6" strokeWidth={2.5} />
+                On complete autopilot
               </motion.span>
             </span>
           </motion.h1>
+
+          {/* Spacer for the overlapping pill */}
+          <div className="h-4 md:h-6" />
 
           <motion.p
             initial={{ opacity: 0, y: 20 }}
