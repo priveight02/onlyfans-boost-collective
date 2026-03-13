@@ -206,7 +206,10 @@ const Navigation = () => {
                     <Link
                       key={item.name}
                       to={item.href}
-                      onClick={() => setIsOpen(false)}
+                      onClick={(e) => {
+                        handlePlatformClick(e, item.href);
+                        setIsOpen(false);
+                      }}
                       className="block w-full text-left px-4 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 flex items-center gap-3"
                       style={{
                         color: isActive ? "white" : "hsla(215, 25%, 70%, 1)",
