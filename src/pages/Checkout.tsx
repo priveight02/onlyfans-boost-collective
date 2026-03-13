@@ -3,11 +3,10 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import {
   ArrowLeft, ShieldCheck, Loader2, CheckCircle2, XCircle,
   Sparkles, LayoutDashboard, AlertTriangle, Coins, Zap, BadgeCheck,
-  PanelRightClose, PanelRightOpen,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -46,7 +45,6 @@ const Checkout = () => {
 
   useEffect(() => {
     if (!user) {
-      toast.error("Please log in first");
       navigate("/auth");
     }
   }, [user, navigate]);
@@ -62,7 +60,6 @@ const Checkout = () => {
         } else if (customCreditsParam) {
           body.customCredits = parseInt(customCreditsParam);
         } else {
-          toast.error("Invalid checkout parameters");
           navigate("/pricing");
           return;
         }
@@ -114,7 +111,6 @@ const Checkout = () => {
           throw new Error("No checkout URL received");
         }
       } catch (err: any) {
-        toast.error(err.message || "Failed to start checkout");
         navigate("/pricing");
       }
     };
@@ -249,7 +245,7 @@ const Checkout = () => {
                 onClick={() => setSidebarOpen(true)}
                 className="hidden lg:flex fixed right-0 top-1/2 -translate-y-1/2 z-40 items-center justify-center w-5 h-10 transition-colors"
               >
-                <PanelRightOpen className="h-3.5 w-3.5 text-white/20 hover:text-white/50 transition-colors" />
+                <ChevronLeft className="h-4 w-4 text-white/30 hover:text-white/60 transition-colors" />
               </motion.button>
             )}
           </AnimatePresence>
@@ -262,21 +258,19 @@ const Checkout = () => {
                 animate={{ width: 400, opacity: 1 }}
                 exit={{ width: 0, opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="hidden lg:flex flex-shrink-0 overflow-hidden border-l flex-col"
+                className="hidden lg:flex flex-shrink-0 overflow-hidden border-l flex-col relative"
                 style={{ borderColor: "hsla(0, 0%, 100%, 0.06)", background: "hsl(222, 30%, 8%)" }}
               >
-                <div className="w-[400px] p-7 flex-1 flex flex-col overflow-y-auto">
-                  {/* Title row with collapse — subtle icon */}
-                  <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-base font-bold text-white/90 tracking-tight">Order Summary</h2>
-                    <button
-                      onClick={() => setSidebarOpen(false)}
-                      className="p-1 transition-colors"
-                      title="Collapse"
-                    >
-                      <PanelRightClose className="h-3.5 w-3.5 text-white/20 hover:text-white/40 transition-colors" />
-                    </button>
-                  </div>
+                {/* Collapse button at very middle left of sidebar */}
+                <button
+                  onClick={() => setSidebarOpen(false)}
+                  className="absolute left-0 top-1/2 -translate-y-1/2 z-50 flex items-center justify-center w-5 h-10 transition-colors"
+                  title="Collapse"
+                >
+                  <ChevronRight className="h-4 w-4 text-white/30 hover:text-white/60 transition-colors" />
+                </button>
+
+                <div className="w-[400px] p-7 flex-1 flex flex-col overflow-y-auto pl-8">
 
                   {/* Product Card */}
                   <div
