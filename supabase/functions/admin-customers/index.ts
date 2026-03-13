@@ -1134,6 +1134,15 @@ Return this exact JSON structure:
           });
           break;
         }
+        case "reset_discount": {
+          // Reset the user's purchase_count to 0 so they get the 40% first-order discount again
+          await supabaseAdmin.from("wallets").update({ purchase_count: 0 }).eq("user_id", userId);
+          await supabaseAdmin.from("wallet_transactions").insert({
+            user_id: userId, type: "admin_grant", amount: 0,
+            description: `Discount state reset (purchase_count → 0): ${reason || "No reason"}`, balance_after: null,
+          });
+          break;
+        }
         default:
           logStep("Unknown admin action", { adminAction });
       }

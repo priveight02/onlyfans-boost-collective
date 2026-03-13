@@ -466,6 +466,12 @@ const AdminCustomers = () => {
                 {detail?.profile?.is_private ? "Public" : "Private"}
               </Button>
 
+              {/* Discount */}
+              <Button size="sm" variant="outline" className="text-emerald-400 border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 gap-1.5 text-xs h-7"
+                onClick={() => setShowConfirmDialog({ action: "reset_discount", label: "Reset Discount State" })}>
+                <RotateCcw className="h-3 w-3" /> Reset Discount
+              </Button>
+
               {/* Data */}
               <Button size="sm" variant="outline" className="text-violet-400 border-violet-500/30 bg-violet-500/5 hover:bg-violet-500/10 gap-1.5 text-xs h-7"
                 onClick={() => { setUserTags(detail?.admin_tags || []); setTagInput(""); setShowTagUserDialog(true); }}>
