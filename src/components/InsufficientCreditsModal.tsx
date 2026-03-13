@@ -160,7 +160,7 @@ const InsufficientCreditsModal = ({ open, onClose, requiredCredits, actionName }
                           )}
                          </div>
                          {isFirstOrder ? (
-                           <span className="text-[10px] text-emerald-400 font-medium mb-4 flex items-center gap-1"><Tag className="h-2.5 w-2.5" /> 40% OFF — First Order</span>
+                           <span className="text-[10px] text-emerald-400 font-medium mb-4 flex items-center gap-1"><Tag className="h-2.5 w-2.5" /> 40% OFF · First Order</span>
                          ) : (
                            <span className="text-[10px] text-white/30 mb-4">{perCredit}¢ per credit</span>
                          )}

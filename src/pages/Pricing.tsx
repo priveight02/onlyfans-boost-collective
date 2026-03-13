@@ -167,9 +167,18 @@ const Pricing = () => {
                 </div>
               </div>
               {isFirstOrder && (
-                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full" style={{ background: "hsla(262, 83%, 58%, 0.12)", border: "1px solid hsla(262, 83%, 58%, 0.3)" }}>
-                  <Gift className="h-3.5 w-3.5" style={{ color: "hsl(262, 83%, 65%)" }} />
-                  <span className="text-xs font-medium" style={{ color: "hsl(262, 83%, 75%)" }}>🎉 First order — 40% OFF applied automatically!</span>
+                <div
+                  className="inline-flex items-center gap-2.5 px-5 py-3 rounded-full"
+                  style={{
+                    background: "linear-gradient(135deg, hsla(262, 83%, 58%, 0.18), hsla(240, 75%, 50%, 0.12))",
+                    border: "1px solid hsla(262, 83%, 58%, 0.35)",
+                    boxShadow: "0 4px 20px hsla(262, 83%, 58%, 0.15), inset 0 1px 0 hsla(0, 0%, 100%, 0.08)",
+                  }}
+                >
+                  <Sparkles className="h-3.5 w-3.5" style={{ color: "hsl(50, 95%, 65%)" }} />
+                  <span className="text-xs font-semibold tracking-wide" style={{ color: "hsl(262, 83%, 80%)" }}>
+                    Your 40% Welcome Gift is applied at checkout
+                  </span>
                 </div>
               )}
               {isReturning && (
