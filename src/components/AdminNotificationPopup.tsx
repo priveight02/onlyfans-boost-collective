@@ -53,7 +53,7 @@ const AdminNotificationPopup = () => {
         .select("*")
         .eq("user_id", user.id)
         .eq("is_read", false)
-        .neq("notification_type", "checkout")
+        .not("notification_type", "in", '("checkout","payment_success","benefit")')
         .order("created_at", { ascending: false })
         .limit(3);
       if (data) {
