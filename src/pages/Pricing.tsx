@@ -217,7 +217,7 @@ const Pricing = () => {
                   <div
                     key={pkg.id}
                     onMouseMove={handleMouseMove}
-                    className={`group relative flex flex-col rounded-2xl transition-all duration-300 [backface-visibility:hidden] [transform:translateZ(0)]`}
+                    className={`group relative flex flex-col rounded-2xl transition-all duration-300 [backface-visibility:hidden] [transform:translateZ(0)] hover:border-purple-500/30`}
                     style={{
                       "--mouse-x": "50%",
                       "--mouse-y": "50%",
