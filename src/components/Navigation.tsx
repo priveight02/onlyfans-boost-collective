@@ -50,6 +50,7 @@ const Navigation = () => {
     { name: "Home", href: "/", icon: Home },
     { name: "Services", href: "/services", icon: Briefcase },
     ...(!siteSettings.hide_pricing || isAdmin ? [{ name: "Pricing", href: "/pricing", icon: CreditCard }] : []),
+    { name: "Offer", href: "/offer", icon: Gift },
     { name: "FAQ", href: "/faq", icon: HelpCircle },
   ];
 
