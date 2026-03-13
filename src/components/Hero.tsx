@@ -52,17 +52,20 @@ const Hero = () => {
               <span className="uplyze-highlight pb-2">
                 Customers
               </span>
-              <motion.span
+               <motion.span
                 initial={{ opacity: 0, scale: 0.7 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.6, delay: 0.6, type: "spring", stiffness: 180, damping: 10 }}
-                 className="absolute -right-10 top-[55%] md:-right-16 md:top-[50%] z-20 inline-flex items-center gap-2.5 rounded-2xl px-5 py-2.5 md:px-7 md:py-3.5 text-xs md:text-base font-black whitespace-nowrap"
+                 className="absolute -right-10 top-[55%] md:-right-16 md:top-[50%] z-20 inline-flex transform-gpu items-center gap-2.5 rounded-2xl px-5 py-2.5 md:px-7 md:py-3.5 text-xs md:text-base font-black whitespace-nowrap"
                  style={{
                    background: 'linear-gradient(135deg, hsl(260,80%,65%), hsl(275,82%,58%), hsl(255,78%,62%))',
                    color: 'white',
                    boxShadow: '0 3px 0 0 hsl(260,70%,45%), 0 10px 16px -12px hsl(262 82% 30% / 0.75), inset 0 1px 0 hsl(0 0% 100% / 0.16)',
                    transform: 'rotate(-8deg)',
                    willChange: 'auto',
+                   backfaceVisibility: 'hidden',
+                   WebkitBackfaceVisibility: 'hidden',
+                   imageRendering: 'auto',
                  }}
                >
                 <Zap className="h-4 w-4 md:h-5 md:w-5" fill="currentColor" />
