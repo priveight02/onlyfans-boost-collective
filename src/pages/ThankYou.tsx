@@ -113,12 +113,16 @@ const ThankYou = () => {
       />
       <style>{`
         @keyframes carousel-scroll {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(calc(var(--scroll-width, 1000px) * -1)); }
+          0% { transform: translate3d(0, 0, 0); }
+          100% { transform: translate3d(calc(var(--scroll-width, 1000px) * -1), 0, 0); }
         }
         .carousel-track {
-          animation: carousel-scroll 45s linear infinite;
-          will-change: transform;
+          animation: carousel-scroll 60s linear infinite;
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+          -webkit-transform-style: preserve-3d;
+          transform-style: flat;
+          -webkit-font-smoothing: subpixel-antialiased;
         }
         .carousel-track:hover {
           animation-play-state: paused;
