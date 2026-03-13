@@ -87,7 +87,7 @@ const Navigation = () => {
             : "0 4px 24px hsla(0, 0%, 0%, 0.15)",
         }}
       >
-        <div className={isPlatform ? "px-2" : "px-5"}>
+        <div className={isPlatform ? "px-2" : "px-3"}>
           <div className={`flex items-center ${isPlatform ? 'h-10 gap-0' : 'justify-between h-[52px]'}`}>
             <div className="flex-shrink-0">
               <Link to="/" className="flex items-center group transition-all duration-300 hover:scale-105">
