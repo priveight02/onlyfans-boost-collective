@@ -139,7 +139,7 @@ const Pricing = () => {
         title="Uplyze Pricing - Pay As You Go, Scale As You Grow"
         description="No subscriptions, no lock-ins. Grab AI credits when you need them. Flexible plans built for creators, agencies, and businesses at any stage."
       />
-      <div className="pt-32 pb-20 px-4">
+      <div className="pt-32 pb-10 px-4">
         {/* Hero */}
         <div className="text-center mb-7">
           <h1 className="text-4xl md:text-5xl font-bold mb-3 text-white tracking-tight">
