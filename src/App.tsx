@@ -35,7 +35,6 @@ import BlogPost from "./pages/BlogPost";
 import CustomerPortal from "./pages/CustomerPortal";
 import ThankYou from "./pages/ThankYou";
 import Workflow from "./pages/Workflow";
-import Offer from "./pages/Offer";
 
 const OWNER_EMAIL = "contact@uplyze.ai";
 
@@ -90,7 +89,6 @@ const AppContent = () => {
         <Route path="/about" element={<About />} />
         <Route path="/services" element={<Services />} />
         <Route path="/pricing" element={<Pricing />} />
-        <Route path="/offer" element={<Offer />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/auth/reset-password" element={<ResetPassword />} />

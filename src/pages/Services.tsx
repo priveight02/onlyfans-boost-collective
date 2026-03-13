@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/hooks/useAuth";
 import PageSEO from "@/components/PageSEO";
-import UnifiedBackground from "@/components/UnifiedBackground";
 import { Users, HeartHandshake, Shield, Zap, Bot, BarChart3, BrainCircuit, Workflow, Mail, Globe, CheckCircle2, Instagram, MessageCircle, Rocket, Eye, Send } from "lucide-react";
 
 const featureSections = [
@@ -184,7 +183,7 @@ const Services = () => {
   const ctaPath = user ? '/pricing' : '/auth';
 
   return (
-    <UnifiedBackground variant="services">
+    <div className="min-h-screen bg-[hsl(222,35%,8%)] relative overflow-hidden">
       <PageSEO
         title="Uplyze Features - Everything You Need to Grow, in One Place"
         description="AI CRM, DM automation, content creation, social media tools, lead gen, and analytics. One platform built for creators, agencies, and digital businesses."
@@ -206,23 +205,27 @@ const Services = () => {
           }))
         }}
       />
+      {/* Ambient background glows */}
+      <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px]" />
+      <div className="absolute top-1/3 right-0 w-[500px] h-[500px] bg-blue-600/8 rounded-full blur-[100px]" />
+      <div className="absolute bottom-1/4 left-0 w-[400px] h-[400px] bg-pink-600/6 rounded-full blur-[100px]" />
 
       {/* Hero */}
       <div className="relative pt-28 md:pt-36 pb-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-white/50 text-sm font-medium mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-medium mb-6">
             <Rocket className="h-3.5 w-3.5" />
             AI-Powered Business Growth Platform
           </div>
           <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold text-white mb-5 leading-tight">
-            Everything You Need to{" "}<span className="bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">Scale with Uplyze</span>
+            Everything You Need to{" "}<span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">Scale with Uplyze</span>
           </h1>
-          <p className="text-lg md:text-xl text-white/50 max-w-2xl mx-auto mb-8">
+          <p className="text-lg md:text-xl text-white/60 max-w-2xl mx-auto mb-8">
             One platform to manage customers, automate workflows, dominate social media, and grow your revenue with the power of AI.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link to={ctaPath}>
-              <Button size="lg" className="bg-primary hover:bg-primary/90 text-white hover:scale-105 transition-all duration-300 shadow-lg shadow-primary/20 text-lg px-10 py-6 rounded-xl font-semibold">
+              <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white hover:scale-105 transition-all duration-300 shadow-lg shadow-purple-500/20 text-lg px-10 py-6 rounded-xl font-semibold">
                 Get Started
               </Button>
             </Link>
@@ -243,9 +246,10 @@ const Services = () => {
             return (
               <div
                 key={section.title}
-                className={`group bg-white/[0.025] backdrop-blur-sm border border-white/[0.08] rounded-2xl p-6 md:p-8 ${section.borderColor} transition-all duration-500 hover:bg-white/[0.04]`}
+                className={`group bg-[hsl(222,30%,12%)]/80 backdrop-blur-xl border border-white/[0.08] rounded-2xl p-6 md:p-8 ${section.borderColor} transition-all duration-500 hover:bg-[hsl(222,30%,14%)]/80`}
               >
                 <div className={`flex flex-col ${isReversed ? 'md:flex-row-reverse' : 'md:flex-row'} gap-6 md:gap-10 items-start`}>
+                  {/* Left: Info */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3 mb-4">
                       <div className={`w-11 h-11 bg-gradient-to-br ${section.gradient} rounded-xl flex items-center justify-center shrink-0 border border-white/10`}>
@@ -260,14 +264,16 @@ const Services = () => {
                       <Zap className="h-3 w-3 mr-1.5" />
                       {section.highlight}
                     </div>
-                    <p className="text-white/50 text-sm leading-relaxed">
+                    <p className="text-white/55 text-sm leading-relaxed">
                       {section.description}
                     </p>
                   </div>
+
+                  {/* Right: Bullet points */}
                   <div className="flex-1 min-w-0">
                     <ul className="space-y-3">
                       {section.bullets.map((bullet) => (
-                        <li key={bullet} className="flex items-start gap-2.5 text-white/60 text-sm group-hover:text-white/70 transition-colors duration-300">
+                        <li key={bullet} className="flex items-start gap-2.5 text-white/70 text-sm group-hover:text-white/80 transition-colors duration-300">
                           <CheckCircle2 className={`h-4 w-4 ${section.accentColor} mt-0.5 shrink-0 opacity-70`} />
                           <span>{bullet}</span>
                         </li>
@@ -283,15 +289,16 @@ const Services = () => {
 
       {/* CTA */}
       <section className="py-20 relative">
+        <div className="absolute inset-0 bg-gradient-to-t from-purple-600/5 to-transparent" />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h2 className="text-3xl md:text-5xl font-bold text-white mb-5">
             Ready to Scale with Uplyze?
           </h2>
-          <p className="text-lg text-white/45 mb-10 max-w-xl mx-auto">
+          <p className="text-lg text-white/50 mb-10 max-w-xl mx-auto">
             Join 700+ creators and agencies already growing with Uplyze AI CRM at uplyze.ai. Free to start, no credit card required.
           </p>
           <Link to={ctaPath}>
-            <Button size="lg" className="bg-primary hover:bg-primary/90 text-white hover:scale-105 transition-all duration-300 shadow-xl shadow-primary/20 text-xl px-16 py-6 rounded-xl font-bold">
+            <Button size="lg" className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white hover:scale-105 transition-all duration-300 shadow-xl shadow-purple-500/20 text-xl px-16 py-6 rounded-xl font-bold">
               Start Growing Today
             </Button>
           </Link>
@@ -299,7 +306,7 @@ const Services = () => {
       </section>
 
       <Footer />
-    </UnifiedBackground>
+    </div>
   );
 };
 

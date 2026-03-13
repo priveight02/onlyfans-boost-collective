@@ -2,7 +2,6 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Clock, User, Calendar, BookOpen } from "lucide-react";
 import Footer from "@/components/Footer";
 import PageSEO from "@/components/PageSEO";
-import UnifiedBackground from "@/components/UnifiedBackground";
 
 const blogPosts = [
   {
@@ -36,7 +35,7 @@ const blogPosts = [
 
 const Blog = () => {
   return (
-    <UnifiedBackground variant="blog">
+    <div className="min-h-screen bg-[hsl(222,35%,8%)]">
       <PageSEO
         title="Uplyze Blog - Strategies That Actually Move the Needle"
         description="Real tactics for creators, agencies, and businesses. Learn AI marketing, automation hacks, and growth strategies from people who've done it."
@@ -60,6 +59,8 @@ const Blog = () => {
           }))
         }}
       />
+      {/* Ambient glow */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[900px] h-[400px] bg-primary/[0.05] rounded-full blur-[150px] pointer-events-none" />
 
       <div className="relative pt-28 pb-16 px-4 sm:px-6 lg:px-8 max-w-5xl mx-auto">
         {/* Header */}
@@ -71,19 +72,20 @@ const Blog = () => {
           <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight mb-4">
             Insights & Strategies
           </h1>
-          <p className="text-white/45 text-lg max-w-2xl mx-auto leading-relaxed">
+          <p className="text-[hsl(215,25%,65%)] text-lg max-w-2xl mx-auto leading-relaxed">
             Learn how top creators and agencies use AI to scale revenue, automate growth, and dominate their niche.
           </p>
         </div>
 
         {/* Posts Grid */}
         <div className="space-y-5">
-          {blogPosts.map((post) => (
+          {blogPosts.map((post, index) => (
             <Link
               key={post.slug}
               to={`/blog/${post.slug}`}
               className="group block p-6 sm:p-8 rounded-2xl bg-white/[0.025] border border-white/[0.07] hover:bg-white/[0.05] hover:border-white/[0.14] transition-all duration-300 relative overflow-hidden"
             >
+              {/* Subtle gradient accent on hover */}
               <div className="absolute inset-0 bg-gradient-to-r from-primary/[0.03] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
               
               <div className="relative">
@@ -98,7 +100,7 @@ const Blog = () => {
                 <h2 className="text-xl sm:text-2xl font-bold text-white group-hover:text-primary transition-colors duration-300 mb-2.5">
                   {post.title}
                 </h2>
-                <p className="text-white/45 text-sm leading-relaxed mb-5">
+                <p className="text-[hsl(215,25%,65%)] text-sm leading-relaxed mb-5">
                   {post.excerpt}
                 </p>
                 <div className="flex items-center justify-between">
@@ -116,7 +118,7 @@ const Blog = () => {
         </div>
       </div>
       <Footer />
-    </UnifiedBackground>
+    </div>
   );
 };
 
