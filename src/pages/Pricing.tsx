@@ -47,8 +47,6 @@ const Pricing = () => {
   const [retentionActive, setRetentionActive] = useState(false);
   const [retentionUsed, setRetentionUsed] = useState(false);
   const [circulationCredits, setCirculationCredits] = useState<number | null>(null);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
-  const [circulationCredits, setCirculationCredits] = useState<number | null>(null);
 
   const getReturningDiscount = (count: number): number => {
     if (count === 1) return 0.30;
