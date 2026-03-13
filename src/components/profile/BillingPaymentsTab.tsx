@@ -108,9 +108,12 @@ const BillingPaymentsTab = () => {
     fetchBillingInfo();
   }, [user]);
 
+  // Both conditions must be met: spent $25+ AND eligible for retention
+  const qualifiesForRetention = eligibleForRetention && totalSpent >= 2500;
+
   const handleManageSubscription = () => {
     if (!subscription) return;
-    if (eligibleForRetention) {
+    if (qualifiesForRetention) {
       setRetentionStep("offer");
       setShowRetentionDialog(true);
     } else {
