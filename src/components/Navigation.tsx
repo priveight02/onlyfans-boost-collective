@@ -21,8 +21,10 @@ const Navigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, loading, isAdmin, logout } = useAuth();
+  const { purchaseCount } = useWallet();
   const { settings: siteSettings } = useSiteSettings();
   const isPlatform = location.pathname.startsWith("/platform");
+  const showOffer = purchaseCount === 0;
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
