@@ -105,8 +105,27 @@ const findOrCreateDiscount = async (basisPoints: number, tierName: string): Prom
   const data = await res.json();
   const discounts = data.items || [];
 
+  const FRIENDLY_NAMES_LOOKUP: Record<string, string> = {
+    "first_order_40": "🎉 Welcome Gift",
+    "loyalty_30": "💎 Loyal Member",
+    "loyalty_20": "⭐ Valued Customer",
+    "loyalty_10": "🙏 Thank You Reward",
+    "retention_50": "🔥 Exclusive VIP Offer",
+  };
+
   for (const d of discounts) {
     if (d.type === "percentage" && d.basis_points === basisPoints) {
+      // Rename if it still has old ugly name
+      const expectedPrefix = FRIENDLY_NAMES_LOOKUP[tierName];
+      if (expectedPrefix && !d.name.startsWith(expectedPrefix)) {
+        const pct = basisPoints / 100;
+        const newName = `${expectedPrefix} — ${pct}% OFF`;
+        await polarFetch(`/discounts/${d.id}`, {
+          method: "PATCH",
+          body: JSON.stringify({ name: newName }),
+        });
+        log("Renamed discount", { id: d.id, oldName: d.name, newName });
+      }
       log("Found existing discount", { id: d.id, name: d.name, basisPoints });
       return d.id;
     }
@@ -114,10 +133,18 @@ const findOrCreateDiscount = async (basisPoints: number, tierName: string): Prom
 
   // Not found — create it
   const pct = basisPoints / 100;
+  const FRIENDLY_NAMES: Record<string, string> = {
+    "first_order_40": `🎉 Welcome Gift — ${pct}% OFF Your First Order`,
+    "loyalty_30": `💎 Loyal Member — ${pct}% OFF`,
+    "loyalty_20": `⭐ Valued Customer — ${pct}% OFF`,
+    "loyalty_10": `🙏 Thank You Reward — ${pct}% OFF`,
+    "retention_50": `🔥 Exclusive VIP Offer — ${pct}% OFF`,
+  };
+  const friendlyName = FRIENDLY_NAMES[tierName] || `Special Offer — ${pct}% OFF`;
   const createRes = await polarFetch("/discounts/", {
     method: "POST",
     body: JSON.stringify({
-      name: `Auto ${pct}% OFF (${tierName})`,
+      name: friendlyName,
       type: "percentage",
       basis_points: basisPoints,
       duration: "once",
