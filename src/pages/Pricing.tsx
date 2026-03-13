@@ -186,9 +186,9 @@ const Pricing = () => {
                 </div>
               )}
               {retentionActive && (
-                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full" style={{ background: "hsla(330, 80%, 55%, 0.1)", border: "1px solid hsla(330, 80%, 55%, 0.2)" }}>
-                  <Gift className="h-3.5 w-3.5" style={{ color: "hsl(330, 80%, 65%)" }} />
-                  <span className="text-xs font-medium" style={{ color: "hsl(330, 70%, 70%)" }}>🎁 Exclusive 50% OFF available, one-time use</span>
+                <div className="inline-flex items-center gap-2 px-5 py-3 rounded-full" style={{ background: "linear-gradient(135deg, hsla(262, 83%, 58%, 0.18), hsla(45, 100%, 50%, 0.08))", border: "1px solid hsla(262, 83%, 58%, 0.35)", boxShadow: "0 4px 20px hsla(262, 83%, 58%, 0.15), inset 0 1px 0 hsla(0, 0%, 100%, 0.08)" }}>
+                  <Gift className="h-3.5 w-3.5" style={{ color: "hsl(45, 95%, 65%)" }} />
+                  <span className="text-xs font-semibold tracking-wide" style={{ color: "hsl(262, 83%, 80%)" }}>🎁 Exclusive 50% OFF · One-time use</span>
                 </div>
               )}
             </div>
