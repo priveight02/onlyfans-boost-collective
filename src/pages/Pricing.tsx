@@ -258,8 +258,7 @@ const Pricing = () => {
                   key={pkg.id}
                   onMouseMove={handleMouseMove}
                   className={`group relative flex flex-col rounded-2xl border ${accent.border} ${accent.hoverBorder} transition-colors duration-300 ${isPopular ? 'ring-1 ring-amber-500/40' : ''} [backface-visibility:hidden] [transform:translateZ(0)]`}
-                  style={{ background: 'hsl(222, 35%, 12%)' }}
-                  style={{ "--mouse-x": "50%", "--mouse-y": "50%" } as React.CSSProperties}
+                  style={{ "--mouse-x": "50%", "--mouse-y": "50%", background: 'hsl(222, 35%, 12%)' } as React.CSSProperties}
                 >
                   <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl overflow-hidden" style={{ background: `radial-gradient(200px circle at var(--mouse-x) var(--mouse-y), ${accent.flash}, transparent 60%)` }} />
                   {accent.label && (
