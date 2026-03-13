@@ -45,18 +45,18 @@ const Hero = () => {
             transition={{ duration: 0.9, delay: 0.15 }}
             className="mb-6 text-5xl font-black leading-[1.02] tracking-tight text-white md:text-7xl lg:text-[5.5rem]"
           >
-            Turn Followers Into
+            We Turn Your Followers
             <br />
-            Paying{" "}
+            Into{" "}
             <span className="relative inline-block pb-14 md:pb-20">
               <span className="uplyze-highlight pb-2">
-                Customers
+                Revenue
               </span>
               <motion.span
                 initial={{ opacity: 0, scale: 0.7, rotate: 0 }}
                 animate={{ opacity: 1, scale: 1, rotate: -6 }}
                 transition={{ duration: 0.6, delay: 0.6, type: "spring", stiffness: 160, damping: 12 }}
-                className="absolute -right-6 top-[40%] md:-right-10 md:top-[35%] z-20 inline-flex items-center gap-2 rounded-2xl px-6 py-3 md:px-8 md:py-4 text-sm md:text-lg font-black shadow-2xl whitespace-nowrap"
+                className="absolute -right-6 top-[55%] md:-right-10 md:top-[48%] z-20 inline-flex items-center gap-2 rounded-2xl px-6 py-3 md:px-8 md:py-4 text-sm md:text-lg font-black shadow-2xl whitespace-nowrap"
                 style={{
                   background: 'linear-gradient(135deg, hsl(65,90%,72%), hsl(80,95%,78%), hsl(65,85%,70%))',
                   color: 'hsl(222,35%,10%)',
