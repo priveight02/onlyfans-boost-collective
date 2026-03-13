@@ -239,7 +239,7 @@ const Pricing = () => {
                     <div className="p-6 flex-1 flex flex-col">
                       <h3 className="text-base font-semibold text-white/90 mb-3">{pkg.name}</h3>
                       <div className="flex items-baseline gap-2 mb-0.5">
-                        {isReturning && <span className="text-sm text-white/30 line-through">{formatPrice(pkg.price_cents)}</span>}
+                        {(isFirstOrder || isReturning) && <span className="text-sm text-white/30 line-through">{formatPrice(pkg.price_cents)}</span>}
                         <span className="text-4xl font-bold text-white">{formatPrice(displayPrice)}</span>
                       </div>
                       <span className="text-xs text-white/30 mb-5">{perCredit}¢ per credit</span>
