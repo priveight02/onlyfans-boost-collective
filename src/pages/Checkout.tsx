@@ -44,6 +44,7 @@ const Checkout = () => {
   const verificationStartedRef = useRef(false);
   const baselineBalanceRef = useRef(0);
   const baselinePurchaseCountRef = useRef(0);
+  const checkoutInitializedRef = useRef(false);
 
   const pkgId = searchParams.get("pkg");
   const customCreditsParam = searchParams.get("credits");
