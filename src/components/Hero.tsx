@@ -115,7 +115,7 @@ const Hero = () => {
                 boxShadow: "0 6px 26px hsl(var(--primary) / 0.35), inset 0 0 0 1px hsl(0 0% 100% / 0.07)",
               }}
             >
-              Get Started Free
+              Buy Now
               <ArrowRight className="ml-2.5 h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
             </button>
           </motion.div>
