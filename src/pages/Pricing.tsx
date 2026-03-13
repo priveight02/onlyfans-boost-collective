@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import CheckoutModal from "@/components/CheckoutModal";
 import PageSEO from "@/components/PageSEO";
+import UnifiedBackground from "@/components/UnifiedBackground";
 
 interface CreditPackage {
   id: string;
@@ -16,7 +17,7 @@ interface CreditPackage {
   credits: number;
   bonus_credits: number;
   price_cents: number;
-  stripe_price_id: string; // stores Polar product reference
+  stripe_price_id: string;
   is_popular: boolean;
   sort_order: number;
 }
@@ -50,14 +51,12 @@ const Pricing = () => {
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [circulationCredits, setCirculationCredits] = useState<number | null>(null);
 
-  // Declining discount: 1st repurchase=30%, 2nd=20%, 3rd=10%, then 0%
   const getReturningDiscount = (count: number): number => {
     if (count === 1) return 0.30;
     if (count === 2) return 0.20;
     if (count === 3) return 0.10;
     return 0;
   };
-  // If retention is active, loyalty discount is erased (non-stackable)
   const returningDiscount = retentionActive ? 0 : getReturningDiscount(purchaseCount);
   const isReturning = returningDiscount > 0;
 
@@ -73,7 +72,6 @@ const Pricing = () => {
     };
     fetchPackages();
 
-    // Fetch credits in circulation
     const fetchCirculation = async () => {
       try {
         const { data, error } = await supabase.functions.invoke("credits-circulation");
@@ -85,7 +83,6 @@ const Pricing = () => {
     fetchCirculation();
   }, []);
 
-  // Check if retention discount is active
   useEffect(() => {
     if (!user) return;
     const checkRetention = async () => {
@@ -102,31 +99,24 @@ const Pricing = () => {
     checkRetention();
   }, [user]);
 
-  // Verification effect — runs once, clears params to prevent re-runs
   useEffect(() => {
     const isSuccess = searchParams.get("success") === "true";
     const isCanceled = searchParams.get("canceled") === "true";
-
     if (!isSuccess && !isCanceled) return;
-
     if (isCanceled) {
       toast.info("Purchase canceled");
       setSearchParams({}, { replace: true });
       return;
     }
-
     if (isSuccess && !verifying) {
       setVerifying(true);
-      // Immediately clear URL params so this never fires again
       setSearchParams({}, { replace: true });
-
       const toastId = toast.loading("Verifying your purchase...");
       supabase.functions.invoke("verify-credit-purchase").then(({ data, error }) => {
         if (error) {
           toast.error("Verification failed. Credits will appear shortly, please refresh.", { id: toastId });
-          console.error("Verification error:", error);
         } else if (data?.credited && data.credits_added > 0) {
-          toast.success(`🎉 ${data.credits_added.toLocaleString()} credits added!`, { id: toastId });
+          toast.success(`${data.credits_added.toLocaleString()} credits added!`, { id: toastId });
         } else {
           toast.success("Credits already in your wallet!", { id: toastId });
         }
@@ -138,9 +128,7 @@ const Pricing = () => {
 
   const handleCheckoutClose = (purchased: boolean) => {
     setCheckoutUrl(null);
-    if (purchased) {
-      refreshWallet();
-    }
+    if (purchased) refreshWallet();
   };
 
   const handlePurchase = async (pkg: CreditPackage, useRetention = false) => {
@@ -190,7 +178,7 @@ const Pricing = () => {
 
   const cardAccents = [
     { border: "border-purple-500/25", hoverBorder: "hover:border-purple-400/50", flash: "rgba(168,85,247,0.04)", badge: "bg-purple-500", label: "" },
-    { border: "border-yellow-500/40", hoverBorder: "hover:border-yellow-400/60", flash: "rgba(234,179,8,0.04)", badge: "bg-yellow-500", label: "Most Popular" },
+    { border: "border-amber-500/40", hoverBorder: "hover:border-amber-400/60", flash: "rgba(234,179,8,0.04)", badge: "bg-amber-500", label: "Most Popular" },
     { border: "border-white/10", hoverBorder: "hover:border-white/25", flash: "rgba(255,255,255,0.03)", badge: "", label: "" },
     { border: "border-purple-500/30", hoverBorder: "hover:border-purple-400/50", flash: "rgba(168,85,247,0.04)", badge: "bg-purple-500", label: "Best Value" },
   ];
@@ -203,13 +191,13 @@ const Pricing = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[hsl(222,35%,8%)] text-white pt-24">
+    <UnifiedBackground variant="pricing">
       <PageSEO
         title="Uplyze Pricing - Pay As You Go, Scale As You Grow"
         description="No subscriptions, no lock-ins. Grab AI credits when you need them. Flexible plans built for creators, agencies, and businesses at any stage."
       />
       {/* Hero */}
-      <div className="text-center px-4 mb-14">
+      <div className="text-center px-4 pt-24 mb-14">
         <h1 className="text-4xl md:text-5xl font-bold mb-3 text-white tracking-tight">
           Uplyze Credits. Pay As You Grow
         </h1>
@@ -221,13 +209,13 @@ const Pricing = () => {
           <div className="mt-6 flex flex-col items-center gap-3">
             <div className="flex items-center gap-3 flex-wrap justify-center">
               {circulationCredits !== null && (
-                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/5 border border-white/10">
+                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/[0.04] border border-white/[0.08]">
                   <Globe className="h-3.5 w-3.5 text-purple-400" />
                   <span className="text-sm font-medium text-white/60">{circulationCredits.toLocaleString()}</span>
                   <span className="text-white/30 text-xs">in circulation</span>
                 </div>
               )}
-              <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10">
+              <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/[0.04] border border-white/[0.08]">
                 <span className="text-white/40 text-sm">Your Credits:</span>
                 <span className="text-xl font-semibold text-white">{balance.toLocaleString()}</span>
               </div>
@@ -241,7 +229,7 @@ const Pricing = () => {
             {retentionActive && (
               <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-pink-500/10 border border-pink-500/20">
                 <Gift className="h-3.5 w-3.5 text-pink-400" />
-                <span className="text-xs text-pink-300 font-medium">🎁 Exclusive 50% OFF available, one-time use</span>
+                <span className="text-xs text-pink-300 font-medium">Exclusive 50% OFF available, one-time use</span>
               </div>
             )}
           </div>
@@ -253,7 +241,7 @@ const Pricing = () => {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-80 rounded-2xl bg-white/5 animate-pulse" />
+              <div key={i} className="h-80 rounded-2xl bg-white/[0.03] animate-pulse" />
             ))}
           </div>
         ) : (
@@ -269,10 +257,9 @@ const Pricing = () => {
                 <div
                   key={pkg.id}
                   onMouseMove={handleMouseMove}
-                  className={`group relative flex flex-col rounded-2xl border ${accent.border} ${accent.hoverBorder} bg-[hsl(222,30%,11%)] transition-colors duration-300 ${isPopular ? 'ring-1 ring-yellow-500/40' : ''} [backface-visibility:hidden] [transform:translateZ(0)]`}
+                  className={`group relative flex flex-col rounded-2xl border ${accent.border} ${accent.hoverBorder} bg-white/[0.025] backdrop-blur-sm transition-colors duration-300 ${isPopular ? 'ring-1 ring-amber-500/40' : ''} [backface-visibility:hidden] [transform:translateZ(0)]`}
                   style={{ "--mouse-x": "50%", "--mouse-y": "50%" } as React.CSSProperties}
                 >
-                  {/* Flashlight overlay */}
                   <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl overflow-hidden" style={{ background: `radial-gradient(200px circle at var(--mouse-x) var(--mouse-y), ${accent.flash}, transparent 60%)` }} />
                   {accent.label && (
                     <div className="absolute -top-3 right-4 z-10">
@@ -282,9 +269,8 @@ const Pricing = () => {
                     </div>
                   )}
 
-                    <div className="p-6 flex-1 flex flex-col">
+                  <div className="p-6 flex-1 flex flex-col">
                     <h3 className="text-base font-semibold text-white/90 mb-3">{pkg.name}</h3>
-
                     <div className="flex items-baseline gap-2 mb-0.5">
                       {isReturning && (
                         <span className="text-sm text-white/30 line-through">{formatPrice(pkg.price_cents)}</span>
@@ -324,7 +310,7 @@ const Pricing = () => {
                         <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
                           <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
                         </div>
-                        <span>{index === 0 ? "Platform Access" : index === 1 ? "Advanced Platform Access" : index === 2 ? "Full Platform Access" : "Full Platform Access"}</span>
+                        <span>{index === 0 ? "Platform Access" : index === 1 ? "Advanced Platform Access" : "Full Platform Access"}</span>
                       </div>
                     </div>
 
@@ -333,7 +319,7 @@ const Pricing = () => {
                       disabled={!!purchasingId}
                       className={`group/btn w-full py-5 rounded-xl font-medium transition-colors ${
                         isPopular
-                          ? 'bg-yellow-500 hover:bg-yellow-400 text-black'
+                          ? 'bg-amber-500 hover:bg-amber-400 text-black'
                           : 'bg-white/[0.07] hover:bg-white/[0.12] text-white border border-white/10'
                       }`}
                     >
@@ -369,7 +355,7 @@ const Pricing = () => {
             {/* Custom Credits Card */}
             <div
               onMouseMove={handleMouseMove}
-              className="group relative flex flex-col rounded-2xl border border-purple-500/30 hover:border-purple-400/50 bg-[hsl(222,30%,11%)] transition-colors duration-300 [backface-visibility:hidden] [transform:translateZ(0)]"
+              className="group relative flex flex-col rounded-2xl border border-purple-500/30 hover:border-purple-400/50 bg-white/[0.025] backdrop-blur-sm transition-colors duration-300 [backface-visibility:hidden] [transform:translateZ(0)]"
               style={{ "--mouse-x": "50%", "--mouse-y": "50%" } as React.CSSProperties}
             >
               <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl overflow-hidden" style={{ background: "radial-gradient(200px circle at var(--mouse-x) var(--mouse-y), rgba(168,85,247,0.04), transparent 60%)" }} />
@@ -381,7 +367,6 @@ const Pricing = () => {
 
               <div className="p-6 flex-1 flex flex-col">
                 <h3 className="text-base font-semibold text-white/90 mb-3">Custom Needs</h3>
-
                 <div className="flex items-baseline gap-2 mb-0.5">
                   {isReturning && customTotalCents !== customDisplayCents && (
                     <span className="text-sm text-white/30 line-through">${Math.round(customTotalCents / 100)}</span>
@@ -473,7 +458,7 @@ const Pricing = () => {
 
       <Footer />
       <CheckoutModal checkoutUrl={checkoutUrl} onClose={handleCheckoutClose} />
-    </div>
+    </UnifiedBackground>
   );
 };
 

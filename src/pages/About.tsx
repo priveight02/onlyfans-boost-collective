@@ -1,8 +1,8 @@
 import { Link } from "react-router-dom";
 import { ArrowRight, Zap, Shield, Users, BarChart3, Bot, Globe, Sparkles } from "lucide-react";
 import Footer from "@/components/Footer";
-import Navigation from "@/components/Navigation";
 import PageSEO from "@/components/PageSEO";
+import UnifiedBackground from "@/components/UnifiedBackground";
 
 const features = [
   {
@@ -39,7 +39,7 @@ const features = [
 
 const About = () => {
   return (
-    <div className="min-h-screen bg-[hsl(222,35%,8%)]">
+    <UnifiedBackground variant="about">
        <PageSEO
         title="About Uplyze - The AI Platform Behind 700+ Growing Businesses"
         description="See how creators, agencies, and businesses use Uplyze to automate growth, manage fans, and scale revenue without hiring more people."
@@ -62,9 +62,6 @@ const About = () => {
       />
       {/* Hero */}
       <div className="relative pt-28 pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[500px] bg-primary/[0.06] rounded-full blur-[180px] pointer-events-none" />
-        <div className="absolute bottom-0 right-0 w-[400px] h-[300px] bg-purple-500/[0.04] rounded-full blur-[120px] pointer-events-none" />
-
         <div className="relative max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-white/50 text-xs font-medium uppercase tracking-widest mb-6">
             <Sparkles className="h-3.5 w-3.5 text-primary/70" />
@@ -74,7 +71,7 @@ const About = () => {
             The AI Platform Built for
             <span className="block bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent pb-2">Creators & Agencies</span>
           </h1>
-          <p className="text-[hsl(215,25%,70%)] text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10">
+          <p className="text-white/50 text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed mb-10">
             Uplyze is the intelligent platform that helps creators automate growth, manage fan relationships with AI, and scale revenue without scaling headcount.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -93,13 +90,13 @@ const About = () => {
         <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
             <h2 className="text-3xl font-bold text-white mb-4 tracking-tight">Why We Built Uplyze</h2>
-            <p className="text-[hsl(215,25%,70%)] leading-relaxed mb-4">
+            <p className="text-white/50 leading-relaxed mb-4">
               The creator economy generates over $100 billion annually, yet creators and their agencies still rely on spreadsheets, scattered DMs, and gut instinct to manage their business.
             </p>
-            <p className="text-[hsl(215,25%,70%)] leading-relaxed mb-4">
+            <p className="text-white/50 leading-relaxed mb-4">
               Traditional CRMs like HubSpot and Salesforce were built for enterprise sales teams — not for creators managing thousands of fan relationships across multiple platforms.
             </p>
-            <p className="text-[hsl(215,25%,70%)] leading-relaxed">
+            <p className="text-white/50 leading-relaxed">
               We built Uplyze to close that gap. An AI-native platform designed from the ground up for how creators and agencies actually work.
             </p>
           </div>
@@ -126,7 +123,7 @@ const About = () => {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-14">
           <h2 className="text-3xl font-bold text-white tracking-tight mb-3">What Uplyze Does</h2>
-          <p className="text-[hsl(215,25%,65%)] text-lg max-w-xl mx-auto">
+          <p className="text-white/45 text-lg max-w-xl mx-auto">
             Everything you need to manage, grow, and monetize your creator business — powered by AI.
           </p>
         </div>
@@ -137,7 +134,7 @@ const About = () => {
                 <feature.icon className="h-5 w-5 text-primary" />
               </div>
               <h3 className="text-white font-semibold text-base mb-2">{feature.title}</h3>
-              <p className="text-[hsl(215,25%,65%)] text-sm leading-relaxed">{feature.description}</p>
+              <p className="text-white/45 text-sm leading-relaxed">{feature.description}</p>
             </div>
           ))}
         </div>
@@ -146,11 +143,11 @@ const About = () => {
       {/* CTA */}
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="p-10 sm:p-14 rounded-2xl bg-white/[0.03] border border-white/[0.08] text-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.06] to-purple-500/[0.03] pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.06] to-transparent pointer-events-none" />
           <div className="relative">
             <Sparkles className="h-7 w-7 text-primary/60 mx-auto mb-4" />
             <h2 className="text-2xl sm:text-3xl font-bold text-white mb-3">Ready to Transform Your Business?</h2>
-            <p className="text-[hsl(215,25%,65%)] text-base mb-8 max-w-md mx-auto">
+            <p className="text-white/45 text-base mb-8 max-w-md mx-auto">
               Join 700+ creators and agencies already scaling with Uplyze. Free to start, no credit card required.
             </p>
             <Link to="/auth" className="inline-flex items-center gap-2 px-8 py-3.5 rounded-xl bg-primary text-white font-semibold hover:bg-primary/90 transition-all duration-300 hover:shadow-[0_0_30px_rgba(59,130,246,0.3)]">
@@ -161,7 +158,7 @@ const About = () => {
       </div>
 
       <Footer />
-    </div>
+    </UnifiedBackground>
   );
 };
 
