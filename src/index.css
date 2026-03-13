@@ -187,15 +187,6 @@
   background-clip: text;
   color: transparent;
   animation: logo-shimmer 8s linear infinite;
-  will-change: background-position;
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .uplyze-highlight {
-    animation: none;
-  }
 }
 
 .growth-pill {

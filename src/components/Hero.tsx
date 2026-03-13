@@ -56,13 +56,13 @@ const Hero = () => {
                 initial={{ opacity: 0, scale: 0.7, rotate: 0 }}
                 animate={{ opacity: 1, scale: 1, rotate: -8 }}
                 transition={{ duration: 0.6, delay: 0.6, type: "spring", stiffness: 180, damping: 10 }}
-                className="absolute -right-10 top-[55%] md:-right-16 md:top-[50%] z-20 inline-flex items-center gap-2.5 rounded-2xl px-5 py-2.5 md:px-7 md:py-3.5 text-xs md:text-base font-black shadow-xl whitespace-nowrap backdrop-blur-md border border-white/10"
+                className="absolute -right-10 top-[55%] md:-right-16 md:top-[50%] z-20 inline-flex items-center gap-2.5 rounded-2xl px-5 py-2.5 md:px-7 md:py-3.5 text-xs md:text-base font-black shadow-2xl whitespace-nowrap backdrop-blur-xl border border-white/20"
                 style={{
-                  background: 'linear-gradient(135deg, hsla(260,80%,70%,0.95), hsla(280,85%,65%,0.92), hsla(250,75%,75%,0.95))',
+                  background: 'linear-gradient(135deg, hsla(260,80%,70%,0.9), hsla(280,85%,65%,0.85), hsla(250,75%,75%,0.9))',
                   color: 'white',
-                  boxShadow: '0 4px 20px rgba(168,120,255,0.25), inset 0 1px 0 rgba(255,255,255,0.15)',
+                  boxShadow: '0 4px 30px rgba(168,120,255,0.4), 0 0 0 1px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.25)',
                   letterSpacing: '-0.01em',
-                  textShadow: '0 1px 2px rgba(0,0,0,0.15)',
+                  textShadow: '0 1px 2px rgba(0,0,0,0.2)',
                 }}
               >
                 <Zap className="h-4 w-4 md:h-5 md:w-5" fill="currentColor" />
