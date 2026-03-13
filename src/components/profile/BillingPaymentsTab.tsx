@@ -68,6 +68,8 @@ const formatDateTime = (iso: string) => {
 
 const BillingPaymentsTab = () => {
   const { user } = useAuth();
+  const { totalSpent } = useWallet();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
