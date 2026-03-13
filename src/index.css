@@ -187,6 +187,9 @@
   background-clip: text;
   color: transparent;
   animation: logo-shimmer 8s linear infinite;
+  will-change: background-position;
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
 }
 
 .growth-pill {
