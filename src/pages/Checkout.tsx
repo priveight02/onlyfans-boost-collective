@@ -172,10 +172,13 @@ const Checkout = () => {
 
   useEffect(() => {
     if (state === "success") {
-      const t = setTimeout(() => navigate("/platform"), 4000);
-      return () => clearTimeout(t);
+      // Redirect to thank-you page with order context
+      const params = new URLSearchParams();
+      params.set("credits", String(creditsAdded));
+      if (orderInfo) params.set("pkg", orderInfo.name);
+      navigate(`/thank-you?${params.toString()}`, { replace: true });
     }
-  }, [state, navigate]);
+  }, [state]); // eslint-disable-line
 
   const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
