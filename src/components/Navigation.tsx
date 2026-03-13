@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { Menu, X, LogIn, LogOut, Shield, Home, Briefcase, HelpCircle, User, CreditCard, LayoutDashboard } from "lucide-react";
+import { Menu, X, LogIn, LogOut, Shield, Home, Briefcase, HelpCircle, User, CreditCard, LayoutDashboard, Gift } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useWallet } from "@/hooks/useWallet";
 import { toast } from "sonner";
 import CreditsDisplay from "./CreditsDisplay";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
@@ -20,8 +21,10 @@ const Navigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, profile, loading, isAdmin, logout } = useAuth();
+  const { purchaseCount } = useWallet();
   const { settings: siteSettings } = useSiteSettings();
   const isPlatform = location.pathname.startsWith("/platform");
+  const showOffer = purchaseCount === 0;
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -50,6 +53,7 @@ const Navigation = () => {
     { name: "Home", href: "/", icon: Home },
     { name: "Services", href: "/services", icon: Briefcase },
     ...(!siteSettings.hide_pricing || isAdmin ? [{ name: "Pricing", href: "/pricing", icon: CreditCard }] : []),
+    ...(showOffer ? [{ name: "Offer", href: "/offer", icon: Gift }] : []),
     { name: "FAQ", href: "/faq", icon: HelpCircle },
   ];
 

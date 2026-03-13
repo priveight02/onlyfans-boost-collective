@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import { useAuth } from "@/hooks/useAuth";
 import PageSEO from "@/components/PageSEO";
+import UnifiedBackground from "@/components/UnifiedBackground";
 import {
   Accordion,
   AccordionContent,
@@ -22,98 +23,44 @@ const FAQ = () => {
     {
       category: "Getting Started",
       questions: [
-        {
-          question: "What is Uplyze's Platform?",
-          answer: "Uplyze provides an AI-powered growth platform. We combine intelligent customer management, workflow automation, multi-channel outreach, and advanced analytics into one unified system designed to help businesses, content creators, freelancers, and anyone looking to build a stronger digital presence scale faster and smarter."
-        },
-        {
-          question: "How do I get started?",
-          answer: "Simply create a free account to access the platform. You'll get a guided onboarding experience that walks you through setting up your pipeline, connecting your channels, and configuring your first automations. No credit card required to start."
-        },
-        {
-          question: "Do I need technical skills to use the platform?",
-          answer: "Not at all. Our platform is built with a no-code approach. You can set up automations, build workflows, and generate AI content without writing a single line of code. If you can use a spreadsheet, you can use our platform."
-        },
-        {
-          question: "What makes Uplyze different from other platforms?",
-          answer: "We're AI-first. While other platforms bolt on AI as an afterthought, our entire platform is built around intelligent automation. From AI lead scoring and predictive deal insights to automated content generation and smart engagement sequences, AI powers everything we do."
-        }
+        { question: "What is Uplyze's Platform?", answer: "Uplyze provides an AI-powered growth platform. We combine intelligent customer management, workflow automation, multi-channel outreach, and advanced analytics into one unified system designed to help businesses, content creators, freelancers, and anyone looking to build a stronger digital presence scale faster and smarter." },
+        { question: "How do I get started?", answer: "Simply create a free account to access the platform. You'll get a guided onboarding experience that walks you through setting up your pipeline, connecting your channels, and configuring your first automations. No credit card required to start." },
+        { question: "Do I need technical skills to use the platform?", answer: "Not at all. Our platform is built with a no-code approach. You can set up automations, build workflows, and generate AI content without writing a single line of code. If you can use a spreadsheet, you can use our platform." },
+        { question: "What makes Uplyze different from other platforms?", answer: "We're AI-first. While other platforms bolt on AI as an afterthought, our entire platform is built around intelligent automation. From AI lead scoring and predictive deal insights to automated content generation and smart engagement sequences, AI powers everything we do." }
       ]
     },
     {
       category: "AI & Automation",
       questions: [
-        {
-          question: "What AI features are included?",
-          answer: "Our platform includes AI lead scoring, predictive analytics, automated content generation (emails, social posts, scripts), smart workflow triggers, sentiment analysis, competitor intelligence, and an AI co-pilot that provides strategic recommendations based on your data."
-        },
-        {
-          question: "How does workflow automation work?",
-          answer: "You can create no-code automations using our visual builder. Set triggers (e.g., new lead, deal stage change, time-based), add conditions, and define actions (send email, update record, notify team, etc.). Automations run 24/7 so your business never sleeps."
-        },
-        {
-          question: "Can the AI generate content for my business?",
-          answer: "Yes! Our AI content engine can generate marketing emails, social media posts, ad copy, sales scripts, follow-up messages, and more. It learns your brand voice and adapts to your industry, so every piece of content sounds authentically you."
-        },
-        {
-          question: "Is my data used to train AI models?",
-          answer: "Never. Your data is yours and stays yours. We use enterprise-grade AI providers with strict data privacy agreements. Your business data is never used to train third-party models and is encrypted both in transit and at rest."
-        }
+        { question: "What AI features are included?", answer: "Our platform includes AI lead scoring, predictive analytics, automated content generation (emails, social posts, scripts), smart workflow triggers, sentiment analysis, competitor intelligence, and an AI co-pilot that provides strategic recommendations based on your data." },
+        { question: "How does workflow automation work?", answer: "You can create no-code automations using our visual builder. Set triggers (e.g., new lead, deal stage change, time-based), add conditions, and define actions (send email, update record, notify team, etc.). Automations run 24/7 so your business never sleeps." },
+        { question: "Can the AI generate content for my business?", answer: "Yes! Our AI content engine can generate marketing emails, social media posts, ad copy, sales scripts, follow-up messages, and more. It learns your brand voice and adapts to your industry, so every piece of content sounds authentically you." },
+        { question: "Is my data used to train AI models?", answer: "Never. Your data is yours and stays yours. We use enterprise-grade AI providers with strict data privacy agreements. Your business data is never used to train third-party models and is encrypted both in transit and at rest." }
       ]
     },
     {
       category: "Platform & Pipeline",
       questions: [
-        {
-          question: "How does the Platform pipeline work?",
-          answer: "Our Platform provides a visual pipeline where you can track every deal from first contact to close. AI automatically scores leads, suggests next actions, and predicts close probability. You can customize stages, add custom fields, and set up automated follow-ups."
-        },
-        {
-          question: "Can I manage my team in the platform?",
-          answer: "Absolutely. You can add team members with role-based permissions, track individual and team performance with KPI dashboards, assign tasks, manage contracts, and collaborate in real-time with built-in chat and notification systems."
-        },
-        {
-          question: "Does it integrate with my existing tools?",
-          answer: "Yes, we support integrations with popular platforms including email providers, social media channels, messaging apps, and more. Our API allows custom integrations with virtually any tool in your tech stack."
-        }
+        { question: "How does the Platform pipeline work?", answer: "Our Platform provides a visual pipeline where you can track every deal from first contact to close. AI automatically scores leads, suggests next actions, and predicts close probability. You can customize stages, add custom fields, and set up automated follow-ups." },
+        { question: "Can I manage my team in the platform?", answer: "Absolutely. You can add team members with role-based permissions, track individual and team performance with KPI dashboards, assign tasks, manage contracts, and collaborate in real-time with built-in chat and notification systems." },
+        { question: "Does it integrate with my existing tools?", answer: "Yes, we support integrations with popular platforms including email providers, social media channels, messaging apps, and more. Our API allows custom integrations with virtually any tool in your tech stack." }
       ]
     },
     {
       category: "Analytics & Reporting",
       questions: [
-        {
-          question: "What kind of analytics are available?",
-          answer: "You get real-time dashboards covering revenue analytics, team performance heatmaps, engagement metrics, pipeline health, conversion rates, and customer lifetime value tracking. All data can be exported as CSV or JSON for further analysis."
-        },
-        {
-          question: "Can I create custom reports?",
-          answer: "Yes! Our reporting engine lets you build custom reports with filters, date ranges, and visualization options. Schedule automated report delivery to your inbox, or share live dashboards with your team and stakeholders."
-        },
-        {
-          question: "How accurate are the AI predictions?",
-          answer: "Our predictive models improve over time as they learn from your business data. Most customers see meaningful accuracy within the first 30 days. The AI considers deal size, engagement patterns, historical close rates, and dozens of other signals to generate forecasts."
-        }
+        { question: "What kind of analytics are available?", answer: "You get real-time dashboards covering revenue analytics, team performance heatmaps, engagement metrics, pipeline health, conversion rates, and customer lifetime value tracking. All data can be exported as CSV or JSON for further analysis." },
+        { question: "Can I create custom reports?", answer: "Yes! Our reporting engine lets you build custom reports with filters, date ranges, and visualization options. Schedule automated report delivery to your inbox, or share live dashboards with your team and stakeholders." },
+        { question: "How accurate are the AI predictions?", answer: "Our predictive models improve over time as they learn from your business data. Most customers see meaningful accuracy within the first 30 days. The AI considers deal size, engagement patterns, historical close rates, and dozens of other signals to generate forecasts." }
       ]
     },
     {
       category: "Pricing & Security",
       questions: [
-        {
-          question: "What plans do you offer?",
-          answer: "We offer flexible plans starting with a free tier that includes core platform features. Our paid plans unlock advanced AI capabilities, unlimited automations, priority support, and enterprise features. Visit our pricing page for full details."
-        },
-        {
-          question: "Is my data secure?",
-          answer: "Security is our top priority. We use enterprise-grade encryption, role-based access controls, audit trails, and are fully GDPR compliant. Your data is hosted on secure cloud infrastructure with 99.9% uptime guarantee."
-        },
-        {
-          question: "Can I cancel anytime?",
-          answer: "Yes, no long-term contracts required. You can upgrade, downgrade, or cancel your plan at any time. If you cancel, your data remains accessible for 30 days so you can export everything you need."
-        },
-        {
-          question: "Do you offer enterprise solutions?",
-          answer: "Yes! For larger teams and custom requirements, we offer enterprise plans with dedicated support, custom integrations, SSO, advanced security features, and SLA guarantees. Contact our team to discuss your needs."
-        }
+        { question: "What plans do you offer?", answer: "We offer flexible plans starting with a free tier that includes core platform features. Our paid plans unlock advanced AI capabilities, unlimited automations, priority support, and enterprise features. Visit our pricing page for full details." },
+        { question: "Is my data secure?", answer: "Security is our top priority. We use enterprise-grade encryption, role-based access controls, audit trails, and are fully GDPR compliant. Your data is hosted on secure cloud infrastructure with 99.9% uptime guarantee." },
+        { question: "Can I cancel anytime?", answer: "Yes, no long-term contracts required. You can upgrade, downgrade, or cancel your plan at any time. If you cancel, your data remains accessible for 30 days so you can export everything you need." },
+        { question: "Do you offer enterprise solutions?", answer: "Yes! For larger teams and custom requirements, we offer enterprise plans with dedicated support, custom integrations, SSO, advanced security features, and SLA guarantees. Contact our team to discuss your needs." }
       ]
     }
   ];
@@ -128,7 +75,7 @@ const FAQ = () => {
   })).filter(category => category.questions.length > 0);
 
   return (
-    <div className="min-h-screen bg-[hsl(222,35%,8%)]">
+    <UnifiedBackground variant="faq">
       <PageSEO
         title="Uplyze FAQ - Got Questions? We've Got Answers"
         description="Everything you need to know about Uplyze. Features, pricing, AI tools, security, and how it helps creators, agencies, and businesses grow."
@@ -147,22 +94,16 @@ const FAQ = () => {
           })))
         }}
       />
-      {/* Ambient glows */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-purple-600/8 rounded-full blur-[120px]" />
-        <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-blue-600/6 rounded-full blur-[100px]" />
-        <div className="absolute top-2/3 left-1/2 w-[300px] h-[300px] bg-pink-600/4 rounded-full blur-[100px]" />
-      </div>
 
       {/* Hero Section */}
       <div className="relative pt-32 pb-10 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-300 text-sm font-medium mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-white/50 text-sm font-medium mb-6">
             <HelpCircle className="h-3.5 w-3.5" />
             Help Center
           </div>
           <h1 className="text-4xl md:text-6xl font-bold text-white mb-5 font-heading animate-fade-in">
-            Frequently Asked <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent">Questions</span>
+            Frequently Asked <span className="bg-gradient-to-r from-primary to-blue-400 bg-clip-text text-transparent">Questions</span>
           </h1>
           <p className="text-lg text-white/40 max-w-2xl mx-auto mb-2 animate-fade-in">
             Find answers about our AI-powered platform, automation features, and how we help businesses, content creators, and entrepreneurs grow their digital presence.
@@ -180,7 +121,7 @@ const FAQ = () => {
               placeholder="Search for answers..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 bg-[hsl(222,30%,12%)]/80 backdrop-blur-xl border border-white/[0.08] rounded-xl focus:ring-2 focus:ring-purple-500/30 focus:border-purple-500/30 transition-all duration-200 text-lg text-white placeholder-white/30"
+              className="w-full pl-12 pr-4 py-4 bg-white/[0.04] backdrop-blur-xl border border-white/[0.08] rounded-xl focus:ring-2 focus:ring-primary/30 focus:border-primary/30 transition-all duration-200 text-lg text-white placeholder-white/30"
             />
           </div>
         </div>
@@ -197,19 +138,15 @@ const FAQ = () => {
                   <AccordionItem 
                     key={index} 
                     value={`${category.category}-${index}`}
-                    className="group bg-[hsl(222,30%,12%)]/80 backdrop-blur-xl rounded-xl border border-white/[0.08] hover:border-white/15 overflow-hidden transition-all duration-300"
+                    className="group bg-white/[0.03] backdrop-blur-sm rounded-xl border border-white/[0.08] hover:border-white/15 overflow-hidden transition-all duration-300"
                   >
-                    <AccordionTrigger 
-                      className="px-6 py-4 text-left text-base font-semibold text-white/90 hover:text-white transition-all duration-300 [&[data-state=open]>svg]:rotate-180"
-                    >
+                    <AccordionTrigger className="px-6 py-4 text-left text-base font-semibold text-white/90 hover:text-white transition-all duration-300 [&[data-state=open]>svg]:rotate-180">
                       <div className="flex items-center w-full pr-4">
                         <span className="flex-1">{faq.question}</span>
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="px-6 pb-4">
-                      <div className="text-white/70 leading-relaxed text-base">
-                        {faq.answer}
-                      </div>
+                      <div className="text-white/60 leading-relaxed text-base">{faq.answer}</div>
                     </AccordionContent>
                   </AccordionItem>
                 ))}
@@ -236,7 +173,7 @@ const FAQ = () => {
               { icon: MessageCircle, value: "<2hrs", label: "Support Response", gradient: "from-blue-500/15 to-cyan-500/15", accent: "text-blue-400" },
               { icon: Shield, value: "100%", label: "GDPR Compliant", gradient: "from-emerald-500/15 to-teal-500/15", accent: "text-emerald-400" }
             ].map((stat) => (
-              <div key={stat.label} className="p-6 rounded-xl bg-[hsl(222,30%,12%)]/80 backdrop-blur-xl border border-white/[0.08] hover:border-white/15 transition-all duration-300 text-center">
+              <div key={stat.label} className="p-6 rounded-xl bg-white/[0.03] backdrop-blur-sm border border-white/[0.08] hover:border-white/15 transition-all duration-300 text-center">
                 <div className={`w-11 h-11 bg-gradient-to-br ${stat.gradient} rounded-xl flex items-center justify-center mx-auto mb-3 border border-white/10`}>
                   <stat.icon className="h-5 w-5 text-white" />
                 </div>
@@ -250,7 +187,6 @@ const FAQ = () => {
 
       {/* CTA Section */}
       <section className="pt-8 pb-20 relative overflow-hidden z-10">
-        <div className="absolute inset-0 bg-gradient-to-t from-purple-600/5 to-transparent" />
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 font-heading animate-fade-in">
             Ready to Start Growing?
@@ -261,7 +197,7 @@ const FAQ = () => {
           <Button
             size="lg"
             onClick={() => navigate(ctaPath)}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white hover:scale-105 transition-all duration-300 px-14 py-6 text-lg font-bold rounded-xl shadow-lg shadow-purple-500/20"
+            className="bg-primary hover:bg-primary/90 text-white hover:scale-105 transition-all duration-300 px-14 py-6 text-lg font-bold rounded-xl shadow-lg shadow-primary/20"
           >
             Get Started
           </Button>
@@ -269,7 +205,7 @@ const FAQ = () => {
       </section>
 
       <Footer />
-    </div>
+    </UnifiedBackground>
   );
 };
 
