@@ -114,10 +114,18 @@ const findOrCreateDiscount = async (basisPoints: number, tierName: string): Prom
 
   // Not found — create it
   const pct = basisPoints / 100;
+  const FRIENDLY_NAMES: Record<string, string> = {
+    "first_order_40": `🎉 Welcome Gift — ${pct}% OFF Your First Order`,
+    "loyalty_30": `💎 Loyal Member — ${pct}% OFF`,
+    "loyalty_20": `⭐ Valued Customer — ${pct}% OFF`,
+    "loyalty_10": `🙏 Thank You Reward — ${pct}% OFF`,
+    "retention_50": `🔥 Exclusive VIP Offer — ${pct}% OFF`,
+  };
+  const friendlyName = FRIENDLY_NAMES[tierName] || `Special Offer — ${pct}% OFF`;
   const createRes = await polarFetch("/discounts/", {
     method: "POST",
     body: JSON.stringify({
-      name: `Auto ${pct}% OFF (${tierName})`,
+      name: friendlyName,
       type: "percentage",
       basis_points: basisPoints,
       duration: "once",
