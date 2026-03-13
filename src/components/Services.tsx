@@ -1,15 +1,15 @@
-import { Send, TrendingUp, Workflow, Crosshair, LineChart, Zap, ArrowRight, Sparkles, Train, Lock } from "lucide-react";
+import { Send, TrendingUp, Workflow, Crosshair, LineChart, Zap, ArrowRight, Sparkles, Lock } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect, useRef, useState } from "react";
 
 const services = [
-  { title: "Automated Outreach", description: "AI handles DMs, follow-ups & lead nurturing around the clock", icon: Send, color: "#f97316", glow: "rgba(249,115,22,0.25)" },
-  { title: "Growth Pipeline", description: "AI scores leads, qualifies prospects & closes deals automatically", icon: TrendingUp, color: "#a855f7", glow: "rgba(168,85,247,0.25)" },
-  { title: "Smart Automation", description: "No-code workflows that run your entire business on autopilot", icon: Workflow, color: "#3b82f6", glow: "rgba(59,130,246,0.25)" },
-  { title: "Audience Targeting", description: "Find, engage & convert your ideal audience with AI precision", icon: Crosshair, color: "#8b5cf6", glow: "rgba(139,92,246,0.25)" },
-  { title: "Revenue Intelligence", description: "Real-time analytics, forecasting & actionable growth insights", icon: LineChart, color: "#10b981", glow: "rgba(16,185,129,0.25)" },
+  { title: "Automated Outreach", description: "AI handles DMs, follow-ups & lead nurturing 24/7", icon: Send, color: "#f97316", glow: "rgba(249,115,22,0.3)", accent: "hsl(25,95%,53%)" },
+  { title: "Growth Pipeline", description: "AI scores leads, qualifies & closes deals automatically", icon: TrendingUp, color: "#a855f7", glow: "rgba(168,85,247,0.3)", accent: "hsl(270,91%,65%)" },
+  { title: "Smart Automation", description: "No-code workflows running your business on autopilot", icon: Workflow, color: "#3b82f6", glow: "rgba(59,130,246,0.3)", accent: "hsl(217,91%,60%)" },
+  { title: "Audience Targeting", description: "Find & convert your ideal audience with AI precision", icon: Crosshair, color: "#8b5cf6", glow: "rgba(139,92,246,0.3)", accent: "hsl(258,90%,66%)" },
+  { title: "Revenue Intelligence", description: "Real-time analytics, forecasting & growth insights", icon: LineChart, color: "#10b981", glow: "rgba(16,185,129,0.3)", accent: "hsl(160,84%,39%)" },
 ];
 
 const Services = () => {
@@ -22,7 +22,7 @@ const Services = () => {
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => setIsVisible(entry.isIntersecting),
-      { threshold: 0.1 }
+      { threshold: 0.05 }
     );
     if (sectionRef.current) observer.observe(sectionRef.current);
     return () => observer.disconnect();
@@ -51,7 +51,7 @@ const Services = () => {
           </p>
         </motion.div>
 
-        {/* Browser Window — matching AutopilotShowcase exactly */}
+        {/* Browser Window */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -64,7 +64,7 @@ const Services = () => {
             contain: 'layout style paint',
           }}
         >
-          {/* Browser Chrome — identical to AutopilotShowcase */}
+          {/* Chrome */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]" style={{ background: 'hsl(222, 30%, 10%)' }}>
             <div className="flex items-center gap-1.5">
               <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#ff5f57' }} />
@@ -81,220 +81,312 @@ const Services = () => {
             </div>
           </div>
 
-          {/* Train Scene */}
-          <div className="train-scene-v3">
+          {/* ═══ TRAIN SCENE ═══ */}
+          <div className="tx-scene">
             {isVisible && (
               <>
-                {/* SKY */}
-                <div className="ts3-sky" />
+                <div className="tx-sky" />
+                {/* Stars */}
+                {[
+                  { t: '5%', l: '10%' }, { t: '12%', l: '28%' }, { t: '3%', l: '52%' },
+                  { t: '9%', l: '72%' }, { t: '16%', l: '88%' }, { t: '7%', l: '42%' },
+                  { t: '14%', l: '62%' }, { t: '4%', l: '85%' },
+                ].map((s, i) => (
+                  <div key={i} className="tx-star" style={{ top: s.t, left: s.l, animationDelay: `${i * 0.4}s` }} />
+                ))}
+                <div className="tx-moon" />
 
-                {/* STARS */}
-                <div className="ts3-star" style={{ top: '6%', left: '12%' }} />
-                <div className="ts3-star" style={{ top: '14%', left: '35%' }} />
-                <div className="ts3-star" style={{ top: '4%', left: '58%' }} />
-                <div className="ts3-star" style={{ top: '10%', left: '78%' }} />
-                <div className="ts3-star" style={{ top: '18%', left: '92%' }} />
-                <div className="ts3-star" style={{ top: '8%', left: '48%' }} />
-
-                {/* MOON */}
-                <div className="ts3-moon" />
-
-                {/* NYC SKYLINE — far layer */}
-                <div className="ts3-skyline-wrap">
-                  <svg className="ts3-skyline" viewBox="0 0 2800 220" preserveAspectRatio="none">
-                    <rect x="30" y="65" width="38" height="155" fill="hsl(222,25%,13%)" rx="2" />
-                    <rect x="34" y="72" width="5" height="7" fill="hsl(45,80%,55%)" opacity="0.25" rx="1" />
-                    <rect x="44" y="72" width="5" height="7" fill="hsl(45,80%,55%)" opacity="0.15" rx="1" />
-                    <rect x="34" y="85" width="5" height="7" fill="hsl(200,60%,45%)" opacity="0.2" rx="1" />
-                    <rect x="90" y="28" width="55" height="192" fill="hsl(222,28%,11%)" rx="3" />
-                    <rect x="95" y="35" width="7" height="9" fill="hsl(45,80%,55%)" opacity="0.3" rx="1" />
-                    <rect x="107" y="35" width="7" height="9" fill="hsl(200,60%,45%)" opacity="0.2" rx="1" />
-                    <rect x="119" y="35" width="7" height="9" fill="hsl(45,80%,55%)" opacity="0.15" rx="1" />
-                    <rect x="95" y="52" width="7" height="9" fill="hsl(200,60%,45%)" opacity="0.25" rx="1" />
-                    <rect x="107" y="52" width="7" height="9" fill="hsl(45,80%,55%)" opacity="0.35" rx="1" />
-                    <polygon points="115,28 118,10 121,28" fill="hsl(222,22%,15%)" />
-                    <circle cx="118" cy="8" r="2" fill="hsl(0,80%,50%)" opacity="0.5" />
-                    <rect x="170" y="50" width="42" height="170" fill="hsl(222,22%,12%)" rx="2" />
-                    <rect x="175" y="58" width="6" height="8" fill="hsl(45,80%,55%)" opacity="0.2" rx="1" />
-                    <rect x="185" y="58" width="6" height="8" fill="hsl(200,60%,45%)" opacity="0.3" rx="1" />
-                    <rect x="235" y="12" width="65" height="208" fill="hsl(222,30%,10%)" rx="3" />
-                    <rect x="240" y="20" width="8" height="10" fill="hsl(45,80%,55%)" opacity="0.3" rx="1" />
-                    <rect x="254" y="20" width="8" height="10" fill="hsl(200,60%,45%)" opacity="0.15" rx="1" />
-                    <rect x="268" y="20" width="8" height="10" fill="hsl(45,80%,55%)" opacity="0.25" rx="1" />
-                    <rect x="240" y="38" width="8" height="10" fill="hsl(200,60%,45%)" opacity="0.2" rx="1" />
-                    <rect x="254" y="38" width="8" height="10" fill="hsl(45,80%,55%)" opacity="0.35" rx="1" />
-                    <rect x="268" y="38" width="8" height="10" fill="hsl(200,60%,45%)" opacity="0.1" rx="1" />
-                    <polygon points="262,12 267,0 272,12" fill="hsl(222,25%,14%)" />
-                    <rect x="325" y="48" width="48" height="172" fill="hsl(222,26%,11.5%)" rx="2" />
-                    <rect x="330" y="55" width="6" height="8" fill="hsl(45,80%,55%)" opacity="0.2" rx="1" />
-                    <rect x="340" y="55" width="6" height="8" fill="hsl(200,60%,45%)" opacity="0.25" rx="1" />
-                    <rect x="350" y="55" width="6" height="8" fill="hsl(45,80%,55%)" opacity="0.3" rx="1" />
-                    <rect x="398" y="72" width="32" height="148" fill="hsl(222,24%,12.5%)" rx="2" />
-                    <rect x="403" y="80" width="5" height="7" fill="hsl(45,80%,55%)" opacity="0.2" rx="1" />
-                    <rect x="455" y="22" width="58" height="198" fill="hsl(222,28%,10.5%)" rx="3" />
-                    <rect x="460" y="30" width="7" height="9" fill="hsl(45,80%,55%)" opacity="0.3" rx="1" />
-                    <rect x="472" y="30" width="7" height="9" fill="hsl(200,60%,45%)" opacity="0.2" rx="1" />
-                    <rect x="484" y="30" width="7" height="9" fill="hsl(45,80%,55%)" opacity="0.15" rx="1" />
-                    <rect x="538" y="58" width="40" height="162" fill="hsl(222,23%,13%)" rx="2" />
-                    <rect x="600" y="35" width="52" height="185" fill="hsl(222,27%,11%)" rx="2" />
-                    <rect x="605" y="42" width="7" height="9" fill="hsl(45,80%,55%)" opacity="0.2" rx="1" />
-                    <rect x="617" y="42" width="7" height="9" fill="hsl(200,60%,45%)" opacity="0.3" rx="1" />
-                    {/* Duplicate for seamless loop */}
-                    <rect x="700" y="65" width="38" height="155" fill="hsl(222,25%,13%)" rx="2" />
-                    <rect x="760" y="28" width="55" height="192" fill="hsl(222,28%,11%)" rx="3" />
-                    <rect x="840" y="50" width="42" height="170" fill="hsl(222,22%,12%)" rx="2" />
-                    <rect x="905" y="12" width="65" height="208" fill="hsl(222,30%,10%)" rx="3" />
-                    <polygon points="932,12 937,0 942,12" fill="hsl(222,25%,14%)" />
-                    <rect x="995" y="48" width="48" height="172" fill="hsl(222,26%,11.5%)" rx="2" />
-                    <rect x="1068" y="72" width="32" height="148" fill="hsl(222,24%,12.5%)" rx="2" />
-                    <rect x="1125" y="22" width="58" height="198" fill="hsl(222,28%,10.5%)" rx="3" />
-                    <rect x="1208" y="58" width="40" height="162" fill="hsl(222,23%,13%)" rx="2" />
-                    <rect x="1270" y="35" width="52" height="185" fill="hsl(222,27%,11%)" rx="2" />
-                    <rect x="1370" y="65" width="38" height="155" fill="hsl(222,25%,13%)" rx="2" />
+                {/* Skyline far */}
+                <div className="tx-skyline-far">
+                  <svg viewBox="0 0 3000 260" preserveAspectRatio="none" className="tx-skyline-svg">
+                    {/* Empire State inspired */}
+                    <rect x="120" y="15" width="70" height="245" fill="hsl(222,28%,11%)" rx="3" />
+                    <rect x="140" y="5" width="30" height="15" fill="hsl(222,25%,13%)" rx="2" />
+                    <polygon points="150,5 155,-8 160,5" fill="hsl(222,22%,14%)" />
+                    <circle cx="155" cy="-10" r="2" fill="hsl(0,70%,50%)" opacity="0.6" />
+                    {/* Windows */}
+                    {[25, 40, 55, 70, 85, 100, 115, 130, 145, 160].map((y, i) => (
+                      <g key={`w1-${i}`}>
+                        <rect x="128" y={y} width="6" height="8" fill="hsl(45,80%,55%)" opacity={0.15 + (i % 3) * 0.1} rx="1" />
+                        <rect x="140" y={y} width="6" height="8" fill="hsl(200,60%,50%)" opacity={0.1 + (i % 2) * 0.15} rx="1" />
+                        <rect x="152" y={y} width="6" height="8" fill="hsl(45,80%,55%)" opacity={0.2 - (i % 3) * 0.05} rx="1" />
+                        <rect x="164" y={y} width="6" height="8" fill="hsl(200,60%,50%)" opacity={0.12 + (i % 2) * 0.1} rx="1" />
+                        <rect x="176" y={y} width="6" height="8" fill="hsl(45,80%,55%)" opacity={0.18 - (i % 3) * 0.04} rx="1" />
+                      </g>
+                    ))}
+                    {/* Chrysler-like */}
+                    <rect x="280" y="30" width="55" height="230" fill="hsl(222,30%,10%)" rx="3" />
+                    <polygon points="295,30 307,8 320,30" fill="hsl(222,26%,12%)" />
+                    {[42, 58, 74, 90, 106, 122, 138].map((y, i) => (
+                      <g key={`w2-${i}`}>
+                        <rect x="288" y={y} width="5" height="7" fill="hsl(45,80%,55%)" opacity={0.12 + (i % 3) * 0.1} rx="1" />
+                        <rect x="298" y={y} width="5" height="7" fill="hsl(200,60%,50%)" opacity={0.15 + (i % 2) * 0.08} rx="1" />
+                        <rect x="308" y={y} width="5" height="7" fill="hsl(45,80%,55%)" opacity={0.2 - (i % 3) * 0.06} rx="1" />
+                        <rect x="318" y={y} width="5" height="7" fill="hsl(200,60%,50%)" opacity={0.1 + (i % 2) * 0.12} rx="1" />
+                      </g>
+                    ))}
+                    {/* Wide office block */}
+                    <rect x="400" y="55" width="85" height="205" fill="hsl(222,24%,11.5%)" rx="2" />
+                    {[65, 80, 95, 110, 125, 140].map((y, i) => (
+                      <g key={`w3-${i}`}>
+                        {[408, 420, 432, 444, 456, 468].map((x, j) => (
+                          <rect key={j} x={x} y={y} width="5" height="7" fill={j % 2 === 0 ? "hsl(45,80%,55%)" : "hsl(200,60%,50%)"} opacity={0.08 + ((i + j) % 4) * 0.06} rx="1" />
+                        ))}
+                      </g>
+                    ))}
+                    {/* More buildings */}
+                    <rect x="540" y="70" width="40" height="190" fill="hsl(222,22%,12%)" rx="2" />
+                    <rect x="610" y="38" width="50" height="222" fill="hsl(222,26%,10.5%)" rx="3" />
+                    <rect x="700" y="60" width="35" height="200" fill="hsl(222,20%,11%)" rx="2" />
+                    <rect x="770" y="25" width="60" height="235" fill="hsl(222,28%,10%)" rx="3" />
+                    <polygon points="795,25 800,10 805,25" fill="hsl(222,24%,13%)" />
+                    <rect x="870" y="50" width="45" height="210" fill="hsl(222,23%,11.5%)" rx="2" />
+                    <rect x="950" y="68" width="38" height="192" fill="hsl(222,21%,12%)" rx="2" />
+                    {/* Duplicate for loop */}
+                    <rect x="1050" y="15" width="70" height="245" fill="hsl(222,28%,11%)" rx="3" />
+                    <rect x="1200" y="30" width="55" height="230" fill="hsl(222,30%,10%)" rx="3" />
+                    <rect x="1320" y="55" width="85" height="205" fill="hsl(222,24%,11.5%)" rx="2" />
+                    <rect x="1470" y="38" width="50" height="222" fill="hsl(222,26%,10.5%)" rx="3" />
                   </svg>
                 </div>
 
-                {/* NEAR SKYLINE */}
-                <div className="ts3-skyline-near-wrap">
-                  <svg className="ts3-skyline-near" viewBox="0 0 2400 140" preserveAspectRatio="none">
-                    <rect x="20" y="40" width="55" height="100" fill="hsl(222,20%,9%)" rx="2" />
-                    <rect x="100" y="20" width="40" height="120" fill="hsl(222,18%,8%)" rx="2" />
-                    <rect x="165" y="55" width="35" height="85" fill="hsl(222,22%,9.5%)" rx="2" />
-                    <rect x="225" y="10" width="50" height="130" fill="hsl(222,20%,7.5%)" rx="3" />
-                    <rect x="300" y="35" width="45" height="105" fill="hsl(222,18%,8.5%)" rx="2" />
-                    <rect x="370" y="50" width="30" height="90" fill="hsl(222,22%,9%)" rx="2" />
-                    <rect x="425" y="15" width="55" height="125" fill="hsl(222,20%,8%)" rx="3" />
-                    <rect x="505" y="45" width="40" height="95" fill="hsl(222,18%,9%)" rx="2" />
-                    <rect x="570" y="25" width="48" height="115" fill="hsl(222,22%,8%)" rx="2" />
-                    <rect x="645" y="60" width="35" height="80" fill="hsl(222,20%,9.5%)" rx="2" />
-                    <rect x="720" y="40" width="55" height="100" fill="hsl(222,20%,9%)" rx="2" />
-                    <rect x="800" y="20" width="40" height="120" fill="hsl(222,18%,8%)" rx="2" />
-                    <rect x="865" y="55" width="35" height="85" fill="hsl(222,22%,9.5%)" rx="2" />
-                    <rect x="925" y="10" width="50" height="130" fill="hsl(222,20%,7.5%)" rx="3" />
-                    <rect x="1000" y="35" width="45" height="105" fill="hsl(222,18%,8.5%)" rx="2" />
-                    <rect x="1070" y="50" width="30" height="90" fill="hsl(222,22%,9%)" rx="2" />
-                    <rect x="1125" y="15" width="55" height="125" fill="hsl(222,20%,8%)" rx="3" />
-                    <rect x="1205" y="45" width="40" height="95" fill="hsl(222,18%,9%)" rx="2" />
+                {/* Skyline near */}
+                <div className="tx-skyline-near">
+                  <svg viewBox="0 0 2400 160" preserveAspectRatio="none" className="tx-skyline-near-svg">
+                    <rect x="15" y="35" width="60" height="125" fill="hsl(222,18%,8%)" rx="2" />
+                    <rect x="95" y="15" width="48" height="145" fill="hsl(222,20%,7%)" rx="3" />
+                    <rect x="170" y="50" width="38" height="110" fill="hsl(222,16%,8.5%)" rx="2" />
+                    <rect x="240" y="8" width="55" height="152" fill="hsl(222,22%,7.5%)" rx="3" />
+                    <rect x="325" y="30" width="42" height="130" fill="hsl(222,18%,8%)" rx="2" />
+                    <rect x="395" y="55" width="35" height="105" fill="hsl(222,20%,9%)" rx="2" />
+                    <rect x="460" y="12" width="60" height="148" fill="hsl(222,22%,7%)" rx="3" />
+                    <rect x="550" y="40" width="45" height="120" fill="hsl(222,16%,8%)" rx="2" />
+                    <rect x="625" y="22" width="52" height="138" fill="hsl(222,20%,7.5%)" rx="2" />
+                    <rect x="710" y="58" width="38" height="102" fill="hsl(222,18%,9%)" rx="2" />
+                    {/* Dup */}
+                    <rect x="790" y="35" width="60" height="125" fill="hsl(222,18%,8%)" rx="2" />
+                    <rect x="880" y="15" width="48" height="145" fill="hsl(222,20%,7%)" rx="3" />
+                    <rect x="960" y="50" width="38" height="110" fill="hsl(222,16%,8.5%)" rx="2" />
+                    <rect x="1030" y="8" width="55" height="152" fill="hsl(222,22%,7.5%)" rx="3" />
+                    <rect x="1120" y="30" width="42" height="130" fill="hsl(222,18%,8%)" rx="2" />
+                    <rect x="1200" y="12" width="60" height="148" fill="hsl(222,22%,7%)" rx="3" />
                   </svg>
                 </div>
 
-                {/* GROUND */}
-                <div className="ts3-ground" />
-                <div className="ts3-gravel" />
+                <div className="tx-ground" />
+                <div className="tx-gravel" />
 
-                {/* RAILS */}
-                <div className="ts3-rails">
-                  <div className="ts3-ties" />
-                  <div className="ts3-rail ts3-rail-t" />
-                  <div className="ts3-rail ts3-rail-b" />
+                {/* Rails */}
+                <div className="tx-rails">
+                  <div className="tx-ties" />
+                  <div className="tx-rail tx-rail-t" />
+                  <div className="tx-rail tx-rail-b" />
                 </div>
 
-                {/* SPEED LINES */}
-                <div className="ts3-speed">
-                  <div className="ts3-speed-l" style={{ top: '15%', animationDuration: '0.55s' }} />
-                  <div className="ts3-speed-l" style={{ top: '35%', animationDuration: '0.4s', animationDelay: '0.12s' }} />
-                  <div className="ts3-speed-l" style={{ top: '55%', animationDuration: '0.5s', animationDelay: '0.25s' }} />
-                  <div className="ts3-speed-l" style={{ top: '75%', animationDuration: '0.45s', animationDelay: '0.08s' }} />
+                {/* Sparks from wheels */}
+                <div className="tx-sparks">
+                  <div className="tx-spark" style={{ animationDelay: '0s' }} />
+                  <div className="tx-spark" style={{ animationDelay: '0.3s' }} />
+                  <div className="tx-spark" style={{ animationDelay: '0.6s' }} />
                 </div>
 
-                {/* SMOKE */}
-                <div className="ts3-smoke">
-                  <div className="ts3-puff" style={{ animationDelay: '0s' }} />
-                  <div className="ts3-puff" style={{ animationDelay: '0.7s' }} />
-                  <div className="ts3-puff" style={{ animationDelay: '1.4s' }} />
+                {/* Smoke */}
+                <div className="tx-smoke">
+                  <div className="tx-puff" style={{ animationDelay: '0s' }} />
+                  <div className="tx-puff" style={{ animationDelay: '0.8s' }} />
+                  <div className="tx-puff" style={{ animationDelay: '1.6s' }} />
+                  <div className="tx-puff tx-puff-lg" style={{ animationDelay: '0.4s' }} />
                 </div>
 
-                {/* ══════ THE TRAIN ══════ */}
-                <div className="ts3-train">
-                  {/* LOCOMOTIVE */}
-                  <div className="ts3-loco">
-                    {/* Chimney */}
-                    <div className="ts3-chimney"><div className="ts3-chimney-cap" /></div>
+                {/* ══════ TRAIN ══════ */}
+                <div className="tx-train">
+
+                  {/* ═══ LOCOMOTIVE ═══ */}
+                  <div className="tx-loco">
+                    {/* Smokestack */}
+                    <div className="tx-stack">
+                      <div className="tx-stack-cap" />
+                      <div className="tx-stack-ring" />
+                    </div>
                     {/* Steam dome */}
-                    <div className="ts3-dome" />
+                    <div className="tx-sdome" />
+                    {/* Safety valve */}
+                    <div className="tx-valve" />
+                    {/* Sand dome */}
+                    <div className="tx-sanddome" />
                     {/* Bell */}
-                    <div className="ts3-bell" />
-                    {/* Boiler */}
-                    <div className="ts3-boiler">
-                      <div className="ts3-band" style={{ top: 6 }} />
-                      <div className="ts3-band" style={{ top: 20 }} />
-                      <div className="ts3-band" style={{ bottom: 6 }} />
-                      <div className="ts3-headlight"><div className="ts3-beam" /></div>
-                      <div className="ts3-rivet" style={{ top: 12, left: 15 }} />
-                      <div className="ts3-rivet" style={{ top: 12, left: 35 }} />
-                      <div className="ts3-rivet" style={{ top: 12, left: 55 }} />
-                      <div className="ts3-rivet" style={{ bottom: 12, left: 25 }} />
-                      <div className="ts3-rivet" style={{ bottom: 12, left: 45 }} />
-                    </div>
-                    {/* Cab */}
-                    <div className="ts3-cab">
-                      <div className="ts3-cab-roof" />
-                      <div className="ts3-cab-win" />
-                      <div className="ts3-cab-win ts3-cab-win-2" />
-                      <div className="ts3-cab-logo">
-                        <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze" className="ts3-cab-logo-img" />
+                    <div className="tx-bell"><div className="tx-bell-clap" /></div>
+
+                    {/* Boiler — big cylindrical body */}
+                    <div className="tx-boiler">
+                      {/* Metal bands */}
+                      <div className="tx-mband" style={{ top: 5 }} />
+                      <div className="tx-mband" style={{ top: 18 }} />
+                      <div className="tx-mband" style={{ top: 31 }} />
+                      <div className="tx-mband" style={{ bottom: 5 }} />
+                      {/* Rivets row */}
+                      {[10, 24, 38, 52, 66, 80, 94, 108].map(x => (
+                        <div key={x} className="tx-rv" style={{ top: 13, left: x }} />
+                      ))}
+                      {[10, 24, 38, 52, 66, 80, 94, 108].map(x => (
+                        <div key={`b${x}`} className="tx-rv" style={{ bottom: 13, left: x }} />
+                      ))}
+                      {/* Headlight */}
+                      <div className="tx-hl">
+                        <div className="tx-hl-lens" />
+                        <div className="tx-hl-beam" />
                       </div>
+                      {/* Number plate */}
+                      <div className="tx-numplate">U-1</div>
                     </div>
+
+                    {/* Cab — driver compartment */}
+                    <div className="tx-cab">
+                      <div className="tx-cab-roof" />
+                      <div className="tx-cab-side" />
+                      {/* Windows with interior glow */}
+                      <div className="tx-cab-win"><div className="tx-cab-win-glow" /></div>
+                      <div className="tx-cab-win tx-cab-win2"><div className="tx-cab-win-glow" /></div>
+                      {/* Uplyze logo on cab */}
+                      <div className="tx-cab-logo">
+                        <img src="/lovable-uploads/uplyze-logo.png" alt="U" className="tx-cab-logo-img" />
+                      </div>
+                      {/* Grab rail */}
+                      <div className="tx-grab" />
+                    </div>
+
+                    {/* Running board */}
+                    <div className="tx-runboard" />
+
                     {/* Cowcatcher */}
-                    <div className="ts3-cow">
-                      <div className="ts3-cow-bar" />
-                      <div className="ts3-cow-bar ts3-cow-bar-2" />
+                    <div className="tx-cowcatch">
+                      <div className="tx-cowbar" />
+                      <div className="tx-cowbar tx-cowbar2" />
+                      <div className="tx-cowbar tx-cowbar3" />
+                      <div className="tx-cowbase" />
                     </div>
-                    {/* Drive wheels */}
-                    <div className="ts3-drv ts3-drv-1">
-                      <div className="ts3-spoke" /><div className="ts3-spoke ts3-spoke-2" /><div className="ts3-hub" />
+
+                    {/* Pilot truck wheel */}
+                    <div className="tx-pilot-wh">
+                      <div className="tx-sp" /><div className="tx-sp tx-sp2" /><div className="tx-sp tx-sp3" />
+                      <div className="tx-whub" />
                     </div>
-                    <div className="ts3-drv ts3-drv-2">
-                      <div className="ts3-spoke" /><div className="ts3-spoke ts3-spoke-2" /><div className="ts3-hub" />
+
+                    {/* Big drive wheels */}
+                    <div className="tx-bigwh tx-bigwh1">
+                      <div className="tx-sp" /><div className="tx-sp tx-sp2" /><div className="tx-sp tx-sp3" /><div className="tx-sp tx-sp4" />
+                      <div className="tx-whub tx-whub-lg" />
+                      <div className="tx-crank" />
                     </div>
-                    <div className="ts3-fwh"><div className="ts3-hub ts3-hub-sm" /></div>
-                    <div className="ts3-rod" />
-                    <div className="ts3-pipe" />
+                    <div className="tx-bigwh tx-bigwh2">
+                      <div className="tx-sp" /><div className="tx-sp tx-sp2" /><div className="tx-sp tx-sp3" /><div className="tx-sp tx-sp4" />
+                      <div className="tx-whub tx-whub-lg" />
+                    </div>
+
+                    {/* Connecting rods */}
+                    <div className="tx-conrod" />
+                    <div className="tx-piston" />
+
+                    {/* Cylinder */}
+                    <div className="tx-cyl" />
+
+                    {/* Sandbox */}
+                    <div className="tx-sbox" />
                   </div>
 
-                  <div className="ts3-coupler" />
+                  <div className="tx-couple" />
 
-                  {/* WAGONS */}
+                  {/* ═══ TENDER (coal car) ═══ */}
+                  <div className="tx-tender">
+                    <div className="tx-tender-body">
+                      <div className="tx-tender-coal" />
+                      <div className="tx-tender-rim" />
+                      {/* Rivets */}
+                      {[8, 22, 36, 50].map(x => (
+                        <div key={x} className="tx-rv" style={{ top: 6, left: x }} />
+                      ))}
+                    </div>
+                    <div className="tx-tender-frame" />
+                    <div className="tx-twh tx-twh1"><div className="tx-sp" /><div className="tx-sp tx-sp2" /><div className="tx-whub" /></div>
+                    <div className="tx-twh tx-twh2"><div className="tx-sp" /><div className="tx-sp tx-sp2" /><div className="tx-whub" /></div>
+                    <div className="tx-twh tx-twh3"><div className="tx-sp" /><div className="tx-sp tx-sp2" /><div className="tx-whub" /></div>
+                  </div>
+
+                  <div className="tx-couple" />
+
+                  {/* ═══ WAGONS ═══ */}
                   {services.map((service, idx) => (
-                    <div key={service.title} className="ts3-wagon-grp">
-                      {idx > 0 && <div className="ts3-coupler" />}
-                      <div className="ts3-wagon">
-                        <div className="ts3-wbody">
-                          <div className="ts3-wpanel" />
-                          <div className="ts3-wpanel ts3-wpanel-2" />
-                          <div className="ts3-wroof" />
-                          {/* Feature bubble */}
-                          <div className="ts3-bubble" style={{ boxShadow: `0 0 20px ${service.glow}, inset 0 1px 0 rgba(255,255,255,0.08)` }}>
-                            <div className="ts3-bubble-icon" style={{ background: service.color, boxShadow: `0 2px 12px ${service.glow}` }}>
-                              <service.icon style={{ width: 14, height: 14, color: 'white' }} />
-                            </div>
-                            <div className="ts3-bubble-title">{service.title}</div>
-                            <div className="ts3-bubble-desc">{service.description}</div>
+                    <div key={service.title} className="tx-wgrp">
+                      {idx > 0 && <div className="tx-couple" />}
+                      <div className="tx-wagon">
+                        {/* Wagon body — passenger car style with 3D depth */}
+                        <div className="tx-wbody">
+                          {/* Top edge highlight */}
+                          <div className="tx-wtop-hl" />
+                          {/* Roof with curvature */}
+                          <div className="tx-wroof">
+                            <div className="tx-wroof-vent" />
                           </div>
-                          <div className="ts3-plate">UPL-{String(idx + 1).padStart(2, '0')}</div>
+                          {/* Side metal paneling */}
+                          <div className="tx-wside">
+                            {/* Windows — real rectangular with frames */}
+                            <div className="tx-wwin tx-wwin1" />
+                            <div className="tx-wwin tx-wwin2" />
+                            <div className="tx-wwin tx-wwin3" />
+                            {/* Rivets along bottom */}
+                            {[8, 22, 36, 50, 64, 78, 92, 106, 120, 134, 148].map(x => (
+                              <div key={x} className="tx-rv tx-wrv" style={{ left: x }} />
+                            ))}
+                            {/* Color stripe */}
+                            <div className="tx-wstripe" style={{ background: service.accent, boxShadow: `0 0 12px ${service.glow}` }} />
+                          </div>
+                          {/* Bottom skirting */}
+                          <div className="tx-wskirt" />
+
+                          {/* ═ SERVICE BUBBLE — floating inside wagon window area ═ */}
+                          <div className="tx-bubble" style={{ boxShadow: `0 0 28px ${service.glow}, 0 4px 20px rgba(0,0,0,0.3)` }}>
+                            <div className="tx-bub-glow" style={{ background: `radial-gradient(circle, ${service.glow}, transparent 70%)` }} />
+                            <div className="tx-bub-icon" style={{ background: `linear-gradient(135deg, ${service.color}, ${service.accent})`, boxShadow: `0 3px 16px ${service.glow}` }}>
+                              <service.icon style={{ width: 16, height: 16, color: 'white' }} />
+                            </div>
+                            <div className="tx-bub-title">{service.title}</div>
+                            <div className="tx-bub-desc">{service.description}</div>
+                          </div>
+
+                          {/* Serial plate */}
+                          <div className="tx-wplate">UPL-{String(idx + 1).padStart(2, '0')}</div>
                         </div>
-                        <div className="ts3-under" />
-                        <div className="ts3-bogie ts3-bogie-l">
-                          <div className="ts3-bframe" />
-                          <div className="ts3-bwh ts3-bwh-1"><div className="ts3-hub ts3-hub-sm" /></div>
-                          <div className="ts3-bwh ts3-bwh-2"><div className="ts3-hub ts3-hub-sm" /></div>
+
+                        {/* Undercarriage frame */}
+                        <div className="tx-uframe">
+                          <div className="tx-ubeam" />
+                          <div className="tx-ubeam tx-ubeam2" />
                         </div>
-                        <div className="ts3-bogie ts3-bogie-r">
-                          <div className="ts3-bframe" />
-                          <div className="ts3-bwh ts3-bwh-1"><div className="ts3-hub ts3-hub-sm" /></div>
-                          <div className="ts3-bwh ts3-bwh-2"><div className="ts3-hub ts3-hub-sm" /></div>
+
+                        {/* Bogie L */}
+                        <div className="tx-bog tx-bog-l">
+                          <div className="tx-bogfr" />
+                          <div className="tx-bogwh tx-bogwh1"><div className="tx-sp" /><div className="tx-sp tx-sp2" /><div className="tx-whub" /></div>
+                          <div className="tx-bogwh tx-bogwh2"><div className="tx-sp" /><div className="tx-sp tx-sp2" /><div className="tx-whub" /></div>
+                        </div>
+                        {/* Bogie R */}
+                        <div className="tx-bog tx-bog-r">
+                          <div className="tx-bogfr" />
+                          <div className="tx-bogwh tx-bogwh1"><div className="tx-sp" /><div className="tx-sp tx-sp2" /><div className="tx-whub" /></div>
+                          <div className="tx-bogwh tx-bogwh2"><div className="tx-sp" /><div className="tx-sp tx-sp2" /><div className="tx-whub" /></div>
                         </div>
                       </div>
                     </div>
                   ))}
 
-                  <div className="ts3-lantern" />
+                  {/* End lantern */}
+                  <div className="tx-endlamp" />
                 </div>
               </>
             )}
           </div>
 
-          {/* Status bar — matching AutopilotShowcase bottom style */}
+          {/* Status bar */}
           <div className="flex items-center justify-between px-4 py-2 border-t border-white/[0.05]" style={{ background: 'hsl(222, 30%, 9.5%)' }}>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1.5">
@@ -334,313 +426,523 @@ const Services = () => {
         </motion.div>
       </div>
 
-      {/* ═══ ALL STYLES — GPU-accelerated, contain-optimized ═══ */}
       <style>{`
-        .train-scene-v3 {
-          position: relative; width: 100%; height: 500px; overflow: hidden;
+        /* ═══ SCENE ═══ */
+        .tx-scene {
+          position: relative; width: 100%; height: 520px; overflow: hidden;
           contain: layout style paint;
-          background: linear-gradient(180deg, hsl(222,40%,7%) 0%, hsl(222,35%,5%) 100%);
+          background: linear-gradient(180deg, hsl(222,42%,6%) 0%, hsl(222,36%,4%) 100%);
         }
-        .ts3-sky {
-          position: absolute; inset: 0;
-          background: linear-gradient(180deg, hsl(222,45%,5%) 0%, hsl(222,35%,8%) 50%, transparent 100%);
-        }
-        .ts3-star {
+        .tx-sky { position: absolute; inset: 0; background: linear-gradient(180deg, hsl(228,50%,4%) 0%, hsl(222,40%,7%) 40%, hsl(222,30%,10%) 80%, transparent 100%); }
+
+        /* Stars */
+        .tx-star {
           position: absolute; width: 2px; height: 2px; border-radius: 50%; background: white;
-          animation: ts3-twinkle 3s ease-in-out infinite alternate; will-change: opacity;
+          animation: tx-twk 3.5s ease-in-out infinite alternate; will-change: opacity;
         }
-        .ts3-star:nth-child(3) { animation-delay: 0.6s; width: 1.5px; height: 1.5px; }
-        .ts3-star:nth-child(5) { animation-delay: 1.2s; }
-        @keyframes ts3-twinkle { from { opacity: 0.1; } to { opacity: 0.55; } }
-        .ts3-moon {
-          position: absolute; top: 28px; left: 65px; width: 52px; height: 52px; border-radius: 50%;
-          background: radial-gradient(circle at 35% 35%, hsl(45,60%,92%), hsl(45,50%,72%));
-          box-shadow: 0 0 50px 15px rgba(255,255,200,0.06);
+        @keyframes tx-twk { from { opacity: 0.08; } to { opacity: 0.5; } }
+
+        .tx-moon {
+          position: absolute; top: 22px; left: 55px; width: 58px; height: 58px; border-radius: 50%;
+          background: radial-gradient(circle at 32% 32%, hsl(45,65%,94%), hsl(45,55%,75%));
+          box-shadow: 0 0 60px 20px rgba(255,255,200,0.05), 0 0 120px 40px rgba(255,255,200,0.02);
         }
-        .ts3-skyline-wrap {
-          position: absolute; bottom: 130px; left: 0; width: 200%; height: 220px;
-          animation: ts3-sky-scroll 55s linear infinite; will-change: transform;
+
+        /* Skylines */
+        .tx-skyline-far {
+          position: absolute; bottom: 140px; left: 0; width: 200%; height: 260px;
+          animation: tx-sfar 60s linear infinite; will-change: transform;
         }
-        .ts3-skyline { width: 100%; height: 100%; }
-        @keyframes ts3-sky-scroll { to { transform: translate3d(-50%, 0, 0); } }
-        .ts3-skyline-near-wrap {
-          position: absolute; bottom: 115px; left: 0; width: 200%; height: 140px;
-          animation: ts3-near-scroll 30s linear infinite; will-change: transform;
+        .tx-skyline-svg { width: 100%; height: 100%; }
+        @keyframes tx-sfar { to { transform: translate3d(-50%, 0, 0); } }
+
+        .tx-skyline-near {
+          position: absolute; bottom: 125px; left: 0; width: 200%; height: 160px;
+          animation: tx-snear 28s linear infinite; will-change: transform;
         }
-        .ts3-skyline-near { width: 100%; height: 100%; }
-        @keyframes ts3-near-scroll { to { transform: translate3d(-50%, 0, 0); } }
-        .ts3-ground {
-          position: absolute; bottom: 0; left: 0; right: 0; height: 130px;
-          background: linear-gradient(to top, hsl(222,18%,3.5%), hsl(222,16%,6%) 50%, hsl(222,14%,8%));
+        .tx-skyline-near-svg { width: 100%; height: 100%; }
+        @keyframes tx-snear { to { transform: translate3d(-50%, 0, 0); } }
+
+        /* Ground, gravel, rails */
+        .tx-ground {
+          position: absolute; bottom: 0; left: 0; right: 0; height: 140px;
+          background: linear-gradient(to top, hsl(222,20%,3%), hsl(222,18%,5%) 40%, hsl(222,14%,7.5%));
         }
-        .ts3-gravel {
-          position: absolute; bottom: 78px; left: 0; right: 0; height: 18px;
-          background: linear-gradient(to top, hsl(30,8%,10%), hsl(30,6%,14%)); border-radius: 2px 2px 0 0;
+        .tx-gravel {
+          position: absolute; bottom: 82px; left: 0; right: 0; height: 22px;
+          background: linear-gradient(to top, hsl(28,10%,8%), hsl(28,8%,12%)); border-radius: 3px 3px 0 0;
         }
-        .ts3-rails { position: absolute; bottom: 82px; left: 0; right: 0; height: 22px; }
-        .ts3-ties {
-          position: absolute; inset: 0; overflow: hidden;
-          background: repeating-linear-gradient(90deg, hsl(25,12%,12%) 0px, hsl(25,12%,12%) 7px, transparent 7px, transparent 22px);
-          animation: ts3-ties-scroll 0.55s linear infinite; will-change: transform;
+        .tx-rails { position: absolute; bottom: 86px; left: 0; right: 0; height: 26px; }
+        .tx-ties {
+          position: absolute; inset: 0;
+          background: repeating-linear-gradient(90deg, hsl(25,14%,14%) 0px, hsl(25,14%,14%) 8px, transparent 8px, transparent 24px);
+          animation: tx-tscroll 0.6s linear infinite; will-change: transform;
         }
-        @keyframes ts3-ties-scroll { to { transform: translate3d(-22px, 0, 0); } }
-        .ts3-rail {
-          position: absolute; left: 0; right: 0; height: 3px;
-          background: linear-gradient(90deg, hsl(0,0%,42%) 0%, hsl(0,0%,52%) 50%, hsl(0,0%,42%) 100%);
-          box-shadow: 0 0 4px rgba(200,200,200,0.08), 0 1px 0 rgba(255,255,255,0.06);
+        @keyframes tx-tscroll { to { transform: translate3d(-24px, 0, 0); } }
+        .tx-rail {
+          position: absolute; left: 0; right: 0; height: 3.5px;
+          background: linear-gradient(90deg, hsl(0,0%,38%) 0%, hsl(0,0%,50%) 50%, hsl(0,0%,38%) 100%);
+          box-shadow: 0 1px 0 rgba(255,255,255,0.06), 0 -1px 2px rgba(0,0,0,0.3);
         }
-        .ts3-rail-t { top: 2px; }
-        .ts3-rail-b { bottom: 2px; }
-        .ts3-speed {
-          position: absolute; bottom: 78px; left: 0; width: 130px; height: 70px;
-          overflow: hidden; pointer-events: none; z-index: 5;
-        }
-        .ts3-speed-l {
-          position: absolute; left: 0; height: 2px; width: 65%;
-          background: linear-gradient(to right, rgba(255,255,255,0.18), transparent); border-radius: 1px;
-          animation: ts3-spd 0.5s linear infinite; will-change: transform, opacity;
-        }
-        @keyframes ts3-spd {
-          0% { opacity: 0; transform: translate3d(25px, 0, 0); }
-          20% { opacity: 1; }
-          100% { opacity: 0; transform: translate3d(-65px, 0, 0); }
-        }
-        .ts3-smoke {
-          position: absolute; right: 118px; bottom: 400px; pointer-events: none; z-index: 6;
-        }
-        .ts3-puff {
-          position: absolute; width: 20px; height: 20px; border-radius: 50%;
-          background: radial-gradient(circle, rgba(180,180,180,0.1) 0%, transparent 70%);
-          animation: ts3-smoke-a 2.8s ease-out infinite; will-change: transform, opacity;
-        }
-        @keyframes ts3-smoke-a {
-          0% { opacity: 0.12; transform: translate3d(0, 0, 0) scale(0.4); }
-          100% { opacity: 0; transform: translate3d(30px, -50px, 0) scale(3.5); }
-        }
-        .ts3-train {
-          position: absolute; bottom: 96px; right: 20px;
-          display: flex; align-items: flex-end; flex-direction: row-reverse;
-          animation: ts3-bob 2.8s ease-in-out infinite; will-change: transform;
-        }
-        @keyframes ts3-bob {
-          0%, 100% { transform: translate3d(0, 0, 0); }
-          50% { transform: translate3d(0, -1.5px, 0); }
-        }
-        .ts3-loco { position: relative; width: 190px; height: 80px; flex-shrink: 0; }
-        .ts3-chimney {
-          position: absolute; top: -22px; right: 35px; width: 12px; height: 22px;
-          background: linear-gradient(to top, hsl(0,0%,28%), hsl(0,0%,38%));
-          border-radius: 3px 3px 1px 1px; border: 1px solid rgba(255,255,255,0.06);
-        }
-        .ts3-chimney-cap {
-          position: absolute; top: -5px; left: -5px; right: -5px; height: 7px;
-          background: linear-gradient(to top, hsl(0,0%,33%), hsl(0,0%,43%));
-          border-radius: 5px 5px 0 0; border: 1px solid rgba(255,255,255,0.06);
-        }
-        .ts3-dome {
-          position: absolute; top: -12px; right: 68px; width: 18px; height: 12px;
-          background: linear-gradient(to top, hsl(0,60%,32%), hsl(0,60%,42%));
-          border-radius: 9px 9px 0 0; border: 1px solid rgba(255,255,255,0.06);
-        }
-        .ts3-bell {
-          position: absolute; top: -10px; right: 52px; width: 6px; height: 8px;
-          background: linear-gradient(to top, hsl(45,60%,40%), hsl(45,70%,55%)); border-radius: 3px 3px 0 0;
-        }
-        .ts3-boiler {
-          position: absolute; top: 0; right: 0; width: 135px; height: 58px;
-          background: linear-gradient(180deg, hsl(0,58%,40%), hsl(0,62%,28%));
-          border-radius: 0 29px 4px 4px; border: 1px solid rgba(255,100,100,0.12);
-          box-shadow: inset 0 3px 5px rgba(255,255,255,0.08), inset 0 -4px 8px rgba(0,0,0,0.35); overflow: hidden;
-        }
-        .ts3-band {
-          position: absolute; left: 0; right: 0; height: 2px; background: hsl(45,65%,48%); opacity: 0.3;
-        }
-        .ts3-headlight {
-          position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
-          width: 14px; height: 14px; border-radius: 50%;
-          background: radial-gradient(circle, hsl(45,100%,88%), hsl(45,90%,58%));
-          box-shadow: 0 0 20px 6px rgba(255,255,100,0.3); border: 1px solid rgba(255,255,200,0.3);
-        }
-        .ts3-beam {
-          position: absolute; top: 50%; right: -60px; transform: translateY(-50%);
-          width: 60px; height: 40px;
-          background: linear-gradient(90deg, rgba(255,255,150,0.06), transparent);
-          clip-path: polygon(0 35%, 100% 0, 100% 100%, 0 65%);
-        }
-        .ts3-rivet {
+        .tx-rail-t { top: 3px; }
+        .tx-rail-b { bottom: 3px; }
+
+        /* Sparks */
+        .tx-sparks { position: absolute; right: 80px; bottom: 100px; pointer-events: none; z-index: 8; }
+        .tx-spark {
           position: absolute; width: 3px; height: 3px; border-radius: 50%;
-          background: hsl(0,0%,45%); box-shadow: inset 0 1px 1px rgba(255,255,255,0.15);
+          background: hsl(45,100%,65%);
+          animation: tx-sprk 0.8s ease-out infinite; will-change: transform, opacity;
         }
-        .ts3-cab {
-          position: absolute; top: -14px; left: 0; width: 60px; height: 94px;
-          background: linear-gradient(180deg, hsl(0,52%,36%), hsl(0,58%,26%));
-          border-radius: 8px 8px 2px 2px; border: 1px solid rgba(255,100,100,0.1);
-          box-shadow: inset 0 2px 4px rgba(255,255,255,0.06); overflow: hidden;
+        @keyframes tx-sprk {
+          0% { opacity: 0.8; transform: translate3d(0, 0, 0); }
+          100% { opacity: 0; transform: translate3d(-30px, -20px, 0) scale(0.3); }
         }
-        .ts3-cab-roof {
-          position: absolute; top: -4px; left: -4px; right: -4px; height: 8px;
-          background: linear-gradient(180deg, hsl(0,0%,30%), hsl(0,0%,22%)); border-radius: 5px 5px 0 0;
+
+        /* Smoke */
+        .tx-smoke { position: absolute; right: 132px; bottom: 420px; pointer-events: none; z-index: 6; }
+        .tx-puff {
+          position: absolute; width: 22px; height: 22px; border-radius: 50%;
+          background: radial-gradient(circle, rgba(200,200,200,0.12) 0%, transparent 70%);
+          animation: tx-smk 3s ease-out infinite; will-change: transform, opacity;
         }
-        .ts3-cab-win {
-          position: absolute; top: 10px; left: 6px; right: 6px; height: 16px;
-          background: rgba(100,180,255,0.08); border-radius: 3px;
-          border: 1px solid rgba(255,255,255,0.08); box-shadow: inset 0 0 8px rgba(100,200,255,0.06);
+        .tx-puff-lg { width: 30px; height: 30px; }
+        @keyframes tx-smk {
+          0% { opacity: 0.15; transform: translate3d(0, 0, 0) scale(0.3); }
+          100% { opacity: 0; transform: translate3d(40px, -60px, 0) scale(4); }
         }
-        .ts3-cab-win-2 { top: 30px; height: 12px; }
-        .ts3-cab-logo {
-          position: absolute; top: 50px; left: 50%; transform: translateX(-50%);
-          width: 30px; height: 30px; border-radius: 7px; overflow: hidden;
-          background: hsl(222,35%,8%); border: 1px solid rgba(255,255,255,0.12);
-          box-shadow: 0 2px 10px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center;
+
+        /* ═══ TRAIN CONTAINER ═══ */
+        .tx-train {
+          position: absolute; bottom: 104px; right: 15px;
+          display: flex; align-items: flex-end; flex-direction: row-reverse;
+          animation: tx-bob 3s ease-in-out infinite; will-change: transform;
         }
-        .ts3-cab-logo-img { width: 100%; height: 100%; object-fit: cover; }
-        .ts3-cow { position: absolute; right: -10px; bottom: 2px; width: 14px; height: 22px; }
-        .ts3-cow-bar {
-          position: absolute; bottom: 0; right: 0; width: 14px; height: 2px;
-          background: hsl(0,0%,35%); transform: rotate(-25deg); transform-origin: right;
-        }
-        .ts3-cow-bar-2 { transform: rotate(25deg); }
-        .ts3-drv {
-          position: absolute; bottom: -10px; width: 30px; height: 30px; border-radius: 50%;
-          background: radial-gradient(circle at 40% 40%, hsl(0,0%,38%), hsl(0,0%,12%));
-          border: 2.5px solid hsl(0,0%,44%); box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-          animation: ts3-wh 0.5s linear infinite; will-change: transform;
-        }
-        .ts3-spoke {
-          position: absolute; top: 50%; left: 50%; width: 80%; height: 1.5px;
-          background: hsl(0,0%,40%); transform: translate(-50%, -50%);
-        }
-        .ts3-spoke-2 { transform: translate(-50%, -50%) rotate(90deg); }
-        .ts3-hub {
-          position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-          width: 8px; height: 8px; border-radius: 50%;
-          background: radial-gradient(circle, hsl(0,0%,48%), hsl(0,0%,32%)); border: 1px solid hsl(0,0%,50%);
-        }
-        .ts3-hub-sm { width: 5px; height: 5px; }
-        .ts3-drv-1 { left: 18px; }
-        .ts3-drv-2 { left: 58px; }
-        @keyframes ts3-wh { to { transform: rotate(360deg); } }
-        .ts3-fwh {
-          position: absolute; bottom: -6px; right: 18px; width: 18px; height: 18px; border-radius: 50%;
-          background: radial-gradient(circle at 40% 40%, hsl(0,0%,36%), hsl(0,0%,12%));
-          border: 2px solid hsl(0,0%,42%); animation: ts3-wh 0.5s linear infinite; will-change: transform;
-        }
-        .ts3-rod {
-          position: absolute; bottom: 5px; left: 33px; width: 42px; height: 3px;
-          background: linear-gradient(90deg, hsl(0,0%,40%), hsl(0,0%,50%), hsl(0,0%,40%)); border-radius: 1.5px;
-          animation: ts3-rod-a 0.5s ease-in-out infinite; will-change: transform;
-        }
-        @keyframes ts3-rod-a {
+        @keyframes tx-bob {
           0%, 100% { transform: translate3d(0, 0, 0); }
-          50% { transform: translate3d(3px, -1px, 0); }
+          50% { transform: translate3d(0, -2px, 0); }
         }
-        .ts3-pipe {
-          position: absolute; top: 18px; right: 132px; width: 20px; height: 4px;
-          background: linear-gradient(180deg, hsl(0,0%,35%), hsl(0,0%,25%)); border-radius: 2px;
+
+        /* ═══ LOCOMOTIVE ═══ */
+        .tx-loco { position: relative; width: 220px; height: 95px; flex-shrink: 0; }
+
+        /* Smokestack */
+        .tx-stack {
+          position: absolute; top: -30px; right: 40px; width: 14px; height: 30px;
+          background: linear-gradient(180deg, hsl(0,0%,42%) 0%, hsl(0,0%,28%) 100%);
+          border-radius: 4px 4px 1px 1px; border: 1px solid rgba(255,255,255,0.08);
         }
-        .ts3-coupler {
-          flex-shrink: 0; width: 12px; height: 7px; align-self: center; margin-bottom: 20px;
-          background: linear-gradient(180deg, hsl(0,0%,36%), hsl(0,0%,24%));
-          border-radius: 2px; box-shadow: 0 1px 4px rgba(0,0,0,0.35);
+        .tx-stack-cap {
+          position: absolute; top: -6px; left: -6px; right: -6px; height: 8px;
+          background: linear-gradient(180deg, hsl(0,0%,46%), hsl(0,0%,36%));
+          border-radius: 6px 6px 2px 2px; border: 1px solid rgba(255,255,255,0.08);
         }
-        .ts3-wagon-grp { display: flex; align-items: flex-end; flex-shrink: 0; }
-        .ts3-wagon { position: relative; width: 175px; flex-shrink: 0; }
-        .ts3-wbody {
-          position: relative; height: 130px; overflow: hidden;
-          background: linear-gradient(180deg, hsl(222,28%,14%) 0%, hsl(222,24%,10%) 40%, hsl(222,20%,7%) 100%);
-          border-radius: 4px 4px 2px 2px; border: 1px solid rgba(255,255,255,0.05);
-          box-shadow: inset 0 1px 3px rgba(255,255,255,0.03), inset 0 -3px 6px rgba(0,0,0,0.35), 0 4px 14px rgba(0,0,0,0.4);
+        .tx-stack-ring {
+          position: absolute; bottom: 4px; left: -3px; right: -3px; height: 4px;
+          background: hsl(45,50%,42%); border-radius: 2px; opacity: 0.5;
         }
-        .ts3-wpanel {
-          position: absolute; top: 8px; bottom: 8px; width: 1px; left: 33%;
-          background: rgba(255,255,255,0.03); box-shadow: 1px 0 0 rgba(0,0,0,0.2);
+
+        /* Domes */
+        .tx-sdome {
+          position: absolute; top: -16px; right: 78px; width: 22px; height: 16px;
+          background: linear-gradient(180deg, hsl(45,55%,50%), hsl(45,45%,35%));
+          border-radius: 11px 11px 0 0; border: 1px solid rgba(255,255,200,0.1);
         }
-        .ts3-wpanel-2 { left: 66%; }
-        .ts3-wroof {
-          position: absolute; top: -2px; left: -2px; right: -2px; height: 5px;
-          background: linear-gradient(180deg, hsl(222,15%,18%), hsl(222,18%,14%));
-          border-radius: 3px 3px 0 0; border: 1px solid rgba(255,255,255,0.04);
+        .tx-valve {
+          position: absolute; top: -8px; right: 65px; width: 5px; height: 8px;
+          background: linear-gradient(180deg, hsl(45,50%,55%), hsl(45,40%,40%));
+          border-radius: 2px 2px 0 0;
         }
-        .ts3-bubble {
+        .tx-sanddome {
+          position: absolute; top: -10px; right: 105px; width: 16px; height: 10px;
+          background: linear-gradient(180deg, hsl(0,55%,38%), hsl(0,60%,30%));
+          border-radius: 8px 8px 0 0;
+        }
+        .tx-bell {
+          position: absolute; top: -12px; right: 56px; width: 8px; height: 10px;
+          background: linear-gradient(180deg, hsl(45,65%,55%), hsl(45,55%,40%));
+          border-radius: 4px 4px 1px 1px;
+        }
+        .tx-bell-clap {
+          position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%);
+          width: 3px; height: 3px; border-radius: 50%; background: hsl(45,55%,38%);
+        }
+
+        /* Boiler */
+        .tx-boiler {
+          position: absolute; top: 0; right: 0; width: 160px; height: 68px;
+          background: linear-gradient(180deg, hsl(0,56%,44%) 0%, hsl(0,60%,36%) 30%, hsl(0,64%,26%) 100%);
+          border-radius: 0 34px 6px 6px;
+          border: 1px solid rgba(255,120,120,0.15);
+          box-shadow:
+            inset 0 4px 8px rgba(255,255,255,0.1),
+            inset 0 -6px 12px rgba(0,0,0,0.4),
+            0 6px 20px rgba(0,0,0,0.4);
+          overflow: hidden;
+        }
+        .tx-mband {
+          position: absolute; left: 0; right: 0; height: 2.5px;
+          background: linear-gradient(90deg, hsl(45,60%,42%) 0%, hsl(45,70%,52%) 50%, hsl(45,60%,42%) 100%);
+          opacity: 0.35;
+        }
+        .tx-rv {
+          position: absolute; width: 3px; height: 3px; border-radius: 50%;
+          background: hsl(0,0%,50%);
+          box-shadow: inset 0 1px 1px rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.3);
+        }
+        .tx-hl {
+          position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+          width: 18px; height: 18px; border-radius: 50%;
+          background: linear-gradient(135deg, hsl(0,0%,55%), hsl(0,0%,38%));
+          border: 2px solid hsl(0,0%,48%);
+          box-shadow: 0 0 4px rgba(0,0,0,0.4);
+        }
+        .tx-hl-lens {
+          position: absolute; inset: 3px; border-radius: 50%;
+          background: radial-gradient(circle at 40% 40%, hsl(45,100%,92%), hsl(45,95%,60%));
+          box-shadow: 0 0 24px 8px rgba(255,255,100,0.35);
+        }
+        .tx-hl-beam {
+          position: absolute; top: 50%; right: -80px; transform: translateY(-50%);
+          width: 80px; height: 50px;
+          background: linear-gradient(90deg, rgba(255,255,150,0.08), transparent);
+          clip-path: polygon(0 30%, 100% 0, 100% 100%, 0 70%);
+        }
+        .tx-numplate {
+          position: absolute; bottom: 6px; left: 12px;
+          font-size: 7px; font-family: monospace; font-weight: 800; color: hsl(45,60%,50%);
+          background: rgba(0,0,0,0.3); padding: 1px 5px; border-radius: 2px;
+          border: 1px solid rgba(255,255,200,0.1);
+        }
+
+        /* Cab */
+        .tx-cab {
+          position: absolute; top: -18px; left: 0; width: 68px; height: 113px;
+          background: linear-gradient(180deg, hsl(0,50%,38%) 0%, hsl(0,56%,30%) 40%, hsl(0,60%,22%) 100%);
+          border-radius: 10px 10px 2px 2px;
+          border: 1px solid rgba(255,100,100,0.12);
+          box-shadow: inset 0 3px 6px rgba(255,255,255,0.07), inset 0 -4px 10px rgba(0,0,0,0.3);
+          overflow: hidden;
+        }
+        .tx-cab-roof {
+          position: absolute; top: -6px; left: -6px; right: -6px; height: 12px;
+          background: linear-gradient(180deg, hsl(0,0%,35%), hsl(0,0%,24%));
+          border-radius: 8px 8px 0 0; border: 1px solid rgba(255,255,255,0.06);
+        }
+        .tx-cab-side {
+          position: absolute; top: 12px; bottom: 0; left: 0; width: 3px;
+          background: linear-gradient(180deg, rgba(255,255,255,0.06), transparent);
+        }
+        .tx-cab-win {
+          position: absolute; top: 14px; left: 8px; right: 8px; height: 20px;
+          background: rgba(100,180,255,0.06);
+          border-radius: 4px; border: 1.5px solid rgba(255,255,255,0.1);
+          box-shadow: inset 0 0 12px rgba(100,200,255,0.04);
+        }
+        .tx-cab-win2 { top: 38px; height: 16px; }
+        .tx-cab-win-glow {
+          position: absolute; inset: 0; border-radius: 3px;
+          background: linear-gradient(135deg, rgba(255,200,100,0.04), transparent);
+        }
+        .tx-cab-logo {
+          position: absolute; top: 62px; left: 50%; transform: translateX(-50%);
+          width: 34px; height: 34px; border-radius: 9px; overflow: hidden;
+          background: hsl(222,35%,8%);
+          border: 1.5px solid rgba(255,255,255,0.15);
+          box-shadow: 0 3px 14px rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center;
+        }
+        .tx-cab-logo-img { width: 100%; height: 100%; object-fit: cover; }
+        .tx-grab {
+          position: absolute; top: 8px; right: 3px; width: 2px; height: 30px;
+          background: hsl(45,50%,42%); border-radius: 1px; opacity: 0.5;
+        }
+
+        .tx-runboard {
+          position: absolute; bottom: 22px; left: 60px; right: -5px; height: 3px;
+          background: linear-gradient(90deg, hsl(0,0%,30%), hsl(0,0%,38%), hsl(0,0%,30%));
+          border-radius: 1px;
+        }
+
+        /* Cowcatcher */
+        .tx-cowcatch { position: absolute; right: -14px; bottom: 0; width: 20px; height: 30px; }
+        .tx-cowbar {
+          position: absolute; bottom: 0; right: 0; width: 18px; height: 2.5px;
+          background: hsl(0,0%,38%); transform: rotate(-30deg); transform-origin: right bottom;
+          border-radius: 1px;
+        }
+        .tx-cowbar2 { transform: rotate(0deg); bottom: 8px; }
+        .tx-cowbar3 { transform: rotate(30deg); }
+        .tx-cowbase {
+          position: absolute; bottom: -1px; right: -2px; width: 22px; height: 3px;
+          background: hsl(0,0%,32%); border-radius: 1px;
+        }
+
+        /* Wheels */
+        .tx-pilot-wh {
+          position: absolute; bottom: -12px; right: 20px; width: 22px; height: 22px; border-radius: 50%;
+          background: radial-gradient(circle at 38% 38%, hsl(0,0%,40%), hsl(0,0%,12%));
+          border: 2px solid hsl(0,0%,46%);
+          box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+          animation: tx-whr 0.5s linear infinite; will-change: transform;
+        }
+        .tx-bigwh {
+          position: absolute; bottom: -14px; width: 38px; height: 38px; border-radius: 50%;
+          background: radial-gradient(circle at 38% 38%, hsl(0,0%,42%), hsl(0,0%,14%));
+          border: 3px solid hsl(0,0%,48%);
+          box-shadow: 0 3px 12px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.06);
+          animation: tx-whr 0.5s linear infinite; will-change: transform;
+        }
+        .tx-bigwh1 { left: 15px; }
+        .tx-bigwh2 { left: 62px; }
+        .tx-sp {
+          position: absolute; top: 50%; left: 50%; width: 82%; height: 1.5px;
+          background: hsl(0,0%,42%); transform: translate(-50%, -50%);
+        }
+        .tx-sp2 { transform: translate(-50%, -50%) rotate(60deg); }
+        .tx-sp3 { transform: translate(-50%, -50%) rotate(120deg); }
+        .tx-sp4 { transform: translate(-50%, -50%) rotate(45deg); }
+        .tx-whub {
           position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-          width: 82%; padding: 10px 8px; border-radius: 14px;
-          background: rgba(255,255,255,0.04);
-          backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-          border: 1px solid rgba(255,255,255,0.08); text-align: center; z-index: 2;
+          width: 7px; height: 7px; border-radius: 50%;
+          background: radial-gradient(circle, hsl(0,0%,52%), hsl(0,0%,35%)); border: 1px solid hsl(0,0%,54%);
         }
-        .ts3-bubble-icon {
-          width: 30px; height: 30px; border-radius: 10px;
-          display: flex; align-items: center; justify-content: center; margin: 0 auto 6px;
+        .tx-whub-lg { width: 10px; height: 10px; }
+        @keyframes tx-whr { to { transform: rotate(360deg); } }
+
+        .tx-crank {
+          position: absolute; top: 50%; right: -6px; transform: translateY(-50%);
+          width: 8px; height: 3px; background: hsl(0,0%,45%); border-radius: 1px;
+          animation: tx-whr 0.5s linear infinite;
         }
-        .ts3-bubble-title {
-          font-size: 10px; font-weight: 700; color: white;
-          line-height: 1.2; margin-bottom: 3px; letter-spacing: -0.01em;
+        .tx-conrod {
+          position: absolute; bottom: 5px; left: 25px; width: 52px; height: 4px;
+          background: linear-gradient(90deg, hsl(0,0%,38%), hsl(0,0%,50%), hsl(0,0%,38%));
+          border-radius: 2px;
+          animation: tx-rod 0.5s ease-in-out infinite; will-change: transform;
         }
-        .ts3-bubble-desc { font-size: 7.5px; color: rgba(255,255,255,0.35); line-height: 1.4; }
-        .ts3-plate {
-          position: absolute; bottom: 4px; right: 5px;
-          font-size: 6.5px; font-family: monospace; color: rgba(255,255,255,0.12);
-          padding: 1px 4px; border-radius: 2px;
-          background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.03);
+        @keyframes tx-rod {
+          0%, 100% { transform: translate3d(0, 0, 0); }
+          50% { transform: translate3d(4px, -1.5px, 0); }
         }
-        .ts3-under {
-          position: absolute; bottom: -3px; left: 10px; right: 10px; height: 6px;
-          background: linear-gradient(180deg, hsl(0,0%,26%), hsl(0,0%,16%)); border-radius: 0 0 2px 2px;
+        .tx-piston {
+          position: absolute; bottom: 8px; right: 148px; width: 15px; height: 8px;
+          background: linear-gradient(180deg, hsl(0,0%,42%), hsl(0,0%,30%));
+          border-radius: 2px; border: 1px solid rgba(255,255,255,0.05);
         }
-        .ts3-bogie { position: absolute; bottom: -8px; width: 44px; height: 14px; }
-        .ts3-bogie-l { left: 10px; }
-        .ts3-bogie-r { right: 10px; }
-        .ts3-bframe {
-          position: absolute; top: 0; left: 2px; right: 2px; height: 4px;
-          background: linear-gradient(180deg, hsl(0,0%,30%), hsl(0,0%,20%)); border-radius: 1px;
+        .tx-cyl {
+          position: absolute; bottom: 10px; right: 155px; width: 18px; height: 14px;
+          background: linear-gradient(180deg, hsl(0,0%,36%), hsl(0,0%,24%));
+          border-radius: 3px; border: 1px solid rgba(255,255,255,0.05);
+          box-shadow: 0 2px 6px rgba(0,0,0,0.4);
         }
-        .ts3-bwh {
-          position: absolute; bottom: -2px; width: 14px; height: 14px; border-radius: 50%;
-          background: radial-gradient(circle at 40% 40%, hsl(0,0%,36%), hsl(0,0%,10%));
-          border: 1.5px solid hsl(0,0%,40%); box-shadow: 0 1px 5px rgba(0,0,0,0.45);
-          animation: ts3-wh 0.5s linear infinite; will-change: transform;
+        .tx-sbox {
+          position: absolute; top: 20px; right: 140px; width: 12px; height: 8px;
+          background: hsl(0,55%,32%); border-radius: 2px;
         }
-        .ts3-bwh-1 { left: 0; }
-        .ts3-bwh-2 { right: 0; }
-        .ts3-lantern {
-          flex-shrink: 0; width: 7px; height: 12px; align-self: center; margin-bottom: 26px; margin-left: 5px;
-          background: linear-gradient(to top, hsl(0,65%,38%), hsl(0,55%,52%));
-          border-radius: 3px 3px 0 0; border: 1px solid rgba(255,255,255,0.08);
-          box-shadow: 0 0 8px rgba(255,50,50,0.2);
+        .tx-pipe {
+          position: absolute; top: 20px; right: 155px; width: 24px; height: 5px;
+          background: linear-gradient(180deg, hsl(0,0%,38%), hsl(0,0%,26%)); border-radius: 2px;
         }
+
+        /* ═══ COUPLER ═══ */
+        .tx-couple {
+          flex-shrink: 0; width: 14px; height: 8px; align-self: center; margin-bottom: 24px;
+          background: linear-gradient(180deg, hsl(0,0%,38%), hsl(0,0%,22%));
+          border-radius: 3px; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        /* ═══ TENDER ═══ */
+        .tx-tender { position: relative; width: 75px; height: 65px; flex-shrink: 0; }
+        .tx-tender-body {
+          position: relative; height: 50px;
+          background: linear-gradient(180deg, hsl(0,50%,34%) 0%, hsl(0,56%,24%) 100%);
+          border-radius: 3px; border: 1px solid rgba(255,100,100,0.1);
+          box-shadow: inset 0 2px 4px rgba(255,255,255,0.06), inset 0 -3px 8px rgba(0,0,0,0.3);
+          overflow: hidden;
+        }
+        .tx-tender-coal {
+          position: absolute; top: 0; left: 2px; right: 2px; height: 18px;
+          background: linear-gradient(180deg, hsl(0,0%,8%), hsl(0,0%,14%));
+          border-radius: 0 0 3px 3px;
+        }
+        .tx-tender-rim {
+          position: absolute; top: -2px; left: -2px; right: -2px; height: 5px;
+          background: linear-gradient(180deg, hsl(0,0%,32%), hsl(0,0%,24%));
+          border-radius: 3px 3px 0 0;
+        }
+        .tx-tender-frame {
+          position: absolute; bottom: 2px; left: 5px; right: 5px; height: 4px;
+          background: hsl(0,0%,22%); border-radius: 1px;
+        }
+        .tx-twh {
+          position: absolute; bottom: -8px; width: 16px; height: 16px; border-radius: 50%;
+          background: radial-gradient(circle at 38% 38%, hsl(0,0%,38%), hsl(0,0%,12%));
+          border: 2px solid hsl(0,0%,44%);
+          animation: tx-whr 0.5s linear infinite; will-change: transform;
+        }
+        .tx-twh1 { left: 4px; }
+        .tx-twh2 { left: 25px; }
+        .tx-twh3 { right: 4px; }
+
+        /* ═══ WAGON — premium passenger car ═══ */
+        .tx-wgrp { display: flex; align-items: flex-end; flex-shrink: 0; }
+        .tx-wagon { position: relative; width: 180px; flex-shrink: 0; }
+        .tx-wbody {
+          position: relative; height: 140px; overflow: visible;
+          background: linear-gradient(180deg, hsl(222,26%,16%) 0%, hsl(222,28%,12%) 30%, hsl(222,24%,9%) 60%, hsl(222,20%,6%) 100%);
+          border-radius: 5px 5px 2px 2px;
+          border: 1px solid rgba(255,255,255,0.06);
+          box-shadow:
+            inset 0 2px 6px rgba(255,255,255,0.04),
+            inset 0 -4px 10px rgba(0,0,0,0.4),
+            0 6px 20px rgba(0,0,0,0.45);
+        }
+        .tx-wtop-hl {
+          position: absolute; top: 0; left: 0; right: 0; height: 1px;
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        }
+        .tx-wroof {
+          position: absolute; top: -4px; left: -3px; right: -3px; height: 8px;
+          background: linear-gradient(180deg, hsl(222,14%,22%), hsl(222,18%,16%));
+          border-radius: 6px 6px 0 0; border: 1px solid rgba(255,255,255,0.05);
+        }
+        .tx-wroof-vent {
+          position: absolute; top: -3px; left: 50%; transform: translateX(-50%);
+          width: 14px; height: 5px;
+          background: linear-gradient(180deg, hsl(222,10%,26%), hsl(222,14%,20%));
+          border-radius: 3px 3px 0 0;
+        }
+        .tx-wside {
+          position: absolute; top: 8px; left: 0; right: 0; bottom: 0; overflow: hidden;
+        }
+        .tx-wwin {
+          position: absolute; top: 10px; width: 35px; height: 22px;
+          background: rgba(80,160,255,0.06);
+          border: 1.5px solid rgba(255,255,255,0.08);
+          border-radius: 3px;
+          box-shadow: inset 0 0 10px rgba(100,200,255,0.03), 0 0 6px rgba(0,0,0,0.2);
+        }
+        .tx-wwin1 { left: 12px; }
+        .tx-wwin2 { left: 55px; }
+        .tx-wwin3 { left: 98px; }
+        .tx-wrv { bottom: 6px !important; top: auto !important; }
+        .tx-wstripe {
+          position: absolute; bottom: 20px; left: 0; right: 0; height: 3px;
+          opacity: 0.6; border-radius: 0;
+        }
+        .tx-wskirt {
+          position: absolute; bottom: -2px; left: -1px; right: -1px; height: 6px;
+          background: linear-gradient(180deg, hsl(0,0%,28%), hsl(0,0%,18%));
+          border-radius: 0 0 3px 3px;
+        }
+
+        /* ═ BUBBLE — the service info floating inside wagon ═ */
+        .tx-bubble {
+          position: absolute; top: 46%; left: 50%; transform: translate(-50%, -50%);
+          width: 85%; padding: 12px 10px; border-radius: 16px;
+          background: rgba(255,255,255,0.05);
+          backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(255,255,255,0.1);
+          text-align: center; z-index: 3;
+        }
+        .tx-bub-glow {
+          position: absolute; inset: -8px; border-radius: 24px; opacity: 0.4; pointer-events: none;
+        }
+        .tx-bub-icon {
+          width: 34px; height: 34px; border-radius: 11px;
+          display: flex; align-items: center; justify-content: center;
+          margin: 0 auto 7px;
+        }
+        .tx-bub-title {
+          font-size: 11px; font-weight: 800; color: white;
+          line-height: 1.2; margin-bottom: 3px; letter-spacing: -0.02em;
+        }
+        .tx-bub-desc { font-size: 8px; color: rgba(255,255,255,0.4); line-height: 1.45; }
+
+        .tx-wplate {
+          position: absolute; bottom: 5px; right: 6px;
+          font-size: 7px; font-family: monospace; font-weight: 700; color: rgba(255,255,255,0.15);
+          padding: 1px 5px; border-radius: 2px;
+          background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);
+        }
+
+        /* Undercarriage */
+        .tx-uframe {
+          position: absolute; bottom: -4px; left: 8px; right: 8px; height: 8px;
+          background: linear-gradient(180deg, hsl(0,0%,28%), hsl(0,0%,16%));
+          border-radius: 0 0 3px 3px;
+        }
+        .tx-ubeam {
+          position: absolute; top: 3px; left: 20%; width: 3px; height: 5px;
+          background: hsl(0,0%,22%);
+        }
+        .tx-ubeam2 { left: auto; right: 20%; }
+
+        /* Bogies */
+        .tx-bog { position: absolute; bottom: -12px; width: 50px; height: 16px; }
+        .tx-bog-l { left: 8px; }
+        .tx-bog-r { right: 8px; }
+        .tx-bogfr {
+          position: absolute; top: 0; left: 3px; right: 3px; height: 5px;
+          background: linear-gradient(180deg, hsl(0,0%,32%), hsl(0,0%,20%)); border-radius: 2px;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+        }
+        .tx-bogwh {
+          position: absolute; bottom: -3px; width: 16px; height: 16px; border-radius: 50%;
+          background: radial-gradient(circle at 38% 38%, hsl(0,0%,40%), hsl(0,0%,12%));
+          border: 2px solid hsl(0,0%,44%);
+          box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+          animation: tx-whr 0.5s linear infinite; will-change: transform;
+        }
+        .tx-bogwh1 { left: 0; }
+        .tx-bogwh2 { right: 0; }
+
+        /* End lamp */
+        .tx-endlamp {
+          flex-shrink: 0; width: 8px; height: 14px; align-self: center; margin-bottom: 30px; margin-left: 6px;
+          background: linear-gradient(to top, hsl(0,70%,35%), hsl(0,60%,50%));
+          border-radius: 4px 4px 0 0; border: 1px solid rgba(255,255,255,0.1);
+          box-shadow: 0 0 12px rgba(255,50,50,0.25);
+        }
+
+        /* ═══ RESPONSIVE ═══ */
         @media (prefers-reduced-motion: reduce) {
-          .ts3-star, .ts3-skyline-wrap, .ts3-skyline-near-wrap, .ts3-ties,
-          .ts3-speed-l, .ts3-puff, .ts3-train, .ts3-drv, .ts3-fwh,
-          .ts3-bwh, .ts3-rod { animation: none !important; }
+          .tx-star, .tx-skyline-far, .tx-skyline-near, .tx-ties,
+          .tx-spark, .tx-puff, .tx-train, .tx-bigwh, .tx-pilot-wh,
+          .tx-twh, .tx-bogwh, .tx-conrod, .tx-crank { animation: none !important; }
         }
         @media (max-width: 768px) {
-          .train-scene-v3 { height: 380px; }
-          .ts3-loco { width: 145px; height: 64px; }
-          .ts3-boiler { width: 100px; height: 46px; }
-          .ts3-cab { width: 48px; height: 78px; top: -10px; }
-          .ts3-wagon { width: 130px; }
-          .ts3-wbody { height: 100px; }
-          .ts3-bubble { padding: 7px 5px; border-radius: 10px; }
-          .ts3-bubble-icon { width: 24px; height: 24px; border-radius: 7px; margin-bottom: 4px; }
-          .ts3-bubble-icon svg { width: 11px !important; height: 11px !important; }
-          .ts3-bubble-title { font-size: 8.5px; }
-          .ts3-bubble-desc { font-size: 6.5px; }
-          .ts3-train { right: 10px; }
-          .ts3-drv { width: 24px; height: 24px; }
-          .ts3-fwh { width: 14px; height: 14px; }
+          .tx-scene { height: 420px; }
+          .tx-loco { width: 170px; height: 76px; }
+          .tx-boiler { width: 120px; height: 54px; }
+          .tx-cab { width: 54px; height: 90px; top: -14px; }
+          .tx-wagon { width: 140px; }
+          .tx-wbody { height: 110px; }
+          .tx-bubble { padding: 8px 6px; border-radius: 12px; }
+          .tx-bub-icon { width: 28px; height: 28px; border-radius: 9px; margin-bottom: 5px; }
+          .tx-bub-icon svg { width: 13px !important; height: 13px !important; }
+          .tx-bub-title { font-size: 9.5px; }
+          .tx-bub-desc { font-size: 7px; }
+          .tx-tender { width: 58px; height: 52px; }
+          .tx-tender-body { height: 40px; }
+          .tx-bigwh { width: 30px; height: 30px; }
+          .tx-train { right: 8px; }
         }
         @media (max-width: 480px) {
-          .train-scene-v3 { height: 320px; }
-          .ts3-wagon { width: 100px; }
-          .ts3-wbody { height: 82px; }
-          .ts3-bubble-desc { display: none; }
-          .ts3-bubble { padding: 5px 4px; }
-          .ts3-bubble-icon { width: 20px; height: 20px; margin-bottom: 3px; }
-          .ts3-loco { width: 110px; height: 52px; }
-          .ts3-boiler { width: 78px; height: 38px; }
-          .ts3-cab { width: 38px; height: 62px; }
-          .ts3-wpanel, .ts3-wpanel-2 { display: none; }
-          .ts3-skyline-near-wrap { display: none; }
+          .tx-scene { height: 340px; }
+          .tx-wagon { width: 108px; }
+          .tx-wbody { height: 88px; }
+          .tx-bub-desc { display: none; }
+          .tx-bubble { padding: 5px 4px; border-radius: 10px; }
+          .tx-bub-icon { width: 22px; height: 22px; margin-bottom: 3px; }
+          .tx-bub-title { font-size: 8px; }
+          .tx-loco { width: 130px; height: 60px; }
+          .tx-boiler { width: 90px; height: 44px; }
+          .tx-cab { width: 42px; height: 72px; }
+          .tx-wwin { display: none; }
+          .tx-skyline-near { display: none; }
+          .tx-tender { width: 45px; height: 42px; }
+          .tx-tender-body { height: 32px; }
         }
       `}</style>
     </section>
