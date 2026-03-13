@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift, Globe } from "lucide-react";
+import { Check, ArrowRight, Sparkles, BadgePercent, Zap, Gift, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import PageSEO from "@/components/PageSEO";
