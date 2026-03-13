@@ -30,7 +30,7 @@ const Checkout = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const { purchaseCount, refreshWallet } = useWallet();
+  const { balance, purchaseCount, refreshWallet } = useWallet();
   const [state, setState] = useState<CheckoutState>("loading");
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [orderInfo, setOrderInfo] = useState<OrderInfo | null>(null);
@@ -40,6 +40,10 @@ const Checkout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const stateRef = useRef<CheckoutState>("loading");
+  const verificationStartedRef = useRef(false);
+  const baselineBalanceRef = useRef(0);
+  const baselinePurchaseCountRef = useRef(0);
 
   const pkgId = searchParams.get("pkg");
   const customCreditsParam = searchParams.get("credits");
@@ -52,15 +56,33 @@ const Checkout = () => {
   }, [user, navigate]);
 
   useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  useEffect(() => {
     if (!user) return;
     const initCheckout = async () => {
       try {
         setState("loading");
-        let body: any = {};
+        verificationStartedRef.current = false;
+
+        baselineBalanceRef.current = balance;
+        baselinePurchaseCountRef.current = purchaseCount;
+        const { data: walletSnapshot } = await supabase
+          .from("wallets")
+          .select("balance, purchase_count")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (walletSnapshot) {
+          baselineBalanceRef.current = walletSnapshot.balance ?? balance;
+          baselinePurchaseCountRef.current = walletSnapshot.purchase_count ?? purchaseCount;
+        }
+
+        const body: Record<string, any> = {};
         if (pkgId) {
           body.packageId = pkgId;
         } else if (customCreditsParam) {
-          body.customCredits = parseInt(customCreditsParam);
+          body.customCredits = parseInt(customCreditsParam, 10);
         } else {
           navigate("/pricing");
           return;
@@ -72,21 +94,23 @@ const Checkout = () => {
             .from("credit_packages")
             .select("*")
             .eq("id", pkgId)
-            .single();
-          if (pkg) {
-            const isFirst = purchaseCount === 0;
-            const discountedPrice = isFirst ? Math.round(pkg.price_cents * 0.6) : pkg.price_cents;
-            setOrderInfo({
-              name: pkg.name,
-              credits: pkg.credits,
-              bonus: pkg.bonus_credits,
-              originalPriceCents: pkg.price_cents,
-              finalPriceCents: discountedPrice,
-              discountLabel: isFirst ? "First Order · 40% OFF" : null,
-              discountAmountCents: isFirst ? pkg.price_cents - discountedPrice : 0,
-              isFirstOrder: isFirst,
-            });
+            .maybeSingle();
+          if (!pkg) {
+            navigate("/pricing", { replace: true });
+            return;
           }
+          const isFirst = purchaseCount === 0;
+          const discountedPrice = isFirst ? Math.round(pkg.price_cents * 0.6) : pkg.price_cents;
+          setOrderInfo({
+            name: pkg.name,
+            credits: pkg.credits,
+            bonus: pkg.bonus_credits,
+            originalPriceCents: pkg.price_cents,
+            finalPriceCents: discountedPrice,
+            discountLabel: isFirst ? "First Order · 40% OFF" : null,
+            discountAmountCents: isFirst ? pkg.price_cents - discountedPrice : 0,
+            isFirstOrder: isFirst,
+          });
         } else if (customCreditsParam) {
           const credits = parseInt(customCreditsParam);
           const basePriceCents = Math.round(credits * 1.816);
@@ -119,32 +143,38 @@ const Checkout = () => {
     initCheckout();
   }, [user]); // eslint-disable-line
 
-  useEffect(() => {
-    const handleEvent = (eventName: string) => {
-      const lower = eventName.toLowerCase();
-      if (lower.includes("success") || lower.includes("confirmed")) {
-        setState("verifying");
-        verifyWithRetry();
-      } else if (lower.includes("fail") || lower.includes("decline") || lower.includes("error")) {
-        setState("failed");
-      } else if (lower.includes("close") || lower.includes("cancel")) {
-        setState("canceled");
-      }
-    };
-    const handler = (event: MessageEvent) => {
-      if (typeof event.data === "string") {
-        try {
-          const parsed = JSON.parse(event.data);
-          if (parsed.event) handleEvent(parsed.event);
-        } catch {}
-      }
-      if (event.data?.event) handleEvent(event.data.event);
-    };
-    window.addEventListener("message", handler);
-    return () => window.removeEventListener("message", handler);
-  }, []);
-
   const verifyWithRetry = async () => {
+    const resolveSuccess = async (verificationData: any, currentStep: number) => {
+      const balanceFromVerification = Number(verificationData?.balance ?? baselineBalanceRef.current);
+      const purchaseCountFromVerification = Number(verificationData?.purchase_count ?? baselinePurchaseCountRef.current);
+      const walletDelta = Math.max(0, balanceFromVerification - baselineBalanceRef.current);
+      const purchaseCountIncreased = purchaseCountFromVerification > baselinePurchaseCountRef.current;
+      const directCreditsAdded = Number(verificationData?.credits_added ?? 0);
+
+      if (directCreditsAdded <= 0 && !purchaseCountIncreased && walletDelta <= 0) {
+        return false;
+      }
+
+      const inferredCreditsAdded = directCreditsAdded > 0
+        ? directCreditsAdded
+        : walletDelta > 0
+          ? walletDelta
+          : (orderInfo?.credits || 0) + (orderInfo?.bonus || 0);
+
+      setCreditsAdded(inferredCreditsAdded);
+      for (let j = currentStep + 1; j < steps.length; j++) {
+        setVerifyStep(j + 1);
+        setVerifyStatus(steps[j].msg);
+        await new Promise(r => setTimeout(r, 800));
+      }
+      setVerifyStep(steps.length);
+      setVerifyStatus("Payment verified successfully!");
+      await new Promise(r => setTimeout(r, 600));
+      setState("success");
+      refreshWallet();
+      return true;
+    };
+
     const steps = [
       { delay: 2000, msg: "Connecting to payment provider...", verifyNow: false },
       { delay: 2500, msg: "Payment received, validating transaction...", verifyNow: true },
@@ -161,55 +191,93 @@ const Checkout = () => {
       if (steps[i].verifyNow) {
         try {
           const { data } = await supabase.functions.invoke("verify-credit-purchase");
-          if (data?.credited && data.credits_added > 0) {
-            // Credits found — continue showing remaining steps for natural feel
-            setCreditsAdded(data.credits_added);
-            for (let j = i + 1; j < steps.length; j++) {
-              setVerifyStep(j + 1);
-              setVerifyStatus(steps[j].msg);
-              await new Promise(r => setTimeout(r, 800));
-            }
-            setVerifyStep(steps.length);
-            setVerifyStatus("Payment verified successfully!");
-            await new Promise(r => setTimeout(r, 600));
-            setState("success");
-            refreshWallet();
-            return;
-          }
+          const didResolve = await resolveSuccess(data, i);
+          if (didResolve) return;
         } catch {}
       }
     }
 
-    // Extra retries with longer waits (payment provider may be slow)
     for (let retry = 0; retry < 3; retry++) {
       setVerifyStatus("Still waiting for confirmation...");
       await new Promise(r => setTimeout(r, 3000));
       try {
         const { data } = await supabase.functions.invoke("verify-credit-purchase");
-        if (data?.credited && data.credits_added > 0) {
-          setCreditsAdded(data.credits_added);
-          setVerifyStatus("Payment verified successfully!");
-          await new Promise(r => setTimeout(r, 600));
-          setState("success");
-          refreshWallet();
-          return;
-        }
+        const didResolve = await resolveSuccess(data, steps.length - 1);
+        if (didResolve) return;
       } catch {}
     }
 
-    // Only mark failed after exhausting all retries
+    try {
+      const { data: latestWallet } = await supabase
+        .from("wallets")
+        .select("balance, purchase_count")
+        .eq("user_id", user?.id)
+        .maybeSingle();
+
+      const latestBalance = Number(latestWallet?.balance ?? baselineBalanceRef.current);
+      const latestPurchaseCount = Number(latestWallet?.purchase_count ?? baselinePurchaseCountRef.current);
+      const latestDelta = Math.max(0, latestBalance - baselineBalanceRef.current);
+      if (latestPurchaseCount > baselinePurchaseCountRef.current || latestDelta > 0) {
+        setCreditsAdded(latestDelta > 0 ? latestDelta : (orderInfo?.credits || 0) + (orderInfo?.bonus || 0));
+        setVerifyStatus("Payment verified successfully!");
+        await new Promise(r => setTimeout(r, 600));
+        setState("success");
+        refreshWallet();
+        return;
+      }
+    } catch {}
+
     setState("failed");
   };
 
   useEffect(() => {
-    if (state === "success") {
-      // Redirect to thank-you page with order context
-      const params = new URLSearchParams();
-      params.set("credits", String(creditsAdded));
-      if (orderInfo) params.set("pkg", orderInfo.name);
-      navigate(`/thank-you?${params.toString()}`, { replace: true });
-    }
-  }, [state]); // eslint-disable-line
+    const handleEvent = (eventName: string) => {
+      const lower = eventName.toLowerCase();
+      const currentState = stateRef.current;
+
+      if (lower.includes("success") || lower.includes("confirmed")) {
+        if (verificationStartedRef.current || currentState !== "checkout") return;
+        verificationStartedRef.current = true;
+        setState("verifying");
+        verifyWithRetry();
+        return;
+      }
+
+      if (verificationStartedRef.current || currentState !== "checkout") return;
+
+      if (lower.includes("fail") || lower.includes("decline") || lower.includes("error")) {
+        setState("failed");
+      } else if (lower.includes("close") || lower.includes("cancel")) {
+        setState("canceled");
+      }
+    };
+
+    const handler = (event: MessageEvent) => {
+      if (typeof event.data === "string") {
+        try {
+          const parsed = JSON.parse(event.data);
+          if (parsed.event) handleEvent(parsed.event);
+        } catch {}
+      }
+      if (event.data?.event) handleEvent(event.data.event);
+    };
+
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, [orderInfo, refreshWallet, user?.id]);
+
+  useEffect(() => {
+    if (state !== "success") return;
+
+    const guaranteedCredits = creditsAdded > 0
+      ? creditsAdded
+      : (orderInfo?.credits || 0) + (orderInfo?.bonus || 0);
+
+    const params = new URLSearchParams();
+    params.set("credits", String(guaranteedCredits));
+    if (orderInfo) params.set("pkg", orderInfo.name);
+    navigate(`/thank-you?${params.toString()}`, { replace: true });
+  }, [state, creditsAdded, orderInfo, navigate]);
 
   const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 

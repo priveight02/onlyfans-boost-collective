@@ -28,6 +28,8 @@ const getIconBg = (type: string) => {
   return "bg-sky-500/10";
 };
 
+const HIDDEN_NOTIFICATION_TYPES = new Set(["checkout", "payment_success", "benefit"]);
+
 const AdminNotificationPopup = () => {
   const { user } = useAuth();
   const [queue, setQueue] = useState<AdminNotification[]>([]);
@@ -35,6 +37,7 @@ const AdminNotificationPopup = () => {
   const seenIds = useRef(new Set<string>());
 
   const enqueue = useCallback((n: AdminNotification) => {
+    if (HIDDEN_NOTIFICATION_TYPES.has(n.notification_type)) return;
     if (seenIds.current.has(n.id)) return;
     seenIds.current.add(n.id);
     setQueue(prev => [...prev, n]);
@@ -50,7 +53,7 @@ const AdminNotificationPopup = () => {
         .select("*")
         .eq("user_id", user.id)
         .eq("is_read", false)
-        .neq("notification_type", "checkout")
+        .not("notification_type", "in", '("checkout","payment_success","benefit")')
         .order("created_at", { ascending: false })
         .limit(3);
       if (data) {

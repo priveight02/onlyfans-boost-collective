@@ -260,9 +260,7 @@ serve(async (req) => {
           });
 
           if (granted) {
-            await notify(userId, "Credits Purchased", `${totalCredits} credits have been added to your wallet${bonus > 0 ? ` (includes ${bonus} bonus)` : ""}.`, "payment_success", {
-              credits: totalCredits, order_id: data.id, amount: data.amount,
-            });
+            log("Credit purchase processed without popup notification", { userId, totalCredits, orderId: data.id });
           }
         } else {
           log(`${eventType}: 0 credits resolved`, { meta: data?.metadata, productMeta: data?.product?.metadata });
@@ -493,7 +491,7 @@ serve(async (req) => {
             benefit_id: data?.benefit?.id, benefit_type: data?.benefit?.type, event: eventType,
           });
           if (granted) {
-            await notify(userId, "Credits Granted!", `${grantCreditsAmount} credits from your subscription benefit have been added.`, "benefit", { credits: grantCreditsAmount });
+            log("Benefit credits granted without popup notification", { userId, grantCreditsAmount, benefitId: data?.benefit?.id });
           }
         }
         log(`Benefit grant: ${eventType}`, { userId, credits: parseInt(benefitMeta.credits || "0") });
