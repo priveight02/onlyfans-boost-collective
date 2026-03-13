@@ -1,0 +1,1 @@
+UPDATE public.wallets SET purchase_count = 0, retention_credits_used = false WHERE user_id = '252dfcde-04a0-4d81-a502-9de9fdcbac30';
