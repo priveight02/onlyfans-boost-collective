@@ -3,11 +3,10 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 import {
   ArrowLeft, ShieldCheck, Loader2, CheckCircle2, XCircle,
   Sparkles, LayoutDashboard, AlertTriangle, Coins, Zap, BadgeCheck,
-  PanelRightClose, PanelRightOpen,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -46,7 +45,6 @@ const Checkout = () => {
 
   useEffect(() => {
     if (!user) {
-      toast.error("Please log in first");
       navigate("/auth");
     }
   }, [user, navigate]);
@@ -62,7 +60,6 @@ const Checkout = () => {
         } else if (customCreditsParam) {
           body.customCredits = parseInt(customCreditsParam);
         } else {
-          toast.error("Invalid checkout parameters");
           navigate("/pricing");
           return;
         }
@@ -114,7 +111,6 @@ const Checkout = () => {
           throw new Error("No checkout URL received");
         }
       } catch (err: any) {
-        toast.error(err.message || "Failed to start checkout");
         navigate("/pricing");
       }
     };
