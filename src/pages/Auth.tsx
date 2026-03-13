@@ -10,12 +10,11 @@ import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { trackAdminLogin } from "@/hooks/useVisitorTracking";
-import authHero from "@/assets/auth-hero.png";
+import authHeroFull from "@/assets/auth-hero-full.png";
 import {
   Eye, EyeOff, LogIn, Lock, Mail, User, ArrowLeft,
   Sparkles, KeyRound, Send, UserPlus, Chrome,
-  CheckCircle2, AlertCircle, XCircle, X, Shield,
-  Zap, TrendingUp, MessageCircle
+  CheckCircle2, AlertCircle, XCircle, X, Shield
 } from "lucide-react";
 
 type CardNotification = {
