@@ -215,7 +215,7 @@ const Pricing = () => {
                   <div
                     key={pkg.id}
                     onMouseMove={handleMouseMove}
-                    className={`group relative flex flex-col rounded-2xl transition-all duration-300 [backface-visibility:hidden] [transform:translateZ(0)] hover:border-purple-500/30`}
+                    className={`group relative flex flex-col rounded-2xl transition-all duration-300 [backface-visibility:hidden] [transform:translateZ(0)]`}
                     style={{
                       "--mouse-x": "50%",
                       "--mouse-y": "50%",
@@ -224,6 +224,8 @@ const Pricing = () => {
                       border: isPopular ? "1px solid hsla(45, 100%, 60%, 0.4)" : "1px solid hsla(0, 0%, 100%, 0.08)",
                       boxShadow: isPopular ? "0 0 20px hsla(45, 100%, 60%, 0.08)" : "none",
                     } as React.CSSProperties}
+                    onMouseEnter={e => { if (!isPopular) e.currentTarget.style.borderColor = "hsla(262, 83%, 58%, 0.3)"; }}
+                    onMouseLeave={e => { if (!isPopular) e.currentTarget.style.borderColor = "hsla(0, 0%, 100%, 0.08)"; }}
                   >
                     {/* Flashlight overlay */}
                     <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl overflow-hidden" style={{ background: "radial-gradient(200px circle at var(--mouse-x) var(--mouse-y), hsla(262, 83%, 58%, 0.06), transparent 60%)" }} />
