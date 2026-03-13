@@ -63,9 +63,16 @@ const Navigation = () => {
 
   const finalMenuItems: MenuItem[] = [
     ...platformFilteredItems,
-    ...(user ? [{ name: "Platform", href: "/platform", icon: LayoutDashboard }] : []),
+    { name: "Platform", href: "/platform", icon: LayoutDashboard },
     ...(isAdmin ? [{ name: "Admin", href: "/admin", icon: Shield }] : []),
   ];
+
+  const handlePlatformClick = (e: React.MouseEvent, href: string) => {
+    if (href === "/platform" && !user) {
+      e.preventDefault();
+      navigate("/auth");
+    }
+  };
 
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
@@ -103,6 +110,7 @@ const Navigation = () => {
                   <Link
                     key={item.name}
                     to={item.href}
+                    onClick={(e) => handlePlatformClick(e, item.href)}
                     className={`relative ${isPlatform ? 'px-1.5' : 'px-3.5'} py-1.5 rounded-lg text-[13px] font-medium transition-all duration-200 group`}
                     style={{
                       color: isActive ? "white" : "hsla(215, 25%, 65%, 1)",
@@ -198,7 +206,10 @@ const Navigation = () => {
                     <Link
                       key={item.name}
                       to={item.href}
-                      onClick={() => setIsOpen(false)}
+                      onClick={(e) => {
+                        handlePlatformClick(e, item.href);
+                        setIsOpen(false);
+                      }}
                       className="block w-full text-left px-4 py-2.5 rounded-xl text-[13px] font-medium transition-all duration-200 flex items-center gap-3"
                       style={{
                         color: isActive ? "white" : "hsla(215, 25%, 70%, 1)",
