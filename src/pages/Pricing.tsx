@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import CheckoutModal from "@/components/CheckoutModal";
 import PageSEO from "@/components/PageSEO";
+import AnimatedBackground from "@/components/AnimatedBackground";
 
 interface CreditPackage {
   id: string;
@@ -16,7 +17,7 @@ interface CreditPackage {
   credits: number;
   bonus_credits: number;
   price_cents: number;
-  stripe_price_id: string; // stores Polar product reference
+  stripe_price_id: string;
   is_popular: boolean;
   sort_order: number;
 }
@@ -50,14 +51,12 @@ const Pricing = () => {
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [circulationCredits, setCirculationCredits] = useState<number | null>(null);
 
-  // Declining discount: 1st repurchase=30%, 2nd=20%, 3rd=10%, then 0%
   const getReturningDiscount = (count: number): number => {
     if (count === 1) return 0.30;
     if (count === 2) return 0.20;
     if (count === 3) return 0.10;
     return 0;
   };
-  // If retention is active, loyalty discount is erased (non-stackable)
   const returningDiscount = retentionActive ? 0 : getReturningDiscount(purchaseCount);
   const isReturning = returningDiscount > 0;
 
@@ -72,27 +71,20 @@ const Pricing = () => {
       setLoading(false);
     };
     fetchPackages();
-
-    // Fetch credits in circulation
     const fetchCirculation = async () => {
       try {
         const { data, error } = await supabase.functions.invoke("credits-circulation");
-        if (!error && data?.total_credits != null) {
-          setCirculationCredits(data.total_credits);
-        }
+        if (!error && data?.total_credits != null) setCirculationCredits(data.total_credits);
       } catch {}
     };
     fetchCirculation();
   }, []);
 
-  // Check if retention discount is active
   useEffect(() => {
     if (!user) return;
     const checkRetention = async () => {
       try {
-        const { data, error } = await supabase.functions.invoke("billing-info", {
-          body: { action: "info" },
-        });
+        const { data, error } = await supabase.functions.invoke("billing-info", { body: { action: "info" } });
         if (!error && data) {
           setRetentionActive(data.eligible_for_retention && !data.retention_credits_used);
           setRetentionUsed(data.retention_credits_used || false);
@@ -102,34 +94,19 @@ const Pricing = () => {
     checkRetention();
   }, [user]);
 
-  // Verification effect — runs once, clears params to prevent re-runs
   useEffect(() => {
     const isSuccess = searchParams.get("success") === "true";
     const isCanceled = searchParams.get("canceled") === "true";
-
     if (!isSuccess && !isCanceled) return;
-
-    if (isCanceled) {
-      toast.info("Purchase canceled");
-      setSearchParams({}, { replace: true });
-      return;
-    }
-
+    if (isCanceled) { toast.info("Purchase canceled"); setSearchParams({}, { replace: true }); return; }
     if (isSuccess && !verifying) {
       setVerifying(true);
-      // Immediately clear URL params so this never fires again
       setSearchParams({}, { replace: true });
-
       const toastId = toast.loading("Verifying your purchase...");
       supabase.functions.invoke("verify-credit-purchase").then(({ data, error }) => {
-        if (error) {
-          toast.error("Verification failed. Credits will appear shortly, please refresh.", { id: toastId });
-          console.error("Verification error:", error);
-        } else if (data?.credited && data.credits_added > 0) {
-          toast.success(`🎉 ${data.credits_added.toLocaleString()} credits added!`, { id: toastId });
-        } else {
-          toast.success("Credits already in your wallet!", { id: toastId });
-        }
+        if (error) toast.error("Verification failed. Credits will appear shortly, please refresh.", { id: toastId });
+        else if (data?.credited && data.credits_added > 0) toast.success(`🎉 ${data.credits_added.toLocaleString()} credits added!`, { id: toastId });
+        else toast.success("Credits already in your wallet!", { id: toastId });
         refreshWallet();
         setVerifying(false);
       });
@@ -138,24 +115,17 @@ const Pricing = () => {
 
   const handleCheckoutClose = (purchased: boolean) => {
     setCheckoutUrl(null);
-    if (purchased) {
-      refreshWallet();
-    }
+    if (purchased) refreshWallet();
   };
 
   const handlePurchase = async (pkg: CreditPackage, useRetention = false) => {
     if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
     setPurchasingId(pkg.id + (useRetention ? "_ret" : ""));
     try {
-      const { data, error } = await supabase.functions.invoke("purchase-credits", {
-        body: { packageId: pkg.id, useRetentionDiscount: useRetention },
-      });
+      const { data, error } = await supabase.functions.invoke("purchase-credits", { body: { packageId: pkg.id, useRetentionDiscount: useRetention } });
       if (error) throw error;
       if (data?.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
-      if (useRetention) {
-        setRetentionActive(false);
-        setRetentionUsed(true);
-      }
+      if (useRetention) { setRetentionActive(false); setRetentionUsed(true); }
     } catch (err: any) {
       toast.error(err.message || "Failed to start checkout");
     } finally {
@@ -168,9 +138,7 @@ const Pricing = () => {
     if (customCredits < 500) { toast.error("Minimum 500 credits"); return; }
     setPurchasingCustom(true);
     try {
-      const { data, error } = await supabase.functions.invoke("purchase-credits", {
-        body: { customCredits },
-      });
+      const { data, error } = await supabase.functions.invoke("purchase-credits", { body: { customCredits } });
       if (error) throw error;
       if (data?.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
     } catch (err: any) {
@@ -188,13 +156,6 @@ const Pricing = () => {
   const customTotalCents = Math.round(customCredits * customPricePerCredit);
   const customDisplayCents = isReturning ? Math.round(customTotalCents * (1 - returningDiscount)) : customTotalCents;
 
-  const cardAccents = [
-    { border: "border-purple-500/25", hoverBorder: "hover:border-purple-400/50", flash: "rgba(168,85,247,0.04)", badge: "bg-purple-500", label: "" },
-    { border: "border-yellow-500/40", hoverBorder: "hover:border-yellow-400/60", flash: "rgba(234,179,8,0.04)", badge: "bg-yellow-500", label: "Most Popular" },
-    { border: "border-white/10", hoverBorder: "hover:border-white/25", flash: "rgba(255,255,255,0.03)", badge: "", label: "" },
-    { border: "border-purple-500/30", hoverBorder: "hover:border-purple-400/50", flash: "rgba(168,85,247,0.04)", badge: "bg-purple-500", label: "Best Value" },
-  ];
-
   const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const card = e.currentTarget;
     const rect = card.getBoundingClientRect();
@@ -203,269 +164,277 @@ const Pricing = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[hsl(222,35%,8%)] text-white pt-24">
+    <AnimatedBackground variant="pricing">
       <PageSEO
         title="Uplyze Pricing - Pay As You Go, Scale As You Grow"
         description="No subscriptions, no lock-ins. Grab AI credits when you need them. Flexible plans built for creators, agencies, and businesses at any stage."
       />
-      {/* Hero */}
-      <div className="text-center px-4 mb-14">
-        <h1 className="text-4xl md:text-5xl font-bold mb-3 text-white tracking-tight">
-          Uplyze Credits. Pay As You Grow
-        </h1>
-        <p className="text-base text-white/40 max-w-lg mx-auto">
-          Flexible credit plans for Uplyze AI Platform tools. Credits are delivered instantly and never expire.
-        </p>
+      <div className="pt-24 pb-20 px-4">
+        {/* Hero */}
+        <div className="text-center mb-14">
+          <h1 className="text-4xl md:text-5xl font-bold mb-3 text-white tracking-tight">
+            Uplyze Credits. Pay As You Grow
+          </h1>
+          <p className="text-base text-white/40 max-w-lg mx-auto">
+            Flexible credit plans for Uplyze AI Platform tools. Credits are delivered instantly and never expire.
+          </p>
 
-        {user && (
-          <div className="mt-6 flex flex-col items-center gap-3">
-            <div className="flex items-center gap-3 flex-wrap justify-center">
-              {circulationCredits !== null && (
-                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/5 border border-white/10">
-                  <Globe className="h-3.5 w-3.5 text-purple-400" />
-                  <span className="text-sm font-medium text-white/60">{circulationCredits.toLocaleString()}</span>
-                  <span className="text-white/30 text-xs">in circulation</span>
+          {user && (
+            <div className="mt-6 flex flex-col items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap justify-center">
+                {circulationCredits !== null && (
+                  <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full" style={{ background: "hsla(0, 0%, 100%, 0.05)", border: "1px solid hsla(0, 0%, 100%, 0.1)" }}>
+                    <Globe className="h-3.5 w-3.5" style={{ color: "hsl(262, 83%, 65%)" }} />
+                    <span className="text-sm font-medium text-white/60">{circulationCredits.toLocaleString()}</span>
+                    <span className="text-white/30 text-xs">in circulation</span>
+                  </div>
+                )}
+                <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full" style={{ background: "hsla(0, 0%, 100%, 0.05)", border: "1px solid hsla(0, 0%, 100%, 0.1)" }}>
+                  <span className="text-white/40 text-sm">Your Credits:</span>
+                  <span className="text-xl font-semibold text-white">{balance.toLocaleString()}</span>
+                </div>
+              </div>
+              {isReturning && (
+                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full" style={{ background: "hsla(145, 80%, 42%, 0.1)", border: "1px solid hsla(145, 80%, 42%, 0.2)" }}>
+                  <BadgePercent className="h-3.5 w-3.5" style={{ color: "hsl(145, 80%, 55%)" }} />
+                  <span className="text-xs font-medium" style={{ color: "hsl(145, 70%, 65%)" }}>{Math.round(returningDiscount * 100)}% returning customer discount applied</span>
                 </div>
               )}
-              <div className="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-white/5 border border-white/10">
-                <span className="text-white/40 text-sm">Your Credits:</span>
-                <span className="text-xl font-semibold text-white">{balance.toLocaleString()}</span>
-              </div>
+              {retentionActive && (
+                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full" style={{ background: "hsla(330, 80%, 55%, 0.1)", border: "1px solid hsla(330, 80%, 55%, 0.2)" }}>
+                  <Gift className="h-3.5 w-3.5" style={{ color: "hsl(330, 80%, 65%)" }} />
+                  <span className="text-xs font-medium" style={{ color: "hsl(330, 70%, 70%)" }}>🎁 Exclusive 50% OFF available, one-time use</span>
+                </div>
+              )}
             </div>
-            {isReturning && (
-              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                <BadgePercent className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="text-xs text-emerald-300 font-medium">{Math.round(returningDiscount * 100)}% returning customer discount applied</span>
-              </div>
-            )}
-            {retentionActive && (
-              <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-pink-500/10 border border-pink-500/20">
-                <Gift className="h-3.5 w-3.5 text-pink-400" />
-                <span className="text-xs text-pink-300 font-medium">🎁 Exclusive 50% OFF available, one-time use</span>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
+          )}
+        </div>
 
-      {/* Packages */}
-      <div className="max-w-7xl mx-auto px-4 pb-20">
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-80 rounded-2xl bg-white/5 animate-pulse" />
-            ))}
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
-            {packages.map((pkg, index) => {
-              const accent = cardAccents[index] || cardAccents[0];
-              const displayPrice = isReturning ? getDiscountedPrice(pkg.price_cents) : pkg.price_cents;
-              const retentionPrice = Math.round(pkg.price_cents * 0.5);
-              const perCredit = (displayPrice / (pkg.credits + pkg.bonus_credits)).toFixed(2);
-              const isPopular = pkg.is_popular;
+        {/* Packages */}
+        <div className="max-w-7xl mx-auto">
+          {loading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-80 rounded-2xl animate-pulse" style={{ background: "hsla(0, 0%, 100%, 0.05)" }} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+              {packages.map((pkg, index) => {
+                const isPopular = pkg.is_popular;
+                const displayPrice = isReturning ? getDiscountedPrice(pkg.price_cents) : pkg.price_cents;
+                const retentionPrice = Math.round(pkg.price_cents * 0.5);
+                const perCredit = (displayPrice / (pkg.credits + pkg.bonus_credits)).toFixed(2);
 
-              return (
-                <div
-                  key={pkg.id}
-                  onMouseMove={handleMouseMove}
-                  className={`group relative flex flex-col rounded-2xl border ${accent.border} ${accent.hoverBorder} bg-[hsl(222,30%,11%)] transition-colors duration-300 ${isPopular ? 'ring-1 ring-yellow-500/40' : ''} [backface-visibility:hidden] [transform:translateZ(0)]`}
-                  style={{ "--mouse-x": "50%", "--mouse-y": "50%" } as React.CSSProperties}
-                >
-                  {/* Flashlight overlay */}
-                  <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl overflow-hidden" style={{ background: `radial-gradient(200px circle at var(--mouse-x) var(--mouse-y), ${accent.flash}, transparent 60%)` }} />
-                  {accent.label && (
-                    <div className="absolute -top-3 right-4 z-10">
-                      <span className={`${accent.badge} text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap`}>
-                        {accent.label}
-                      </span>
-                    </div>
-                  )}
+                return (
+                  <div
+                    key={pkg.id}
+                    onMouseMove={handleMouseMove}
+                    className={`group relative flex flex-col rounded-2xl transition-all duration-300 [backface-visibility:hidden] [transform:translateZ(0)]`}
+                    style={{
+                      "--mouse-x": "50%",
+                      "--mouse-y": "50%",
+                      background: "hsla(222, 30%, 11%, 0.75)",
+                      backdropFilter: "blur(12px)",
+                      border: isPopular ? "1px solid hsla(45, 100%, 60%, 0.4)" : "1px solid hsla(0, 0%, 100%, 0.08)",
+                      boxShadow: isPopular ? "0 0 20px hsla(45, 100%, 60%, 0.08)" : "none",
+                    } as React.CSSProperties}
+                  >
+                    {/* Flashlight overlay */}
+                    <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl overflow-hidden" style={{ background: "radial-gradient(200px circle at var(--mouse-x) var(--mouse-y), hsla(262, 83%, 58%, 0.06), transparent 60%)" }} />
+
+                    {isPopular && (
+                      <div className="absolute -top-3 right-4 z-10">
+                        <span className="text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap" style={{ background: "hsl(45, 100%, 50%)", color: "hsl(222, 35%, 12%)" }}>
+                          Most Popular
+                        </span>
+                      </div>
+                    )}
+                    {index === 3 && !isPopular && (
+                      <div className="absolute -top-3 right-4 z-10">
+                        <span className="text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap" style={{ background: "hsl(262, 83%, 58%)" }}>
+                          Best Value
+                        </span>
+                      </div>
+                    )}
 
                     <div className="p-6 flex-1 flex flex-col">
-                    <h3 className="text-base font-semibold text-white/90 mb-3">{pkg.name}</h3>
-
-                    <div className="flex items-baseline gap-2 mb-0.5">
-                      {isReturning && (
-                        <span className="text-sm text-white/30 line-through">{formatPrice(pkg.price_cents)}</span>
-                      )}
-                      <span className="text-4xl font-bold text-white">{formatPrice(displayPrice)}</span>
-                    </div>
-                    <span className="text-xs text-white/30 mb-5">{perCredit}¢ per credit</span>
-
-                    <div className="space-y-2.5 mb-6 flex-1">
-                      <div className="flex items-center gap-3 text-sm text-white/60">
-                        <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
-                          <Check className="h-3 w-3 text-amber-400" strokeWidth={2.5} />
-                        </div>
-                        <span className="text-white/80 font-medium">{pkg.credits.toLocaleString()} credits</span>
+                      <h3 className="text-base font-semibold text-white/90 mb-3">{pkg.name}</h3>
+                      <div className="flex items-baseline gap-2 mb-0.5">
+                        {isReturning && <span className="text-sm text-white/30 line-through">{formatPrice(pkg.price_cents)}</span>}
+                        <span className="text-4xl font-bold text-white">{formatPrice(displayPrice)}</span>
                       </div>
-                      {pkg.bonus_credits > 0 && (
-                        <div className="flex items-center gap-3 text-sm text-amber-300/80">
-                          <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
-                            <Gift className="h-3 w-3 text-amber-400" strokeWidth={2.5} />
+                      <span className="text-xs text-white/30 mb-5">{perCredit}¢ per credit</span>
+                      <div className="space-y-2.5 mb-6 flex-1">
+                        <div className="flex items-center gap-3 text-sm text-white/60">
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "hsla(45, 100%, 50%, 0.15)", border: "1px solid hsla(45, 100%, 50%, 0.3)" }}>
+                            <Check className="h-3 w-3" style={{ color: "hsl(45, 100%, 55%)" }} strokeWidth={2.5} />
                           </div>
-                          <span>+{pkg.bonus_credits} bonus</span>
+                          <span className="text-white/80 font-medium">{pkg.credits.toLocaleString()} credits</span>
                         </div>
-                      )}
-                      <div className="flex items-center gap-3 text-sm text-white/60">
-                        <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
-                          <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
-                        </div>
-                        <span>Instant delivery</span>
+                        {pkg.bonus_credits > 0 && (
+                          <div className="flex items-center gap-3 text-sm" style={{ color: "hsla(45, 80%, 65%, 0.8)" }}>
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "hsla(45, 100%, 50%, 0.15)", border: "1px solid hsla(45, 100%, 50%, 0.3)" }}>
+                              <Gift className="h-3 w-3" style={{ color: "hsl(45, 100%, 55%)" }} strokeWidth={2.5} />
+                            </div>
+                            <span>+{pkg.bonus_credits} bonus</span>
+                          </div>
+                        )}
+                        {["Instant delivery", "Never expires", index === 0 ? "Platform Access" : "Full Platform Access"].map((feat) => (
+                          <div key={feat} className="flex items-center gap-3 text-sm text-white/60">
+                            <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "hsla(0, 0%, 100%, 0.06)", border: "1px solid hsla(0, 0%, 100%, 0.1)" }}>
+                              <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
+                            </div>
+                            <span>{feat}</span>
+                          </div>
+                        ))}
                       </div>
-                      <div className="flex items-center gap-3 text-sm text-white/60">
-                        <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
-                          <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
-                        </div>
-                        <span>Never expires</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-sm text-white/60">
-                        <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
-                          <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
-                        </div>
-                        <span>{index === 0 ? "Platform Access" : index === 1 ? "Advanced Platform Access" : index === 2 ? "Full Platform Access" : "Full Platform Access"}</span>
-                      </div>
-                    </div>
 
-                    <Button
-                      onClick={() => handlePurchase(pkg)}
-                      disabled={!!purchasingId}
-                      className={`group/btn w-full py-5 rounded-xl font-medium transition-colors ${
-                        isPopular
-                          ? 'bg-yellow-500 hover:bg-yellow-400 text-black'
-                          : 'bg-white/[0.07] hover:bg-white/[0.12] text-white border border-white/10'
-                      }`}
-                    >
-                      {purchasingId === pkg.id ? (
-                        <span className="animate-pulse">Processing...</span>
-                      ) : (
-                        <span className="flex items-center justify-center gap-2">
-                          Buy now <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
-                        </span>
-                      )}
-                    </Button>
-
-                    {retentionActive && (
                       <Button
-                        onClick={() => handlePurchase(pkg, true)}
+                        onClick={() => handlePurchase(pkg)}
                         disabled={!!purchasingId}
-                        className="w-full py-5 rounded-xl font-semibold transition-all bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 text-white border-0 mt-2"
+                        className="group/btn w-full py-5 rounded-xl font-medium transition-colors"
+                        style={isPopular ? { background: "hsl(45, 100%, 50%)", color: "hsl(222, 35%, 12%)" } : { background: "hsla(0, 0%, 100%, 0.07)", color: "white", border: "1px solid hsla(0, 0%, 100%, 0.1)" }}
                       >
-                        {purchasingId === pkg.id + "_ret" ? (
+                        {purchasingId === pkg.id ? (
                           <span className="animate-pulse">Processing...</span>
                         ) : (
                           <span className="flex items-center justify-center gap-2">
-                            <Gift className="h-4 w-4" /> Buy at {formatPrice(retentionPrice)} (50% OFF) <ArrowRight className="h-4 w-4" />
+                            Buy now <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
                           </span>
                         )}
                       </Button>
-                    )}
+
+                      {retentionActive && (
+                        <Button
+                          onClick={() => handlePurchase(pkg, true)}
+                          disabled={!!purchasingId}
+                          className="w-full py-5 rounded-xl font-semibold transition-all text-white border-0 mt-2"
+                          style={{ background: "linear-gradient(135deg, hsl(330, 80%, 55%), hsl(262, 83%, 58%))" }}
+                        >
+                          {purchasingId === pkg.id + "_ret" ? (
+                            <span className="animate-pulse">Processing...</span>
+                          ) : (
+                            <span className="flex items-center justify-center gap-2">
+                              <Gift className="h-4 w-4" /> Buy at {formatPrice(retentionPrice)} (50% OFF) <ArrowRight className="h-4 w-4" />
+                            </span>
+                          )}
+                        </Button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
 
-            {/* Custom Credits Card */}
-            <div
-              onMouseMove={handleMouseMove}
-              className="group relative flex flex-col rounded-2xl border border-purple-500/30 hover:border-purple-400/50 bg-[hsl(222,30%,11%)] transition-colors duration-300 [backface-visibility:hidden] [transform:translateZ(0)]"
-              style={{ "--mouse-x": "50%", "--mouse-y": "50%" } as React.CSSProperties}
-            >
-              <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl overflow-hidden" style={{ background: "radial-gradient(200px circle at var(--mouse-x) var(--mouse-y), rgba(168,85,247,0.04), transparent 60%)" }} />
-              <div className="absolute -top-3 right-4 z-10">
-                <span className="bg-purple-500 text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap">
-                  Custom
-                </span>
-              </div>
-
-              <div className="p-6 flex-1 flex flex-col">
-                <h3 className="text-base font-semibold text-white/90 mb-3">Custom Needs</h3>
-
-                <div className="flex items-baseline gap-2 mb-0.5">
-                  {isReturning && customTotalCents !== customDisplayCents && (
-                    <span className="text-sm text-white/30 line-through">${Math.round(customTotalCents / 100)}</span>
-                  )}
-                  <span className="text-4xl font-bold text-white">
-                    ${(customDisplayCents / 100).toFixed(customDisplayCents < 1000 ? 2 : 0)}
+              {/* Custom Credits Card */}
+              <div
+                onMouseMove={handleMouseMove}
+                className="group relative flex flex-col rounded-2xl transition-all duration-300 [backface-visibility:hidden] [transform:translateZ(0)]"
+                style={{
+                  "--mouse-x": "50%",
+                  "--mouse-y": "50%",
+                  background: "hsla(222, 30%, 11%, 0.75)",
+                  backdropFilter: "blur(12px)",
+                  border: "1px solid hsla(262, 83%, 58%, 0.3)",
+                } as React.CSSProperties}
+              >
+                <div className="pointer-events-none absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-2xl overflow-hidden" style={{ background: "radial-gradient(200px circle at var(--mouse-x) var(--mouse-y), hsla(262, 83%, 58%, 0.06), transparent 60%)" }} />
+                <div className="absolute -top-3 right-4 z-10">
+                  <span className="text-white text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full whitespace-nowrap" style={{ background: "hsl(262, 83%, 58%)" }}>
+                    Custom
                   </span>
                 </div>
-                <span className="text-xs text-white/30 mb-4">
-                  {(customDisplayCents / customCredits).toFixed(2)}¢/credit
-                  {customDiscount > 0 && ` · ${Math.round(customDiscount * 100)}% off`}
-                </span>
-
-                <div className="mb-4">
-                  <label className="text-xs text-white/40 mb-1.5 block">How many credits?</label>
-                  <input
-                    type="number"
-                    min={500}
-                    max={100000}
-                    value={customCredits}
-                    onChange={(e) => setCustomCredits(Math.max(500, parseInt(e.target.value) || 500))}
-                    className="w-full h-11 rounded-xl bg-white/[0.06] border border-white/[0.12] text-white text-center text-lg font-semibold focus:outline-none focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/40 transition-all placeholder:text-white/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                  />
-                  <span className="text-[10px] text-white/25 mt-1 block">Min 500 · Bulk discounts up to 40%</span>
-                </div>
-
-                <div className="space-y-2.5 mb-6 flex-1">
-                  <div className="flex items-center gap-3 text-sm text-white/60">
-                    <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
-                      <Check className="h-3 w-3 text-amber-400" strokeWidth={2.5} />
-                    </div>
-                    <span className="text-white/80 font-medium">{customCredits.toLocaleString()} credits</span>
-                  </div>
-                  {customDiscount > 0 && (
-                    <div className="flex items-center gap-3 text-sm text-amber-300/80">
-                      <div className="w-5 h-5 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
-                        <Gift className="h-3 w-3 text-amber-400" strokeWidth={2.5} />
-                      </div>
-                      <span>{Math.round(customDiscount * 100)}% volume discount</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-3 text-sm text-white/60">
-                    <div className="w-5 h-5 rounded-full bg-white/[0.08] border border-white/[0.12] flex items-center justify-center flex-shrink-0">
-                      <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
-                    </div>
-                    <span>Instant delivery</span>
-                  </div>
-                </div>
-
-                <Button
-                  onClick={handleCustomPurchase}
-                  disabled={purchasingCustom}
-                  className="group/btn w-full py-5 rounded-xl font-medium bg-purple-500 hover:bg-purple-400 text-white transition-colors"
-                >
-                  {purchasingCustom ? (
-                    <span className="animate-pulse">Processing...</span>
-                  ) : (
-                    <span className="flex items-center justify-center gap-2">
-                      Buy now <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
+                <div className="p-6 flex-1 flex flex-col">
+                  <h3 className="text-base font-semibold text-white/90 mb-3">Custom Needs</h3>
+                  <div className="flex items-baseline gap-2 mb-0.5">
+                    {isReturning && customTotalCents !== customDisplayCents && (
+                      <span className="text-sm text-white/30 line-through">${Math.round(customTotalCents / 100)}</span>
+                    )}
+                    <span className="text-4xl font-bold text-white">
+                      ${(customDisplayCents / 100).toFixed(customDisplayCents < 1000 ? 2 : 0)}
                     </span>
-                  )}
-                </Button>
+                  </div>
+                  <span className="text-xs text-white/30 mb-4">
+                    {(customDisplayCents / customCredits).toFixed(2)}¢/credit
+                    {customDiscount > 0 && ` · ${Math.round(customDiscount * 100)}% off`}
+                  </span>
+                  <div className="mb-4">
+                    <label className="text-xs text-white/40 mb-1.5 block">How many credits?</label>
+                    <input
+                      type="number"
+                      min={500}
+                      max={100000}
+                      value={customCredits}
+                      onChange={(e) => setCustomCredits(Math.max(500, parseInt(e.target.value) || 500))}
+                      className="w-full h-11 rounded-xl text-center text-lg font-semibold transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      style={{
+                        background: "hsla(0, 0%, 100%, 0.06)",
+                        border: "1px solid hsla(0, 0%, 100%, 0.12)",
+                        color: "white",
+                        outline: "none",
+                      }}
+                    />
+                    <span className="text-[10px] text-white/25 mt-1 block">Min 500 · Bulk discounts up to 40%</span>
+                  </div>
+                  <div className="space-y-2.5 mb-6 flex-1">
+                    <div className="flex items-center gap-3 text-sm text-white/60">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "hsla(45, 100%, 50%, 0.15)", border: "1px solid hsla(45, 100%, 50%, 0.3)" }}>
+                        <Check className="h-3 w-3" style={{ color: "hsl(45, 100%, 55%)" }} strokeWidth={2.5} />
+                      </div>
+                      <span className="text-white/80 font-medium">{customCredits.toLocaleString()} credits</span>
+                    </div>
+                    {customDiscount > 0 && (
+                      <div className="flex items-center gap-3 text-sm" style={{ color: "hsla(45, 80%, 65%, 0.8)" }}>
+                        <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "hsla(45, 100%, 50%, 0.15)", border: "1px solid hsla(45, 100%, 50%, 0.3)" }}>
+                          <Gift className="h-3 w-3" style={{ color: "hsl(45, 100%, 55%)" }} strokeWidth={2.5} />
+                        </div>
+                        <span>{Math.round(customDiscount * 100)}% volume discount</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3 text-sm text-white/60">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "hsla(0, 0%, 100%, 0.06)", border: "1px solid hsla(0, 0%, 100%, 0.1)" }}>
+                        <Check className="h-3 w-3 text-white/70" strokeWidth={2.5} />
+                      </div>
+                      <span>Instant delivery</span>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={handleCustomPurchase}
+                    disabled={purchasingCustom}
+                    className="group/btn w-full py-5 rounded-xl font-medium text-white transition-colors"
+                    style={{ background: "hsl(262, 83%, 58%)" }}
+                  >
+                    {purchasingCustom ? (
+                      <span className="animate-pulse">Processing...</span>
+                    ) : (
+                      <span className="flex items-center justify-center gap-2">
+                        Buy now <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover/btn:translate-x-1" />
+                      </span>
+                    )}
+                  </Button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Trust */}
-        <div className="mt-10 pb-0">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-2xl mx-auto text-center">
-            <div className="flex flex-col items-center gap-2">
-              <ShieldCheck className="h-5 w-5 text-white/30" />
-              <h4 className="text-sm font-medium text-white/70">Secure Payments</h4>
-              <p className="text-xs text-white/30">256-bit SSL · One-time payment</p>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <Zap className="h-5 w-5 text-white/30" />
-              <h4 className="text-sm font-medium text-white/70">Instant Delivery</h4>
-              <p className="text-xs text-white/30">Credits added immediately</p>
-            </div>
-            <div className="flex flex-col items-center gap-2">
-              <Gift className="h-5 w-5 text-white/30" />
-              <h4 className="text-sm font-medium text-white/70">Loyalty Rewards</h4>
-              <p className="text-xs text-white/30">Up to 30% off repeat purchases</p>
+          {/* Trust */}
+          <div className="mt-10 pb-0">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-2xl mx-auto text-center">
+              <div className="flex flex-col items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-white/30" />
+                <h4 className="text-sm font-medium text-white/70">Secure Payments</h4>
+                <p className="text-xs text-white/30">256-bit SSL · One-time payment</p>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <Zap className="h-5 w-5 text-white/30" />
+                <h4 className="text-sm font-medium text-white/70">Instant Delivery</h4>
+                <p className="text-xs text-white/30">Credits added immediately</p>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <Gift className="h-5 w-5 text-white/30" />
+                <h4 className="text-sm font-medium text-white/70">Loyalty Rewards</h4>
+                <p className="text-xs text-white/30">Up to 30% off repeat purchases</p>
+              </div>
             </div>
           </div>
         </div>
@@ -473,7 +442,7 @@ const Pricing = () => {
 
       <Footer />
       <CheckoutModal checkoutUrl={checkoutUrl} onClose={handleCheckoutClose} />
-    </div>
+    </AnimatedBackground>
   );
 };
 
