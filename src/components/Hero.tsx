@@ -56,16 +56,18 @@ const Hero = () => {
                 initial={{ opacity: 0, scale: 0.7, rotate: 0 }}
                 animate={{ opacity: 1, scale: 1, rotate: -8 }}
                 transition={{ duration: 0.6, delay: 0.6, type: "spring", stiffness: 180, damping: 10 }}
-                className="absolute -right-10 top-[55%] md:-right-16 md:top-[50%] z-20 inline-flex items-center gap-2.5 rounded-2xl px-5 py-2.5 md:px-7 md:py-3.5 text-xs md:text-base font-black shadow-2xl whitespace-nowrap backdrop-blur-xl border border-white/20"
+                 className="absolute -right-10 top-[55%] md:-right-16 md:top-[50%] z-20 inline-flex items-center gap-2.5 rounded-2xl px-5 py-2.5 md:px-7 md:py-3.5 text-xs md:text-base font-black whitespace-nowrap border border-white/15"
                  style={{
-                   background: 'linear-gradient(135deg, hsl(260,80%,68%), hsl(280,85%,62%), hsl(250,75%,70%))',
+                   background: 'linear-gradient(135deg, hsl(260,80%,65%), hsl(275,82%,58%), hsl(255,78%,62%))',
                    color: 'white',
-                   boxShadow: '0 2px 16px rgba(168,120,255,0.25), 0 0 0 1px rgba(255,255,255,0.1)',
+                   boxShadow: '0 1px 8px rgba(168,120,255,0.18), 0 4px 0 0 hsl(260,70%,42%), 0 5px 0 0 hsl(260,65%,35%), inset 0 1px 0 rgba(255,255,255,0.2)',
                    letterSpacing: '-0.01em',
                    WebkitFontSmoothing: 'antialiased',
                    MozOsxFontSmoothing: 'grayscale',
+                   textRendering: 'geometricPrecision',
+                   borderBottom: '2px solid hsl(260,60%,40%)',
                  }}
-              >
+               >
                 <Zap className="h-4 w-4 md:h-5 md:w-5" fill="currentColor" />
                 On complete autopilot
               </motion.span>
