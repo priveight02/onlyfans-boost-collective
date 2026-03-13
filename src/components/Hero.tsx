@@ -43,29 +43,29 @@ const Hero = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.9, delay: 0.15 }}
-            className="mb-6 text-5xl font-black leading-[1.02] tracking-tight text-white md:text-7xl lg:text-[5.5rem]"
+            className="mb-6 text-5xl font-bold leading-[1.05] tracking-tight text-white md:text-7xl lg:text-[5.5rem]"
           >
-            Automate, Engage & Convert
+            Automate Marketing &
             <br />
-            Every Follower Into{" "}
-            <span className="relative inline-block pb-14 md:pb-20">
+            Close More{" "}
+            <span className="relative inline-block pb-10 md:pb-12">
               <span className="uplyze-highlight pb-2">
-                Revenue
+                Sales
               </span>
               <motion.span
-                initial={{ opacity: 0, scale: 0.7, rotate: 0 }}
-                animate={{ opacity: 1, scale: 1, rotate: -6 }}
-                transition={{ duration: 0.6, delay: 0.6, type: "spring", stiffness: 160, damping: 12 }}
-                className="absolute -right-2 top-[55%] md:-right-4 md:top-[48%] z-20 inline-flex items-center gap-2 rounded-2xl px-6 py-3 md:px-8 md:py-4 text-sm md:text-lg font-black shadow-2xl whitespace-nowrap"
+                initial={{ opacity: 0, scale: 0.85, rotate: 0 }}
+                animate={{ opacity: 1, scale: 1, rotate: -3 }}
+                transition={{ duration: 0.5, delay: 0.6, type: "spring", stiffness: 200 }}
+                className="absolute -right-2 top-[55%] md:-right-4 md:top-[50%] z-20 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 md:px-4 md:py-2 text-[11px] md:text-sm font-bold shadow-lg"
                 style={{
-                  background: 'linear-gradient(135deg, hsl(65,90%,72%), hsl(80,95%,78%), hsl(65,85%,70%))',
-                  color: 'hsl(222,35%,10%)',
-                  boxShadow: '0 8px 40px rgba(200,230,100,0.35), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.4)',
-                  letterSpacing: '-0.02em',
+                  background: 'linear-gradient(135deg, hsl(65,85%,75%), hsl(75,90%,82%))',
+                  color: 'hsl(222,30%,12%)',
+                  transform: 'rotate(-3deg)',
+                  boxShadow: '0 4px 20px rgba(200,230,100,0.25)',
                 }}
               >
-                <Zap className="h-5 w-5 md:h-6 md:w-6" />
-                On complete autopilot
+                <Zap className="h-3.5 w-3.5" />
+                Without lifting a finger
               </motion.span>
             </span>
           </motion.h1>
