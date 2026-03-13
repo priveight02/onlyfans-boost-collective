@@ -72,7 +72,7 @@ const Navigation = () => {
   return (
     <div className={`${isPlatform ? 'absolute' : 'fixed'} top-0 ${isPlatform ? 'flex justify-end items-center pointer-events-none' : 'w-full flex justify-center pt-5 px-4'}`} style={isPlatform ? { left: '240px', right: searchFocused ? '520px' : '440px', zIndex: 40, transition: 'right 0.3s ease', height: '56px' } : { zIndex: 50 }}>
       <nav
-        className={`transition-all duration-500 pointer-events-auto ${isPlatform ? 'rounded-xl' : 'w-full max-w-4xl rounded-2xl'}`}
+        className={`transition-all duration-500 pointer-events-auto ${isPlatform ? 'rounded-xl' : 'rounded-2xl'}`}
         style={{
           fontFamily: "'Montserrat', sans-serif",
           background: isScrolled
@@ -96,7 +96,7 @@ const Navigation = () => {
             </div>
 
             {/* Desktop menu */}
-            <div className="hidden md:flex items-center gap-0.5 ml-1 flex-1">
+            <div className="hidden md:flex items-center gap-0.5 ml-1">
               {finalMenuItems.map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
