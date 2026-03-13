@@ -36,6 +36,7 @@ import CustomerPortal from "./pages/CustomerPortal";
 import ThankYou from "./pages/ThankYou";
 import Workflow from "./pages/Workflow";
 import Offer from "./pages/Offer";
+import Checkout from "./pages/Checkout";
 
 const OWNER_EMAIL = "contact@uplyze.ai";
 
