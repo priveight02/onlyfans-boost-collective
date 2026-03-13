@@ -476,6 +476,10 @@ const AdminCustomers = () => {
                 onClick={() => { setDiscountPurchaseCount(String(detail?.wallet?.purchase_count ?? 0)); setDiscountReason(""); setShowSetDiscountDialog(true); }}>
                 <RotateCcw className="h-3 w-3" /> Set Discount
               </Button>
+              <Button size="sm" variant="outline" className="text-amber-400 border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10 gap-1.5 text-xs h-7"
+                onClick={() => setShowConfirmDialog({ action: "reset_discount", label: "Reset Discount State" })}>
+                <Eraser className="h-3 w-3" /> Reset Discount
+              </Button>
 
               {/* Data */}
               <Button size="sm" variant="outline" className="text-violet-400 border-violet-500/30 bg-violet-500/5 hover:bg-violet-500/10 gap-1.5 text-xs h-7"
