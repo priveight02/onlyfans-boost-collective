@@ -5,10 +5,11 @@ import { useWallet } from "@/hooks/useWallet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
-  ArrowLeft, Lock, ShieldCheck, Loader2, CheckCircle2, XCircle,
-  Sparkles, LayoutDashboard, AlertTriangle, Coins, Zap, BadgeCheck, CreditCard,
+  ArrowLeft, ShieldCheck, Loader2, CheckCircle2, XCircle,
+  Sparkles, LayoutDashboard, AlertTriangle, Coins, Zap, BadgeCheck,
+  PanelRightClose, PanelRightOpen,
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import PageSEO from "@/components/PageSEO";
 
@@ -36,6 +37,7 @@ const Checkout = () => {
   const [creditsAdded, setCreditsAdded] = useState(0);
   const [verifyStatus, setVerifyStatus] = useState("");
   const [verifyStep, setVerifyStep] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const pkgId = searchParams.get("pkg");
@@ -222,7 +224,7 @@ const Checkout = () => {
 
       {/* Checkout View */}
       {state === "checkout" && checkoutUrl && (
-        <div className="flex flex-col lg:flex-row" style={{ height: "calc(100vh - 56px)" }}>
+        <div className="relative flex flex-col lg:flex-row" style={{ height: "calc(100vh - 56px)" }}>
           {/* Polar Iframe */}
           <div className="flex-1 min-h-0">
             <iframe
@@ -237,131 +239,188 @@ const Checkout = () => {
             />
           </div>
 
+          {/* Sidebar Toggle Button (visible when sidebar is collapsed on desktop) */}
+          <AnimatePresence>
+            {!sidebarOpen && orderInfo && (
+              <motion.button
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                onClick={() => setSidebarOpen(true)}
+                className="hidden lg:flex fixed right-4 top-1/2 -translate-y-1/2 z-40 items-center gap-2 px-3 py-3 rounded-xl transition-colors"
+                style={{
+                  background: "hsla(222, 30%, 12%, 0.95)",
+                  border: "1px solid hsla(0, 0%, 100%, 0.08)",
+                  backdropFilter: "blur(12px)",
+                  boxShadow: "0 4px 24px hsla(0, 0%, 0%, 0.4)",
+                }}
+              >
+                <PanelRightOpen className="h-4 w-4 text-white/50" />
+              </motion.button>
+            )}
+          </AnimatePresence>
+
           {/* Order Summary Sidebar */}
-          {orderInfo && (
-            <aside
-              className="w-full lg:w-[400px] flex-shrink-0 overflow-y-auto flex flex-col border-t lg:border-t-0 lg:border-l"
-              style={{ borderColor: "hsla(0, 0%, 100%, 0.06)", background: "hsl(222, 30%, 8%)" }}
-            >
-              <div className="p-7 flex-1 flex flex-col">
-                {/* Title */}
-                <h2 className="text-base font-bold text-white/90 tracking-tight mb-6">Order Summary</h2>
-
-                {/* Product Card */}
-                <div
-                  className="rounded-2xl p-4 mb-6"
-                  style={{
-                    background: "hsla(0, 0%, 100%, 0.03)",
-                    border: "1px solid hsla(0, 0%, 100%, 0.06)",
-                  }}
-                >
-                  <div className="flex items-start gap-3.5">
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{
-                        background: "linear-gradient(135deg, hsla(45, 95%, 55%, 0.15), hsla(35, 95%, 50%, 0.08))",
-                        border: "1px solid hsla(45, 95%, 55%, 0.2)",
-                      }}
+          <AnimatePresence>
+            {orderInfo && sidebarOpen && (
+              <motion.aside
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 400, opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="hidden lg:flex flex-shrink-0 overflow-hidden border-l flex-col"
+                style={{ borderColor: "hsla(0, 0%, 100%, 0.06)", background: "hsl(222, 30%, 8%)" }}
+              >
+                <div className="w-[400px] p-7 flex-1 flex flex-col overflow-y-auto">
+                  {/* Title row with collapse */}
+                  <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-base font-bold text-white/90 tracking-tight">Order Summary</h2>
+                    <button
+                      onClick={() => setSidebarOpen(false)}
+                      className="p-1.5 rounded-lg transition-colors hover:bg-white/[0.06]"
+                      title="Collapse sidebar"
                     >
-                      <Coins className="h-5.5 w-5.5 text-amber-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white">{orderInfo.name}</p>
-                      <p className="text-xs text-white/40 mt-0.5">
-                        {orderInfo.credits.toLocaleString()} credits
-                        {orderInfo.bonus > 0 && ` + ${orderInfo.bonus.toLocaleString()} bonus`}
-                      </p>
-                      <div className="flex items-center gap-1.5 mt-1.5">
-                        <span className="text-[10px] px-2 py-0.5 rounded-full text-white/40" style={{ background: "hsla(0, 0%, 100%, 0.05)" }}>One-time</span>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full text-white/40" style={{ background: "hsla(0, 0%, 100%, 0.05)" }}>Never expires</span>
-                      </div>
-                    </div>
-                    <span className="text-sm font-semibold text-white/70">{formatPrice(orderInfo.originalPriceCents)}</span>
+                      <PanelRightClose className="h-4 w-4 text-white/30 hover:text-white/60 transition-colors" />
+                    </button>
                   </div>
-                </div>
 
-                {/* Pricing Breakdown */}
-                <div className="space-y-3 mb-5 pb-5" style={{ borderBottom: "1px solid hsla(0, 0%, 100%, 0.06)" }}>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-white/40">Subtotal</span>
-                    <span className="text-white/60">{formatPrice(orderInfo.originalPriceCents)}</span>
-                  </div>
-                  {orderInfo.discountLabel && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-emerald-400 font-medium">{orderInfo.discountLabel}</span>
-                      <span className="text-emerald-400 font-medium">-{formatPrice(orderInfo.discountAmountCents)}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Total */}
-                <div className="flex justify-between items-baseline mb-6">
-                  <span className="text-sm font-semibold text-white">Total</span>
-                  <div className="flex items-baseline gap-1.5">
-                    <span className="text-[11px] text-white/25 uppercase tracking-wider">USD</span>
-                    <span className="text-2xl font-bold text-white">{formatPrice(orderInfo.finalPriceCents)}</span>
-                  </div>
-                </div>
-
-                {/* First Order Banner */}
-                {orderInfo.isFirstOrder && (
+                  {/* Product Card */}
                   <div
-                    className="rounded-xl p-4 mb-6 relative overflow-hidden"
+                    className="rounded-2xl p-4 mb-6"
                     style={{
-                      background: "linear-gradient(135deg, hsla(262, 83%, 58%, 0.12), hsla(145, 80%, 42%, 0.06))",
-                      border: "1px solid hsla(262, 83%, 58%, 0.25)",
+                      background: "hsla(0, 0%, 100%, 0.03)",
+                      border: "1px solid hsla(0, 0%, 100%, 0.06)",
                     }}
                   >
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <Sparkles className="h-4 w-4 text-yellow-400" />
-                      <span className="text-sm font-bold text-white">Welcome Discount Applied</span>
-                    </div>
-                    <p className="text-xs text-white/50 leading-relaxed">
-                      First-time customers get 40% OFF automatically. This discount is applied once per account.
-                    </p>
-                  </div>
-                )}
-
-                {/* Trust Indicators */}
-                <div className="mt-auto space-y-2.5 pt-4" style={{ borderTop: "1px solid hsla(0, 0%, 100%, 0.04)" }}>
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "hsla(145, 80%, 50%, 0.1)" }}>
-                      <ShieldCheck className="h-3 w-3 text-emerald-400/80" />
-                    </div>
-                    <span className="text-xs text-white/40">256-bit SSL Encrypted Payment</span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "hsla(0, 0%, 100%, 0.04)" }}>
-                      <Zap className="h-3 w-3 text-white/40" />
-                    </div>
-                    <span className="text-xs text-white/40">Instant credit delivery after payment</span>
-                  </div>
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "hsla(0, 0%, 100%, 0.04)" }}>
-                      <BadgeCheck className="h-3 w-3 text-white/40" />
-                    </div>
-                    <span className="text-xs text-white/40">30-day money-back guarantee</span>
-                  </div>
-
-                  {/* Payment Method Icons */}
-                  <div className="flex items-center gap-2 pt-3 mt-1" style={{ borderTop: "1px solid hsla(0, 0%, 100%, 0.04)" }}>
-                    {["VISA", "MC", "AMEX", "GPay", "Apple Pay"].map(card => (
-                      <span
-                        key={card}
-                        className="text-[9px] font-bold tracking-widest px-2.5 py-1 rounded-md"
+                    <div className="flex items-start gap-3.5">
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
                         style={{
-                          background: "hsla(0, 0%, 100%, 0.04)",
-                          color: "hsla(0, 0%, 100%, 0.25)",
-                          border: "1px solid hsla(0, 0%, 100%, 0.04)",
+                          background: "linear-gradient(135deg, hsla(45, 95%, 55%, 0.15), hsla(35, 95%, 50%, 0.08))",
+                          border: "1px solid hsla(45, 95%, 55%, 0.2)",
                         }}
                       >
-                        {card}
-                      </span>
-                    ))}
+                        <Coins className="h-5 w-5 text-amber-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white">{orderInfo.name}</p>
+                        <p className="text-xs text-white/40 mt-0.5">
+                          {orderInfo.credits.toLocaleString()} credits
+                          {orderInfo.bonus > 0 && ` + ${orderInfo.bonus.toLocaleString()} bonus`}
+                        </p>
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full text-white/40" style={{ background: "hsla(0, 0%, 100%, 0.05)" }}>One-time</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full text-white/40" style={{ background: "hsla(0, 0%, 100%, 0.05)" }}>Never expires</span>
+                        </div>
+                      </div>
+                      <span className="text-sm font-semibold text-white/70">{formatPrice(orderInfo.originalPriceCents)}</span>
+                    </div>
+                  </div>
+
+                  {/* Pricing Breakdown */}
+                  <div className="space-y-3 mb-5 pb-5" style={{ borderBottom: "1px solid hsla(0, 0%, 100%, 0.06)" }}>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white/40">Subtotal</span>
+                      <span className="text-white/60">{formatPrice(orderInfo.originalPriceCents)}</span>
+                    </div>
+                    {orderInfo.discountLabel && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-emerald-400 font-medium">{orderInfo.discountLabel}</span>
+                        <span className="text-emerald-400 font-medium">-{formatPrice(orderInfo.discountAmountCents)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Total */}
+                  <div className="flex justify-between items-baseline mb-6">
+                    <span className="text-sm font-semibold text-white">Total</span>
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-[11px] text-white/25 uppercase tracking-wider">USD</span>
+                      <span className="text-2xl font-bold text-white">{formatPrice(orderInfo.finalPriceCents)}</span>
+                    </div>
+                  </div>
+
+                  {/* First Order Banner */}
+                  {orderInfo.isFirstOrder && (
+                    <div
+                      className="rounded-xl p-4 mb-6 relative overflow-hidden"
+                      style={{
+                        background: "linear-gradient(135deg, hsla(262, 83%, 58%, 0.12), hsla(145, 80%, 42%, 0.06))",
+                        border: "1px solid hsla(262, 83%, 58%, 0.25)",
+                      }}
+                    >
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <Sparkles className="h-4 w-4 text-yellow-400" />
+                        <span className="text-sm font-bold text-white">Welcome Discount Applied</span>
+                      </div>
+                      <p className="text-xs text-white/50 leading-relaxed">
+                        First-time customers get 40% OFF automatically. This discount is applied once per account.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Trust Indicators */}
+                  <div className="mt-auto space-y-2.5 pt-4" style={{ borderTop: "1px solid hsla(0, 0%, 100%, 0.04)" }}>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "hsla(145, 80%, 50%, 0.1)" }}>
+                        <ShieldCheck className="h-3 w-3 text-emerald-400/80" />
+                      </div>
+                      <span className="text-xs text-white/40">256-bit SSL Encrypted Payment</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "hsla(0, 0%, 100%, 0.04)" }}>
+                        <Zap className="h-3 w-3 text-white/40" />
+                      </div>
+                      <span className="text-xs text-white/40">Instant credit delivery after payment</span>
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "hsla(0, 0%, 100%, 0.04)" }}>
+                        <BadgeCheck className="h-3 w-3 text-white/40" />
+                      </div>
+                      <span className="text-xs text-white/40">30-day money-back guarantee</span>
+                    </div>
+
+                    {/* Payment Method Icons */}
+                    <div className="flex items-center gap-2 pt-3 mt-1" style={{ borderTop: "1px solid hsla(0, 0%, 100%, 0.04)" }}>
+                      {["VISA", "MC", "AMEX", "GPay", "Apple Pay"].map(card => (
+                        <span
+                          key={card}
+                          className="text-[9px] font-bold tracking-widest px-2.5 py-1 rounded-md"
+                          style={{
+                            background: "hsla(0, 0%, 100%, 0.04)",
+                            color: "hsla(0, 0%, 100%, 0.25)",
+                            border: "1px solid hsla(0, 0%, 100%, 0.04)",
+                          }}
+                        >
+                          {card}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
+              </motion.aside>
+            )}
+          </AnimatePresence>
+
+          {/* Mobile Order Summary (always visible on mobile) */}
+          {orderInfo && (
+            <div className="lg:hidden border-t overflow-y-auto p-6" style={{ borderColor: "hsla(0, 0%, 100%, 0.06)", background: "hsl(222, 30%, 8%)" }}>
+              <h2 className="text-base font-bold text-white/90 mb-4">Order Summary</h2>
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-white/40">Subtotal</span>
+                <span className="text-white/60">{formatPrice(orderInfo.originalPriceCents)}</span>
               </div>
-            </aside>
+              {orderInfo.discountLabel && (
+                <div className="flex justify-between text-sm mb-2">
+                  <span className="text-emerald-400 font-medium">{orderInfo.discountLabel}</span>
+                  <span className="text-emerald-400 font-medium">-{formatPrice(orderInfo.discountAmountCents)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-baseline pt-3 mt-2" style={{ borderTop: "1px solid hsla(0, 0%, 100%, 0.06)" }}>
+                <span className="text-sm font-semibold text-white">Total</span>
+                <span className="text-xl font-bold text-white">{formatPrice(orderInfo.finalPriceCents)}</span>
+              </div>
+            </div>
           )}
         </div>
       )}
