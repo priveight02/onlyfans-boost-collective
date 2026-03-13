@@ -1,4 +1,4 @@
-import { Send, TrendingUp, Workflow, Crosshair, LineChart, Zap, ArrowRight, Sparkles, Lock } from "lucide-react";
+import { Send, TrendingUp, Workflow, Crosshair, LineChart, Zap, ArrowRight, Sparkles, Train } from "lucide-react";
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -51,7 +51,7 @@ const Services = () => {
           </p>
         </motion.div>
 
-        {/* Browser Window — same style as AutopilotShowcase */}
+        {/* Browser Window — premium glass panel */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -59,24 +59,29 @@ const Services = () => {
           transition={{ duration: 0.7, delay: 0.15 }}
           className="relative rounded-2xl overflow-hidden"
           style={{
-            background: 'linear-gradient(180deg, hsl(222, 30%, 12%) 0%, hsl(222, 35%, 9%) 100%)',
-            boxShadow: '0 25px 60px -15px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset',
+            background: 'linear-gradient(180deg, hsl(222, 28%, 13%) 0%, hsl(222, 35%, 8%) 100%)',
+            boxShadow: '0 30px 80px -20px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06) inset, 0 1px 0 0 rgba(255,255,255,0.05) inset',
           }}
         >
-          {/* Browser Chrome */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]" style={{ background: 'hsl(222, 30%, 10%)' }}>
-            <div className="flex items-center gap-1.5">
-              <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#ff5f57' }} />
-              <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#febc2e' }} />
-              <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#28c840' }} />
+          {/* Premium Chrome Bar */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]" style={{ background: 'linear-gradient(180deg, hsl(222, 28%, 13%) 0%, hsl(222, 30%, 11%) 100%)' }}>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full" style={{ background: '#ff5f57', boxShadow: '0 0 6px rgba(255,95,87,0.4)' }} />
+                <div className="w-3 h-3 rounded-full" style={{ background: '#febc2e', boxShadow: '0 0 6px rgba(254,188,46,0.4)' }} />
+                <div className="w-3 h-3 rounded-full" style={{ background: '#28c840', boxShadow: '0 0 6px rgba(40,200,64,0.4)' }} />
+              </div>
+              <div className="w-px h-4 bg-white/[0.06] ml-2" />
+              <div className="flex items-center gap-1.5 ml-1">
+                <Train className="w-3.5 h-3.5 text-purple-400/60" />
+                <span className="text-white/40 text-[11px] font-semibold tracking-wide">Uplyze Express</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 px-4 py-1 rounded-lg" style={{ background: 'hsl(222, 30%, 14%)' }}>
-              <Lock className="w-3 h-3 text-emerald-500/50" />
-              <span className="text-white/35 text-[11px] font-mono">uplyze.ai/express</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-emerald-400/70 text-[10px] font-semibold tracking-wide">DEPARTING</span>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.15)' }}>
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-emerald-400/80 text-[10px] font-bold tracking-wider uppercase">Live</span>
+              </div>
             </div>
           </div>
 
