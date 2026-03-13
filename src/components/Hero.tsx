@@ -60,7 +60,7 @@ const Hero = () => {
                  style={{
                    background: 'linear-gradient(135deg, hsl(260,80%,65%), hsl(275,82%,58%), hsl(255,78%,62%))',
                    color: 'white',
-                   boxShadow: '0 1px 8px rgba(168,120,255,0.18), 0 4px 0 0 hsl(260,70%,42%), 0 5px 0 0 hsl(260,65%,35%), inset 0 1px 0 rgba(255,255,255,0.2)',
+                   boxShadow: '0 2px 0 0 hsl(260,70%,45%), inset 0 1px 0 rgba(255,255,255,0.15)',
                    letterSpacing: '-0.01em',
                    WebkitFontSmoothing: 'antialiased',
                    MozOsxFontSmoothing: 'grayscale',
