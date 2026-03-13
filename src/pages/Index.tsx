@@ -73,7 +73,7 @@ const Index = () => {
     let animationId: number;
     let time = 0;
     let lastDrawTime = 0;
-    const FRAME_INTERVAL = 1000 / 30; // Cap at 30fps — imperceptible for slow blobs
+    const FRAME_INTERVAL = 1000 / 60; // 60fps for smooth rendering
 
     syncSize();
 
