@@ -62,6 +62,8 @@ const Checkout = () => {
 
   useEffect(() => {
     if (!user) return;
+    if (checkoutInitializedRef.current) return;
+    checkoutInitializedRef.current = true;
     const initCheckout = async () => {
       try {
         setState("loading");

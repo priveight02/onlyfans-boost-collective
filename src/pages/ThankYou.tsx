@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { CheckCircle, ArrowRight, Sparkles, ShieldCheck, Coins, Zap, LayoutDashboard, Crown } from "lucide-react";
+import { CheckCircle, ArrowRight, Sparkles, ShieldCheck, Coins, Zap, LayoutDashboard, Crown, Clock, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PageSEO from "@/components/PageSEO";
 import { supabase } from "@/integrations/supabase/client";
@@ -45,6 +45,7 @@ const ThankYou = () => {
   const [countdown, setCountdown] = useState(30);
   const [packages, setPackages] = useState<CreditPackage[]>([]);
   const carouselRef = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
 
   const creditsAdded = parseInt(searchParams.get("credits") || "0");
   const pkgName = searchParams.get("pkg") || "";
@@ -77,22 +78,25 @@ const ThankYou = () => {
     return () => clearTimeout(t);
   }, [countdown, navigate]);
 
-  // Auto-scroll carousel
+  // Auto-scroll carousel - slower, pauses on hover
   useEffect(() => {
     const el = carouselRef.current;
-    if (!el) return;
+    if (!el || packages.length === 0) return;
     let scrollPos = 0;
-    const speed = 0.5;
+    const speed = 0.3;
     let animFrame: number;
+    let paused = false;
     const scroll = () => {
-      scrollPos += speed;
-      if (scrollPos >= el.scrollWidth / 2) scrollPos = 0;
-      el.scrollLeft = scrollPos;
+      if (!paused) {
+        scrollPos += speed;
+        if (scrollPos >= el.scrollWidth / 2) scrollPos = 0;
+        el.scrollLeft = scrollPos;
+      }
       animFrame = requestAnimationFrame(scroll);
     };
     animFrame = requestAnimationFrame(scroll);
-    const pause = () => cancelAnimationFrame(animFrame);
-    const resume = () => { animFrame = requestAnimationFrame(scroll); };
+    const pause = () => { paused = true; };
+    const resume = () => { paused = false; };
     el.addEventListener("mouseenter", pause);
     el.addEventListener("mouseleave", resume);
     return () => {
@@ -108,8 +112,14 @@ const ThankYou = () => {
 
   if (!creditsAdded || creditsAdded <= 0) return null;
 
-  // Duplicate packages for seamless infinite scroll
-  const carouselItems = [...packages, ...packages];
+  const carouselItems = [...packages, ...packages, ...packages];
+
+  const trustItems = [
+    { icon: Coins, label: "Credits Added", value: `+${creditsAdded.toLocaleString()}`, color: "hsla(45, 95%, 55%, 0.15)", borderColor: "hsla(45, 95%, 55%, 0.2)", iconColor: "text-amber-400" },
+    { icon: ShieldCheck, label: "Secure Payment", value: "256-bit SSL", color: "hsla(145, 80%, 50%, 0.1)", borderColor: "hsla(145, 80%, 50%, 0.2)", iconColor: "text-emerald-400" },
+    { icon: Zap, label: "Instant Delivery", value: "Ready to use", color: "hsla(262, 83%, 55%, 0.1)", borderColor: "hsla(262, 83%, 55%, 0.2)", iconColor: "text-purple-400" },
+    { icon: Gift, label: "Never Expires", value: "Use anytime", color: "hsla(200, 80%, 55%, 0.1)", borderColor: "hsla(200, 80%, 55%, 0.2)", iconColor: "text-sky-400" },
+  ];
 
   return (
     <>
@@ -144,67 +154,38 @@ const ThankYou = () => {
           </Button>
         </header>
 
-        {/* Main content - fits in viewport */}
-        <div className="flex-1 flex flex-col items-center justify-between px-4 py-6 md:py-8 min-h-0">
-          {/* Thank You Section - compact */}
+        {/* Main content */}
+        <div className="flex-1 flex flex-col items-center justify-between px-4 py-5 md:py-6 min-h-0">
+          {/* Thank You + CTA */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             className="w-full max-w-2xl text-center space-y-3 flex-shrink-0"
           >
-            {/* Glow circle */}
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 200, damping: 15 }}
-              className="mx-auto w-16 h-16 rounded-[18px] flex items-center justify-center relative"
+              className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center relative"
               style={{
                 background: "linear-gradient(135deg, hsla(145, 80%, 50%, 0.12), hsla(145, 80%, 50%, 0.04))",
                 border: "1px solid hsla(145, 80%, 50%, 0.25)",
                 boxShadow: "0 0 60px -20px hsla(145, 80%, 50%, 0.3)",
               }}
             >
-              <CheckCircle className="h-8 w-8 text-emerald-400 relative z-10" />
+              <CheckCircle className="h-7 w-7 text-emerald-400 relative z-10" />
             </motion.div>
 
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
                 Thank You for Your Purchase!
               </h1>
-              <p className="text-white/40 text-sm max-w-md mx-auto">
+              <p className="text-white/40 text-sm">
                 <span className="text-emerald-400 font-semibold">{creditsAdded.toLocaleString()}</span> credits are now in your wallet.
               </p>
             </div>
 
-            {/* Credits badge + trust inline */}
-            <div className="flex items-center justify-center gap-4 flex-wrap">
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2, type: "spring" }}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl"
-                style={{
-                  background: "linear-gradient(135deg, hsla(45, 95%, 55%, 0.1), hsla(35, 95%, 50%, 0.04))",
-                  border: "1px solid hsla(45, 95%, 55%, 0.15)",
-                }}
-              >
-                <Coins className="h-4 w-4 text-amber-400" />
-                <span className="text-base font-bold text-white">+{creditsAdded.toLocaleString()}</span>
-                <span className="text-[10px] text-white/30">credits</span>
-              </motion.div>
-
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1 text-[10px] text-white/25">
-                  <ShieldCheck className="h-3 w-3 text-emerald-400/60" /> Secure
-                </div>
-                <div className="flex items-center gap-1 text-[10px] text-white/25">
-                  <Zap className="h-3 w-3 text-amber-400/60" /> Instant
-                </div>
-              </div>
-            </div>
-
-            {/* CTA + redirect */}
-            <div className="flex items-center justify-center gap-4">
+            <div className="flex items-center justify-center gap-3">
               <Button
                 onClick={() => navigate("/platform")}
                 className="px-5 py-4 rounded-xl text-white font-semibold text-sm border-0"
@@ -222,73 +203,132 @@ const ThankYou = () => {
             </div>
           </motion.div>
 
-          {/* Upsell Section - carousel fills remaining space */}
+          {/* Trust indicators - horizontal row */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="w-full max-w-3xl flex-shrink-0 mt-4"
+          >
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {trustItems.map((item, i) => (
+                <motion.div
+                  key={item.label}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 + i * 0.05 }}
+                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
+                  style={{
+                    background: item.color,
+                    border: `1px solid ${item.borderColor}`,
+                  }}
+                >
+                  <item.icon className={`h-4 w-4 flex-shrink-0 ${item.iconColor}`} />
+                  <div className="min-w-0">
+                    <p className="text-[10px] text-white/35 leading-none">{item.label}</p>
+                    <p className="text-xs font-semibold text-white/80 leading-tight mt-0.5">{item.value}</p>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Upsell Carousel Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="w-full flex-shrink-0 mt-6"
+            className="w-full flex-shrink-0 mt-5"
           >
-            {/* Section header */}
-            <div className="text-center mb-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-2" style={{ background: "hsla(262, 83%, 55%, 0.08)", border: "1px solid hsla(262, 83%, 55%, 0.15)" }}>
+            <div className="text-center mb-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-1.5" style={{ background: "hsla(262, 83%, 55%, 0.08)", border: "1px solid hsla(262, 83%, 55%, 0.15)" }}>
                 <Sparkles className="h-3 w-3 text-purple-400" />
                 <span className="text-[10px] font-semibold text-purple-300 uppercase tracking-wider">While you're here</span>
               </div>
-              <h2 className="text-lg font-bold text-white">Need More Credits?</h2>
+              <h2 className="text-base font-bold text-white">Need More Credits?</h2>
             </div>
 
-            {/* Auto-scrolling carousel */}
-            <div className="relative">
+            {/* Carousel */}
+            <div
+              className="relative"
+              onMouseEnter={() => setIsHovered(true)}
+              onMouseLeave={() => setIsHovered(false)}
+            >
               {/* Fade edges */}
-              <div className="absolute left-0 top-0 bottom-0 w-20 z-10 pointer-events-none" style={{ background: "linear-gradient(90deg, hsl(222, 47%, 6%), transparent)" }} />
-              <div className="absolute right-0 top-0 bottom-0 w-20 z-10 pointer-events-none" style={{ background: "linear-gradient(270deg, hsl(222, 47%, 6%), transparent)" }} />
+              <div className="absolute left-0 top-0 bottom-0 w-24 z-10 pointer-events-none" style={{ background: "linear-gradient(90deg, hsl(222, 47%, 6%), transparent)" }} />
+              <div className="absolute right-0 top-0 bottom-0 w-24 z-10 pointer-events-none" style={{ background: "linear-gradient(270deg, hsl(222, 47%, 6%), transparent)" }} />
 
               <div
                 ref={carouselRef}
-                className="flex gap-4 overflow-hidden px-4"
+                className="flex gap-3 overflow-hidden px-6"
                 style={{ scrollBehavior: "auto" }}
               >
                 {carouselItems.map((pkg, i) => (
-                  <div
+                  <motion.div
                     key={`${pkg.id}-${i}`}
                     onClick={() => handleUpsellPurchase(pkg)}
-                    className="flex-shrink-0 w-[260px] group relative rounded-2xl p-4 cursor-pointer transition-all duration-300 hover:scale-[1.03]"
+                    whileHover={{ scale: 1.04, y: -2 }}
+                    className="flex-shrink-0 w-[240px] group relative rounded-2xl overflow-hidden cursor-pointer transition-colors duration-300"
                     style={{
-                      background: "hsla(222, 30%, 11%, 0.75)",
-                      border: "1px solid hsla(0, 0%, 100%, 0.06)",
-                      backdropFilter: "blur(12px)",
+                      background: "linear-gradient(160deg, hsla(222, 30%, 13%, 0.9), hsla(222, 30%, 9%, 0.95))",
+                      border: "1px solid hsla(0, 0%, 100%, 0.07)",
+                      backdropFilter: "blur(16px)",
                     }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = "hsla(262, 83%, 55%, 0.3)")}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = "hsla(0, 0%, 100%, 0.06)")}
+                    onMouseEnter={e => (e.currentTarget.style.borderColor = "hsla(262, 83%, 55%, 0.35)")}
+                    onMouseLeave={e => (e.currentTarget.style.borderColor = "hsla(0, 0%, 100%, 0.07)")}
                   >
+                    {/* Subtle gradient overlay on hover */}
+                    <div
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                      style={{ background: "linear-gradient(135deg, hsla(262, 83%, 55%, 0.06), transparent 60%)" }}
+                    />
+
                     {pkg.is_popular && (
-                      <div className="absolute -top-2 right-4 px-2 py-0.5 rounded-full text-[9px] font-bold text-white" style={{ background: "linear-gradient(135deg, hsl(262, 83%, 55%), hsl(240, 75%, 50%))" }}>
-                        Popular
+                      <div
+                        className="absolute top-0 right-0 px-2.5 py-1 rounded-bl-xl text-[9px] font-bold text-white tracking-wide"
+                        style={{ background: "linear-gradient(135deg, hsl(262, 83%, 55%), hsl(240, 75%, 50%))" }}
+                      >
+                        POPULAR
                       </div>
                     )}
 
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden" style={{ background: "hsla(45, 95%, 55%, 0.06)", border: "1px solid hsla(45, 95%, 55%, 0.1)" }}>
-                        <img src={getPackageImage(pkg.name)} alt={pkg.name} className="w-8 h-8 object-contain" />
+                    <div className="relative p-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div
+                          className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
+                          style={{ background: "hsla(45, 95%, 55%, 0.06)", border: "1px solid hsla(45, 95%, 55%, 0.1)" }}
+                        >
+                          <img src={getPackageImage(pkg.name)} alt={pkg.name} className="w-8 h-8 object-contain" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-white truncate">{pkg.name}</p>
+                          <p className="text-[11px] text-white/30">
+                            {pkg.credits.toLocaleString()} credits
+                            {pkg.bonus_credits > 0 && <span className="text-emerald-400/70"> +{pkg.bonus_credits.toLocaleString()}</span>}
+                          </p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-white truncate">{pkg.name}</p>
-                        <p className="text-[11px] text-white/30">{pkg.credits.toLocaleString()} credits{pkg.bonus_credits > 0 ? ` + ${pkg.bonus_credits.toLocaleString()} bonus` : ""}</p>
-                      </div>
-                    </div>
 
-                    <div className="flex items-baseline justify-between">
-                      <span className="text-lg font-bold text-white">${Math.round(pkg.price_cents / 100)}</span>
-                      <span className="text-[10px] text-white/20 uppercase tracking-wider">one-time</span>
+                      <div className="flex items-end justify-between">
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-xl font-bold text-white">${Math.round(pkg.price_cents / 100)}</span>
+                          <span className="text-[10px] text-white/20">USD</span>
+                        </div>
+                        <div
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium text-purple-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                          style={{ background: "hsla(262, 83%, 55%, 0.12)" }}
+                        >
+                          Buy <ArrowRight className="h-2.5 w-2.5" />
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </div>
 
             {/* Plans link */}
-            <div className="text-center mt-4">
+            <div className="text-center mt-3">
               <div
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl cursor-pointer transition-all hover:scale-[1.02]"
                 style={{
@@ -306,7 +346,7 @@ const ThankYou = () => {
           </motion.div>
 
           {/* Support footer */}
-          <p className="text-[10px] text-white/15 mt-4 flex-shrink-0">
+          <p className="text-[10px] text-white/15 mt-3 flex-shrink-0">
             Need help?{" "}
             <a href="mailto:contact@uplyze.ai" className="underline hover:text-white/30 transition-colors">
               contact@uplyze.ai
