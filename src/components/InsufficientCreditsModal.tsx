@@ -149,10 +149,21 @@ const InsufficientCreditsModal = ({ open, onClose, requiredCredits, actionName }
                       <div className="p-5 flex-1 flex flex-col">
                         <h3 className="text-sm font-semibold text-white/90 mb-2">{pkg.name}</h3>
 
-                        <div className="flex items-baseline gap-2 mb-0.5">
-                          <span className="text-3xl font-bold text-white">{formatPrice(pkg.price_cents)}</span>
-                        </div>
-                        <span className="text-[10px] text-white/30 mb-4">{perCredit}¢ per credit</span>
+                         <div className="flex items-baseline gap-2 mb-0.5">
+                          {isFirstOrder ? (
+                            <>
+                              <span className="text-3xl font-bold text-white">{formatPrice(Math.round(pkg.price_cents * 0.6))}</span>
+                              <span className="text-sm text-white/30 line-through">{formatPrice(pkg.price_cents)}</span>
+                            </>
+                          ) : (
+                            <span className="text-3xl font-bold text-white">{formatPrice(pkg.price_cents)}</span>
+                          )}
+                         </div>
+                         {isFirstOrder ? (
+                           <span className="text-[10px] text-emerald-400 font-medium mb-4 flex items-center gap-1"><Tag className="h-2.5 w-2.5" /> 40% OFF — First Order</span>
+                         ) : (
+                           <span className="text-[10px] text-white/30 mb-4">{perCredit}¢ per credit</span>
+                         )}
 
                         <div className="space-y-2 mb-4 flex-1">
                           <div className="flex items-center gap-2.5 text-xs text-white/60">
