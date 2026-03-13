@@ -267,14 +267,17 @@ const Checkout = () => {
   }, [orderInfo, refreshWallet, user?.id]);
 
   useEffect(() => {
-    if (state === "success") {
-      // Redirect to thank-you page with order context
-      const params = new URLSearchParams();
-      params.set("credits", String(creditsAdded));
-      if (orderInfo) params.set("pkg", orderInfo.name);
-      navigate(`/thank-you?${params.toString()}`, { replace: true });
-    }
-  }, [state]); // eslint-disable-line
+    if (state !== "success") return;
+
+    const guaranteedCredits = creditsAdded > 0
+      ? creditsAdded
+      : (orderInfo?.credits || 0) + (orderInfo?.bonus || 0);
+
+    const params = new URLSearchParams();
+    params.set("credits", String(guaranteedCredits));
+    if (orderInfo) params.set("pkg", orderInfo.name);
+    navigate(`/thank-you?${params.toString()}`, { replace: true });
+  }, [state, creditsAdded, orderInfo, navigate]);
 
   const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
