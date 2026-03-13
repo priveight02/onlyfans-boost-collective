@@ -45,26 +45,26 @@ const Hero = () => {
             transition={{ duration: 0.9, delay: 0.15 }}
             className="mb-6 text-5xl font-black leading-[1.02] tracking-tight text-white md:text-7xl lg:text-[5.5rem]"
           >
-            Every DM, Post & Sale
+            Turn Followers Into
             <br />
-            Handled by{" "}
-            <span className="relative inline-block pb-20 md:pb-28">
+            Paying{" "}
+            <span className="relative inline-block pb-14 md:pb-20">
               <span className="uplyze-highlight pb-2">
-                AI
+                Customers
               </span>
               <motion.span
-                initial={{ opacity: 0, scale: 0.65, rotate: 0 }}
+                initial={{ opacity: 0, scale: 0.7, rotate: 0 }}
                 animate={{ opacity: 1, scale: 1, rotate: -6 }}
-                transition={{ duration: 0.6, delay: 0.6, type: "spring", stiffness: 140, damping: 11 }}
-                className="absolute -left-2 top-[70%] md:left-0 md:top-[65%] z-20 inline-flex items-center gap-2.5 rounded-2xl px-7 py-3.5 md:px-9 md:py-5 text-base md:text-xl font-black shadow-2xl whitespace-nowrap"
+                transition={{ duration: 0.6, delay: 0.6, type: "spring", stiffness: 160, damping: 12 }}
+                className="absolute -right-6 top-[40%] md:-right-10 md:top-[35%] z-20 inline-flex items-center gap-2 rounded-2xl px-6 py-3 md:px-8 md:py-4 text-sm md:text-lg font-black shadow-2xl whitespace-nowrap"
                 style={{
                   background: 'linear-gradient(135deg, hsl(65,90%,72%), hsl(80,95%,78%), hsl(65,85%,70%))',
                   color: 'hsl(222,35%,10%)',
-                  boxShadow: '0 10px 50px rgba(200,230,100,0.4), 0 3px 10px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.5)',
+                  boxShadow: '0 8px 40px rgba(200,230,100,0.35), 0 2px 8px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.4)',
                   letterSpacing: '-0.02em',
                 }}
               >
-                <Zap className="h-5 w-5 md:h-7 md:w-7" />
+                <Zap className="h-5 w-5 md:h-6 md:w-6" />
                 On complete autopilot
               </motion.span>
             </span>
