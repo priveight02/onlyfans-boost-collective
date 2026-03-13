@@ -235,8 +235,6 @@ const InsufficientCreditsModal = ({ open, onClose, requiredCredits, actionName }
           </div>
         </div>
       </div>
-
-      </>
     </>
   );
 };
