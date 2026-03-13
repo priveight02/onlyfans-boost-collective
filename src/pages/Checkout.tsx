@@ -6,10 +6,11 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   ArrowLeft, ShieldCheck, Loader2, CheckCircle2, XCircle,
   Sparkles, LayoutDashboard, AlertTriangle, Coins, Zap, BadgeCheck,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, CreditCard, ArrowRight,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import PageSEO from "@/components/PageSEO";
 
 type CheckoutState = "loading" | "checkout" | "verifying" | "success" | "failed" | "canceled";
@@ -37,6 +38,7 @@ const Checkout = () => {
   const [verifyStatus, setVerifyStatus] = useState("");
   const [verifyStep, setVerifyStep] = useState(0);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   const pkgId = searchParams.get("pkg");
@@ -143,17 +145,17 @@ const Checkout = () => {
   }, []);
 
   const verifyWithRetry = async () => {
-    const delays = [2000, 2500, 3000, 3500, 4000];
-    for (let i = 0; i < delays.length; i++) {
+    const steps = [
+      { delay: 2000, msg: "Connecting to payment provider..." },
+      { delay: 2500, msg: "Payment received, verifying..." },
+      { delay: 3000, msg: "Confirming credits allocation..." },
+      { delay: 3500, msg: "Almost there, finalizing..." },
+      { delay: 4000, msg: "Final confirmation..." },
+    ];
+    for (let i = 0; i < steps.length; i++) {
       setVerifyStep(i + 1);
-      setVerifyStatus(
-        i === 0 ? "Connecting to payment provider..." :
-        i === 1 ? "Payment received, verifying..." :
-        i === 2 ? "Confirming credits allocation..." :
-        i === 3 ? "Almost there, finalizing..." :
-        "Final confirmation..."
-      );
-      await new Promise(r => setTimeout(r, delays[i]));
+      setVerifyStatus(steps[i].msg);
+      await new Promise(r => setTimeout(r, steps[i].delay));
       try {
         const { data } = await supabase.functions.invoke("verify-credit-purchase");
         if (data?.credited && data.credits_added > 0) {
@@ -178,6 +180,14 @@ const Checkout = () => {
 
   const formatPrice = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
+  const handleBackClick = () => {
+    if (state === "checkout") {
+      setShowLeaveDialog(true);
+    } else {
+      navigate("/pricing");
+    }
+  };
+
   return (
     <div className="min-h-screen" style={{ background: "hsl(222, 35%, 7%)" }}>
       <PageSEO title="Secure Checkout | Uplyze" description="Complete your purchase securely." />
@@ -200,7 +210,7 @@ const Checkout = () => {
           </div>
         </div>
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleBackClick}
           className="flex items-center gap-2 text-sm text-white/40 hover:text-white/70 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
@@ -208,13 +218,85 @@ const Checkout = () => {
         </button>
       </header>
 
+      {/* Leave Confirmation Dialog */}
+      <Dialog open={showLeaveDialog} onOpenChange={setShowLeaveDialog}>
+        <DialogContent
+          className="max-w-sm rounded-2xl p-0 overflow-hidden gap-0 border-0 [&>button]:hidden"
+          style={{
+            background: "hsl(222, 30%, 10%)",
+            boxShadow: "0 0 0 1px hsla(0, 0%, 100%, 0.08), 0 32px 80px -12px hsla(0, 0%, 0%, 0.7), 0 0 120px -40px hsla(262, 83%, 55%, 0.12)",
+          }}
+        >
+          <div className="h-[2px] w-full" style={{ background: "linear-gradient(90deg, transparent, hsla(45, 95%, 55%, 0.5), transparent)" }} />
+          <div className="p-6 space-y-5">
+            <div className="flex items-start gap-3.5">
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{
+                  background: "linear-gradient(135deg, hsla(45, 95%, 55%, 0.12), hsla(35, 90%, 50%, 0.06))",
+                  border: "1px solid hsla(45, 95%, 55%, 0.18)",
+                }}
+              >
+                <CreditCard className="h-5 w-5 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-[15px] font-bold text-white">Leave checkout?</h3>
+                <p className="text-xs text-white/40 mt-1 leading-relaxed">
+                  Your transaction hasn't been completed yet. You can return to finish your purchase or browse other plans.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => setShowLeaveDialog(false)}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-semibold text-white transition-all"
+                style={{
+                  background: "linear-gradient(135deg, hsl(262, 83%, 55%), hsl(240, 75%, 50%))",
+                  boxShadow: "0 4px 16px hsla(262, 83%, 55%, 0.3), inset 0 1px 0 hsla(0, 0%, 100%, 0.15)",
+                }}
+              >
+                <ArrowLeft className="h-3.5 w-3.5" />
+                Back to Transaction
+              </button>
+              <button
+                onClick={() => { setShowLeaveDialog(false); navigate("/pricing"); }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-sm font-medium text-white/50 hover:text-white/70 transition-colors"
+                style={{
+                  background: "hsla(0, 0%, 100%, 0.04)",
+                  border: "1px solid hsla(0, 0%, 100%, 0.06)",
+                }}
+              >
+                <ArrowRight className="h-3.5 w-3.5" />
+                Browse Plans
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Loading */}
       {state === "loading" && (
         <div className="flex items-center justify-center" style={{ height: "calc(100vh - 56px)" }}>
-          <div className="flex flex-col items-center gap-4">
-            <Loader2 className="h-8 w-8 text-white/40 animate-spin" />
-            <p className="text-white/40 text-sm">Preparing your checkout...</p>
-          </div>
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center gap-5">
+            <div className="relative">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
+                className="absolute -inset-3 rounded-full"
+                style={{ background: "conic-gradient(from 0deg, transparent, hsla(262, 83%, 55%, 0.25), transparent, transparent)" }}
+              />
+              <div
+                className="relative flex items-center justify-center w-14 h-14 rounded-2xl"
+                style={{ background: "hsla(262, 83%, 55%, 0.08)", border: "1px solid hsla(262, 83%, 55%, 0.15)" }}
+              >
+                <Loader2 className="h-6 w-6 text-purple-400 animate-spin" />
+              </div>
+            </div>
+            <div className="text-center">
+              <p className="text-white/60 text-sm font-medium">Preparing your checkout</p>
+              <p className="text-white/25 text-xs mt-1">Setting up secure payment session...</p>
+            </div>
+          </motion.div>
         </div>
       )}
 
@@ -235,7 +317,7 @@ const Checkout = () => {
             />
           </div>
 
-          {/* Sidebar Toggle — subtle chevron at middle-left edge of sidebar area */}
+          {/* Sidebar Toggle */}
           <AnimatePresence>
             {!sidebarOpen && orderInfo && (
               <motion.button
@@ -261,9 +343,7 @@ const Checkout = () => {
                 className="hidden lg:flex flex-shrink-0 overflow-hidden flex-col relative"
                 style={{ background: "hsl(222, 30%, 8%)" }}
               >
-                {/* Inner border rendered inside so it collapses with content */}
                 <div className="absolute inset-y-0 left-0 w-px" style={{ background: "hsla(0, 0%, 100%, 0.06)" }} />
-                {/* Collapse button at very middle left of sidebar */}
                 <button
                   onClick={() => setSidebarOpen(false)}
                   className="absolute left-0 top-1/2 -translate-y-1/2 z-50 flex items-center justify-center w-5 h-10 transition-colors"
@@ -273,7 +353,6 @@ const Checkout = () => {
                 </button>
 
                 <div className="w-[400px] p-7 flex-1 flex flex-col overflow-y-auto pl-8">
-
                   {/* Product Card */}
                   <div
                     className="rounded-2xl p-4 mb-6"
@@ -392,7 +471,7 @@ const Checkout = () => {
             )}
           </AnimatePresence>
 
-          {/* Mobile Order Summary (always visible on mobile) */}
+          {/* Mobile Order Summary */}
           {orderInfo && (
             <div className="lg:hidden border-t overflow-y-auto p-6" style={{ borderColor: "hsla(0, 0%, 100%, 0.06)", background: "hsl(222, 30%, 8%)" }}>
               <h2 className="text-base font-bold text-white/90 mb-4">Order Summary</h2>
@@ -415,89 +494,262 @@ const Checkout = () => {
         </div>
       )}
 
-      {/* Verifying */}
+      {/* Verifying — Premium multi-step animation */}
       {state === "verifying" && (
-        <div className="flex items-center justify-center flex-col gap-6" style={{ height: "calc(100vh - 56px)" }}>
-          <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative">
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="absolute -inset-4 rounded-full" style={{ background: "conic-gradient(from 0deg, transparent, hsla(145, 80%, 50%, 0.3), transparent, transparent)" }} />
-            <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl" style={{ background: "hsla(145, 80%, 50%, 0.08)", border: "1px solid hsla(145, 80%, 50%, 0.15)" }}>
-              <Loader2 className="h-7 w-7 text-emerald-400 animate-spin" />
+        <div className="flex items-center justify-center" style={{ height: "calc(100vh - 56px)" }}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center gap-8 max-w-xs"
+          >
+            {/* Animated icon */}
+            <div className="relative">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: "linear" }}
+                className="absolute -inset-5 rounded-full"
+                style={{ background: "conic-gradient(from 0deg, transparent 60%, hsla(145, 80%, 50%, 0.3), transparent)" }}
+              />
+              <motion.div
+                animate={{ scale: [1, 1.05, 1] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="relative flex items-center justify-center w-20 h-20 rounded-3xl"
+                style={{
+                  background: "linear-gradient(135deg, hsla(145, 80%, 50%, 0.1), hsla(145, 80%, 50%, 0.04))",
+                  border: "1px solid hsla(145, 80%, 50%, 0.2)",
+                  boxShadow: "0 0 60px -20px hsla(145, 80%, 50%, 0.25)",
+                }}
+              >
+                <Loader2 className="h-8 w-8 text-emerald-400 animate-spin" />
+              </motion.div>
             </div>
+
+            {/* Status text */}
+            <div className="text-center">
+              <motion.h3
+                key="verify-title"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-lg font-bold text-white mb-1.5"
+              >
+                Verifying Payment
+              </motion.h3>
+              <AnimatePresence mode="wait">
+                <motion.p
+                  key={verifyStatus}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.3 }}
+                  className="text-sm text-white/40"
+                >
+                  {verifyStatus}
+                </motion.p>
+              </AnimatePresence>
+            </div>
+
+            {/* Step indicators */}
+            <div className="flex items-center gap-2">
+              {[1, 2, 3, 4, 5].map(step => (
+                <motion.div
+                  key={step}
+                  className="h-1.5 rounded-full"
+                  animate={{
+                    width: step <= verifyStep ? 24 : 8,
+                    background: step <= verifyStep
+                      ? "hsl(145, 80%, 50%)"
+                      : step === verifyStep + 1
+                        ? "hsla(145, 80%, 50%, 0.2)"
+                        : "hsla(0, 0%, 100%, 0.06)",
+                  }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                />
+              ))}
+            </div>
+
+            <p className="text-[10px] text-white/15 tracking-wider uppercase">Step {verifyStep} of 5</p>
           </motion.div>
-          <div className="text-center">
-            <p className="text-white/70 text-base font-semibold">Verifying your purchase</p>
-            <p className="text-white/30 text-sm mt-1">{verifyStatus}</p>
-          </div>
-          <div className="w-48">
-            <div className="h-1 rounded-full overflow-hidden" style={{ background: "hsla(0, 0%, 100%, 0.06)" }}>
-              <motion.div className="h-full rounded-full" style={{ background: "hsl(145, 80%, 50%)" }} initial={{ width: "0%" }} animate={{ width: `${(verifyStep / 5) * 100}%` }} transition={{ duration: 0.5 }} />
-            </div>
-            <p className="text-[10px] text-white/20 text-center mt-1.5">Step {verifyStep} of 5</p>
-          </div>
         </div>
       )}
 
       {/* Success */}
       {state === "success" && (
-        <div className="flex items-center justify-center flex-col gap-6" style={{ height: "calc(100vh - 56px)" }}>
-          <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 200, damping: 15 }} className="relative">
-            <div className="absolute -inset-6 rounded-full blur-2xl" style={{ background: "hsla(145, 80%, 50%, 0.1)" }} />
-            <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl" style={{ background: "hsla(145, 80%, 50%, 0.1)", border: "1px solid hsla(145, 80%, 50%, 0.2)" }}>
-              <CheckCircle2 className="h-10 w-10 text-emerald-400" />
-            </div>
+        <div className="flex items-center justify-center" style={{ height: "calc(100vh - 56px)" }}>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex flex-col items-center gap-7 max-w-sm"
+          >
+            {/* Success icon with glow */}
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              className="relative"
+            >
+              <div className="absolute -inset-10 rounded-full blur-3xl" style={{ background: "hsla(145, 80%, 50%, 0.08)" }} />
+              <motion.div
+                animate={{ boxShadow: ["0 0 40px -15px hsla(145, 80%, 50%, 0.3)", "0 0 60px -15px hsla(145, 80%, 50%, 0.5)", "0 0 40px -15px hsla(145, 80%, 50%, 0.3)"] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+                className="relative flex items-center justify-center w-24 h-24 rounded-[28px]"
+                style={{
+                  background: "linear-gradient(135deg, hsla(145, 80%, 50%, 0.12), hsla(145, 80%, 50%, 0.04))",
+                  border: "1px solid hsla(145, 80%, 50%, 0.25)",
+                }}
+              >
+                <CheckCircle2 className="h-12 w-12 text-emerald-400" />
+              </motion.div>
+            </motion.div>
+
+            {/* Text */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="text-center"
+            >
+              <h2 className="text-2xl font-bold text-white mb-2">Payment Successful</h2>
+              <p className="text-white/40 text-sm">
+                {creditsAdded > 0 ? (
+                  <>
+                    <span className="text-emerald-400 font-semibold">{creditsAdded.toLocaleString()}</span> credits have been added to your wallet
+                  </>
+                ) : (
+                  <>Your payment was processed successfully. Credits are being delivered.</>
+                )}
+              </p>
+            </motion.div>
+
+            {/* Credit count badge */}
+            {creditsAdded > 0 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.3, type: "spring" }}
+                className="flex items-center gap-2.5 px-5 py-2.5 rounded-2xl"
+                style={{
+                  background: "linear-gradient(135deg, hsla(45, 95%, 55%, 0.1), hsla(35, 95%, 50%, 0.04))",
+                  border: "1px solid hsla(45, 95%, 55%, 0.15)",
+                }}
+              >
+                <Coins className="h-5 w-5 text-amber-400" />
+                <span className="text-lg font-bold text-white">+{creditsAdded.toLocaleString()}</span>
+                <span className="text-xs text-white/30">credits</span>
+              </motion.div>
+            )}
+
+            {/* CTA buttons */}
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="flex gap-3"
+            >
+              <Button
+                onClick={() => navigate("/platform")}
+                className="px-7 py-5 rounded-xl text-white font-semibold text-sm border-0"
+                style={{
+                  background: "linear-gradient(135deg, hsl(145, 70%, 42%), hsl(155, 70%, 38%))",
+                  boxShadow: "0 4px 20px hsla(145, 80%, 50%, 0.25), inset 0 1px 0 hsla(0, 0%, 100%, 0.12)",
+                }}
+              >
+                <LayoutDashboard className="h-4 w-4 mr-2" /> Enter Platform
+              </Button>
+              <Button
+                onClick={() => navigate("/pricing")}
+                className="px-7 py-5 rounded-xl text-white/50 hover:text-white/70 font-medium text-sm"
+                style={{
+                  background: "hsla(0, 0%, 100%, 0.04)",
+                  border: "1px solid hsla(0, 0%, 100%, 0.06)",
+                }}
+              >
+                <Sparkles className="h-4 w-4 mr-2" /> Buy More
+              </Button>
+            </motion.div>
+
+            {/* Auto-redirect indicator */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              className="flex items-center gap-2"
+            >
+              <div className="w-1 h-1 rounded-full bg-white/15 animate-pulse" />
+              <p className="text-white/15 text-xs">Redirecting to platform in a few seconds</p>
+            </motion.div>
           </motion.div>
-          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-2">Transaction Successful</h2>
-            <p className="text-white/40 text-sm">
-              {creditsAdded > 0 ? (
-                <><span className="text-emerald-400 font-semibold">{creditsAdded.toLocaleString()}</span> credits added to your wallet</>
-              ) : (
-                <>Your payment was successful! Credits are being processed.</>
-              )}
-            </p>
-          </motion.div>
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="flex gap-3">
-            <Button onClick={() => navigate("/platform")} className="px-8 py-5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium">
-              <LayoutDashboard className="h-4 w-4 mr-2" /> Enter Platform
-            </Button>
-            <Button onClick={() => navigate("/pricing")} className="px-8 py-5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white/60 border border-white/[0.08]">
-              <Sparkles className="h-4 w-4 mr-2" /> Buy More
-            </Button>
-          </motion.div>
-          <p className="text-white/20 text-xs flex items-center gap-1.5">
-            <Loader2 className="h-3 w-3 animate-spin" /> Redirecting to platform...
-          </p>
         </div>
       )}
 
       {/* Failed / Canceled */}
       {(state === "failed" || state === "canceled") && (
-        <div className="flex items-center justify-center flex-col gap-6" style={{ height: "calc(100vh - 56px)" }}>
-          <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 200, damping: 15 }} className="relative">
-            <div className="absolute -inset-6 rounded-full blur-2xl" style={{ background: state === "failed" ? "hsla(0, 80%, 50%, 0.05)" : "hsla(45, 95%, 55%, 0.05)" }} />
-            <div
-              className="relative flex items-center justify-center w-20 h-20 rounded-3xl"
-              style={{
-                background: state === "failed" ? "hsla(0, 80%, 50%, 0.1)" : "hsla(45, 95%, 55%, 0.1)",
-                border: `1px solid ${state === "failed" ? "hsla(0, 80%, 50%, 0.2)" : "hsla(45, 95%, 55%, 0.2)"}`,
-              }}
+        <div className="flex items-center justify-center" style={{ height: "calc(100vh - 56px)" }}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex flex-col items-center gap-7 max-w-sm"
+          >
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              className="relative"
             >
-              {state === "failed" ? <XCircle className="h-10 w-10 text-red-400" /> : <AlertTriangle className="h-10 w-10 text-amber-400" />}
-            </div>
+              <div
+                className="absolute -inset-8 rounded-full blur-3xl"
+                style={{ background: state === "failed" ? "hsla(0, 80%, 50%, 0.06)" : "hsla(45, 95%, 55%, 0.06)" }}
+              />
+              <div
+                className="relative flex items-center justify-center w-24 h-24 rounded-[28px]"
+                style={{
+                  background: state === "failed"
+                    ? "linear-gradient(135deg, hsla(0, 80%, 50%, 0.12), hsla(0, 80%, 50%, 0.04))"
+                    : "linear-gradient(135deg, hsla(45, 95%, 55%, 0.12), hsla(45, 95%, 55%, 0.04))",
+                  border: `1px solid ${state === "failed" ? "hsla(0, 80%, 50%, 0.2)" : "hsla(45, 95%, 55%, 0.2)"}`,
+                }}
+              >
+                {state === "failed"
+                  ? <XCircle className="h-12 w-12 text-red-400" />
+                  : <AlertTriangle className="h-12 w-12 text-amber-400" />
+                }
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="text-center"
+            >
+              <h2 className="text-2xl font-bold text-white mb-2">
+                {state === "failed" ? "Payment Failed" : "Purchase Canceled"}
+              </h2>
+              <p className="text-white/40 text-sm">
+                {state === "failed"
+                  ? "Your payment could not be processed. Please try again."
+                  : "No charges were made. You can try again anytime."
+                }
+              </p>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="flex gap-3"
+            >
+              <Button
+                onClick={() => navigate("/pricing")}
+                className="px-7 py-5 rounded-xl text-white/50 hover:text-white/70 font-medium text-sm"
+                style={{
+                  background: "hsla(0, 0%, 100%, 0.04)",
+                  border: "1px solid hsla(0, 0%, 100%, 0.06)",
+                }}
+              >
+                Back to Pricing
+              </Button>
+            </motion.div>
           </motion.div>
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-white mb-2">
-              {state === "failed" ? "Payment Failed" : "Purchase Canceled"}
-            </h2>
-            <p className="text-white/40 text-sm">
-              {state === "failed" ? "Your payment could not be processed. Please try again." : "No charges were made. You can try again anytime."}
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Button onClick={() => navigate("/pricing")} className="px-8 py-5 rounded-xl bg-white/[0.06] hover:bg-white/[0.1] text-white/60 border border-white/[0.08]">
-              Back to Pricing
-            </Button>
-          </div>
         </div>
       )}
     </div>
