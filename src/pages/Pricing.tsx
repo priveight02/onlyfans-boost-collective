@@ -8,7 +8,6 @@ import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift, Glob
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import PageSEO from "@/components/PageSEO";
-import PageSEO from "@/components/PageSEO";
 import AnimatedBackground from "@/components/AnimatedBackground";
 
 interface CreditPackage {
