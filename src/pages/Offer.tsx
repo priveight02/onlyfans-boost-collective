@@ -75,59 +75,7 @@ const Offer = () => {
       </section>
 
       {/* ─── WHY THIS WORKS ─── */}
-      <section className="py-16 px-4">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-black text-white text-center mb-12">
-            Why This Works<br />When You Couldn't
-          </h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            {/* Fail card */}
-            <div className="rounded-2xl p-8 border-2" style={{ background: "hsla(0, 0%, 100%, 0.95)", borderColor: "hsla(0, 70%, 60%, 0.3)" }}>
-              <div className="flex justify-center mb-6">
-                <div className="w-32 h-32 rounded-full bg-red-100 flex items-center justify-center text-5xl">😞</div>
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-4">
-                <span className="text-red-500">Most people fail</span> at marketing because:
-              </h3>
-              <ul className="space-y-3">
-                {[
-                  "They test 1-2 strategies, give up when it doesn't work",
-                  "They don't know which metrics actually matter",
-                  "They scale too fast or too slow",
-                  "They use boring content that doesn't stop the scroll",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-gray-600">
-                    <X className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            {/* Win card */}
-            <div className="rounded-2xl p-8 border-2" style={{ background: "hsla(0, 0%, 100%, 0.95)", borderColor: "hsla(120, 60%, 50%, 0.3)" }}>
-              <div className="flex justify-center mb-6">
-                <div className="w-32 h-32 rounded-full bg-green-100 flex items-center justify-center text-5xl">💰</div>
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-4">
-                Uplyze wins because it's trained on what works:
-              </h3>
-              <ul className="space-y-3">
-                {[
-                  "$100M+ in proven, winning campaigns",
-                  "50,000+ high-performing creatives analyzed",
-                  "Every algorithm update since 2019",
-                  "Real data, not guesswork - built for consistent conversions.",
-                ].map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-gray-600">
-                    <Check className="h-4 w-4 text-emerald-500 mt-0.5 shrink-0" />
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
+      <ComparisonSection />
 
       {/* ─── FROM ZERO TO LIVE ─── */}
       <section className="py-16 px-4">
