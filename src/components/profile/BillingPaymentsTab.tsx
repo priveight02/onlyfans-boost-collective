@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   CreditCard, FileText, Settings2, AlertTriangle, ExternalLink, RefreshCw,
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { useAuth } from "@/hooks/useAuth";
+import { useWallet } from "@/hooks/useWallet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -66,6 +68,8 @@ const formatDateTime = (iso: string) => {
 
 const BillingPaymentsTab = () => {
   const { user } = useAuth();
+  const { totalSpent } = useWallet();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -74,7 +78,7 @@ const BillingPaymentsTab = () => {
 
   const [showRetentionDialog, setShowRetentionDialog] = useState(false);
   const [retentionStep, setRetentionStep] = useState<"offer" | "confirm-cancel">("offer");
-  const [applyingDiscount, setApplyingDiscount] = useState(false);
+  
   const [redirectingToPortal, setRedirectingToPortal] = useState(false);
   const [showAllPayments, setShowAllPayments] = useState(false);
 
@@ -104,9 +108,12 @@ const BillingPaymentsTab = () => {
     fetchBillingInfo();
   }, [user]);
 
+  // Both conditions must be met: spent $25+ AND eligible for retention
+  const qualifiesForRetention = eligibleForRetention && totalSpent >= 2500;
+
   const handleManageSubscription = () => {
     if (!subscription) return;
-    if (eligibleForRetention) {
+    if (qualifiesForRetention) {
       setRetentionStep("offer");
       setShowRetentionDialog(true);
     } else {
@@ -116,7 +123,7 @@ const BillingPaymentsTab = () => {
 
   const handleCancelSubscription = () => {
     if (!subscription) return;
-    if (eligibleForRetention) {
+    if (qualifiesForRetention) {
       setRetentionStep("offer");
       setShowRetentionDialog(true);
     } else {
@@ -124,22 +131,10 @@ const BillingPaymentsTab = () => {
     }
   };
 
-  const handleAcceptRetention = async () => {
-    setApplyingDiscount(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("billing-info", {
-        body: { action: "apply_retention_coupon" },
-      });
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
-      toast.success("🎉 50% discount applied! Enjoy your savings.");
-      setShowRetentionDialog(false);
-      fetchBillingInfo();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to apply discount");
-    } finally {
-      setApplyingDiscount(false);
-    }
+  const handleAcceptRetention = () => {
+    setShowRetentionDialog(false);
+    toast.success("🎉 Redirecting to claim your 50% discount!");
+    navigate("/pricing?retention=1");
   };
 
   const handleProceedToCancel = async () => {
@@ -497,14 +492,9 @@ const BillingPaymentsTab = () => {
                 <div className="space-y-3">
                   <Button
                     onClick={handleAcceptRetention}
-                    disabled={applyingDiscount}
-                    className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 text-white font-semibold text-sm h-11 rounded-xl border-0"
+                    className="w-full bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-400 hover:to-blue-500 text-white font-semibold text-sm h-11 rounded-xl border-0"
                   >
-                    {applyingDiscount ? (
-                      <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Applying...</>
-                    ) : (
-                      <><Gift className="h-4 w-4 mr-2" /> Yes! Apply 50% Discount</>
-                    )}
+                    <Gift className="h-4 w-4 mr-2" /> Yes! Claim 50% Discount
                   </Button>
                   <button
                     onClick={() => setRetentionStep("confirm-cancel")}
