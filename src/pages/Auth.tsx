@@ -171,93 +171,15 @@ const Auth = () => {
   const current = titles[mode];
   const inputClass = "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:border-purple-500/40 focus:bg-white/[0.07] rounded-xl h-12 text-sm transition-all duration-200";
 
-  const features = [
-    { icon: Zap, title: "AI-Powered Automation", desc: "Automate DMs, comments, and engagement" },
-    { icon: TrendingUp, title: "Growth Analytics", desc: "Track performance across all platforms" },
-    { icon: MessageCircle, title: "Smart Messaging", desc: "AI conversations that convert" },
-  ];
-
   return (
     <div className="flex min-h-screen" style={{ background: "hsl(222, 35%, 5%)" }}>
-      {/* Left Side - Hero */}
-      <div className="hidden lg:flex lg:w-[50%] xl:w-[55%] relative overflow-hidden flex-col">
-        {/* Animated gradient background */}
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-900/30 via-[hsl(222,35%,8%)] to-blue-900/20" />
-          <div className="absolute top-0 left-0 w-full h-full">
-            <div className="absolute top-[10%] left-[15%] w-[500px] h-[500px] bg-purple-600/8 rounded-full blur-[100px] animate-pulse" />
-            <div className="absolute bottom-[20%] right-[10%] w-[400px] h-[400px] bg-blue-600/8 rounded-full blur-[80px] animate-pulse" style={{ animationDelay: '1s' }} />
-            <div className="absolute top-[50%] left-[50%] w-[300px] h-[300px] bg-violet-500/6 rounded-full blur-[60px] animate-pulse" style={{ animationDelay: '2s' }} />
-          </div>
-        </div>
-
-        {/* Logo */}
-        <div className="relative z-10 p-8">
-          <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze" className="h-10 w-auto" />
-        </div>
-
-        {/* Center content */}
-        <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-12 pb-12">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          >
-            <img
-              src={authHero}
-              alt="Uplyze AI Platform"
-              className="w-[380px] h-auto mb-8 drop-shadow-2xl"
-              style={{ filter: "drop-shadow(0 20px 40px hsla(262, 83%, 58%, 0.15))" }}
-            />
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6 }}
-            className="text-center max-w-md"
-          >
-            <h2 className="text-[28px] font-bold text-white mb-3 leading-tight tracking-tight">
-              Scale Your Social Empire<br />
-              <span className="uplyze-highlight">with AI Intelligence</span>
-            </h2>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5, duration: 0.6 }}
-            className="mt-8 space-y-4 w-full max-w-sm"
-          >
-            {features.map((f, i) => (
-              <motion.div
-                key={f.title}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.6 + i * 0.15, duration: 0.5 }}
-                className="flex items-center gap-4 px-5 py-3 rounded-2xl"
-                style={{
-                  background: "hsla(0, 0%, 100%, 0.04)",
-                  border: "1px solid hsla(0, 0%, 100%, 0.06)",
-                }}
-              >
-                <div
-                  className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
-                  style={{
-                    background: "linear-gradient(135deg, hsla(262, 83%, 58%, 0.2), hsla(217, 91%, 55%, 0.15))",
-                    border: "1px solid hsla(262, 83%, 58%, 0.15)",
-                  }}
-                >
-                  <f.icon className="h-4 w-4 text-purple-400" />
-                </div>
-                <div>
-                  <p className="text-white/90 text-sm font-semibold">{f.title}</p>
-                  <p className="text-white/35 text-xs">{f.desc}</p>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
+      {/* Left Side - Full bleed image */}
+      <div className="hidden lg:block lg:w-[38%] relative overflow-hidden">
+        <img
+          src={authHeroFull}
+          alt="Uplyze AI Platform"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
       </div>
 
       {/* Right Side - Form */}
