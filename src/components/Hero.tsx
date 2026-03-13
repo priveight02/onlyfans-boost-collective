@@ -45,9 +45,9 @@ const Hero = () => {
             transition={{ duration: 0.9, delay: 0.15 }}
             className="mb-6 text-5xl font-black leading-[1.02] tracking-tight text-white md:text-7xl lg:text-[5.5rem]"
           >
-            Turn Followers Into
+            We Turn Your Followers
             <br />
-            Paying{" "}
+            Into{" "}
             <span className="relative inline-block pb-14 md:pb-20">
               <span className="uplyze-highlight pb-2">
                 Customers
