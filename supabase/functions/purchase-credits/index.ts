@@ -53,8 +53,17 @@ const getDiscountTier = (purchaseCount: number, useRetention: boolean, retention
   return "none";
 };
 
-// Find Polar product by metadata
-const findProductVariant = async (basePackage: string, discountTier: string): Promise<{ productId: string } | null> => {
+// Map discount tier to basis points (100 = 1%)
+const DISCOUNT_BASIS_POINTS: Record<string, number> = {
+  "first_order_40": 4000,
+  "loyalty_30": 3000,
+  "loyalty_20": 2000,
+  "loyalty_10": 1000,
+  "retention_50": 5000,
+};
+
+// Find base Polar product by metadata (type=credit_package, base_package=X, discount_tier=none)
+const findBaseProduct = async (basePackage: string): Promise<string | null> => {
   const res = await polarFetch("/products?limit=100");
   if (!res.ok) throw new Error("Failed to fetch Polar products");
   const data = await res.json();
@@ -65,16 +74,16 @@ const findProductVariant = async (basePackage: string, discountTier: string): Pr
     if (
       meta.type === "credit_package" &&
       meta.base_package === basePackage &&
-      meta.discount_tier === discountTier
+      meta.discount_tier === "none"
     ) {
-      return { productId: product.id };
+      return product.id;
     }
   }
   return null;
 };
 
 // Find custom credits product
-const findCustomCreditsProduct = async (): Promise<{ productId: string } | null> => {
+const findCustomCreditsProduct = async (): Promise<string | null> => {
   const res = await polarFetch("/products?limit=100");
   if (!res.ok) throw new Error("Failed to fetch Polar products");
   const data = await res.json();
@@ -82,29 +91,48 @@ const findCustomCreditsProduct = async (): Promise<{ productId: string } | null>
 
   for (const product of products) {
     if (product.metadata?.type === "custom_credits") {
-      return { productId: product.id };
+      return product.id;
     }
   }
   return null;
 };
 
-// Find the 40% discount on Polar
-const find40PercentDiscount = async (): Promise<string | null> => {
+// Find or create a Polar discount by basis_points
+const findOrCreateDiscount = async (basisPoints: number, tierName: string): Promise<string | null> => {
+  // First try to find existing discount
   const res = await polarFetch("/discounts?limit=50");
   if (!res.ok) return null;
   const data = await res.json();
   const discounts = data.items || [];
+
   for (const d of discounts) {
-    // Match any 40% percentage discount
-    if (d.type === "percentage" && d.basis_points === 4000) {
-      return d.id;
-    }
-    // Also check name
-    if (d.name && d.name.toLowerCase().includes("40")) {
+    if (d.type === "percentage" && d.basis_points === basisPoints) {
+      log("Found existing discount", { id: d.id, name: d.name, basisPoints });
       return d.id;
     }
   }
-  return null;
+
+  // Not found — create it
+  const pct = basisPoints / 100;
+  const createRes = await polarFetch("/discounts/", {
+    method: "POST",
+    body: JSON.stringify({
+      name: `Auto ${pct}% OFF (${tierName})`,
+      type: "percentage",
+      basis_points: basisPoints,
+      duration: "once",
+    }),
+  });
+
+  if (!createRes.ok) {
+    const errText = await createRes.text();
+    log("Failed to create discount", { basisPoints, error: errText });
+    return null;
+  }
+
+  const created = await createRes.json();
+  log("Created new discount", { id: created.id, basisPoints });
+  return created.id;
 };
 
 serve(async (req) => {
@@ -133,38 +161,44 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://uplyze.ai";
     const discountTier = getDiscountTier(currentPurchaseCount, useRetentionDiscount || false, retentionAlreadyUsed);
+    const basisPoints = DISCOUNT_BASIS_POINTS[discountTier] || 0;
+
+    // Resolve discount ID if applicable
+    let discountId: string | null = null;
+    if (basisPoints > 0) {
+      discountId = await findOrCreateDiscount(basisPoints, discountTier);
+      log("Discount resolved", { discountTier, basisPoints, discountId });
+    }
 
     // ═══ CUSTOM CREDITS MODE ═══
     if (customCredits && typeof customCredits === "number" && customCredits >= 500) {
       log("Custom credits mode", { customCredits, discountTier });
 
-      const customProduct = await findCustomCreditsProduct();
-      if (!customProduct) throw new Error("Custom credits product not found on Polar");
+      const customProductId = await findCustomCreditsProduct();
+      if (!customProductId) throw new Error("Custom credits product not found on Polar");
 
       const volumeDiscountPercent = getVolumeDiscountPercent(customCredits);
       const pricePerCredit = BASE_PRICE_PER_CREDIT_CENTS * (1 - volumeDiscountPercent / 100);
-      let totalCents = Math.round(customCredits * pricePerCredit);
+      const totalCents = Math.round(customCredits * pricePerCredit);
 
-      if (discountTier === "first_order_40") {
-        totalCents = Math.round(totalCents * 0.6);
-      } else if (discountTier === "retention_50") {
-        totalCents = Math.round(totalCents * 0.5);
-        await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
-      } else if (discountTier === "loyalty_30") {
-        totalCents = Math.round(totalCents * 0.7);
-      } else if (discountTier === "loyalty_20") {
-        totalCents = Math.round(totalCents * 0.8);
-      } else if (discountTier === "loyalty_10") {
-        totalCents = Math.round(totalCents * 0.9);
+      // For custom credits, the discount is baked into the amount since we set a custom price
+      let finalCents = totalCents;
+      if (discountTier !== "none") {
+        const discountMultiplier = 1 - basisPoints / 10000;
+        finalCents = Math.round(totalCents * discountMultiplier);
       }
 
-      log("Custom price calculated", { totalCents, volumeDiscountPercent, discountTier });
+      if (discountTier === "retention_50") {
+        await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
+      }
+
+      log("Custom price calculated", { totalCents, finalCents, volumeDiscountPercent, discountTier });
 
       const checkoutRes = await polarFetch("/checkouts/", {
         method: "POST",
         body: JSON.stringify({
-          products: [customProduct.productId],
-          amount: totalCents,
+          products: [customProductId],
+          amount: finalCents,
           customer_email: user.email,
           customer_external_id: user.id,
           metadata: {
@@ -188,10 +222,9 @@ serve(async (req) => {
         throw new Error(`Checkout failed: ${errText}`);
       }
       const checkout = await checkoutRes.json();
-      const checkoutUrl = checkout.url;
-      log("Custom checkout created", { url: checkoutUrl, discountTier });
+      log("Custom checkout created", { url: checkout.url, discountTier });
 
-      return new Response(JSON.stringify({ checkoutUrl, discount_tier: discountTier }), {
+      return new Response(JSON.stringify({ checkoutUrl: checkout.url, discount_tier: discountTier }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -204,96 +237,49 @@ serve(async (req) => {
     if (pkgError || !pkg) throw new Error("Invalid package");
     log("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
 
-    // ── FIRST ORDER 40% OFF: use base product + Polar 40% discount coupon ──
-    if (discountTier === "first_order_40") {
-      log("First order 40% discount - using base product with Polar discount");
-
-      const tierKey = Object.entries(PACKAGE_TIER_MAP).find(
-        ([pattern]) => pkg.name.toLowerCase().includes(pattern)
-      )?.[1];
-      if (!tierKey) throw new Error(`Unknown package tier for first order: ${pkg.name}`);
-
-      const baseVariant = await findProductVariant(tierKey, "none");
-      if (!baseVariant) throw new Error(`No base Polar product found for tier=${tierKey}`);
-
-      const discountId = await find40PercentDiscount();
-      log("First order setup", { tierKey, productId: baseVariant.productId, discountId });
-
-      const checkoutBody: any = {
-        products: [baseVariant.productId],
-        customer_email: user.email,
-        customer_external_id: user.id,
-        metadata: {
-          user_id: user.id,
-          package_id: pkg.id,
-          credits: String(pkg.credits),
-          bonus_credits: String(pkg.bonus_credits),
-          discount_tier: "first_order_40",
-          is_first_order: "true",
-          original_price: String(pkg.price_cents),
-        },
-        success_url: `${origin}/checkout?success=true`,
-        allow_discount_codes: false,
-        embed_origin: origin,
-      };
-
-      // Auto-apply the 40% discount
-      if (discountId) {
-        checkoutBody.discount_id = discountId;
-      }
-
-      const checkoutRes = await polarFetch("/checkouts/", {
-        method: "POST",
-        body: JSON.stringify(checkoutBody),
-      });
-
-      if (!checkoutRes.ok) {
-        const errText = await checkoutRes.text();
-        log("First order checkout error", { status: checkoutRes.status, body: errText });
-        throw new Error(`Checkout failed: ${errText}`);
-      }
-      const checkout = await checkoutRes.json();
-      log("First order checkout created", { url: checkout.url });
-
-      return new Response(JSON.stringify({ checkoutUrl: checkout.url, discount_tier: discountTier }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    // ── STANDARD PACKAGE FLOW (loyalty/retention/none) ──
+    // Always find base product
     const tierKey = Object.entries(PACKAGE_TIER_MAP).find(
       ([pattern]) => pkg.name.toLowerCase().includes(pattern)
     )?.[1];
     if (!tierKey) throw new Error(`Unknown package tier: ${pkg.name}`);
 
-    const variant = await findProductVariant(tierKey, discountTier);
-    if (!variant) throw new Error(`No Polar product found for tier=${tierKey}, discount=${discountTier}`);
+    const baseProductId = await findBaseProduct(tierKey);
+    if (!baseProductId) throw new Error(`No base Polar product found for tier=${tierKey}`);
 
     if (discountTier === "retention_50") {
       await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
     }
 
-    log("Selected variant", { tierKey, discountTier, productId: variant.productId });
+    log("Using base product with dynamic discount", { tierKey, discountTier, baseProductId, discountId });
+
+    const checkoutBody: any = {
+      products: [baseProductId],
+      customer_email: user.email,
+      customer_external_id: user.id,
+      metadata: {
+        user_id: user.id,
+        package_id: pkg.id,
+        credits: String(pkg.credits),
+        bonus_credits: String(pkg.bonus_credits),
+        discount_tier: discountTier,
+        is_first_order: String(currentPurchaseCount === 0),
+        is_returning: String(currentPurchaseCount > 0),
+        retention_used: String(useRetentionDiscount || false),
+        original_price: String(pkg.price_cents),
+      },
+      success_url: `${origin}/checkout?success=true`,
+      allow_discount_codes: false,
+      embed_origin: origin,
+    };
+
+    // Auto-apply discount code at checkout if applicable
+    if (discountId) {
+      checkoutBody.discount_id = discountId;
+    }
 
     const checkoutRes = await polarFetch("/checkouts/", {
       method: "POST",
-      body: JSON.stringify({
-        products: [variant.productId],
-        customer_email: user.email,
-        customer_external_id: user.id,
-        metadata: {
-          user_id: user.id,
-          package_id: pkg.id,
-          credits: String(pkg.credits),
-          bonus_credits: String(pkg.bonus_credits),
-          discount_tier: discountTier,
-          is_returning: String(currentPurchaseCount > 0),
-          retention_used: String(useRetentionDiscount || false),
-        },
-        success_url: `${origin}/checkout?success=true`,
-        allow_discount_codes: false,
-        embed_origin: origin,
-      }),
+      body: JSON.stringify(checkoutBody),
     });
 
     if (!checkoutRes.ok) {
@@ -302,10 +288,9 @@ serve(async (req) => {
       throw new Error(`Checkout failed: ${errText}`);
     }
     const checkout = await checkoutRes.json();
-    const checkoutUrl = checkout.url;
-    log("Checkout created", { url: checkoutUrl, discountTier });
+    log("Checkout created", { url: checkout.url, discountTier, discountId });
 
-    return new Response(JSON.stringify({ checkoutUrl, discount_tier: discountTier }), {
+    return new Response(JSON.stringify({ checkoutUrl: checkout.url, discount_tier: discountTier }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
