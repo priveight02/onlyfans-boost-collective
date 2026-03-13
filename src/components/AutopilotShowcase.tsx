@@ -834,18 +834,24 @@ const AutopilotShowcase = () => {
   const [isVisible, setIsVisible] = useState(false);
   const sectionRef = useRef<HTMLDivElement>(null);
   const progressRef = useRef<number>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     const observer = new IntersectionObserver(
       ([entry]) => setIsVisible(entry.isIntersecting),
-      { threshold: 0.2 }
+      { threshold: 0.15 }
     );
     if (sectionRef.current) observer.observe(sectionRef.current);
     return () => observer.disconnect();
   }, []);
 
   useEffect(() => {
-    if (!isVisible) return;
+    if (!isVisible) {
+      // Pause everything when off-screen
+      if (progressRef.current) cancelAnimationFrame(progressRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      return;
+    }
     const scene = scenes[sceneIdx];
     const startTime = performance.now();
 
@@ -856,14 +862,17 @@ const AutopilotShowcase = () => {
       if (p < 1) {
         progressRef.current = requestAnimationFrame(tick);
       } else {
-        setTimeout(() => {
+        timeoutRef.current = setTimeout(() => {
           setSceneIdx((prev) => (prev + 1) % scenes.length);
           setProgress(0);
         }, 700);
       }
     };
     progressRef.current = requestAnimationFrame(tick);
-    return () => { if (progressRef.current) cancelAnimationFrame(progressRef.current); };
+    return () => {
+      if (progressRef.current) cancelAnimationFrame(progressRef.current);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
   }, [sceneIdx, isVisible]);
 
   const scene = scenes[sceneIdx];
@@ -923,7 +932,7 @@ const AutopilotShowcase = () => {
           viewport={{ once: true }}
           transition={{ duration: 0.7, delay: 0.15 }}
           className="relative rounded-2xl overflow-hidden"
-          style={{ background: 'linear-gradient(180deg, hsl(222, 30%, 12%) 0%, hsl(222, 35%, 9%) 100%)', boxShadow: '0 25px 60px -15px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset' }}
+          style={{ background: 'linear-gradient(180deg, hsl(222, 30%, 12%) 0%, hsl(222, 35%, 9%) 100%)', boxShadow: '0 25px 60px -15px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset', contain: 'layout style paint' }}
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]" style={{ background: 'hsl(222, 30%, 10%)' }}>
             <div className="flex items-center gap-1.5">
