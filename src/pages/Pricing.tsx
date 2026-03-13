@@ -139,7 +139,7 @@ const Pricing = () => {
         title="Uplyze Pricing - Pay As You Go, Scale As You Grow"
         description="No subscriptions, no lock-ins. Grab AI credits when you need them. Flexible plans built for creators, agencies, and businesses at any stage."
       />
-      <div className="pt-32 pb-10 px-4">
+      <div className="pt-32 pb-20 px-4">
         {/* Hero */}
         <div className="text-center mb-7">
           <h1 className="text-4xl md:text-5xl font-bold mb-3 text-white tracking-tight">
@@ -196,15 +196,15 @@ const Pricing = () => {
         </div>
 
         {/* Packages */}
-        <div className="max-w-[1400px] mx-auto">
+        <div className="max-w-7xl mx-auto">
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="h-80 rounded-2xl animate-pulse" style={{ background: "hsla(0, 0%, 100%, 0.05)" }} />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
               {packages.map((pkg, index) => {
                 const isPopular = pkg.is_popular;
                 const displayPrice = isFirstOrder ? Math.round(pkg.price_cents * 0.6) : isReturning ? getDiscountedPrice(pkg.price_cents) : pkg.price_cents;
@@ -245,7 +245,7 @@ const Pricing = () => {
                       </div>
                     )}
 
-                    <div className="p-7 flex-1 flex flex-col">
+                    <div className="p-6 flex-1 flex flex-col">
                       <h3 className="text-base font-semibold text-white/90 mb-3">{pkg.name}</h3>
                       <div className="flex items-baseline gap-2 mb-0.5">
                         {(isFirstOrder || isReturning) && <span className="text-sm text-white/30 line-through">{formatPrice(pkg.price_cents)}</span>}
@@ -331,7 +331,7 @@ const Pricing = () => {
                     Custom
                   </span>
                 </div>
-                <div className="p-7 flex-1 flex flex-col">
+                <div className="p-6 flex-1 flex flex-col">
                   <h3 className="text-base font-semibold text-white/90 mb-3">Custom Needs</h3>
                   <div className="flex items-baseline gap-2 mb-0.5">
                     {isReturning && customTotalCents !== customDisplayCents && (
@@ -404,6 +404,26 @@ const Pricing = () => {
             </div>
           )}
 
+          {/* Trust */}
+          <div className="mt-10 pb-0">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-2xl mx-auto text-center">
+              <div className="flex flex-col items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-white/30" />
+                <h4 className="text-sm font-medium text-white/70">Secure Payments</h4>
+                <p className="text-xs text-white/30">256-bit SSL · One-time payment</p>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <Zap className="h-5 w-5 text-white/30" />
+                <h4 className="text-sm font-medium text-white/70">Instant Delivery</h4>
+                <p className="text-xs text-white/30">Credits added immediately</p>
+              </div>
+              <div className="flex flex-col items-center gap-2">
+                <Gift className="h-5 w-5 text-white/30" />
+                <h4 className="text-sm font-medium text-white/70">Loyalty Rewards</h4>
+                <p className="text-xs text-white/30">Up to 30% off repeat purchases</p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
