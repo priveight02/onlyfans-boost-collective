@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import PageSEO from "@/components/PageSEO";
 import StickyRedeemPill from "@/components/StickyRedeemPill";
 import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
+import ComparisonSection from "@/components/ComparisonSection";
 
 const faqs = [
   { q: "Do I need to be a marketing expert to use Uplyze?", a: "Not at all. Uplyze is built for beginners and pros alike. The AI handles the heavy lifting - strategy, optimization, and scaling. You just need a product or service to promote." },
