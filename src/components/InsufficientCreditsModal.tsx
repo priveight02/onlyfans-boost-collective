@@ -42,6 +42,7 @@ const InsufficientCreditsModal = ({ open, onClose, requiredCredits, actionName }
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
 
   const isPurchaseMode = actionName === "Add Credits";
+  const isFirstOrder = purchaseCount === 0;
 
   useEffect(() => {
     if (!open) return;
