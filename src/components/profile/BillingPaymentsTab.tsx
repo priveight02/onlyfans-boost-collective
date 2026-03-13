@@ -78,7 +78,7 @@ const BillingPaymentsTab = () => {
 
   const [showRetentionDialog, setShowRetentionDialog] = useState(false);
   const [retentionStep, setRetentionStep] = useState<"offer" | "confirm-cancel">("offer");
-  const [applyingDiscount, setApplyingDiscount] = useState(false);
+  const [applyingDiscount] = useState(false);
   const [redirectingToPortal, setRedirectingToPortal] = useState(false);
   const [showAllPayments, setShowAllPayments] = useState(false);
 
