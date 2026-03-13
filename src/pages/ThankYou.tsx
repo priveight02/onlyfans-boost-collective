@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle, ArrowRight, Sparkles, ShieldCheck, Coins, Zap, LayoutDashboard, Crown, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,11 +6,6 @@ import PageSEO from "@/components/PageSEO";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { motion } from "framer-motion";
-
-import creditsStarter from "@/assets/credits-starter.png";
-import creditsPro from "@/assets/credits-pro-new.png";
-import creditsStudio from "@/assets/credits-studio-new.png";
-import creditsPower from "@/assets/credits-power-new.png";
 
 interface CreditPackage {
   id: string;
@@ -23,28 +18,12 @@ interface CreditPackage {
   sort_order: number;
 }
 
-const PACKAGE_IMAGES: Record<string, string> = {
-  "starter": creditsStarter,
-  "pro": creditsPro,
-  "studio": creditsStudio,
-  "power": creditsPower,
-};
-
-const getPackageImage = (name: string) => {
-  const lower = name.toLowerCase();
-  for (const [key, img] of Object.entries(PACKAGE_IMAGES)) {
-    if (lower.includes(key)) return img;
-  }
-  return creditsStarter;
-};
-
 const ThankYou = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const [countdown, setCountdown] = useState(30);
   const [packages, setPackages] = useState<CreditPackage[]>([]);
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const creditsAdded = parseInt(searchParams.get("credits") || "0");
   const pkgName = searchParams.get("pkg") || "";
@@ -77,27 +56,11 @@ const ThankYou = () => {
     return () => clearTimeout(t);
   }, [countdown, navigate]);
 
-  // CSS-based infinite scroll animation — no rAF, no blurriness
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || packages.length === 0) return;
-    // Measure single set width after render
-    const cards = el.children;
-    if (!cards.length) return;
-    let singleSetWidth = 0;
-    for (let i = 0; i < packages.length; i++) {
-      singleSetWidth += (cards[i] as HTMLElement).offsetWidth + 12; // gap-3 = 12px
-    }
-    el.style.setProperty("--scroll-width", `${singleSetWidth}px`);
-  }, [packages]);
-
   const handleUpsellPurchase = (pkg: CreditPackage) => {
     navigate(`/checkout?pkg=${pkg.id}`);
   };
 
   if (!creditsAdded || creditsAdded <= 0) return null;
-
-  const carouselItems = [...packages, ...packages];
 
   const trustItems = [
     { icon: ShieldCheck, label: "Secure Payment", value: "256-bit SSL", color: "hsla(145, 80%, 50%, 0.08)", borderColor: "hsla(145, 80%, 50%, 0.15)", iconColor: "text-emerald-400" },
@@ -111,23 +74,6 @@ const ThankYou = () => {
         title="Purchase Confirmed - Uplyze"
         description="Your credits have been added to your account. Start using Uplyze AI tools right away."
       />
-      <style>{`
-        @keyframes carousel-scroll {
-          0% { transform: translate3d(0, 0, 0); }
-          100% { transform: translate3d(calc(var(--scroll-width, 1000px) * -1), 0, 0); }
-        }
-        .carousel-track {
-          animation: carousel-scroll 60s linear infinite;
-          -webkit-backface-visibility: hidden;
-          backface-visibility: hidden;
-          -webkit-transform-style: preserve-3d;
-          transform-style: flat;
-          -webkit-font-smoothing: subpixel-antialiased;
-        }
-        .carousel-track:hover {
-          animation-play-state: paused;
-        }
-      `}</style>
       <div className="h-screen flex flex-col overflow-hidden" style={{ background: "hsl(222, 47%, 6%)" }}>
         {/* Ambient glow */}
         <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] pointer-events-none" style={{ background: "radial-gradient(ellipse, hsla(145, 80%, 50%, 0.04) 0%, transparent 70%)" }} />
@@ -189,7 +135,7 @@ const ThankYou = () => {
               </p>
             </div>
 
-            {/* Credits count — standalone centered, not in a pill */}
+            {/* Credits count */}
             <motion.div
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -220,7 +166,7 @@ const ThankYou = () => {
             </div>
           </motion.div>
 
-          {/* Trust indicators — horizontal, 3 items (no Credits Added here) */}
+          {/* Trust indicators */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -235,10 +181,7 @@ const ThankYou = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.25 + i * 0.05 }}
                   className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
-                  style={{
-                    background: item.color,
-                    border: `1px solid ${item.borderColor}`,
-                  }}
+                  style={{ background: item.color, border: `1px solid ${item.borderColor}` }}
                 >
                   <item.icon className={`h-3.5 w-3.5 flex-shrink-0 ${item.iconColor}`} />
                   <div className="min-w-0">
@@ -250,14 +193,14 @@ const ThankYou = () => {
             </div>
           </motion.div>
 
-          {/* Upsell Carousel Section */}
+          {/* Static Upsell Grid */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="w-full flex-shrink-0 mt-5"
+            className="w-full max-w-3xl flex-shrink-0 mt-5"
           >
-            <div className="text-center mb-3">
+            <div className="text-center mb-4">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full mb-1.5" style={{ background: "hsla(262, 83%, 55%, 0.08)", border: "1px solid hsla(262, 83%, 55%, 0.15)" }}>
                 <Sparkles className="h-3 w-3 text-purple-400" />
                 <span className="text-[10px] font-semibold text-purple-300 uppercase tracking-wider">While you're here</span>
@@ -265,80 +208,88 @@ const ThankYou = () => {
               <h2 className="text-base font-bold text-white">Need More Credits?</h2>
             </div>
 
-            {/* CSS-animated Carousel — no blur */}
-            <div className="relative overflow-hidden">
-              {/* Fade edges */}
-              <div className="absolute left-0 top-0 bottom-0 w-28 z-10 pointer-events-none" style={{ background: "linear-gradient(90deg, hsl(222, 47%, 6%), transparent)" }} />
-              <div className="absolute right-0 top-0 bottom-0 w-28 z-10 pointer-events-none" style={{ background: "linear-gradient(270deg, hsl(222, 47%, 6%), transparent)" }} />
-
-              <div
-                ref={scrollRef}
-                className="carousel-track flex gap-3 w-max px-6"
-              >
-                {carouselItems.map((pkg, i) => (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {packages.map((pkg, i) => (
+                <motion.div
+                  key={pkg.id}
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 + i * 0.06 }}
+                  onClick={() => handleUpsellPurchase(pkg)}
+                  className="group relative rounded-2xl cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:-translate-y-1"
+                  style={{
+                    background: "linear-gradient(160deg, hsla(222, 30%, 14%, 1), hsla(222, 30%, 9%, 1))",
+                    border: "1px solid hsla(0, 0%, 100%, 0.07)",
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = "hsla(262, 83%, 55%, 0.4)";
+                    e.currentTarget.style.boxShadow = "0 8px 32px -8px hsla(262, 83%, 55%, 0.2)";
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = "hsla(0, 0%, 100%, 0.07)";
+                    e.currentTarget.style.boxShadow = "none";
+                  }}
+                >
+                  {/* Hover gradient */}
                   <div
-                    key={`${pkg.id}-${i}`}
-                    onClick={() => handleUpsellPurchase(pkg)}
-                    className="flex-shrink-0 w-[240px] group relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:-translate-y-0.5"
-                    style={{
-                      background: "linear-gradient(160deg, hsla(222, 30%, 14%, 1), hsla(222, 30%, 9%, 1))",
-                      border: "1px solid hsla(0, 0%, 100%, 0.07)",
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.borderColor = "hsla(262, 83%, 55%, 0.35)")}
-                    onMouseLeave={e => (e.currentTarget.style.borderColor = "hsla(0, 0%, 100%, 0.07)")}
-                  >
-                    {/* Hover gradient overlay */}
+                    className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                    style={{ background: "linear-gradient(135deg, hsla(262, 83%, 55%, 0.08), transparent 60%)" }}
+                  />
+
+                  {pkg.is_popular && (
                     <div
-                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                      style={{ background: "linear-gradient(135deg, hsla(262, 83%, 55%, 0.08), transparent 60%)" }}
-                    />
+                      className="absolute -top-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full text-[9px] font-bold text-white tracking-wider z-10"
+                      style={{ background: "linear-gradient(135deg, hsl(262, 83%, 55%), hsl(240, 75%, 50%))", boxShadow: "0 2px 8px hsla(262, 83%, 55%, 0.3)" }}
+                    >
+                      POPULAR
+                    </div>
+                  )}
 
-                    {pkg.is_popular && (
-                      <div
-                        className="absolute top-0 right-0 px-2.5 py-1 rounded-bl-xl text-[9px] font-bold text-white tracking-wide"
-                        style={{ background: "linear-gradient(135deg, hsl(262, 83%, 55%), hsl(240, 75%, 50%))" }}
-                      >
-                        POPULAR
-                      </div>
-                    )}
+                  <div className="relative p-4 text-center">
+                    {/* Icon */}
+                    <div
+                      className="mx-auto w-10 h-10 rounded-xl flex items-center justify-center mb-3"
+                      style={{
+                        background: "linear-gradient(135deg, hsla(262, 83%, 55%, 0.1), hsla(45, 95%, 55%, 0.06))",
+                        border: "1px solid hsla(262, 83%, 55%, 0.12)",
+                      }}
+                    >
+                      <Coins className="h-5 w-5 text-amber-400" />
+                    </div>
 
-                    <div className="relative p-4">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div
-                          className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden"
-                          style={{ background: "hsla(45, 95%, 55%, 0.06)", border: "1px solid hsla(45, 95%, 55%, 0.1)" }}
-                        >
-                          <img src={getPackageImage(pkg.name)} alt={pkg.name} className="w-8 h-8 object-contain" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-white truncate">{pkg.name}</p>
-                          <p className="text-[11px] text-white/30">
-                            {pkg.credits.toLocaleString()} credits
-                            {pkg.bonus_credits > 0 && <span className="text-emerald-400/70"> +{pkg.bonus_credits.toLocaleString()}</span>}
-                          </p>
-                        </div>
-                      </div>
+                    <p className="text-sm font-semibold text-white mb-0.5">{pkg.name}</p>
+                    <p className="text-[11px] text-white/30 mb-3">
+                      {pkg.credits.toLocaleString()} credits
+                      {pkg.bonus_credits > 0 && <span className="text-emerald-400/80"> +{pkg.bonus_credits.toLocaleString()}</span>}
+                    </p>
 
-                      <div className="flex items-end justify-between">
-                        <div className="flex items-baseline gap-1">
-                          <span className="text-xl font-bold text-white">${Math.round(pkg.price_cents / 100)}</span>
-                          <span className="text-[10px] text-white/20">USD</span>
-                        </div>
-                        <div
-                          className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-medium text-purple-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                          style={{ background: "hsla(262, 83%, 55%, 0.12)" }}
-                        >
-                          Buy <ArrowRight className="h-2.5 w-2.5" />
-                        </div>
-                      </div>
+                    <div className="flex items-baseline justify-center gap-1 mb-2">
+                      <span className="text-2xl font-bold text-white">${Math.round(pkg.price_cents / 100)}</span>
+                      <span className="text-[10px] text-white/20 uppercase">USD</span>
+                    </div>
+
+                    <div
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-purple-300 transition-all duration-300 group-hover:text-white group-hover:shadow-lg"
+                      style={{
+                        background: "hsla(262, 83%, 55%, 0.1)",
+                        border: "1px solid hsla(262, 83%, 55%, 0.15)",
+                      }}
+                      onMouseEnter={e => {
+                        e.currentTarget.style.background = "linear-gradient(135deg, hsl(262, 83%, 55%), hsl(240, 75%, 50%))";
+                      }}
+                      onMouseLeave={e => {
+                        e.currentTarget.style.background = "hsla(262, 83%, 55%, 0.1)";
+                      }}
+                    >
+                      Purchase <ArrowRight className="h-3 w-3" />
                     </div>
                   </div>
-                ))}
-              </div>
+                </motion.div>
+              ))}
             </div>
 
             {/* Plans link */}
-            <div className="text-center mt-3">
+            <div className="text-center mt-4">
               <div
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl cursor-pointer transition-all hover:scale-[1.02]"
                 style={{
