@@ -257,10 +257,12 @@ const Checkout = () => {
                 initial={{ width: 0, opacity: 0 }}
                 animate={{ width: 400, opacity: 1 }}
                 exit={{ width: 0, opacity: 0 }}
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="hidden lg:flex flex-shrink-0 overflow-hidden border-l flex-col relative"
-                style={{ borderColor: "hsla(0, 0%, 100%, 0.06)", background: "hsl(222, 30%, 8%)" }}
+                transition={{ duration: 0.25, ease: "easeInOut" }}
+                className="hidden lg:flex flex-shrink-0 overflow-hidden flex-col relative"
+                style={{ background: "hsl(222, 30%, 8%)" }}
               >
+                {/* Inner border rendered inside so it collapses with content */}
+                <div className="absolute inset-y-0 left-0 w-px" style={{ background: "hsla(0, 0%, 100%, 0.06)" }} />
                 {/* Collapse button at very middle left of sidebar */}
                 <button
                   onClick={() => setSidebarOpen(false)}
