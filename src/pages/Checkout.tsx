@@ -94,21 +94,23 @@ const Checkout = () => {
             .from("credit_packages")
             .select("*")
             .eq("id", pkgId)
-            .single();
-          if (pkg) {
-            const isFirst = purchaseCount === 0;
-            const discountedPrice = isFirst ? Math.round(pkg.price_cents * 0.6) : pkg.price_cents;
-            setOrderInfo({
-              name: pkg.name,
-              credits: pkg.credits,
-              bonus: pkg.bonus_credits,
-              originalPriceCents: pkg.price_cents,
-              finalPriceCents: discountedPrice,
-              discountLabel: isFirst ? "First Order · 40% OFF" : null,
-              discountAmountCents: isFirst ? pkg.price_cents - discountedPrice : 0,
-              isFirstOrder: isFirst,
-            });
+            .maybeSingle();
+          if (!pkg) {
+            navigate("/pricing", { replace: true });
+            return;
           }
+          const isFirst = purchaseCount === 0;
+          const discountedPrice = isFirst ? Math.round(pkg.price_cents * 0.6) : pkg.price_cents;
+          setOrderInfo({
+            name: pkg.name,
+            credits: pkg.credits,
+            bonus: pkg.bonus_credits,
+            originalPriceCents: pkg.price_cents,
+            finalPriceCents: discountedPrice,
+            discountLabel: isFirst ? "First Order · 40% OFF" : null,
+            discountAmountCents: isFirst ? pkg.price_cents - discountedPrice : 0,
+            isFirstOrder: isFirst,
+          });
         } else if (customCreditsParam) {
           const credits = parseInt(customCreditsParam);
           const basePriceCents = Math.round(credits * 1.816);
