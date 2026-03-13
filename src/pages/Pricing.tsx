@@ -295,13 +295,13 @@ const Pricing = () => {
                           onClick={() => handlePurchase(pkg, true)}
                           disabled={!!purchasingId}
                           className="w-full py-5 rounded-xl font-semibold transition-all text-white border-0 mt-2"
-                          style={{ background: "linear-gradient(135deg, hsl(330, 80%, 55%), hsl(262, 83%, 58%))" }}
+                          style={{ background: "linear-gradient(135deg, hsl(262, 83%, 55%), hsl(217, 91%, 50%))" }}
                         >
                           {purchasingId === pkg.id + "_ret" ? (
                             <span className="animate-pulse">Processing...</span>
                           ) : (
-                            <span className="flex items-center justify-center gap-2">
-                              <Gift className="h-4 w-4" /> Buy at {formatPrice(retentionPrice)} (50% OFF) <ArrowRight className="h-4 w-4" />
+                            <span className="flex items-center justify-center gap-2 text-sm">
+                              <Gift className="h-4 w-4" /> {formatPrice(retentionPrice)} (50% OFF) <ArrowRight className="h-4 w-4" />
                             </span>
                           )}
                         </Button>

@@ -131,22 +131,10 @@ const BillingPaymentsTab = () => {
     }
   };
 
-  const handleAcceptRetention = async () => {
-    setApplyingDiscount(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("billing-info", {
-        body: { action: "apply_retention_coupon" },
-      });
-      if (error) throw error;
-      if (data.error) throw new Error(data.error);
-      toast.success("🎉 50% discount applied! Enjoy your savings.");
-      setShowRetentionDialog(false);
-      fetchBillingInfo();
-    } catch (err: any) {
-      toast.error(err.message || "Failed to apply discount");
-    } finally {
-      setApplyingDiscount(false);
-    }
+  const handleAcceptRetention = () => {
+    setShowRetentionDialog(false);
+    toast.success("🎉 Redirecting to claim your 50% discount!");
+    navigate("/pricing?retention=1");
   };
 
   const handleProceedToCancel = async () => {
