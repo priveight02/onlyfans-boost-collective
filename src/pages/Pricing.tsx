@@ -410,7 +410,6 @@ const Pricing = () => {
       </div>
 
       <Footer />
-      <CheckoutModal checkoutUrl={checkoutUrl} onClose={handleCheckoutClose} />
     </AnimatedBackground>
   );
 };
