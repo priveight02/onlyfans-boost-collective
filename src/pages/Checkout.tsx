@@ -64,11 +64,25 @@ const Checkout = () => {
     const initCheckout = async () => {
       try {
         setState("loading");
-        let body: any = {};
+        verificationStartedRef.current = false;
+
+        baselineBalanceRef.current = balance;
+        baselinePurchaseCountRef.current = purchaseCount;
+        const { data: walletSnapshot } = await supabase
+          .from("wallets")
+          .select("balance, purchase_count")
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (walletSnapshot) {
+          baselineBalanceRef.current = walletSnapshot.balance ?? balance;
+          baselinePurchaseCountRef.current = walletSnapshot.purchase_count ?? purchaseCount;
+        }
+
+        const body: Record<string, any> = {};
         if (pkgId) {
           body.packageId = pkgId;
         } else if (customCreditsParam) {
-          body.customCredits = parseInt(customCreditsParam);
+          body.customCredits = parseInt(customCreditsParam, 10);
         } else {
           navigate("/pricing");
           return;
