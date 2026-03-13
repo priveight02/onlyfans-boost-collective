@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { X, Coins, ArrowRight, Gift, Zap, Lock, Check, Clock, Infinity } from "lucide-react";
+import { X, Coins, ArrowRight, Gift, Zap, Lock, Check, Clock, Infinity, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 
