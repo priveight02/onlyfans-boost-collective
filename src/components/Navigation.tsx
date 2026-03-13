@@ -63,9 +63,16 @@ const Navigation = () => {
 
   const finalMenuItems: MenuItem[] = [
     ...platformFilteredItems,
-    ...(user ? [{ name: "Platform", href: "/platform", icon: LayoutDashboard }] : []),
+    { name: "Platform", href: "/platform", icon: LayoutDashboard },
     ...(isAdmin ? [{ name: "Admin", href: "/admin", icon: Shield }] : []),
   ];
+
+  const handlePlatformClick = (e: React.MouseEvent, href: string) => {
+    if (href === "/platform" && !user) {
+      e.preventDefault();
+      navigate("/auth");
+    }
+  };
 
   const userInitial = profile?.display_name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || "U";
 
