@@ -151,8 +151,8 @@ const Index = () => {
           }}
         />
         <Hero />
-        <ComparisonSection />
         <AutopilotShowcase />
+        <ComparisonSection />
         <WorkflowSection />
         <Services />
         <ReviewsSection />
