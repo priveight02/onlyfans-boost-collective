@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Gift, Check, X, Shield, Globe, Clock, Star, ChevronDown, ChevronUp } from "lucide-react";
+import { Gift, Check, X, Shield, Globe, Clock, Star, ChevronDown, ChevronUp, Zap, ArrowRight, TrendingUp, Target, BarChart3, Bot, Sparkles, Lock } from "lucide-react";
+import { motion } from "framer-motion";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import Footer from "@/components/Footer";
 import PageSEO from "@/components/PageSEO";
@@ -8,13 +9,47 @@ import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 import ComparisonSection from "@/components/ComparisonSection";
 
 const faqs = [
-  { q: "Do I need to be a marketing expert to use Uplyze?", a: "Not at all. Uplyze is built for beginners and pros alike. The AI handles the heavy lifting - strategy, optimization, and scaling. You just need a product or service to promote." },
-  { q: "How is this different from hiring an agency?", a: "Agencies charge $3K-$10K/month and take weeks to onboard. Uplyze gives you the same (or better) results instantly at a fraction of the cost, running 24/7 without human delays." },
+  { q: "Do I need to be a marketing expert to use Uplyze?", a: "Not at all. Uplyze is built for beginners and pros alike. The AI handles the heavy lifting — strategy, optimization, and scaling. You just need a product or service to promote." },
+  { q: "How is this different from hiring an agency?", a: "Agencies charge $3K–$10K/month and take weeks to onboard. Uplyze gives you the same (or better) results instantly at a fraction of the cost, running 24/7 without human delays." },
   { q: "Will it waste my budget on bad tests?", a: "No. Uplyze uses Anti-Burn Protection that automatically pauses underperforming campaigns and reallocates budget to winners. Your spend is always optimized." },
-  { q: "I already have a marketing team. Can they use this?", a: "Absolutely. Uplyze amplifies your team's output by automating repetitive tasks, providing AI insights, and scaling what works. Most teams see 3-5x productivity gains." },
+  { q: "I already have a marketing team. Can they use this?", a: "Absolutely. Uplyze amplifies your team's output by automating repetitive tasks, providing AI insights, and scaling what works. Most teams see 3–5x productivity gains." },
   { q: "Does Uplyze work in my language and currency?", a: "Yes. Uplyze supports all languages and currencies. The AI generates content and manages campaigns in any language your audience speaks." },
   { q: "What if it doesn't work for me?", a: "Try it for 14 days. If it's not a fit, just ask for a refund. No hard feelings. We only win when you win." },
 ];
+
+const stats = [
+  { value: "847%", label: "Average ROI increase" },
+  { value: "10x", label: "Faster than agencies" },
+  { value: "24/7", label: "Always-on automation" },
+  { value: "$2M+", label: "Revenue generated" },
+];
+
+const features = [
+  { icon: Bot, title: "AI Copilot", desc: "Strategy, content, and execution — all from one AI brain." },
+  { icon: Target, title: "Smart Targeting", desc: "Finds your ideal audience and optimizes in real time." },
+  { icon: BarChart3, title: "Revenue Tracking", desc: "See exactly what's working and double down instantly." },
+  { icon: TrendingUp, title: "Auto-Scale", desc: "Winners get more budget. Losers get killed. Automatically." },
+  { icon: Sparkles, title: "Creative Engine", desc: "Generates ads, videos, and copy that actually convert." },
+  { icon: Lock, title: "Anti-Burn Shield", desc: "Pauses bad campaigns before they waste your budget." },
+];
+
+const RedeemButton = ({ onClick, size = "default" }: { onClick: () => void; size?: "default" | "large" }) => (
+  <button
+    onClick={onClick}
+    className={`group inline-flex items-center gap-2.5 rounded-full font-semibold transition-all duration-300 hover:scale-105 active:scale-[0.98] ${
+      size === "large" ? "px-10 py-4 text-sm" : "px-8 py-3.5 text-sm"
+    }`}
+    style={{
+      background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(240, 80%, 55%))",
+      color: "white",
+      boxShadow: "0 8px 32px hsla(262, 83%, 58%, 0.35), inset 0 1px 0 hsla(0, 0%, 100%, 0.15)",
+    }}
+  >
+    <Gift className="h-4 w-4" />
+    Redeem 40% OFF
+    <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5" />
+  </button>
+);
 
 const Offer = () => {
   const [showModal, setShowModal] = useState(false);
@@ -28,177 +63,284 @@ const Offer = () => {
       />
 
       {/* ─── HERO ─── */}
-      <section className="pt-28 pb-16 px-4">
-        <div className="max-w-5xl mx-auto">
-          <div className="relative rounded-3xl overflow-hidden" style={{ background: "hsla(0, 0%, 100%, 0.97)" }}>
-            <div className="grid md:grid-cols-2 gap-0 items-center p-8 md:p-12">
-              <div>
-                <h1 className="text-4xl md:text-5xl font-black text-gray-900 leading-tight mb-2">
-                  Stop Guessing.
-                </h1>
-                <h2 className="text-4xl md:text-5xl font-black leading-tight mb-6" style={{ color: "hsl(262, 83%, 58%)" }}>
-                  Start Crushing.
-                </h2>
-                <p className="text-gray-500 text-base md:text-lg leading-relaxed mb-8 max-w-md">
-                  AI Platform trained by world-class growth experts to automate your marketing, optimize your campaigns 24/7, and scale your revenue.
-                </p>
-                <button
-                  onClick={() => setShowModal(true)}
-                  className="inline-flex items-center gap-2.5 px-8 py-3.5 rounded-full text-sm font-semibold transition-all duration-300 hover:scale-105"
-                  style={{
-                    background: "hsl(222, 35%, 12%)",
-                    color: "white",
-                  }}
-                >
-                  <Gift className="h-4 w-4" />
-                  Redeem 40% OFF
-                </button>
-                <div className="flex items-center gap-4 mt-6 text-xs text-gray-500">
-                  <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400" /> Any Language</span>
-                  <span className="text-gray-300">|</span>
-                  <span className="flex items-center gap-1.5"><Globe className="h-3 w-3" /> Any Currency</span>
-                  <span className="text-gray-300">|</span>
-                  <span className="flex items-center gap-1.5"><Shield className="h-3 w-3" /> 30-Day Guarantee</span>
-                </div>
-              </div>
-              <div className="relative flex justify-center items-end">
-                <div className="w-64 h-64 md:w-80 md:h-80 rounded-full bg-gradient-to-br from-purple-100 to-blue-50 flex items-center justify-center">
-                  <div className="text-6xl">🥷</div>
-                </div>
-                <div className="absolute top-4 right-4 md:top-8 md:right-8 rotate-12 px-4 py-2 rounded-lg font-black text-2xl" style={{ background: "hsl(75, 80%, 72%)", color: "hsl(222, 35%, 12%)" }}>
-                  $99<span className="text-sm font-semibold block -mt-1">per month</span>
-                </div>
-              </div>
+      <section className="pt-28 pb-20 px-4">
+        <div className="max-w-5xl mx-auto text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-8 text-xs font-medium"
+              style={{ background: "hsla(262, 83%, 58%, 0.12)", border: "1px solid hsla(262, 83%, 58%, 0.2)", color: "hsl(262, 83%, 72%)" }}>
+              <Zap className="h-3 w-3" />
+              LIMITED TIME — 40% OFF EVERYTHING
             </div>
-          </div>
+
+            <h1 className="text-5xl md:text-7xl font-black text-white leading-[1.05] mb-2 tracking-tight">
+              Stop Guessing.
+            </h1>
+            <h2 className="text-5xl md:text-7xl font-black leading-[1.05] mb-8 tracking-tight uplyze-highlight">
+              Start Crushing.
+            </h2>
+
+            <p className="text-white/50 text-lg md:text-xl leading-relaxed max-w-2xl mx-auto mb-10">
+              AI Platform trained by world-class growth experts to automate your marketing, optimize your campaigns 24/7, and scale your revenue.
+            </p>
+
+            <RedeemButton onClick={() => setShowModal(true)} size="large" />
+
+            <div className="flex items-center justify-center gap-5 mt-8 text-xs text-white/35">
+              <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> Any Language</span>
+              <span className="text-white/10">|</span>
+              <span className="flex items-center gap-1.5"><Globe className="h-3 w-3" /> Any Currency</span>
+              <span className="text-white/10">|</span>
+              <span className="flex items-center gap-1.5"><Shield className="h-3 w-3" /> 14-Day Guarantee</span>
+            </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* ─── WHY THIS WORKS ─── */}
-      <ComparisonSection />
-
-      {/* ─── FROM ZERO TO LIVE ─── */}
-      <section className="py-16 px-4">
-        <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-black text-white text-center mb-14">
-            From ZERO to <span className="inline-flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-emerald-400 inline-block" /> LIVE RESULTS</span><br />in 5 minutes
-          </h2>
-          <div className="space-y-12">
-            {[
-              { num: "01", title: "The Scan", desc: "Paste your product URL. Uplyze analyzes your niche and identifies the exact hooks making money right now." },
-              { num: "02", title: "The Remix", desc: "We pull your product data and auto-generate 50+ high-converting strategies and creatives in seconds." },
-              { num: "03", title: "The Scale", desc: 'Click "Launch." Uplyze tests, optimizes, and scales the winners while you sleep.' },
-            ].map((step, i) => (
-              <div key={step.num} className="flex items-start gap-6 md:gap-10">
-                <div className="flex flex-col items-center">
-                  <span className="text-2xl font-black" style={{ color: "hsl(262, 70%, 65%)" }}>{step.num}</span>
-                  {i < 2 && <div className="w-0.5 h-16 mt-2" style={{ background: "hsl(262, 70%, 65%)" }} />}
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold text-white mb-2">{step.title}</h3>
-                  <p className="text-white/60 text-sm leading-relaxed max-w-md">{step.desc}</p>
-                </div>
-              </div>
+      {/* ─── STATS BAR ─── */}
+      <section className="pb-20 px-4">
+        <div className="max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {stats.map((s, i) => (
+              <motion.div
+                key={s.label}
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.08 }}
+                className="text-center py-6 rounded-2xl"
+                style={{ background: "hsla(0, 0%, 100%, 0.03)", border: "1px solid hsla(0, 0%, 100%, 0.06)" }}
+              >
+                <p className="text-2xl md:text-3xl font-black text-white mb-1">{s.value}</p>
+                <p className="text-xs text-white/40">{s.label}</p>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── ANTI-BURN PROTECTION ─── */}
-      <section className="py-16 px-4">
+      {/* ─── WHY THIS WORKS (ComparisonSection) ─── */}
+      <ComparisonSection />
+
+      {/* ─── WHAT YOU GET ─── */}
+      <section className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
-          <div className="rounded-3xl p-8 md:p-12 grid md:grid-cols-2 gap-8 items-center" style={{ background: "hsla(0, 0%, 100%, 0.95)" }}>
-            <div>
-              <h2 className="text-3xl font-black mb-4" style={{ color: "hsl(35, 90%, 55%)" }}>Anti-Burn Protection</h2>
-              <p className="text-gray-500 text-sm leading-relaxed mb-4">
-                If your funnel is broken, Uplyze pauses the campaigns and tells you how to fix it.
-              </p>
-              <p className="text-gray-900 font-bold text-sm">We never waste budget.</p>
-            </div>
-            <div className="flex justify-center">
-              <div className="w-48 h-48 rounded-full bg-gradient-to-br from-blue-100 to-slate-200 flex items-center justify-center text-6xl">🛡️</div>
-            </div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-center mb-14"
+          >
+            <h2 className="text-3xl md:text-5xl font-black text-white mb-3 tracking-tight">
+              Everything You Need.
+              <br />
+              <span className="text-white/40">Nothing You Don't.</span>
+            </h2>
+          </motion.div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {features.map((f, i) => (
+              <motion.div
+                key={f.title}
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.06 }}
+                className="group rounded-2xl p-6 transition-all duration-300 hover:border-purple-500/20"
+                style={{ background: "hsla(0, 0%, 100%, 0.025)", border: "1px solid hsla(0, 0%, 100%, 0.06)" }}
+              >
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4 transition-colors duration-300"
+                  style={{ background: "hsla(262, 83%, 58%, 0.1)" }}>
+                  <f.icon className="h-5 w-5" style={{ color: "hsl(262, 83%, 68%)" }} />
+                </div>
+                <h3 className="text-white font-bold text-sm mb-1.5">{f.title}</h3>
+                <p className="text-white/40 text-xs leading-relaxed">{f.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── FROM ZERO TO LIVE ─── */}
+      <section className="py-20 px-4">
+        <div className="max-w-3xl mx-auto">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-3xl md:text-5xl font-black text-white text-center mb-16 tracking-tight"
+          >
+            From ZERO to{" "}
+            <span className="inline-flex items-center gap-2">
+              <span className="w-3 h-3 rounded-full bg-emerald-400 inline-block animate-pulse" />
+              <span className="text-emerald-400">LIVE</span>
+            </span>
+            <br />
+            in 5 minutes
+          </motion.h2>
+
+          <div className="space-y-0">
+            {[
+              { num: "01", title: "The Scan", desc: "Paste your product URL. Uplyze analyzes your niche and identifies the exact hooks making money right now.", icon: Target },
+              { num: "02", title: "The Remix", desc: "We pull your product data and auto-generate 50+ high-converting strategies and creatives in seconds.", icon: Sparkles },
+              { num: "03", title: "The Scale", desc: 'Click "Launch." Uplyze tests, optimizes, and scales the winners while you sleep.', icon: TrendingUp },
+            ].map((step, i) => (
+              <motion.div
+                key={step.num}
+                initial={{ opacity: 0, x: -15 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.1 }}
+                className="flex items-start gap-6"
+              >
+                <div className="flex flex-col items-center">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+                    style={{ background: "hsla(262, 83%, 58%, 0.1)", border: "1px solid hsla(262, 83%, 58%, 0.15)" }}>
+                    <step.icon className="h-5 w-5" style={{ color: "hsl(262, 83%, 68%)" }} />
+                  </div>
+                  {i < 2 && <div className="w-px h-16 my-2" style={{ background: "linear-gradient(to bottom, hsla(262, 83%, 58%, 0.3), transparent)" }} />}
+                </div>
+                <div className="pt-2 pb-8">
+                  <span className="text-[10px] font-bold tracking-widest text-white/25 uppercase">Step {step.num}</span>
+                  <h3 className="text-lg font-bold text-white mb-1.5">{step.title}</h3>
+                  <p className="text-white/45 text-sm leading-relaxed">{step.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="text-center mt-4">
+            <RedeemButton onClick={() => setShowModal(true)} />
           </div>
         </div>
       </section>
 
       {/* ─── REVIEWS ─── */}
-      <section className="py-16 px-4">
+      <section className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
-          <div className="grid md:grid-cols-3 gap-5">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-3xl md:text-4xl font-black text-white text-center mb-12 tracking-tight"
+          >
+            What Our Users Say
+          </motion.h2>
+          <div className="grid md:grid-cols-3 gap-4">
             {[
               { quote: "We went from burning $3K/month to generating $45K in revenue. The AI finds winning angles we never would have thought of.", name: "Sarah Chen", title: "Founder, EcoBeauty", badge: "15x ROAS" },
-              { quote: "Replaced our $8K/month agency with Uplyze. Better results, 90% less cost, and we actually understand what's happening.", name: "Mike Rodriguez", title: "CEO, TechGear Pro", badge: "847% ROI increase" },
+              { quote: "Replaced our $8K/month agency with Uplyze. Better results, 90% less cost, and we actually understand what's happening.", name: "Mike Rodriguez", title: "CEO, TechGear Pro", badge: "847% ROI" },
               { quote: "The competitor tracking alone is worth 10x the price. We see exactly what's working in our market and adapt instantly.", name: "Emma Thompson", title: "Marketing Director, FitLife", badge: "$2M+ generated" },
-            ].map((review) => (
-              <div key={review.name} className="rounded-2xl p-6" style={{ background: "hsla(0, 0%, 100%, 0.95)" }}>
+            ].map((review, i) => (
+              <motion.div
+                key={review.name}
+                initial={{ opacity: 0, y: 15 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.08 }}
+                className="rounded-2xl p-6"
+                style={{ background: "hsla(0, 0%, 100%, 0.03)", border: "1px solid hsla(0, 0%, 100%, 0.06)" }}
+              >
                 <div className="flex gap-0.5 mb-3">
-                  {[...Array(5)].map((_, i) => <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />)}
+                  {[...Array(5)].map((_, j) => <Star key={j} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />)}
                 </div>
-                <p className="text-gray-700 text-sm leading-relaxed mb-4">"{review.quote}"</p>
+                <p className="text-white/55 text-sm leading-relaxed mb-5">"{review.quote}"</p>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-gray-900 font-semibold text-sm">{review.name}</p>
-                    <p className="text-gray-400 text-xs">{review.title}</p>
+                    <p className="text-white font-semibold text-sm">{review.name}</p>
+                    <p className="text-white/30 text-xs">{review.title}</p>
                   </div>
-                  <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold" style={{ background: "hsl(262, 60%, 92%)", color: "hsl(262, 70%, 50%)" }}>
+                  <span className="px-2.5 py-1 rounded-full text-[10px] font-semibold"
+                    style={{ background: "hsla(262, 83%, 58%, 0.12)", color: "hsl(262, 83%, 72%)" }}>
                     {review.badge}
                   </span>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── MESSAGE FROM FOUNDER ─── */}
-      <section className="py-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <p className="text-white/40 text-xs uppercase tracking-widest mb-4 flex items-center justify-center gap-2">
-            <Shield className="h-3.5 w-3.5" /> OUR GUARANTEE
+      {/* ─── FOUNDER MESSAGE ─── */}
+      <section className="py-20 px-4">
+        <div className="max-w-3xl mx-auto">
+          <p className="text-white/25 text-[10px] uppercase tracking-[0.2em] mb-5 flex items-center justify-center gap-2">
+            <Shield className="h-3 w-3" /> OUR GUARANTEE
           </p>
-          <div className="rounded-2xl p-8 md:p-12 text-left" style={{ background: "hsla(0, 0%, 100%, 0.95)", borderTop: "3px solid hsl(262, 83%, 58%)" }}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="rounded-2xl p-8 md:p-10"
+            style={{
+              background: "hsla(0, 0%, 100%, 0.025)",
+              border: "1px solid hsla(0, 0%, 100%, 0.06)",
+              borderTop: "2px solid hsl(262, 83%, 58%)",
+            }}
+          >
             <div className="flex items-center gap-4 mb-6">
-              <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-200 to-blue-100 flex items-center justify-center text-2xl">👨‍💻</div>
+              <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl"
+                style={{ background: "hsla(262, 83%, 58%, 0.1)" }}>
+                <Sparkles className="h-5 w-5" style={{ color: "hsl(262, 83%, 68%)" }} />
+              </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">A message from the Team</h3>
-                <p className="text-gray-400 text-sm">Co-founders of Uplyze · <span className="text-purple-600 font-medium">$100M+ in growth managed</span></p>
+                <h3 className="text-lg font-bold text-white">A message from the Team</h3>
+                <p className="text-white/35 text-sm">Co-founders of Uplyze · <span className="font-medium" style={{ color: "hsl(262, 83%, 68%)" }}>$100M+ in growth managed</span></p>
               </div>
             </div>
-            <div className="space-y-4 text-gray-600 text-sm leading-relaxed">
-              <p>Hi! We spent the last 8 years helping businesses grow - testing strategies, scaling campaigns, optimizing budgets.</p>
+            <div className="space-y-3.5 text-white/45 text-sm leading-relaxed">
+              <p>Hi! We spent the last 8 years helping businesses grow — testing strategies, scaling campaigns, optimizing budgets.</p>
               <p>At some point we had too many clients and not enough hours. So we started building internal tools to automate what we were doing manually.</p>
-              <p className="text-gray-900 font-semibold">Just to work less and spend more time with people we care about, honestly.</p>
-              <p>It worked. Our clients got better results and we weren't burning out. Then we realized — <em>why are we the only ones using this?</em></p>
+              <p className="text-white font-semibold">Just to work less and spend more time with people we care about, honestly.</p>
+              <p>It worked. Our clients got better results and we weren't burning out. Then we realized — <em className="text-white/60">why are we the only ones using this?</em></p>
               <p>So we turned it into Uplyze. Everything we learned from $100M+ in growth, now automated for anyone looking to scale.</p>
-              <p>Uplyze won't fix a bad product or broken website. But if your offer is solid and you just need better marketing and smarter automation - we've got you.</p>
+              <p>Uplyze won't fix a bad product or broken website. But if your offer is solid and you just need better marketing and smarter automation — we've got you.</p>
             </div>
-            <div className="mt-6 p-4 rounded-xl flex items-start gap-3" style={{ background: "hsl(262, 60%, 95%)" }}>
-              <Shield className="h-5 w-5 text-purple-600 mt-0.5 shrink-0" />
-              <p className="text-sm text-gray-700">
-                <strong>Try it for 14 days.</strong> If it's not a fit, just ask for a refund. No hard feelings.
+            <div className="mt-6 p-4 rounded-xl flex items-start gap-3"
+              style={{ background: "hsla(262, 83%, 58%, 0.06)", border: "1px solid hsla(262, 83%, 58%, 0.1)" }}>
+              <Shield className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "hsl(262, 83%, 68%)" }} />
+              <p className="text-sm text-white/50">
+                <strong className="text-white/70">Try it for 14 days.</strong> If it's not a fit, just ask for a refund. No hard feelings.
               </p>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
       {/* ─── FAQ ─── */}
-      <section className="py-16 px-4">
+      <section className="py-20 px-4">
         <div className="max-w-3xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-black text-white text-center mb-10">F.A.Q.</h2>
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-3xl md:text-4xl font-black text-white text-center mb-12 tracking-tight"
+          >
+            Frequently Asked Questions
+          </motion.h2>
           <div className="space-y-0">
             {faqs.map((faq, i) => (
-              <div key={i} className="border-b" style={{ borderColor: "hsla(0, 0%, 100%, 0.08)" }}>
+              <div key={i} className="border-b" style={{ borderColor: "hsla(0, 0%, 100%, 0.06)" }}>
                 <button
                   onClick={() => setOpenFaq(openFaq === i ? null : i)}
-                  className="w-full flex items-center justify-between py-5 text-left"
+                  className="w-full flex items-center justify-between py-5 text-left group"
                 >
-                  <span className="text-white font-semibold text-sm pr-4">{faq.q}</span>
-                  {openFaq === i ? <ChevronUp className="h-4 w-4 text-white/40 shrink-0" /> : <ChevronDown className="h-4 w-4 text-white/40 shrink-0" />}
+                  <span className="text-white/80 font-medium text-sm pr-4 group-hover:text-white transition-colors">{faq.q}</span>
+                  {openFaq === i
+                    ? <ChevronUp className="h-4 w-4 text-white/30 shrink-0" />
+                    : <ChevronDown className="h-4 w-4 text-white/20 shrink-0" />}
                 </button>
                 {openFaq === i && (
-                  <p className="text-white/50 text-sm leading-relaxed pb-5 pr-8">{faq.a}</p>
+                  <motion.p
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-white/40 text-sm leading-relaxed pb-5 pr-8"
+                  >
+                    {faq.a}
+                  </motion.p>
                 )}
               </div>
             ))}
@@ -207,47 +349,56 @@ const Offer = () => {
       </section>
 
       {/* ─── TWO CHOICES ─── */}
-      <section className="py-16 px-4">
+      <section className="py-20 px-4">
         <div className="max-w-5xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-black text-white text-center mb-10">You have two choices</h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            <div className="rounded-2xl p-8" style={{ background: "hsla(0, 0%, 100%, 0.95)" }}>
-              <p className="text-xs text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <span className="w-4 h-4 border border-gray-300 rounded" /> OPTION A
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="text-3xl md:text-5xl font-black text-white text-center mb-12 tracking-tight"
+          >
+            You have two choices
+          </motion.h2>
+          <div className="grid md:grid-cols-2 gap-5">
+            <motion.div
+              initial={{ opacity: 0, x: -15 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="rounded-2xl p-8"
+              style={{ background: "hsla(0, 0%, 100%, 0.025)", border: "1px solid hsla(0, 0%, 100%, 0.06)" }}
+            >
+              <p className="text-[10px] text-white/25 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <span className="w-3.5 h-3.5 border border-white/15 rounded" /> OPTION A
               </p>
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-3">😰 The Hard Way</h3>
-              <p className="text-gray-500 text-sm leading-relaxed">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-3">The Hard Way</h3>
+              <p className="text-white/40 text-sm leading-relaxed">
                 Keep guessing. Keep staying up until 2 AM staring at dashboards. Keep burning cash on strategies that don't convert.
               </p>
-            </div>
-            <div className="relative rounded-2xl p-8" style={{ background: "hsla(0, 0%, 100%, 0.95)" }}>
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 15 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              className="relative rounded-2xl p-8"
+              style={{ background: "hsla(0, 0%, 100%, 0.025)", border: "1px solid hsla(262, 83%, 58%, 0.2)" }}
+            >
               <div className="absolute -top-3 right-4">
-                <span className="px-3 py-1 rounded-full text-[10px] font-bold" style={{ background: "hsl(262, 60%, 92%)", color: "hsl(262, 70%, 50%)" }}>
+                <span className="px-3 py-1 rounded-full text-[10px] font-bold"
+                  style={{ background: "hsl(262, 83%, 58%)", color: "white" }}>
                   Recommended
                 </span>
               </div>
-              <p className="text-xs text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <span className="w-4 h-4 border border-gray-300 rounded" /> OPTION B
+              <p className="text-[10px] text-white/25 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <span className="w-3.5 h-3.5 border border-white/15 rounded" /> OPTION B
               </p>
-              <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2 mb-3">🥷 The Uplyze Way</h3>
-              <p className="text-gray-500 text-sm leading-relaxed">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2 mb-3">The Uplyze Way</h3>
+              <p className="text-white/40 text-sm leading-relaxed">
                 Steal the winning strategies. Automate the grunt work. Scale your revenue while you sleep.
               </p>
-            </div>
+            </motion.div>
           </div>
-          <div className="text-center mt-10">
-            <button
-              onClick={() => setShowModal(true)}
-              className="inline-flex items-center gap-2.5 px-10 py-4 rounded-full text-sm font-semibold transition-all duration-300 hover:scale-105"
-              style={{
-                background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(222, 80%, 50%))",
-                color: "white",
-                boxShadow: "0 8px 24px hsla(262, 83%, 58%, 0.3)",
-              }}
-            >
-              <Gift className="h-4 w-4" />
-              Redeem 40% OFF
-            </button>
+          <div className="text-center mt-12">
+            <RedeemButton onClick={() => setShowModal(true)} size="large" />
           </div>
         </div>
       </section>
