@@ -260,9 +260,7 @@ serve(async (req) => {
           });
 
           if (granted) {
-            await notify(userId, "Credits Purchased", `${totalCredits} credits have been added to your wallet${bonus > 0 ? ` (includes ${bonus} bonus)` : ""}.`, "payment_success", {
-              credits: totalCredits, order_id: data.id, amount: data.amount,
-            });
+            log("Credit purchase processed without popup notification", { userId, totalCredits, orderId: data.id });
           }
         } else {
           log(`${eventType}: 0 credits resolved`, { meta: data?.metadata, productMeta: data?.product?.metadata });
