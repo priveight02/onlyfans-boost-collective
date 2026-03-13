@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
-import CheckoutModal from "@/components/CheckoutModal";
+import PageSEO from "@/components/PageSEO";
 import PageSEO from "@/components/PageSEO";
 import AnimatedBackground from "@/components/AnimatedBackground";
 
