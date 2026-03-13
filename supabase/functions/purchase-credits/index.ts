@@ -204,34 +204,47 @@ serve(async (req) => {
     if (pkgError || !pkg) throw new Error("Invalid package");
     log("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
 
-    // ── FIRST ORDER 40% OFF: use custom product with discounted amount ──
+    // ── FIRST ORDER 40% OFF: use base product + Polar 40% discount coupon ──
     if (discountTier === "first_order_40") {
-      const discountedCents = Math.round(pkg.price_cents * 0.6);
-      log("First order 40% discount", { originalPrice: pkg.price_cents, discountedCents });
+      log("First order 40% discount - using base product with Polar discount");
 
-      const customProduct = await findCustomCreditsProduct();
-      if (!customProduct) throw new Error("Custom credits product not found for first-order discount");
+      const tierKey = Object.entries(PACKAGE_TIER_MAP).find(
+        ([pattern]) => pkg.name.toLowerCase().includes(pattern)
+      )?.[1];
+      if (!tierKey) throw new Error(`Unknown package tier for first order: ${pkg.name}`);
+
+      const baseVariant = await findProductVariant(tierKey, "none");
+      if (!baseVariant) throw new Error(`No base Polar product found for tier=${tierKey}`);
+
+      const discountId = await find40PercentDiscount();
+      log("First order setup", { tierKey, productId: baseVariant.productId, discountId });
+
+      const checkoutBody: any = {
+        products: [baseVariant.productId],
+        customer_email: user.email,
+        customer_external_id: user.id,
+        metadata: {
+          user_id: user.id,
+          package_id: pkg.id,
+          credits: String(pkg.credits),
+          bonus_credits: String(pkg.bonus_credits),
+          discount_tier: "first_order_40",
+          is_first_order: "true",
+          original_price: String(pkg.price_cents),
+        },
+        success_url: `${origin}/checkout?success=true`,
+        allow_discount_codes: false,
+        embed_origin: origin,
+      };
+
+      // Auto-apply the 40% discount
+      if (discountId) {
+        checkoutBody.discount_id = discountId;
+      }
 
       const checkoutRes = await polarFetch("/checkouts/", {
         method: "POST",
-        body: JSON.stringify({
-          products: [customProduct.productId],
-          amount: discountedCents,
-          customer_email: user.email,
-          customer_external_id: user.id,
-          metadata: {
-            user_id: user.id,
-            package_id: pkg.id,
-            credits: String(pkg.credits),
-            bonus_credits: String(pkg.bonus_credits),
-            discount_tier: "first_order_40",
-            is_first_order: "true",
-            original_price: String(pkg.price_cents),
-          },
-          success_url: `${origin}/checkout?success=true`,
-          allow_discount_codes: false,
-          embed_origin: origin,
-        }),
+        body: JSON.stringify(checkoutBody),
       });
 
       if (!checkoutRes.ok) {
@@ -240,7 +253,7 @@ serve(async (req) => {
         throw new Error(`Checkout failed: ${errText}`);
       }
       const checkout = await checkoutRes.json();
-      log("First order checkout created", { url: checkout.url, discountedCents });
+      log("First order checkout created", { url: checkout.url });
 
       return new Response(JSON.stringify({ checkoutUrl: checkout.url, discount_tier: discountTier }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
