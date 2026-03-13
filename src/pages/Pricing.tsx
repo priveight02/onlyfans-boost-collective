@@ -7,7 +7,6 @@ import { toast } from "sonner";
 import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
-import CheckoutModal from "@/components/CheckoutModal";
 import PageSEO from "@/components/PageSEO";
 import AnimatedBackground from "@/components/AnimatedBackground";
 
@@ -45,10 +44,8 @@ const Pricing = () => {
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
   const [customCredits, setCustomCredits] = useState<number>(500);
   const [purchasingCustom, setPurchasingCustom] = useState(false);
-  const [verifying, setVerifying] = useState(false);
   const [retentionActive, setRetentionActive] = useState(false);
   const [retentionUsed, setRetentionUsed] = useState(false);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [circulationCredits, setCirculationCredits] = useState<number | null>(null);
 
   const getReturningDiscount = (count: number): number => {
@@ -57,7 +54,10 @@ const Pricing = () => {
     if (count === 3) return 0.10;
     return 0;
   };
-  const returningDiscount = retentionActive ? 0 : getReturningDiscount(purchaseCount);
+  const isFirstOrder = purchaseCount === 0;
+  const firstOrderDiscount = isFirstOrder ? 0.40 : 0;
+  const returningDiscount = retentionActive ? 0 : (isFirstOrder ? 0 : getReturningDiscount(purchaseCount));
+  const activeDiscount = firstOrderDiscount || returningDiscount;
   const isReturning = returningDiscount > 0;
 
   useEffect(() => {
@@ -94,58 +94,30 @@ const Pricing = () => {
     checkRetention();
   }, [user]);
 
+  // Handle success redirect from checkout page
   useEffect(() => {
     const isSuccess = searchParams.get("success") === "true";
     const isCanceled = searchParams.get("canceled") === "true";
     if (!isSuccess && !isCanceled) return;
     if (isCanceled) { toast.info("Purchase canceled"); setSearchParams({}, { replace: true }); return; }
-    if (isSuccess && !verifying) {
-      setVerifying(true);
+    if (isSuccess) {
       setSearchParams({}, { replace: true });
-      const toastId = toast.loading("Verifying your purchase...");
-      supabase.functions.invoke("verify-credit-purchase").then(({ data, error }) => {
-        if (error) toast.error("Verification failed. Credits will appear shortly, please refresh.", { id: toastId });
-        else if (data?.credited && data.credits_added > 0) toast.success(`🎉 ${data.credits_added.toLocaleString()} credits added!`, { id: toastId });
-        else toast.success("Credits already in your wallet!", { id: toastId });
-        refreshWallet();
-        setVerifying(false);
-      });
+      refreshWallet();
+      toast.success("Credits added to your wallet!");
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleCheckoutClose = (purchased: boolean) => {
-    setCheckoutUrl(null);
-    if (purchased) refreshWallet();
-  };
-
   const handlePurchase = async (pkg: CreditPackage, useRetention = false) => {
     if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
-    setPurchasingId(pkg.id + (useRetention ? "_ret" : ""));
-    try {
-      const { data, error } = await supabase.functions.invoke("purchase-credits", { body: { packageId: pkg.id, useRetentionDiscount: useRetention } });
-      if (error) throw error;
-      if (data?.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
-      if (useRetention) { setRetentionActive(false); setRetentionUsed(true); }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to start checkout");
-    } finally {
-      setPurchasingId(null);
-    }
+    const params = new URLSearchParams({ pkg: pkg.id });
+    if (useRetention) params.set("retention", "1");
+    navigate(`/checkout?${params.toString()}`);
   };
 
   const handleCustomPurchase = async () => {
     if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
     if (customCredits < 500) { toast.error("Minimum 500 credits"); return; }
-    setPurchasingCustom(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("purchase-credits", { body: { customCredits } });
-      if (error) throw error;
-      if (data?.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to start checkout");
-    } finally {
-      setPurchasingCustom(false);
-    }
+    navigate(`/checkout?credits=${customCredits}`);
   };
 
   const formatPrice = (cents: number) => `$${Math.round(cents / 100)}`;
@@ -194,6 +166,12 @@ const Pricing = () => {
                   <span className="text-xl font-semibold text-white">{balance.toLocaleString()}</span>
                 </div>
               </div>
+              {isFirstOrder && (
+                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full" style={{ background: "hsla(262, 83%, 58%, 0.12)", border: "1px solid hsla(262, 83%, 58%, 0.3)" }}>
+                  <Gift className="h-3.5 w-3.5" style={{ color: "hsl(262, 83%, 65%)" }} />
+                  <span className="text-xs font-medium" style={{ color: "hsl(262, 83%, 75%)" }}>🎉 First order — 40% OFF applied automatically!</span>
+                </div>
+              )}
               {isReturning && (
                 <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full" style={{ background: "hsla(145, 80%, 42%, 0.1)", border: "1px solid hsla(145, 80%, 42%, 0.2)" }}>
                   <BadgePercent className="h-3.5 w-3.5" style={{ color: "hsl(145, 80%, 55%)" }} />
@@ -222,7 +200,7 @@ const Pricing = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
               {packages.map((pkg, index) => {
                 const isPopular = pkg.is_popular;
-                const displayPrice = isReturning ? getDiscountedPrice(pkg.price_cents) : pkg.price_cents;
+                const displayPrice = isFirstOrder ? Math.round(pkg.price_cents * 0.6) : isReturning ? getDiscountedPrice(pkg.price_cents) : pkg.price_cents;
                 const retentionPrice = Math.round(pkg.price_cents * 0.5);
                 const perCredit = (displayPrice / (pkg.credits + pkg.bonus_credits)).toFixed(2);
 
@@ -261,7 +239,7 @@ const Pricing = () => {
                     <div className="p-6 flex-1 flex flex-col">
                       <h3 className="text-base font-semibold text-white/90 mb-3">{pkg.name}</h3>
                       <div className="flex items-baseline gap-2 mb-0.5">
-                        {isReturning && <span className="text-sm text-white/30 line-through">{formatPrice(pkg.price_cents)}</span>}
+                        {(isFirstOrder || isReturning) && <span className="text-sm text-white/30 line-through">{formatPrice(pkg.price_cents)}</span>}
                         <span className="text-4xl font-bold text-white">{formatPrice(displayPrice)}</span>
                       </div>
                       <span className="text-xs text-white/30 mb-5">{perCredit}¢ per credit</span>
@@ -441,7 +419,6 @@ const Pricing = () => {
       </div>
 
       <Footer />
-      <CheckoutModal checkoutUrl={checkoutUrl} onClose={handleCheckoutClose} />
     </AnimatedBackground>
   );
 };

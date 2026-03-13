@@ -36,6 +36,7 @@ import CustomerPortal from "./pages/CustomerPortal";
 import ThankYou from "./pages/ThankYou";
 import Workflow from "./pages/Workflow";
 import Offer from "./pages/Offer";
+import Checkout from "./pages/Checkout";
 
 const OWNER_EMAIL = "contact@uplyze.ai";
 
@@ -79,10 +80,12 @@ const AppContent = () => {
   useVisitorTracking();
   const location = useLocation();
   const isPopupRoute = location.pathname === "/ig-login" || location.pathname === "/tt-login" || location.pathname === "/threads-login" || location.pathname === "/fb-login";
+  const isCheckoutRoute = location.pathname === "/checkout";
+  const hideNav = isPopupRoute || isCheckoutRoute;
 
   return (
     <MaintenanceGuard>
-      {!isPopupRoute && <Navigation />}
+      {!hideNav && <Navigation />}
       {!isPopupRoute && <AdminNotificationPopup />}
       <Routes>
         <Route path="/" element={<Index />} />
@@ -91,6 +94,7 @@ const AppContent = () => {
         <Route path="/about" element={<About />} />
         <Route path="/services" element={<Services />} />
         <Route path="/pricing" element={<Pricing />} />
+        <Route path="/checkout" element={<Checkout />} />
         <Route path="/faq" element={<FAQ />} />
         <Route path="/auth" element={<Auth />} />
         <Route path="/auth/reset-password" element={<ResetPassword />} />

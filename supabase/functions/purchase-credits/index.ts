@@ -46,6 +46,7 @@ const getVolumeDiscountPercent = (credits: number): number => {
 
 const getDiscountTier = (purchaseCount: number, useRetention: boolean, retentionUsed: boolean): string => {
   if (useRetention && !retentionUsed) return "retention_50";
+  if (purchaseCount === 0) return "first_order_40";
   if (purchaseCount === 1) return "loyalty_30";
   if (purchaseCount === 2) return "loyalty_20";
   if (purchaseCount === 3) return "loyalty_10";
@@ -125,7 +126,9 @@ serve(async (req) => {
       const pricePerCredit = BASE_PRICE_PER_CREDIT_CENTS * (1 - volumeDiscountPercent / 100);
       let totalCents = Math.round(customCredits * pricePerCredit);
 
-      if (discountTier === "retention_50") {
+      if (discountTier === "first_order_40") {
+        totalCents = Math.round(totalCents * 0.6);
+      } else if (discountTier === "retention_50") {
         totalCents = Math.round(totalCents * 0.5);
         await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
       } else if (discountTier === "loyalty_30") {
@@ -154,7 +157,7 @@ serve(async (req) => {
             volume_discount: String(volumeDiscountPercent),
             retention_used: String(useRetentionDiscount || false),
           },
-          success_url: `${origin}/pricing?success=true`,
+          success_url: `${origin}/checkout?success=true`,
           allow_discount_codes: false,
           embed_origin: origin,
         }),
@@ -182,6 +185,51 @@ serve(async (req) => {
     if (pkgError || !pkg) throw new Error("Invalid package");
     log("Package found", { name: pkg.name, credits: pkg.credits, price: pkg.price_cents });
 
+    // ── FIRST ORDER 40% OFF: use custom product with discounted price ──
+    if (discountTier === "first_order_40") {
+      log("First order 40% discount", { originalPrice: pkg.price_cents });
+      const customProduct = await findCustomCreditsProduct();
+      if (!customProduct) throw new Error("Custom credits product not found for first-order discount");
+
+      const discountedCents = Math.round(pkg.price_cents * 0.6);
+      log("First order discounted price", { discountedCents });
+
+      const checkoutRes = await polarFetch("/checkouts/", {
+        method: "POST",
+        body: JSON.stringify({
+          products: [customProduct.productId],
+          amount: discountedCents,
+          customer_email: user.email,
+          customer_external_id: user.id,
+          metadata: {
+            user_id: user.id,
+            package_id: pkg.id,
+            credits: String(pkg.credits),
+            bonus_credits: String(pkg.bonus_credits),
+            discount_tier: "first_order_40",
+            is_first_order: "true",
+            original_price: String(pkg.price_cents),
+          },
+          success_url: `${origin}/checkout?success=true`,
+          allow_discount_codes: false,
+          embed_origin: origin,
+        }),
+      });
+
+      if (!checkoutRes.ok) {
+        const errText = await checkoutRes.text();
+        log("First order checkout error", { status: checkoutRes.status, body: errText });
+        throw new Error(`Checkout failed: ${errText}`);
+      }
+      const checkout = await checkoutRes.json();
+      log("First order checkout created", { url: checkout.url });
+
+      return new Response(JSON.stringify({ checkoutUrl: checkout.url, discount_tier: discountTier }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // ── STANDARD PACKAGE FLOW (loyalty/retention/none) ──
     const tierKey = Object.entries(PACKAGE_TIER_MAP).find(
       ([pattern]) => pkg.name.toLowerCase().includes(pattern)
     )?.[1];
@@ -211,7 +259,7 @@ serve(async (req) => {
           is_returning: String(currentPurchaseCount > 0),
           retention_used: String(useRetentionDiscount || false),
         },
-        success_url: `${origin}/pricing?success=true`,
+        success_url: `${origin}/checkout?success=true`,
         allow_discount_codes: false,
         embed_origin: origin,
       }),
