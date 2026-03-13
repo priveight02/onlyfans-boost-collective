@@ -4,7 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useWallet } from "@/hooks/useWallet";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Check, ArrowRight, Sparkles, BadgePercent, ShieldCheck, Zap, Gift, Globe } from "lucide-react";
+import { Check, ArrowRight, Sparkles, BadgePercent, Zap, Gift, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Footer from "@/components/Footer";
 import PageSEO from "@/components/PageSEO";
@@ -404,26 +404,6 @@ const Pricing = () => {
             </div>
           )}
 
-          {/* Trust */}
-          <div className="mt-10 pb-0">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-2xl mx-auto text-center">
-              <div className="flex flex-col items-center gap-2">
-                <ShieldCheck className="h-5 w-5 text-white/30" />
-                <h4 className="text-sm font-medium text-white/70">Secure Payments</h4>
-                <p className="text-xs text-white/30">256-bit SSL · One-time payment</p>
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <Zap className="h-5 w-5 text-white/30" />
-                <h4 className="text-sm font-medium text-white/70">Instant Delivery</h4>
-                <p className="text-xs text-white/30">Credits added immediately</p>
-              </div>
-              <div className="flex flex-col items-center gap-2">
-                <Gift className="h-5 w-5 text-white/30" />
-                <h4 className="text-sm font-medium text-white/70">Loyalty Rewards</h4>
-                <p className="text-xs text-white/30">Up to 30% off repeat purchases</p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
 
