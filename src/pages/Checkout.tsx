@@ -30,7 +30,7 @@ const Checkout = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const { purchaseCount, refreshWallet } = useWallet();
+  const { balance, purchaseCount, refreshWallet } = useWallet();
   const [state, setState] = useState<CheckoutState>("loading");
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [orderInfo, setOrderInfo] = useState<OrderInfo | null>(null);
@@ -40,6 +40,10 @@ const Checkout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const stateRef = useRef<CheckoutState>("loading");
+  const verificationStartedRef = useRef(false);
+  const baselineBalanceRef = useRef(0);
+  const baselinePurchaseCountRef = useRef(0);
 
   const pkgId = searchParams.get("pkg");
   const customCreditsParam = searchParams.get("credits");
