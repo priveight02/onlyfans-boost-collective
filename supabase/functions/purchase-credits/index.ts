@@ -107,13 +107,13 @@ const findOrCreateDiscount = async (basisPoints: number, tierName: string): Prom
 
   const pct = basisPoints / 100;
   const DISCOUNT_DISPLAY_NAMES: Record<string, string> = {
-    "first_order_40": `🎉 Welcome Gift · ${pct}% OFF`,
-    "loyalty_30": `💎 Loyal Member · ${pct}% OFF`,
-    "loyalty_20": `⭐ Valued Customer · ${pct}% OFF`,
-    "loyalty_10": `🙏 Thank You Reward · ${pct}% OFF`,
-    "retention_50": `🔥 Exclusive VIP Offer · ${pct}% OFF`,
+    "first_order_40": "🎉 Welcome Gift",
+    "loyalty_30": "💎 Loyal Member Reward",
+    "loyalty_20": "⭐ Valued Customer Reward",
+    "loyalty_10": "🙏 Thank You Reward",
+    "retention_50": "🔥 Exclusive VIP Offer",
   };
-  const targetName = DISCOUNT_DISPLAY_NAMES[tierName] || `Special Offer · ${pct}% OFF`;
+  const targetName = DISCOUNT_DISPLAY_NAMES[tierName] || "Special Offer";
 
   for (const d of discounts) {
     if (d.type === "percentage" && d.basis_points === basisPoints) {
