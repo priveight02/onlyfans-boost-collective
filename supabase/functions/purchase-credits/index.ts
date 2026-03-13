@@ -105,42 +105,33 @@ const findOrCreateDiscount = async (basisPoints: number, tierName: string): Prom
   const data = await res.json();
   const discounts = data.items || [];
 
-  const FRIENDLY_NAMES_LOOKUP: Record<string, string> = {
-    "first_order_40": "🎉 Welcome Gift",
-    "loyalty_30": "💎 Loyal Member",
-    "loyalty_20": "⭐ Valued Customer",
-    "loyalty_10": "🙏 Thank You Reward",
-    "retention_50": "🔥 Exclusive VIP Offer",
+  const pct = basisPoints / 100;
+  const DISCOUNT_DISPLAY_NAMES: Record<string, string> = {
+    "first_order_40": `🎉 Welcome Gift · ${pct}% OFF`,
+    "loyalty_30": `💎 Loyal Member · ${pct}% OFF`,
+    "loyalty_20": `⭐ Valued Customer · ${pct}% OFF`,
+    "loyalty_10": `🙏 Thank You Reward · ${pct}% OFF`,
+    "retention_50": `🔥 Exclusive VIP Offer · ${pct}% OFF`,
   };
+  const targetName = DISCOUNT_DISPLAY_NAMES[tierName] || `Special Offer · ${pct}% OFF`;
 
   for (const d of discounts) {
     if (d.type === "percentage" && d.basis_points === basisPoints) {
-      // Rename if it still has old ugly name
-      const expectedPrefix = FRIENDLY_NAMES_LOOKUP[tierName];
-      if (expectedPrefix && !d.name.startsWith(expectedPrefix)) {
-        const pct = basisPoints / 100;
-        const newName = `${expectedPrefix} — ${pct}% OFF`;
+      // Rename if it doesn't match the clean format
+      if (d.name !== targetName) {
         await polarFetch(`/discounts/${d.id}`, {
           method: "PATCH",
-          body: JSON.stringify({ name: newName }),
+          body: JSON.stringify({ name: targetName }),
         });
-        log("Renamed discount", { id: d.id, oldName: d.name, newName });
+        log("Renamed discount", { id: d.id, oldName: d.name, newName: targetName });
       }
-      log("Found existing discount", { id: d.id, name: d.name, basisPoints });
+      log("Found existing discount", { id: d.id, name: targetName, basisPoints });
       return d.id;
     }
   }
 
   // Not found — create it
-  const pct = basisPoints / 100;
-  const FRIENDLY_NAMES: Record<string, string> = {
-    "first_order_40": `🎉 Welcome Gift — ${pct}% OFF Your First Order`,
-    "loyalty_30": `💎 Loyal Member — ${pct}% OFF`,
-    "loyalty_20": `⭐ Valued Customer — ${pct}% OFF`,
-    "loyalty_10": `🙏 Thank You Reward — ${pct}% OFF`,
-    "retention_50": `🔥 Exclusive VIP Offer — ${pct}% OFF`,
-  };
-  const friendlyName = FRIENDLY_NAMES[tierName] || `Special Offer — ${pct}% OFF`;
+  const friendlyName = targetName;
   const createRes = await polarFetch("/discounts/", {
     method: "POST",
     body: JSON.stringify({
