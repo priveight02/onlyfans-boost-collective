@@ -146,27 +146,58 @@ const Checkout = () => {
 
   const verifyWithRetry = async () => {
     const steps = [
-      { delay: 800, msg: "Connecting to payment provider..." },
-      { delay: 1000, msg: "Payment received, verifying..." },
-      { delay: 1000, msg: "Confirming credits allocation..." },
-      { delay: 800, msg: "Almost there, finalizing..." },
-      { delay: 800, msg: "Final confirmation..." },
+      { delay: 2000, msg: "Connecting to payment provider...", verifyNow: false },
+      { delay: 2500, msg: "Payment received, validating transaction...", verifyNow: true },
+      { delay: 2000, msg: "Confirming credits allocation...", verifyNow: true },
+      { delay: 1800, msg: "Syncing your wallet balance...", verifyNow: true },
+      { delay: 1500, msg: "Final confirmation...", verifyNow: true },
     ];
+
     for (let i = 0; i < steps.length; i++) {
       setVerifyStep(i + 1);
       setVerifyStatus(steps[i].msg);
       await new Promise(r => setTimeout(r, steps[i].delay));
+
+      if (steps[i].verifyNow) {
+        try {
+          const { data } = await supabase.functions.invoke("verify-credit-purchase");
+          if (data?.credited && data.credits_added > 0) {
+            // Credits found — continue showing remaining steps for natural feel
+            setCreditsAdded(data.credits_added);
+            for (let j = i + 1; j < steps.length; j++) {
+              setVerifyStep(j + 1);
+              setVerifyStatus(steps[j].msg);
+              await new Promise(r => setTimeout(r, 800));
+            }
+            setVerifyStep(steps.length);
+            setVerifyStatus("Payment verified successfully!");
+            await new Promise(r => setTimeout(r, 600));
+            setState("success");
+            refreshWallet();
+            return;
+          }
+        } catch {}
+      }
+    }
+
+    // Extra retries with longer waits (payment provider may be slow)
+    for (let retry = 0; retry < 3; retry++) {
+      setVerifyStatus("Still waiting for confirmation...");
+      await new Promise(r => setTimeout(r, 3000));
       try {
         const { data } = await supabase.functions.invoke("verify-credit-purchase");
         if (data?.credited && data.credits_added > 0) {
           setCreditsAdded(data.credits_added);
+          setVerifyStatus("Payment verified successfully!");
+          await new Promise(r => setTimeout(r, 600));
           setState("success");
           refreshWallet();
           return;
         }
       } catch {}
     }
-    // If no credits found after all steps, mark as failed
+
+    // Only mark failed after exhausting all retries
     setState("failed");
   };
 
