@@ -96,7 +96,7 @@ const Navigation = () => {
             </div>
 
             {/* Desktop menu */}
-            <div className="hidden md:flex items-center gap-0.5 ml-1 flex-1">
+            <div className="hidden md:flex items-center gap-0.5 ml-1">
               {finalMenuItems.map((item) => {
                 const isActive = location.pathname === item.href;
                 return (
