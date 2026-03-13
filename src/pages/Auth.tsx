@@ -10,7 +10,7 @@ import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { trackAdminLogin } from "@/hooks/useVisitorTracking";
-import authHeroFull from "@/assets/auth-hero-full.png";
+import authHeroFull from "@/assets/auth-side-hero.png";
 import {
   Eye, EyeOff, LogIn, Lock, Mail, User, ArrowLeft,
   Sparkles, KeyRound, Send, UserPlus, Chrome,
