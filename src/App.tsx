@@ -80,10 +80,12 @@ const AppContent = () => {
   useVisitorTracking();
   const location = useLocation();
   const isPopupRoute = location.pathname === "/ig-login" || location.pathname === "/tt-login" || location.pathname === "/threads-login" || location.pathname === "/fb-login";
+  const isCheckoutRoute = location.pathname === "/checkout";
+  const hideNav = isPopupRoute || isCheckoutRoute;
 
   return (
     <MaintenanceGuard>
-      {!isPopupRoute && <Navigation />}
+      {!hideNav && <Navigation />}
       {!isPopupRoute && <AdminNotificationPopup />}
       <Routes>
         <Route path="/" element={<Index />} />
