@@ -94,58 +94,30 @@ const Pricing = () => {
     checkRetention();
   }, [user]);
 
+  // Handle success redirect from checkout page
   useEffect(() => {
     const isSuccess = searchParams.get("success") === "true";
     const isCanceled = searchParams.get("canceled") === "true";
     if (!isSuccess && !isCanceled) return;
     if (isCanceled) { toast.info("Purchase canceled"); setSearchParams({}, { replace: true }); return; }
-    if (isSuccess && !verifying) {
-      setVerifying(true);
+    if (isSuccess) {
       setSearchParams({}, { replace: true });
-      const toastId = toast.loading("Verifying your purchase...");
-      supabase.functions.invoke("verify-credit-purchase").then(({ data, error }) => {
-        if (error) toast.error("Verification failed. Credits will appear shortly, please refresh.", { id: toastId });
-        else if (data?.credited && data.credits_added > 0) toast.success(`🎉 ${data.credits_added.toLocaleString()} credits added!`, { id: toastId });
-        else toast.success("Credits already in your wallet!", { id: toastId });
-        refreshWallet();
-        setVerifying(false);
-      });
+      refreshWallet();
+      toast.success("Credits added to your wallet!");
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleCheckoutClose = (purchased: boolean) => {
-    setCheckoutUrl(null);
-    if (purchased) refreshWallet();
-  };
-
   const handlePurchase = async (pkg: CreditPackage, useRetention = false) => {
     if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
-    setPurchasingId(pkg.id + (useRetention ? "_ret" : ""));
-    try {
-      const { data, error } = await supabase.functions.invoke("purchase-credits", { body: { packageId: pkg.id, useRetentionDiscount: useRetention } });
-      if (error) throw error;
-      if (data?.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
-      if (useRetention) { setRetentionActive(false); setRetentionUsed(true); }
-    } catch (err: any) {
-      toast.error(err.message || "Failed to start checkout");
-    } finally {
-      setPurchasingId(null);
-    }
+    const params = new URLSearchParams({ pkg: pkg.id });
+    if (useRetention) params.set("retention", "1");
+    navigate(`/checkout?${params.toString()}`);
   };
 
   const handleCustomPurchase = async () => {
     if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
     if (customCredits < 500) { toast.error("Minimum 500 credits"); return; }
-    setPurchasingCustom(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("purchase-credits", { body: { customCredits } });
-      if (error) throw error;
-      if (data?.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to start checkout");
-    } finally {
-      setPurchasingCustom(false);
-    }
+    navigate(`/checkout?credits=${customCredits}`);
   };
 
   const formatPrice = (cents: number) => `$${Math.round(cents / 100)}`;
