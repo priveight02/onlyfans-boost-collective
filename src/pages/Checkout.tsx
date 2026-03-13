@@ -6,9 +6,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   ArrowLeft, Lock, ShieldCheck, Loader2, CheckCircle2, XCircle,
-  CreditCard, Sparkles, LayoutDashboard, Gift, AlertTriangle, X,
+  Sparkles, LayoutDashboard, AlertTriangle, Coins, Zap, BadgeCheck, CreditCard,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import PageSEO from "@/components/PageSEO";
 
@@ -42,7 +42,6 @@ const Checkout = () => {
   const customCreditsParam = searchParams.get("credits");
   const useRetention = searchParams.get("retention") === "1";
 
-  // Redirect if not logged in
   useEffect(() => {
     if (!user) {
       toast.error("Please log in first");
@@ -50,7 +49,6 @@ const Checkout = () => {
     }
   }, [user, navigate]);
 
-  // Initiate checkout
   useEffect(() => {
     if (!user) return;
     const initCheckout = async () => {
@@ -68,7 +66,6 @@ const Checkout = () => {
         }
         if (useRetention) body.useRetentionDiscount = true;
 
-        // Fetch package info for order summary
         if (pkgId) {
           const { data: pkg } = await supabase
             .from("credit_packages")
@@ -77,17 +74,14 @@ const Checkout = () => {
             .single();
           if (pkg) {
             const isFirst = purchaseCount === 0;
-            const discountPercent = isFirst ? 40 : 0;
-            const discountedPrice = isFirst
-              ? Math.round(pkg.price_cents * 0.6)
-              : pkg.price_cents;
+            const discountedPrice = isFirst ? Math.round(pkg.price_cents * 0.6) : pkg.price_cents;
             setOrderInfo({
               name: pkg.name,
               credits: pkg.credits,
               bonus: pkg.bonus_credits,
               originalPriceCents: pkg.price_cents,
               finalPriceCents: discountedPrice,
-              discountLabel: isFirst ? "First Order — 40% OFF" : null,
+              discountLabel: isFirst ? "First Order · 40% OFF" : null,
               discountAmountCents: isFirst ? pkg.price_cents - discountedPrice : 0,
               isFirstOrder: isFirst,
             });
@@ -103,7 +97,7 @@ const Checkout = () => {
             bonus: 0,
             originalPriceCents: basePriceCents,
             finalPriceCents: finalPrice,
-            discountLabel: isFirst ? "First Order — 40% OFF" : null,
+            discountLabel: isFirst ? "First Order · 40% OFF" : null,
             discountAmountCents: isFirst ? basePriceCents - finalPrice : 0,
             isFirstOrder: isFirst,
           });
@@ -125,7 +119,6 @@ const Checkout = () => {
     initCheckout();
   }, [user]); // eslint-disable-line
 
-  // Listen for Polar postMessage events
   useEffect(() => {
     const handleEvent = (eventName: string) => {
       const lower = eventName.toLowerCase();
@@ -138,7 +131,6 @@ const Checkout = () => {
         setState("canceled");
       }
     };
-
     const handler = (event: MessageEvent) => {
       if (typeof event.data === "string") {
         try {
@@ -179,7 +171,6 @@ const Checkout = () => {
     refreshWallet();
   };
 
-  // Auto-redirect on success
   useEffect(() => {
     if (state === "success") {
       const t = setTimeout(() => navigate("/platform"), 4000);
@@ -191,18 +182,22 @@ const Checkout = () => {
 
   return (
     <div className="min-h-screen" style={{ background: "hsl(222, 35%, 7%)" }}>
-      <PageSEO title="Secure Checkout — Uplyze" description="Complete your purchase securely." />
+      <PageSEO title="Secure Checkout | Uplyze" description="Complete your purchase securely." />
 
       {/* Header */}
       <header
         className="sticky top-0 z-50 flex items-center justify-between px-6 py-3"
-        style={{ background: "hsla(222, 35%, 7%, 0.95)", borderBottom: "1px solid hsla(0, 0%, 100%, 0.06)", backdropFilter: "blur(12px)" }}
+        style={{
+          background: "hsla(222, 35%, 7%, 0.92)",
+          borderBottom: "1px solid hsla(0, 0%, 100%, 0.06)",
+          backdropFilter: "blur(16px)",
+        }}
       >
         <div className="flex items-center gap-4">
           <img src="/logo.svg" alt="Uplyze" className="h-7" />
           <div className="h-5 w-px bg-white/10" />
           <div className="flex items-center gap-1.5">
-            <Lock className="h-3.5 w-3.5 text-emerald-400" />
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
             <span className="text-sm text-white/50 font-medium">Secure Checkout</span>
           </div>
         </div>
@@ -245,80 +240,125 @@ const Checkout = () => {
           {/* Order Summary Sidebar */}
           {orderInfo && (
             <aside
-              className="w-full lg:w-[380px] flex-shrink-0 overflow-y-auto p-6 lg:p-8 border-t lg:border-t-0 lg:border-l"
-              style={{ borderColor: "hsla(0, 0%, 100%, 0.06)", background: "hsla(222, 30%, 9%, 1)" }}
+              className="w-full lg:w-[400px] flex-shrink-0 overflow-y-auto flex flex-col border-t lg:border-t-0 lg:border-l"
+              style={{ borderColor: "hsla(0, 0%, 100%, 0.06)", background: "hsl(222, 30%, 8%)" }}
             >
-              <h2 className="text-lg font-bold text-white mb-6">Order Summary</h2>
+              <div className="p-7 flex-1 flex flex-col">
+                {/* Title */}
+                <h2 className="text-base font-bold text-white/90 tracking-tight mb-6">Order Summary</h2>
 
-              {/* Product */}
-              <div className="flex items-start justify-between mb-6 pb-6" style={{ borderBottom: "1px solid hsla(0, 0%, 100%, 0.06)" }}>
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl flex items-center justify-center" style={{ background: "hsla(262, 83%, 58%, 0.15)", border: "1px solid hsla(262, 83%, 58%, 0.3)" }}>
-                    <CreditCard className="h-5 w-5" style={{ color: "hsl(262, 83%, 65%)" }} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold text-white">{orderInfo.name}</p>
-                    <p className="text-xs text-white/40">
-                      {orderInfo.credits.toLocaleString()} credits
-                      {orderInfo.bonus > 0 && ` + ${orderInfo.bonus.toLocaleString()} bonus`}
-                    </p>
-                    <p className="text-[11px] text-white/25 mt-0.5">One-time · Never expires</p>
+                {/* Product Card */}
+                <div
+                  className="rounded-2xl p-4 mb-6"
+                  style={{
+                    background: "hsla(0, 0%, 100%, 0.03)",
+                    border: "1px solid hsla(0, 0%, 100%, 0.06)",
+                  }}
+                >
+                  <div className="flex items-start gap-3.5">
+                    <div
+                      className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                      style={{
+                        background: "linear-gradient(135deg, hsla(45, 95%, 55%, 0.15), hsla(35, 95%, 50%, 0.08))",
+                        border: "1px solid hsla(45, 95%, 55%, 0.2)",
+                      }}
+                    >
+                      <Coins className="h-5.5 w-5.5 text-amber-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white">{orderInfo.name}</p>
+                      <p className="text-xs text-white/40 mt-0.5">
+                        {orderInfo.credits.toLocaleString()} credits
+                        {orderInfo.bonus > 0 && ` + ${orderInfo.bonus.toLocaleString()} bonus`}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-1.5">
+                        <span className="text-[10px] px-2 py-0.5 rounded-full text-white/40" style={{ background: "hsla(0, 0%, 100%, 0.05)" }}>One-time</span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full text-white/40" style={{ background: "hsla(0, 0%, 100%, 0.05)" }}>Never expires</span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-white/70">{formatPrice(orderInfo.originalPriceCents)}</span>
                   </div>
                 </div>
-                <span className="text-sm font-semibold text-white">{formatPrice(orderInfo.originalPriceCents)}</span>
-              </div>
 
-              {/* Subtotal */}
-              <div className="space-y-3 mb-6 pb-6" style={{ borderBottom: "1px solid hsla(0, 0%, 100%, 0.06)" }}>
-                <div className="flex justify-between text-sm">
-                  <span className="text-white/50">Subtotal</span>
-                  <span className="text-white/70">{formatPrice(orderInfo.originalPriceCents)}</span>
-                </div>
-                {orderInfo.discountLabel && (
+                {/* Pricing Breakdown */}
+                <div className="space-y-3 mb-5 pb-5" style={{ borderBottom: "1px solid hsla(0, 0%, 100%, 0.06)" }}>
                   <div className="flex justify-between text-sm">
-                    <span className="text-emerald-400 font-medium">{orderInfo.discountLabel}</span>
-                    <span className="text-emerald-400 font-medium">-{formatPrice(orderInfo.discountAmountCents)}</span>
+                    <span className="text-white/40">Subtotal</span>
+                    <span className="text-white/60">{formatPrice(orderInfo.originalPriceCents)}</span>
+                  </div>
+                  {orderInfo.discountLabel && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-emerald-400 font-medium">{orderInfo.discountLabel}</span>
+                      <span className="text-emerald-400 font-medium">-{formatPrice(orderInfo.discountAmountCents)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Total */}
+                <div className="flex justify-between items-baseline mb-6">
+                  <span className="text-sm font-semibold text-white">Total</span>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-[11px] text-white/25 uppercase tracking-wider">USD</span>
+                    <span className="text-2xl font-bold text-white">{formatPrice(orderInfo.finalPriceCents)}</span>
+                  </div>
+                </div>
+
+                {/* First Order Banner */}
+                {orderInfo.isFirstOrder && (
+                  <div
+                    className="rounded-xl p-4 mb-6 relative overflow-hidden"
+                    style={{
+                      background: "linear-gradient(135deg, hsla(262, 83%, 58%, 0.12), hsla(145, 80%, 42%, 0.06))",
+                      border: "1px solid hsla(262, 83%, 58%, 0.25)",
+                    }}
+                  >
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <Sparkles className="h-4 w-4 text-yellow-400" />
+                      <span className="text-sm font-bold text-white">Welcome Discount Applied</span>
+                    </div>
+                    <p className="text-xs text-white/50 leading-relaxed">
+                      First-time customers get 40% OFF automatically. This discount is applied once per account.
+                    </p>
                   </div>
                 )}
-              </div>
 
-              {/* Total */}
-              <div className="flex justify-between items-baseline mb-8">
-                <span className="text-base font-semibold text-white">Total</span>
-                <div className="text-right">
-                  <span className="text-xs text-white/30 mr-2">USD</span>
-                  <span className="text-2xl font-bold text-white">{formatPrice(orderInfo.finalPriceCents)}</span>
-                </div>
-              </div>
-
-              {/* First order badge */}
-              {orderInfo.isFirstOrder && (
-                <div className="rounded-xl p-4 mb-6" style={{ background: "hsla(145, 80%, 42%, 0.08)", border: "1px solid hsla(145, 80%, 42%, 0.2)" }}>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <Gift className="h-4 w-4 text-emerald-400" />
-                    <span className="text-sm font-semibold text-emerald-400">Welcome Discount Applied!</span>
+                {/* Trust Indicators */}
+                <div className="mt-auto space-y-2.5 pt-4" style={{ borderTop: "1px solid hsla(0, 0%, 100%, 0.04)" }}>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "hsla(145, 80%, 50%, 0.1)" }}>
+                      <ShieldCheck className="h-3 w-3 text-emerald-400/80" />
+                    </div>
+                    <span className="text-xs text-white/40">256-bit SSL Encrypted Payment</span>
                   </div>
-                  <p className="text-xs text-emerald-400/60">First-time customers get 40% OFF automatically. This discount is applied once per account.</p>
-                </div>
-              )}
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "hsla(0, 0%, 100%, 0.04)" }}>
+                      <Zap className="h-3 w-3 text-white/40" />
+                    </div>
+                    <span className="text-xs text-white/40">Instant credit delivery after payment</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-5 h-5 rounded-full flex items-center justify-center" style={{ background: "hsla(0, 0%, 100%, 0.04)" }}>
+                      <BadgeCheck className="h-3 w-3 text-white/40" />
+                    </div>
+                    <span className="text-xs text-white/40">30-day money-back guarantee</span>
+                  </div>
 
-              {/* Trust */}
-              <div className="space-y-3 mt-auto">
-                <div className="flex items-center gap-2.5">
-                  <ShieldCheck className="h-4 w-4 text-emerald-400/60" />
-                  <span className="text-xs text-white/40">SSL Secure Payment</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Lock className="h-4 w-4 text-white/30" />
-                  <span className="text-xs text-white/40">Your data is encrypted & protected</span>
-                </div>
-                {/* Card logos */}
-                <div className="flex items-center gap-3 pt-3" style={{ borderTop: "1px solid hsla(0, 0%, 100%, 0.04)" }}>
-                  {["VISA", "MC", "AMEX", "GPay"].map(card => (
-                    <span key={card} className="text-[10px] font-bold tracking-wider px-2 py-1 rounded" style={{ background: "hsla(0, 0%, 100%, 0.06)", color: "hsla(0, 0%, 100%, 0.3)" }}>
-                      {card}
-                    </span>
-                  ))}
+                  {/* Payment Method Icons */}
+                  <div className="flex items-center gap-2 pt-3 mt-1" style={{ borderTop: "1px solid hsla(0, 0%, 100%, 0.04)" }}>
+                    {["VISA", "MC", "AMEX", "GPay", "Apple Pay"].map(card => (
+                      <span
+                        key={card}
+                        className="text-[9px] font-bold tracking-widest px-2.5 py-1 rounded-md"
+                        style={{
+                          background: "hsla(0, 0%, 100%, 0.04)",
+                          color: "hsla(0, 0%, 100%, 0.25)",
+                          border: "1px solid hsla(0, 0%, 100%, 0.04)",
+                        }}
+                      >
+                        {card}
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
             </aside>
@@ -330,8 +370,8 @@ const Checkout = () => {
       {state === "verifying" && (
         <div className="flex items-center justify-center flex-col gap-6" style={{ height: "calc(100vh - 56px)" }}>
           <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="relative">
-            <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="absolute -inset-4 rounded-full" style={{ background: "conic-gradient(from 0deg, transparent, rgba(52,211,153,0.3), transparent, transparent)" }} />
-            <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20">
+            <motion.div animate={{ rotate: 360 }} transition={{ duration: 2, repeat: Infinity, ease: "linear" }} className="absolute -inset-4 rounded-full" style={{ background: "conic-gradient(from 0deg, transparent, hsla(145, 80%, 50%, 0.3), transparent, transparent)" }} />
+            <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl" style={{ background: "hsla(145, 80%, 50%, 0.08)", border: "1px solid hsla(145, 80%, 50%, 0.15)" }}>
               <Loader2 className="h-7 w-7 text-emerald-400 animate-spin" />
             </div>
           </motion.div>
@@ -340,8 +380,8 @@ const Checkout = () => {
             <p className="text-white/30 text-sm mt-1">{verifyStatus}</p>
           </div>
           <div className="w-48">
-            <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
-              <motion.div className="h-full rounded-full bg-emerald-500/50" initial={{ width: "0%" }} animate={{ width: `${(verifyStep / 5) * 100}%` }} transition={{ duration: 0.5 }} />
+            <div className="h-1 rounded-full overflow-hidden" style={{ background: "hsla(0, 0%, 100%, 0.06)" }}>
+              <motion.div className="h-full rounded-full" style={{ background: "hsl(145, 80%, 50%)" }} initial={{ width: "0%" }} animate={{ width: `${(verifyStep / 5) * 100}%` }} transition={{ duration: 0.5 }} />
             </div>
             <p className="text-[10px] text-white/20 text-center mt-1.5">Step {verifyStep} of 5</p>
           </div>
@@ -352,8 +392,8 @@ const Checkout = () => {
       {state === "success" && (
         <div className="flex items-center justify-center flex-col gap-6" style={{ height: "calc(100vh - 56px)" }}>
           <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 200, damping: 15 }} className="relative">
-            <div className="absolute -inset-6 rounded-full bg-emerald-500/10 blur-2xl" />
-            <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl bg-emerald-500/15 border border-emerald-500/25">
+            <div className="absolute -inset-6 rounded-full blur-2xl" style={{ background: "hsla(145, 80%, 50%, 0.1)" }} />
+            <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl" style={{ background: "hsla(145, 80%, 50%, 0.1)", border: "1px solid hsla(145, 80%, 50%, 0.2)" }}>
               <CheckCircle2 className="h-10 w-10 text-emerald-400" />
             </div>
           </motion.div>
@@ -385,8 +425,14 @@ const Checkout = () => {
       {(state === "failed" || state === "canceled") && (
         <div className="flex items-center justify-center flex-col gap-6" style={{ height: "calc(100vh - 56px)" }}>
           <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: "spring", stiffness: 200, damping: 15 }} className="relative">
-            <div className="absolute -inset-6 rounded-full bg-red-500/5 blur-2xl" />
-            <div className="relative flex items-center justify-center w-20 h-20 rounded-3xl bg-red-500/10 border border-red-500/20">
+            <div className="absolute -inset-6 rounded-full blur-2xl" style={{ background: state === "failed" ? "hsla(0, 80%, 50%, 0.05)" : "hsla(45, 95%, 55%, 0.05)" }} />
+            <div
+              className="relative flex items-center justify-center w-20 h-20 rounded-3xl"
+              style={{
+                background: state === "failed" ? "hsla(0, 80%, 50%, 0.1)" : "hsla(45, 95%, 55%, 0.1)",
+                border: `1px solid ${state === "failed" ? "hsla(0, 80%, 50%, 0.2)" : "hsla(45, 95%, 55%, 0.2)"}`,
+              }}
+            >
               {state === "failed" ? <XCircle className="h-10 w-10 text-red-400" /> : <AlertTriangle className="h-10 w-10 text-amber-400" />}
             </div>
           </motion.div>

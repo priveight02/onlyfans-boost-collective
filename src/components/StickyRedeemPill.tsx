@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Gift } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 
 const StickyRedeemPill = () => {
@@ -23,16 +23,23 @@ const StickyRedeemPill = () => {
       >
         <button
           onClick={() => setShowModal(true)}
-          className="flex items-center gap-2.5 px-7 py-3 rounded-full text-sm font-semibold shadow-2xl transition-all duration-300 hover:scale-105"
+          className="group relative flex items-center gap-2.5 px-7 py-3.5 rounded-full text-sm font-bold transition-all duration-300 hover:scale-[1.04] active:scale-[0.98] overflow-hidden"
           style={{
-            background: "linear-gradient(135deg, hsl(222, 35%, 12%), hsl(222, 35%, 16%))",
-            border: "1px solid hsla(0, 0%, 100%, 0.12)",
+            background: "linear-gradient(135deg, hsl(262, 83%, 55%), hsl(240, 75%, 50%))",
             color: "white",
-            boxShadow: "0 8px 32px hsla(0, 0%, 0%, 0.5), 0 0 0 1px hsla(0, 0%, 100%, 0.04) inset",
+            boxShadow:
+              "0 6px 24px hsla(262, 83%, 55%, 0.4), 0 2px 8px hsla(0, 0%, 0%, 0.3), inset 0 1px 0 hsla(0, 0%, 100%, 0.25), inset 0 -2px 0 hsla(0, 0%, 0%, 0.15)",
           }}
         >
-          <Gift className="h-4 w-4 text-yellow-400" />
-          Redeem 40% OFF
+          {/* Shine sweep */}
+          <div
+            className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+            style={{
+              background: "linear-gradient(105deg, transparent 40%, hsla(0, 0%, 100%, 0.15) 45%, hsla(0, 0%, 100%, 0.05) 55%, transparent 60%)",
+            }}
+          />
+          <Sparkles className="h-4 w-4 text-yellow-300 relative z-10" />
+          <span className="relative z-10 tracking-wide">Claim Your 40% Welcome Gift</span>
         </button>
       </div>
 
