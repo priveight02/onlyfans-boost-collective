@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { CheckCircle, ArrowRight, Sparkles, ShieldCheck, Coins, Zap, LayoutDashboard, Crown, Clock, Gift } from "lucide-react";
+import { CheckCircle, ArrowRight, Sparkles, ShieldCheck, Coins, Zap, LayoutDashboard, Crown, Gift } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PageSEO from "@/components/PageSEO";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,8 +44,7 @@ const ThankYou = () => {
   const { user } = useAuth();
   const [countdown, setCountdown] = useState(30);
   const [packages, setPackages] = useState<CreditPackage[]>([]);
-  const carouselRef = useRef<HTMLDivElement>(null);
-  const [isHovered, setIsHovered] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const creditsAdded = parseInt(searchParams.get("credits") || "0");
   const pkgName = searchParams.get("pkg") || "";
@@ -78,32 +77,18 @@ const ThankYou = () => {
     return () => clearTimeout(t);
   }, [countdown, navigate]);
 
-  // Auto-scroll carousel - slower, pauses on hover
+  // CSS-based infinite scroll animation — no rAF, no blurriness
   useEffect(() => {
-    const el = carouselRef.current;
+    const el = scrollRef.current;
     if (!el || packages.length === 0) return;
-    let scrollPos = 0;
-    const speed = 0.3;
-    let animFrame: number;
-    let paused = false;
-    const scroll = () => {
-      if (!paused) {
-        scrollPos += speed;
-        if (scrollPos >= el.scrollWidth / 2) scrollPos = 0;
-        el.scrollLeft = scrollPos;
-      }
-      animFrame = requestAnimationFrame(scroll);
-    };
-    animFrame = requestAnimationFrame(scroll);
-    const pause = () => { paused = true; };
-    const resume = () => { paused = false; };
-    el.addEventListener("mouseenter", pause);
-    el.addEventListener("mouseleave", resume);
-    return () => {
-      cancelAnimationFrame(animFrame);
-      el.removeEventListener("mouseenter", pause);
-      el.removeEventListener("mouseleave", resume);
-    };
+    // Measure single set width after render
+    const cards = el.children;
+    if (!cards.length) return;
+    let singleSetWidth = 0;
+    for (let i = 0; i < packages.length; i++) {
+      singleSetWidth += (cards[i] as HTMLElement).offsetWidth + 12; // gap-3 = 12px
+    }
+    el.style.setProperty("--scroll-width", `${singleSetWidth}px`);
   }, [packages]);
 
   const handleUpsellPurchase = (pkg: CreditPackage) => {
@@ -112,13 +97,12 @@ const ThankYou = () => {
 
   if (!creditsAdded || creditsAdded <= 0) return null;
 
-  const carouselItems = [...packages, ...packages, ...packages];
+  const carouselItems = [...packages, ...packages];
 
   const trustItems = [
-    { icon: Coins, label: "Credits Added", value: `+${creditsAdded.toLocaleString()}`, color: "hsla(45, 95%, 55%, 0.15)", borderColor: "hsla(45, 95%, 55%, 0.2)", iconColor: "text-amber-400" },
-    { icon: ShieldCheck, label: "Secure Payment", value: "256-bit SSL", color: "hsla(145, 80%, 50%, 0.1)", borderColor: "hsla(145, 80%, 50%, 0.2)", iconColor: "text-emerald-400" },
-    { icon: Zap, label: "Instant Delivery", value: "Ready to use", color: "hsla(262, 83%, 55%, 0.1)", borderColor: "hsla(262, 83%, 55%, 0.2)", iconColor: "text-purple-400" },
-    { icon: Gift, label: "Never Expires", value: "Use anytime", color: "hsla(200, 80%, 55%, 0.1)", borderColor: "hsla(200, 80%, 55%, 0.2)", iconColor: "text-sky-400" },
+    { icon: ShieldCheck, label: "Secure Payment", value: "256-bit SSL", color: "hsla(145, 80%, 50%, 0.08)", borderColor: "hsla(145, 80%, 50%, 0.15)", iconColor: "text-emerald-400" },
+    { icon: Zap, label: "Instant Delivery", value: "Ready to use", color: "hsla(262, 83%, 55%, 0.08)", borderColor: "hsla(262, 83%, 55%, 0.15)", iconColor: "text-purple-400" },
+    { icon: Gift, label: "Never Expires", value: "Use anytime", color: "hsla(200, 80%, 55%, 0.08)", borderColor: "hsla(200, 80%, 55%, 0.15)", iconColor: "text-sky-400" },
   ];
 
   return (
@@ -127,10 +111,26 @@ const ThankYou = () => {
         title="Purchase Confirmed - Uplyze"
         description="Your credits have been added to your account. Start using Uplyze AI tools right away."
       />
+      <style>{`
+        @keyframes carousel-scroll {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(calc(var(--scroll-width, 1000px) * -1)); }
+        }
+        .carousel-track {
+          animation: carousel-scroll 45s linear infinite;
+          will-change: transform;
+        }
+        .carousel-track:hover {
+          animation-play-state: paused;
+        }
+      `}</style>
       <div className="h-screen flex flex-col overflow-hidden" style={{ background: "hsl(222, 47%, 6%)" }}>
+        {/* Ambient glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[400px] pointer-events-none" style={{ background: "radial-gradient(ellipse, hsla(145, 80%, 50%, 0.04) 0%, transparent 70%)" }} />
+
         {/* Header */}
         <header
-          className="flex-shrink-0 flex items-center justify-between px-6 py-3"
+          className="flex-shrink-0 flex items-center justify-between px-6 py-3 relative z-10"
           style={{
             background: "hsla(222, 35%, 7%, 0.92)",
             borderBottom: "1px solid hsla(0, 0%, 100%, 0.06)",
@@ -155,8 +155,8 @@ const ThankYou = () => {
         </header>
 
         {/* Main content */}
-        <div className="flex-1 flex flex-col items-center justify-between px-4 py-5 md:py-6 min-h-0">
-          {/* Thank You + CTA */}
+        <div className="flex-1 flex flex-col items-center justify-between px-4 py-5 md:py-6 min-h-0 relative z-10">
+          {/* Thank You Hero */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -166,32 +166,45 @@ const ThankYou = () => {
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ type: "spring", stiffness: 200, damping: 15 }}
-              className="mx-auto w-14 h-14 rounded-2xl flex items-center justify-center relative"
+              className="mx-auto w-16 h-16 rounded-2xl flex items-center justify-center relative"
               style={{
                 background: "linear-gradient(135deg, hsla(145, 80%, 50%, 0.12), hsla(145, 80%, 50%, 0.04))",
                 border: "1px solid hsla(145, 80%, 50%, 0.25)",
-                boxShadow: "0 0 60px -20px hsla(145, 80%, 50%, 0.3)",
+                boxShadow: "0 0 80px -20px hsla(145, 80%, 50%, 0.35), inset 0 1px 0 hsla(145, 80%, 50%, 0.1)",
               }}
             >
-              <CheckCircle className="h-7 w-7 text-emerald-400 relative z-10" />
+              <CheckCircle className="h-8 w-8 text-emerald-400 relative z-10" />
             </motion.div>
 
-            <div className="space-y-0.5">
+            <div className="space-y-1">
               <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
                 Thank You for Your Purchase!
               </h1>
               <p className="text-white/40 text-sm">
-                <span className="text-emerald-400 font-semibold">{creditsAdded.toLocaleString()}</span> credits are now in your wallet.
+                Your credits are now in your wallet and ready to use.
               </p>
             </div>
 
-            <div className="flex items-center justify-center gap-3">
+            {/* Credits count — standalone centered, not in a pill */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.15, type: "spring" }}
+              className="flex items-center justify-center gap-2"
+            >
+              <Coins className="h-5 w-5 text-amber-400" />
+              <span className="text-3xl font-bold text-white">+{creditsAdded.toLocaleString()}</span>
+              <span className="text-sm text-white/30 font-medium">credits</span>
+            </motion.div>
+
+            {/* CTA */}
+            <div className="flex items-center justify-center gap-3 pt-1">
               <Button
                 onClick={() => navigate("/platform")}
-                className="px-5 py-4 rounded-xl text-white font-semibold text-sm border-0"
+                className="px-6 py-5 rounded-xl text-white font-semibold text-sm border-0"
                 style={{
                   background: "linear-gradient(135deg, hsl(262, 83%, 55%), hsl(240, 75%, 50%))",
-                  boxShadow: "0 4px 16px hsla(262, 83%, 55%, 0.3), inset 0 1px 0 hsla(0, 0%, 100%, 0.15)",
+                  boxShadow: "0 4px 20px hsla(262, 83%, 55%, 0.35), inset 0 1px 0 hsla(0, 0%, 100%, 0.15)",
                 }}
               >
                 <LayoutDashboard className="h-4 w-4 mr-2" /> Go to Platform
@@ -203,30 +216,30 @@ const ThankYou = () => {
             </div>
           </motion.div>
 
-          {/* Trust indicators - horizontal row */}
+          {/* Trust indicators — horizontal, 3 items (no Credits Added here) */}
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="w-full max-w-3xl flex-shrink-0 mt-4"
+            transition={{ delay: 0.2 }}
+            className="w-full max-w-lg flex-shrink-0 mt-4"
           >
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               {trustItems.map((item, i) => (
                 <motion.div
                   key={item.label}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 + i * 0.05 }}
-                  className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl"
+                  transition={{ delay: 0.25 + i * 0.05 }}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl"
                   style={{
                     background: item.color,
                     border: `1px solid ${item.borderColor}`,
                   }}
                 >
-                  <item.icon className={`h-4 w-4 flex-shrink-0 ${item.iconColor}`} />
+                  <item.icon className={`h-3.5 w-3.5 flex-shrink-0 ${item.iconColor}`} />
                   <div className="min-w-0">
-                    <p className="text-[10px] text-white/35 leading-none">{item.label}</p>
-                    <p className="text-xs font-semibold text-white/80 leading-tight mt-0.5">{item.value}</p>
+                    <p className="text-[10px] text-white/30 leading-none">{item.label}</p>
+                    <p className="text-[11px] font-semibold text-white/70 leading-tight mt-0.5">{item.value}</p>
                   </div>
                 </motion.div>
               ))}
@@ -248,39 +261,32 @@ const ThankYou = () => {
               <h2 className="text-base font-bold text-white">Need More Credits?</h2>
             </div>
 
-            {/* Carousel */}
-            <div
-              className="relative"
-              onMouseEnter={() => setIsHovered(true)}
-              onMouseLeave={() => setIsHovered(false)}
-            >
+            {/* CSS-animated Carousel — no blur */}
+            <div className="relative overflow-hidden">
               {/* Fade edges */}
-              <div className="absolute left-0 top-0 bottom-0 w-24 z-10 pointer-events-none" style={{ background: "linear-gradient(90deg, hsl(222, 47%, 6%), transparent)" }} />
-              <div className="absolute right-0 top-0 bottom-0 w-24 z-10 pointer-events-none" style={{ background: "linear-gradient(270deg, hsl(222, 47%, 6%), transparent)" }} />
+              <div className="absolute left-0 top-0 bottom-0 w-28 z-10 pointer-events-none" style={{ background: "linear-gradient(90deg, hsl(222, 47%, 6%), transparent)" }} />
+              <div className="absolute right-0 top-0 bottom-0 w-28 z-10 pointer-events-none" style={{ background: "linear-gradient(270deg, hsl(222, 47%, 6%), transparent)" }} />
 
               <div
-                ref={carouselRef}
-                className="flex gap-3 overflow-hidden px-6"
-                style={{ scrollBehavior: "auto" }}
+                ref={scrollRef}
+                className="carousel-track flex gap-3 w-max px-6"
               >
                 {carouselItems.map((pkg, i) => (
-                  <motion.div
+                  <div
                     key={`${pkg.id}-${i}`}
                     onClick={() => handleUpsellPurchase(pkg)}
-                    whileHover={{ scale: 1.04, y: -2 }}
-                    className="flex-shrink-0 w-[240px] group relative rounded-2xl overflow-hidden cursor-pointer transition-colors duration-300"
+                    className="flex-shrink-0 w-[240px] group relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:scale-[1.03] hover:-translate-y-0.5"
                     style={{
-                      background: "linear-gradient(160deg, hsla(222, 30%, 13%, 0.9), hsla(222, 30%, 9%, 0.95))",
+                      background: "linear-gradient(160deg, hsla(222, 30%, 14%, 1), hsla(222, 30%, 9%, 1))",
                       border: "1px solid hsla(0, 0%, 100%, 0.07)",
-                      backdropFilter: "blur(16px)",
                     }}
                     onMouseEnter={e => (e.currentTarget.style.borderColor = "hsla(262, 83%, 55%, 0.35)")}
                     onMouseLeave={e => (e.currentTarget.style.borderColor = "hsla(0, 0%, 100%, 0.07)")}
                   >
-                    {/* Subtle gradient overlay on hover */}
+                    {/* Hover gradient overlay */}
                     <div
                       className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
-                      style={{ background: "linear-gradient(135deg, hsla(262, 83%, 55%, 0.06), transparent 60%)" }}
+                      style={{ background: "linear-gradient(135deg, hsla(262, 83%, 55%, 0.08), transparent 60%)" }}
                     />
 
                     {pkg.is_popular && (
@@ -322,7 +328,7 @@ const ThankYou = () => {
                         </div>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             </div>
