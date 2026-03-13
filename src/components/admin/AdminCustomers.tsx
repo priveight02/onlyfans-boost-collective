@@ -161,6 +161,11 @@ const AdminCustomers = () => {
   const [bulkGrantAmount, setBulkGrantAmount] = useState("100");
   const [bulkGrantReason, setBulkGrantReason] = useState("Promotional bonus");
 
+  // Discount state dialog
+  const [showSetDiscountDialog, setShowSetDiscountDialog] = useState(false);
+  const [discountPurchaseCount, setDiscountPurchaseCount] = useState("0");
+  const [discountReason, setDiscountReason] = useState("");
+
   // New action states
   const [showChangeEmailDialog, setShowChangeEmailDialog] = useState(false);
   const [showChangeUsernameDialog, setShowChangeUsernameDialog] = useState(false);
