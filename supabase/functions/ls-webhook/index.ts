@@ -491,7 +491,7 @@ serve(async (req) => {
             benefit_id: data?.benefit?.id, benefit_type: data?.benefit?.type, event: eventType,
           });
           if (granted) {
-            await notify(userId, "Credits Granted!", `${grantCreditsAmount} credits from your subscription benefit have been added.`, "benefit", { credits: grantCreditsAmount });
+            log("Benefit credits granted without popup notification", { userId, grantCreditsAmount, benefitId: data?.benefit?.id });
           }
         }
         log(`Benefit grant: ${eventType}`, { userId, credits: parseInt(benefitMeta.credits || "0") });
