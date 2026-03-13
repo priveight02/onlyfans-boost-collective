@@ -50,7 +50,7 @@ const Hero = () => {
             Into{" "}
             <span className="relative inline-block pb-14 md:pb-20">
               <span className="uplyze-highlight pb-2">
-                Customers
+                Revenue
               </span>
               <motion.span
                 initial={{ opacity: 0, scale: 0.7, rotate: 0 }}
