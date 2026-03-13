@@ -126,7 +126,9 @@ serve(async (req) => {
       const pricePerCredit = BASE_PRICE_PER_CREDIT_CENTS * (1 - volumeDiscountPercent / 100);
       let totalCents = Math.round(customCredits * pricePerCredit);
 
-      if (discountTier === "retention_50") {
+      if (discountTier === "first_order_40") {
+        totalCents = Math.round(totalCents * 0.6);
+      } else if (discountTier === "retention_50") {
         totalCents = Math.round(totalCents * 0.5);
         await supabaseAdmin.from("wallets").update({ retention_credits_used: true }).eq("user_id", user.id);
       } else if (discountTier === "loyalty_30") {
