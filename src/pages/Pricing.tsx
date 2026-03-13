@@ -45,9 +45,9 @@ const Pricing = () => {
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
   const [customCredits, setCustomCredits] = useState<number>(500);
   const [purchasingCustom, setPurchasingCustom] = useState(false);
-  const [verifying, setVerifying] = useState(false);
   const [retentionActive, setRetentionActive] = useState(false);
   const [retentionUsed, setRetentionUsed] = useState(false);
+  const [circulationCredits, setCirculationCredits] = useState<number | null>(null);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [circulationCredits, setCirculationCredits] = useState<number | null>(null);
 
