@@ -166,6 +166,12 @@ const Pricing = () => {
                   <span className="text-xl font-semibold text-white">{balance.toLocaleString()}</span>
                 </div>
               </div>
+              {isFirstOrder && (
+                <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full" style={{ background: "hsla(262, 83%, 58%, 0.12)", border: "1px solid hsla(262, 83%, 58%, 0.3)" }}>
+                  <Gift className="h-3.5 w-3.5" style={{ color: "hsl(262, 83%, 65%)" }} />
+                  <span className="text-xs font-medium" style={{ color: "hsl(262, 83%, 75%)" }}>🎉 First order — 40% OFF applied automatically!</span>
+                </div>
+              )}
               {isReturning && (
                 <div className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full" style={{ background: "hsla(145, 80%, 42%, 0.1)", border: "1px solid hsla(145, 80%, 42%, 0.2)" }}>
                   <BadgePercent className="h-3.5 w-3.5" style={{ color: "hsl(145, 80%, 55%)" }} />
