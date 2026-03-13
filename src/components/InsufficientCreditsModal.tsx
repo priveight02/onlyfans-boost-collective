@@ -60,26 +60,8 @@ const InsufficientCreditsModal = ({ open, onClose, requiredCredits, actionName }
 
   const handlePurchase = async (pkg: CreditPackage) => {
     if (!user) { toast.error("Please log in first"); navigate("/auth"); return; }
-    setPurchasingId(pkg.id);
-    try {
-      const { data, error } = await supabase.functions.invoke("purchase-credits", {
-        body: { packageId: pkg.id },
-      });
-      if (error) throw error;
-      if (data?.checkoutUrl) setCheckoutUrl(data.checkoutUrl);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to start checkout");
-    } finally {
-      setPurchasingId(null);
-    }
-  };
-
-  const handleCheckoutClose = (purchased: boolean) => {
-    setCheckoutUrl(null);
-    if (purchased) {
-      refreshWallet();
-      onClose();
-    }
+    onClose();
+    navigate(`/checkout?pkg=${pkg.id}`);
   };
 
   const formatPrice = (cents: number) => `$${Math.round(cents / 100)}`;
