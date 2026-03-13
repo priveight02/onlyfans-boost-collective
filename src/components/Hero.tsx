@@ -85,7 +85,7 @@ const Hero = () => {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, delay: 0.4 }}
-            className="mb-10 flex flex-wrap justify-center gap-3"
+            className="mb-6 flex flex-wrap justify-center gap-3"
           >
             {features.map((feature) => (
               <div
