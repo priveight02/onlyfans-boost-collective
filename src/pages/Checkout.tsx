@@ -146,11 +146,11 @@ const Checkout = () => {
 
   const verifyWithRetry = async () => {
     const steps = [
-      { delay: 2000, msg: "Connecting to payment provider..." },
-      { delay: 2500, msg: "Payment received, verifying..." },
-      { delay: 3000, msg: "Confirming credits allocation..." },
-      { delay: 3500, msg: "Almost there, finalizing..." },
-      { delay: 4000, msg: "Final confirmation..." },
+      { delay: 800, msg: "Connecting to payment provider..." },
+      { delay: 1000, msg: "Payment received, verifying..." },
+      { delay: 1000, msg: "Confirming credits allocation..." },
+      { delay: 800, msg: "Almost there, finalizing..." },
+      { delay: 800, msg: "Final confirmation..." },
     ];
     for (let i = 0; i < steps.length; i++) {
       setVerifyStep(i + 1);
@@ -166,9 +166,8 @@ const Checkout = () => {
         }
       } catch {}
     }
-    setCreditsAdded(0);
-    setState("success");
-    refreshWallet();
+    // If no credits found after all steps, mark as failed
+    setState("failed");
   };
 
   useEffect(() => {
