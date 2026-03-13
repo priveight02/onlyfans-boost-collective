@@ -123,7 +123,7 @@ const Navigation = () => {
 
               {/* Auth buttons */}
               {!isPlatform && (
-                <div className="flex items-center gap-1.5 ml-3 pl-3" style={{ borderLeft: "1px solid hsla(0, 0%, 100%, 0.1)" }}>
+                <div className="flex items-center gap-1.5 ml-auto pl-3" style={{ borderLeft: "1px solid hsla(0, 0%, 100%, 0.1)" }}>
                   <CreditsDisplay />
                   {user ? (
                     <>
