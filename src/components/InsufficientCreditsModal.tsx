@@ -236,7 +236,7 @@ const InsufficientCreditsModal = ({ open, onClose, requiredCredits, actionName }
         </div>
       </div>
 
-      <CheckoutModal checkoutUrl={checkoutUrl} onClose={handleCheckoutClose} />
+      </>
     </>
   );
 };
