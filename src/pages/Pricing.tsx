@@ -141,7 +141,7 @@ const Pricing = () => {
       />
       <div className="pt-32 pb-20 px-4">
         {/* Hero */}
-        <div className="text-center mb-14">
+        <div className="text-center mb-7">
           <h1 className="text-4xl md:text-5xl font-bold mb-3 text-white tracking-tight">
             <span className="uplyze-highlight">Uplyze Credits.</span> Pay As You <span className="uplyze-highlight">Grow</span>
           </h1>
