@@ -204,7 +204,7 @@ const Checkout = () => {
         }}
       >
         <div className="flex items-center gap-4">
-          <img src="/logo.svg" alt="Uplyze" className="h-7" />
+          <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze" className="h-7 w-7 object-contain" />
           <div className="h-5 w-px bg-white/10" />
           <div className="flex items-center gap-1.5">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
