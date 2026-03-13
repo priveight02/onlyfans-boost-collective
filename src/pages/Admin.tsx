@@ -41,23 +41,24 @@ const Admin = () => {
     <div className="dark min-h-screen bg-gradient-to-br from-[hsl(210,100%,12%)] via-[hsl(220,100%,10%)] to-[hsl(230,100%,8%)]">
       <div className="container mx-auto px-4 sm:px-6 pt-24 pb-12 space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-sm border border-white/10">
-              <Shield className="h-6 w-6 text-accent" />
+        <div className="flex items-center justify-between px-0">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-white/10 backdrop-blur-sm border border-white/10">
+              <Shield className="h-5 w-5 text-accent" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold font-heading text-white">Admin Control Plane</h1>
-              <p className="text-sm text-white/50">Enterprise Operations • Security • AI Governance • Compliance</p>
+              <h1 className="text-xl font-bold font-heading text-white leading-tight">Admin Control Plane</h1>
+              <p className="text-xs text-white/50">Enterprise Ops • Security • AI • Compliance</p>
             </div>
           </div>
           <Button
             variant="ghost"
+            size="sm"
             onClick={handleLogout}
-            className="text-white/60 hover:text-white hover:bg-white/10 gap-2"
+            className="text-white/60 hover:text-white hover:bg-white/10 gap-1.5 h-8"
           >
-            <LogOut className="h-4 w-4" />
-            <span className="hidden sm:inline">Log out</span>
+            <LogOut className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline text-xs">Log out</span>
           </Button>
         </div>
 
