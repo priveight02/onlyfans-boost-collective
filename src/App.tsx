@@ -81,7 +81,8 @@ const AppContent = () => {
   const location = useLocation();
   const isPopupRoute = location.pathname === "/ig-login" || location.pathname === "/tt-login" || location.pathname === "/threads-login" || location.pathname === "/fb-login";
   const isCheckoutRoute = location.pathname === "/checkout";
-  const hideNav = isPopupRoute || isCheckoutRoute;
+  const isThankYouRoute = location.pathname === "/thank-you";
+  const hideNav = isPopupRoute || isCheckoutRoute || isThankYouRoute;
 
   return (
     <MaintenanceGuard>
@@ -115,7 +116,7 @@ const AppContent = () => {
         <Route path="/blog" element={<Blog />} />
         <Route path="/blog/:slug" element={<BlogPost />} />
         <Route path="/customer-portal" element={<CustomerPortal />} />
-        <Route path="/thank-you" element={<ThankYou />} />
+        <Route path="/thank-you" element={<ProtectedRoute><ThankYou /></ProtectedRoute>} />
         <Route path="/maintenance" element={<Maintenance />} />
       </Routes>
     </MaintenanceGuard>
