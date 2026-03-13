@@ -932,7 +932,7 @@ const AutopilotShowcase = () => {
           viewport={{ once: true }}
           transition={{ duration: 0.7, delay: 0.15 }}
           className="relative rounded-2xl overflow-hidden"
-          style={{ background: 'linear-gradient(180deg, hsl(222, 30%, 12%) 0%, hsl(222, 35%, 9%) 100%)', boxShadow: '0 25px 60px -15px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset' }}
+          style={{ background: 'linear-gradient(180deg, hsl(222, 30%, 12%) 0%, hsl(222, 35%, 9%) 100%)', boxShadow: '0 25px 60px -15px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04) inset', contain: 'layout style paint' }}
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.06]" style={{ background: 'hsl(222, 30%, 10%)' }}>
             <div className="flex items-center gap-1.5">
