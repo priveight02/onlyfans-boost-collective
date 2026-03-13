@@ -198,7 +198,7 @@ const Pricing = () => {
         {/* Packages */}
         <div className="max-w-[1400px] mx-auto">
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="h-80 rounded-2xl animate-pulse" style={{ background: "hsla(0, 0%, 100%, 0.05)" }} />
               ))}
