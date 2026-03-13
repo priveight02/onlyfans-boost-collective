@@ -123,7 +123,7 @@ const BillingPaymentsTab = () => {
 
   const handleCancelSubscription = () => {
     if (!subscription) return;
-    if (eligibleForRetention) {
+    if (qualifiesForRetention) {
       setRetentionStep("offer");
       setShowRetentionDialog(true);
     } else {
