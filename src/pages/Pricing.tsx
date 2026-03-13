@@ -54,7 +54,10 @@ const Pricing = () => {
     if (count === 3) return 0.10;
     return 0;
   };
-  const returningDiscount = retentionActive ? 0 : getReturningDiscount(purchaseCount);
+  const isFirstOrder = purchaseCount === 0;
+  const firstOrderDiscount = isFirstOrder ? 0.40 : 0;
+  const returningDiscount = retentionActive ? 0 : (isFirstOrder ? 0 : getReturningDiscount(purchaseCount));
+  const activeDiscount = firstOrderDiscount || returningDiscount;
   const isReturning = returningDiscount > 0;
 
   useEffect(() => {
