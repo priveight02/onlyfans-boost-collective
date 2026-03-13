@@ -574,111 +574,12 @@ const Checkout = () => {
         </div>
       )}
 
-      {/* Success */}
+      {/* Success - redirecting to thank-you page */}
       {state === "success" && (
         <div className="flex items-center justify-center" style={{ height: "calc(100vh - 56px)" }}>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex flex-col items-center gap-7 max-w-sm"
-          >
-            {/* Success icon with glow */}
-            <motion.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: "spring", stiffness: 200, damping: 15 }}
-              className="relative"
-            >
-              <div className="absolute -inset-10 rounded-full blur-3xl" style={{ background: "hsla(145, 80%, 50%, 0.08)" }} />
-              <motion.div
-                animate={{ boxShadow: ["0 0 40px -15px hsla(145, 80%, 50%, 0.3)", "0 0 60px -15px hsla(145, 80%, 50%, 0.5)", "0 0 40px -15px hsla(145, 80%, 50%, 0.3)"] }}
-                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
-                className="relative flex items-center justify-center w-24 h-24 rounded-[28px]"
-                style={{
-                  background: "linear-gradient(135deg, hsla(145, 80%, 50%, 0.12), hsla(145, 80%, 50%, 0.04))",
-                  border: "1px solid hsla(145, 80%, 50%, 0.25)",
-                }}
-              >
-                <CheckCircle2 className="h-12 w-12 text-emerald-400" />
-              </motion.div>
-            </motion.div>
-
-            {/* Text */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="text-center"
-            >
-              <h2 className="text-2xl font-bold text-white mb-2">Payment Successful</h2>
-              <p className="text-white/40 text-sm">
-                {creditsAdded > 0 ? (
-                  <>
-                    <span className="text-emerald-400 font-semibold">{creditsAdded.toLocaleString()}</span> credits have been added to your wallet
-                  </>
-                ) : (
-                  <>Your payment was processed successfully. Credits are being delivered.</>
-                )}
-              </p>
-            </motion.div>
-
-            {/* Credit count badge */}
-            {creditsAdded > 0 && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.3, type: "spring" }}
-                className="flex items-center gap-2.5 px-5 py-2.5 rounded-2xl"
-                style={{
-                  background: "linear-gradient(135deg, hsla(45, 95%, 55%, 0.1), hsla(35, 95%, 50%, 0.04))",
-                  border: "1px solid hsla(45, 95%, 55%, 0.15)",
-                }}
-              >
-                <Coins className="h-5 w-5 text-amber-400" />
-                <span className="text-lg font-bold text-white">+{creditsAdded.toLocaleString()}</span>
-                <span className="text-xs text-white/30">credits</span>
-              </motion.div>
-            )}
-
-            {/* CTA buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-              className="flex gap-3"
-            >
-              <Button
-                onClick={() => navigate("/platform")}
-                className="px-7 py-5 rounded-xl text-white font-semibold text-sm border-0"
-                style={{
-                  background: "linear-gradient(135deg, hsl(145, 70%, 42%), hsl(155, 70%, 38%))",
-                  boxShadow: "0 4px 20px hsla(145, 80%, 50%, 0.25), inset 0 1px 0 hsla(0, 0%, 100%, 0.12)",
-                }}
-              >
-                <LayoutDashboard className="h-4 w-4 mr-2" /> Enter Platform
-              </Button>
-              <Button
-                onClick={() => navigate("/pricing")}
-                className="px-7 py-5 rounded-xl text-white/50 hover:text-white/70 font-medium text-sm"
-                style={{
-                  background: "hsla(0, 0%, 100%, 0.04)",
-                  border: "1px solid hsla(0, 0%, 100%, 0.06)",
-                }}
-              >
-                <Sparkles className="h-4 w-4 mr-2" /> Buy More
-              </Button>
-            </motion.div>
-
-            {/* Auto-redirect indicator */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.6 }}
-              className="flex items-center gap-2"
-            >
-              <div className="w-1 h-1 rounded-full bg-white/15 animate-pulse" />
-              <p className="text-white/15 text-xs">Redirecting to platform in a few seconds</p>
-            </motion.div>
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center gap-4">
+            <CheckCircle2 className="h-10 w-10 text-emerald-400" />
+            <p className="text-white/50 text-sm">Redirecting...</p>
           </motion.div>
         </div>
       )}
