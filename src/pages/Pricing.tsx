@@ -36,7 +36,7 @@ const getVolumeDiscount = (credits: number): number => {
 
 const Pricing = () => {
   const { user } = useAuth();
-  const { balance, purchaseCount, refreshWallet } = useWallet();
+  const { balance, purchaseCount, totalSpent, refreshWallet } = useWallet();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [packages, setPackages] = useState<CreditPackage[]>([]);
