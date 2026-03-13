@@ -56,6 +56,10 @@ const Checkout = () => {
   }, [user, navigate]);
 
   useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  useEffect(() => {
     if (!user) return;
     const initCheckout = async () => {
       try {
