@@ -458,7 +458,7 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
   return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity };
 }
 
-function extractMetadata(html: string, url: string) {
+function extractMetadata(html: string, url: string, securityHeaders?: Record<string, string>) {
   const title = getTag(html, "title");
   const description = getMeta(html, "name", "description") || getMeta(html, "property", "og:description");
   const keywords = getMeta(html, "name", "keywords");
