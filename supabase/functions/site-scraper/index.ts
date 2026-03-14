@@ -251,7 +251,7 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
       const newLinks = extractLinks(html, u, rootDomain).filter(l => !visited.has(l));
       queue.push(...newLinks);
     }
-    queue = prioritize([...new Set(queue)]).slice(0, 500);
+    queue = prioritize([...new Set(queue)]).slice(0, 40);
   }
 
   const scriptSet = new Set<string>();
