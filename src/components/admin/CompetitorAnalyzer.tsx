@@ -1878,23 +1878,172 @@ RULES:
                             const colors = categoryColors[cat.key] || categoryColors.crm;
                             const icon = categoryIcons[cat.key] || "📦";
 
-                            // Collect all URL sources (safely coerce to arrays)
+                            // Collect all URL sources from scrape result (correct data paths)
                             const toArr = (v: unknown): string[] => Array.isArray(v) ? v : [];
                             const allUrls = [
-                              ...toArr(scrapeResult?.scripts),
-                              ...toArr(scrapeResult?.stylesheets),
-                              ...toArr(scrapeResult?.externalLinks),
+                              ...toArr(scrapeResult?.scripts?.external),
+                              ...toArr(scrapeResult?.scripts?.stylesheets),
+                              ...toArr(scrapeResult?.links?.external?.map?.((l: any) => typeof l === 'string' ? l : l?.href || l?.url || '')),
+                              ...toArr(scrapeResult?.links?.internal?.map?.((l: any) => typeof l === 'string' ? l : l?.href || l?.url || '')),
                               ...toArr(scrapeResult?.iframes),
-                            ];
+                              ...toArr(scrapeResult?.scanCoverage?.scannedUrls),
+                            ].filter(Boolean);
 
-                            // Build signatures from provider names (lowercase domain-like fragments)
+                            // Comprehensive provider → domain signature map
+                            const KNOWN_SIGS: Record<string, string[]> = {
+                              // CDN
+                              "Cloudflare CDN": ["cdnjs.cloudflare.com","cdn-cgi","cloudflare.com","cloudflareinsights"],
+                              "AWS CloudFront": ["cloudfront.net","d1","d2","d3"],
+                              "Akamai": ["akamai.net","akamaized.net","akamaistream.net","akamaihd.net","edgekey.net","edgesuite.net"],
+                              "cdnjs": ["cdnjs.cloudflare.com","cdnjs.com"],
+                              "YouTube CDN": ["ytimg.com","youtube.com/embed","googlevideo.com","yt3.ggpht.com","youtube-nocookie.com"],
+                              "Facebook Ad CDN": ["fbcdn.net","facebook.com/tr","connect.facebook.net","facebook.net"],
+                              "Facebook CDN": ["fbcdn.net","fbstatic-a.akamaihd.net","static.xx.fbcdn.net","facebook.com"],
+                              "New Relic CDN": ["nr-data.net","newrelic.com","js-agent.newrelic.com","bam.nr-data.net"],
+                              "jsDelivr": ["cdn.jsdelivr.net","jsdelivr.net"],
+                              "unpkg": ["unpkg.com"],
+                              "KeyCDN": ["kxcdn.com","keycdn.com"],
+                              "Fastly": ["fastly.net","fastlylb.net","global.ssl.fastly.net"],
+                              "StackPath": ["stackpathcdn.com","stackpath.com","bootstrapcdn.com"],
+                              "BunnyCDN": ["b-cdn.net","bunnycdn.com","bunny.net"],
+                              "Google CDN": ["ajax.googleapis.com","fonts.googleapis.com","fonts.gstatic.com","storage.googleapis.com","gstatic.com","googleusercontent.com"],
+                              // Frameworks
+                              "React": ["react.","reactdom","react-dom","_react","__react"],
+                              "Next.js": ["_next/","next/","__next","nextjs"],
+                              "Vue.js": ["vue.js","vue.min","vuejs.org","vue.global","vue.esm"],
+                              "Angular": ["angular.","ng-","angular.io","zone.js"],
+                              "Ember.js": ["ember.","emberjs.com","ember-cli"],
+                              "Vite": ["/@vite","vite/","vitejs"],
+                              "Svelte": ["svelte","__svelte"],
+                              "Nuxt": ["_nuxt/","nuxt."],
+                              "jQuery": ["jquery.","jquery/","jquery.min","code.jquery.com"],
+                              // Hosting
+                              "Cloudflare": ["cloudflare.com","cdn-cgi","cloudflareinsights.com"],
+                              "Vercel": ["vercel.app","vercel.com","vercel-insights","va.vercel-scripts.com","_vercel"],
+                              "Netlify": ["netlify.app","netlify.com","netlify-cms"],
+                              "AWS": ["amazonaws.com","aws.amazon.com","s3.amazonaws","elasticbeanstalk"],
+                              "Google Cloud": ["googleapis.com","google.com","gstatic.com","firebase"],
+                              "Heroku": ["herokuapp.com","heroku.com"],
+                              "DigitalOcean": ["digitaloceanspaces.com","digitalocean.com"],
+                              "Fly.io": ["fly.dev","fly.io"],
+                              "Railway": ["railway.app"],
+                              "Render": ["onrender.com"],
+                              // Analytics
+                              "Google Analytics": ["google-analytics.com","analytics.js","gtag/js","googletagmanager.com","ga.js","collect?v="],
+                              "Google Tag Manager": ["googletagmanager.com","gtm.js","tagmanager.google"],
+                              "Segment": ["segment.com","segment.io","cdn.segment.com","analytics.min.js"],
+                              "Mixpanel": ["mixpanel.com","mxpnl.com","cdn.mxpnl.com"],
+                              "Amplitude": ["amplitude.com","cdn.amplitude.com","amplitude.min"],
+                              "Hotjar": ["hotjar.com","static.hotjar.com","script.hotjar.com"],
+                              "Heap": ["heap.io","heapanalytics.com","cdn.heapanalytics.com"],
+                              "Plausible": ["plausible.io"],
+                              "PostHog": ["posthog.com","app.posthog.com","us.posthog.com"],
+                              "Clarity": ["clarity.ms","microsoft.com/clarity"],
+                              "FullStory": ["fullstory.com","rs.fullstory.com"],
+                              "LogRocket": ["logrocket.com","cdn.logrocket.io","lr-in.com"],
+                              // Payments
+                              "Stripe": ["stripe.com","js.stripe.com","stripe.network","m.stripe.com","m.stripe.network"],
+                              "PayPal": ["paypal.com","paypalobjects.com","braintreegateway.com","braintree-api.com"],
+                              "Braintree": ["braintreegateway.com","braintree-api.com"],
+                              "Square": ["squareup.com","squareupsandbox.com","square.site"],
+                              "Paddle": ["paddle.com","cdn.paddle.com"],
+                              "LemonSqueezy": ["lemonsqueezy.com","lmsqueezy.com"],
+                              // E-commerce
+                              "Shopify": ["shopify.com","cdn.shopify.com","myshopify.com","shopifycdn.com"],
+                              "WooCommerce": ["woocommerce","wc-ajax"],
+                              "BigCommerce": ["bigcommerce.com","mybigcommerce.com"],
+                              "Magento": ["magento","mage/"],
+                              // Security
+                              "reCAPTCHA": ["recaptcha","google.com/recaptcha","gstatic.com/recaptcha"],
+                              "hCaptcha": ["hcaptcha.com","js.hcaptcha.com"],
+                              "Cloudflare Turnstile": ["challenges.cloudflare.com","turnstile"],
+                              "New Relic": ["newrelic.com","nr-data.net","js-agent.newrelic","bam.nr-data"],
+                              // Observability
+                              "Datadog": ["datadoghq.com","datadog-agent","dd-agent"],
+                              "Sentry": ["sentry.io","browser.sentry-cdn.com","sentry-cdn.com"],
+                              // Social APIs
+                              "Facebook SDK": ["connect.facebook.net","facebook.com/plugins","fbcdn.net","fb.com"],
+                              "YouTube Embed": ["youtube.com/embed","youtube-nocookie.com","ytimg.com"],
+                              "Twitter/X": ["platform.twitter.com","twitter.com/widgets","x.com","cdn.syndication.twimg.com"],
+                              "Instagram": ["instagram.com","cdninstagram.com"],
+                              "TikTok": ["tiktok.com","sf16-website-login"],
+                              "LinkedIn": ["platform.linkedin.com","linkedin.com"],
+                              "Pinterest": ["pinimg.com","pinterest.com","assets.pinterest.com"],
+                              // Engagement
+                              "Intercom": ["intercom.io","intercomcdn.com","widget.intercom.io","js.intercomcdn.com"],
+                              "Drift": ["drift.com","js.driftt.com","driftt.com"],
+                              "Zendesk": ["zendesk.com","zdassets.com","zopim.com"],
+                              "Crisp": ["crisp.chat","client.crisp.chat"],
+                              "HubSpot": ["hubspot.com","hs-analytics.net","hs-scripts.com","hsforms.com","hubspot.net","hscollectedforms.net","hsadspixel.net"],
+                              "Iterable In-App": ["iterable.com","js.iterable.com","api.iterable.com"],
+                              "LiveChat": ["livechatinc.com","livechat.com","cdn.livechatinc.com"],
+                              "Tawk.to": ["tawk.to","embed.tawk.to"],
+                              "Freshdesk": ["freshdesk.com","freshworks.com"],
+                              // Marketing / Email
+                              "Mailchimp": ["mailchimp.com","chimpstatic.com","list-manage.com","mc.us"],
+                              "SendGrid": ["sendgrid.net","sendgrid.com"],
+                              "Klaviyo": ["klaviyo.com","static.klaviyo.com"],
+                              "ActiveCampaign": ["activecampaign.com","trackcmp.net"],
+                              // CRM
+                              "Salesforce": ["salesforce.com","force.com","sfdc.net","salesforceliveagent.com"],
+                              // Ads
+                              "Google Ads": ["googlesyndication.com","googleadservices.com","doubleclick.net","google.com/pagead","adservice.google"],
+                              "Facebook Pixel": ["facebook.com/tr","connect.facebook.net/en_US/fbevents","fbevents.js"],
+                              "Bing Ads": ["bat.bing.com","bing.com/bat"],
+                              "TikTok Pixel": ["analytics.tiktok.com","tiktok.com/i18n"],
+                              "Criteo": ["criteo.com","static.criteo.net"],
+                              "Taboola": ["taboola.com","cdn.taboola.com"],
+                              "Outbrain": ["outbrain.com","widgets.outbrain.com"],
+                              // Testing
+                              "Optimizely": ["optimizely.com","cdn.optimizely.com"],
+                              "VWO": ["visualwebsiteoptimizer.com","dev.visualwebsiteoptimizer.com"],
+                              "LaunchDarkly": ["launchdarkly.com","events.launchdarkly.com"],
+                              // Fonts & Design
+                              "Google Fonts": ["fonts.googleapis.com","fonts.gstatic.com"],
+                              "Adobe Fonts": ["use.typekit.net","typekit.com","p.typekit.net"],
+                              "Font Awesome": ["fontawesome.com","use.fontawesome.com","kit.fontawesome.com","fa."],
+                              // Auth
+                              "Auth0": ["auth0.com","cdn.auth0.com"],
+                              "Firebase": ["firebase.com","firebaseapp.com","firebaseio.com","gstatic.com/firebasejs"],
+                              "Supabase": ["supabase.co","supabase.com","supabase.in"],
+                              "Clerk": ["clerk.com","clerk.dev","clerk.accounts.dev"],
+                              // Misc
+                              "WordPress": ["wp-content","wp-includes","wp-json","wordpress.com","wordpress.org"],
+                              "Wix": ["wix.com","parastorage.com","wixsite.com","static.wixstatic.com"],
+                              "Squarespace": ["squarespace.com","sqspcdn.com","static1.squarespace.com"],
+                              "Webflow": ["webflow.com","assets.website-files.com","uploads-ssl.webflow.com"],
+                              "Ghost": ["ghost.io","ghost.org"],
+                              "Contentful": ["contentful.com","ctfassets.net","images.ctfassets.net"],
+                              "Sanity": ["sanity.io","cdn.sanity.io","apicdn.sanity.io"],
+                              "Algolia": ["algolia.net","algolianet.com","algolia.com","algoliasearch"],
+                              "Twilio": ["twilio.com"],
+                              "Mapbox": ["mapbox.com","api.mapbox.com","tiles.mapbox.com"],
+                              "Google Maps": ["maps.googleapis.com","maps.google.com","maps.gstatic.com"],
+                            };
+
+                            // Build signatures: use known map first, fallback to name-based
                             const providerSigs: Record<string, string[]> = {};
                             for (const p of providers) {
-                              const nameLC = p.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-                              const sigs = [nameLC];
-                              // Add common domain patterns
-                              if (nameLC.length > 2) sigs.push(nameLC + ".com", nameLC + ".io", nameLC + ".co", nameLC + ".net", nameLC + ".org");
-                              providerSigs[p.name] = sigs;
+                              // Try exact match, then partial match against known sigs
+                              const nameLC = p.name.toLowerCase();
+                              const knownKey = Object.keys(KNOWN_SIGS).find(k => k.toLowerCase() === nameLC);
+                              if (knownKey) {
+                                providerSigs[p.name] = KNOWN_SIGS[knownKey];
+                              } else {
+                                // Fuzzy: find any known key that contains this name or vice versa
+                                const fuzzyKey = Object.keys(KNOWN_SIGS).find(k => {
+                                  const kn = k.toLowerCase().replace(/[^a-z0-9]/g, "");
+                                  const pn = nameLC.replace(/[^a-z0-9]/g, "");
+                                  return kn.includes(pn) || pn.includes(kn);
+                                });
+                                if (fuzzyKey) {
+                                  providerSigs[p.name] = KNOWN_SIGS[fuzzyKey];
+                                } else {
+                                  // Fallback: name-based
+                                  const clean = nameLC.replace(/[^a-z0-9]/g, "");
+                                  providerSigs[p.name] = [clean, clean + ".com", clean + ".io", clean + ".co", clean + ".net", clean + ".org", clean + ".js", clean + ".min.js"];
+                                }
+                              }
                             }
 
                             // Match URLs to each provider
@@ -1902,6 +2051,7 @@ RULES:
                             for (const p of providers) {
                               const sigs = providerSigs[p.name] || [];
                               const matched = allUrls.filter(url => {
+                                if (!url) return false;
                                 const urlLC = url.toLowerCase();
                                 return sigs.some(sig => urlLC.includes(sig));
                               });
