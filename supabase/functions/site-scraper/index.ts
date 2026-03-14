@@ -203,7 +203,7 @@ interface DeepCorpus {
 }
 
 async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<DeepCorpus> {
-  const MAX_PAGES = 40;
+  const MAX_PAGES = 8;
   const root = new URL(startUrl);
   const rootDomain = getRegistrableDomain(root.hostname);
   const origins = [...new Set([root.origin, `https://${normalizeHost(rootDomain)}`, `https://www.${normalizeHost(rootDomain)}`, ...SUB_SEEDS.map(s => `https://${s}.${normalizeHost(rootDomain)}`)])];
