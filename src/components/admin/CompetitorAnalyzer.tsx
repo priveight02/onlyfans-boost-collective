@@ -196,6 +196,11 @@ const CompetitorAnalyzer = ({
   const [gapAnalysis, setGapAnalysis] = useState<any>(null);
   const [gapLoading, setGapLoading] = useState(false);
 
+  // Site scraper state
+  const [scrapeUrl, setScrapeUrl] = useState("");
+  const [scrapeResult, setScrapeResult] = useState<any>(null);
+  const [scrapeLoading, setScrapeLoading] = useState(false);
+
   const { performAction } = useCreditAction();
 
   // Load competitors on mount
