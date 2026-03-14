@@ -1169,12 +1169,7 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
       reddit: /reddit\.com\/[^"'\s)]+/gi, discord: /discord\.gg\/[^"'\s)]+/gi,
       telegram: /t\.me\/[^"'\s)]+/gi, whatsapp: /wa\.me\/[^"'\s)]+/gi,
       threads: /threads\.net\/@[^"'\s)]+/gi, mastodon: /mastodon\.[^"'\s)]+\/@[^"'\s)]+/gi,
-      bluesky: /bsky\.app\/profile\/[^"'\s)]+/gi, snapchat: /snapchat\.com\/add\/[^"'\s)]+/gi,
-      twitch: /twitch\.tv\/[^"'\s)]+/gi, spotify: /open\.spotify\.com\/(?:user|artist|show)\/[^"'\s)]+/gi,
-      medium: /medium\.com\/@?[^"'\s)]+/gi, substack: /[a-z0-9-]+\.substack\.com/gi,
-      patreon: /patreon\.com\/[^"'\s)]+/gi, onlyfans: /onlyfans\.com\/[^"'\s)]+/gi,
-      linktree: /linktr\.ee\/[^"'\s)]+/gi, beacons: /beacons\.ai\/[^"'\s)]+/gi,
-      cashapp: /cash\.app\/\$[^"'\s)]+/gi, venmo: /venmo\.com\/[^"'\s)]+/gi,
+      bluesky: /bsky\.app\/profile\/[^"'\s)]+/gi,
     };
     const socialLinks: Record<string, string[]> = {};
     for (const [platform, regex] of Object.entries(socialPatterns)) {
@@ -1183,52 +1178,6 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
         if (matches.length) socialLinks[platform] = matches.slice(0, 5);
       } catch {}
     }
-
-    // Parse actual usernames/handles from URLs
-    const ignoreSlugs = new Set(["share", "sharer", "intent", "channel", "c", "user", "in", "company", "pages", "groups", "watch", "embed", "playlist", "about", "explore", "search", "login", "signup", "settings", "help", "support", "terms", "privacy", "policy"]);
-    const socialHandles: Record<string, string[]> = {};
-    for (const [platform, links] of Object.entries(socialLinks)) {
-      const handles: string[] = [];
-      for (const link of links) {
-        try {
-          const u = new URL(link);
-          const path = u.pathname.replace(/\/$/, "");
-          const parts = path.split("/").filter(Boolean);
-          if (parts.length > 0) {
-            let handle = parts[parts.length - 1];
-            if (handle.startsWith("@")) handle = handle.slice(1);
-            if (handle && !ignoreSlugs.has(handle.toLowerCase()) && handle.length > 1 && handle.length < 60) {
-              handles.push(handle);
-            }
-          }
-        } catch {}
-      }
-      if (handles.length > 0) socialHandles[platform] = [...new Set(handles)];
-    }
-
-    // Extract pricing/revenue intelligence from corpus
-    const priceMatches = [...new Set((dHtml.match(/[\$€£]\s?\d[\d,]*\.?\d{0,2}/g) || []))].slice(0, 30);
-    const planNamePatterns = /(?:free|starter|basic|pro|premium|business|enterprise|team|growth|scale|unlimited|plus|advanced|standard|hobby|personal|professional|agency|studio|power|elite|creator|developer|organization)\s*(?:plan|tier|package)?/gi;
-    const planNames = [...new Set((dHtml.match(planNamePatterns) || []).map(p => p.trim()))].slice(0, 15);
-    const billingTerms = {
-      hasMonthly: /\/mo(?:nth)?|per month|monthly|billed monthly/i.test(dHtml),
-      hasYearly: /\/yr|\/year|per year|yearly|annually|billed annually|billed yearly/i.test(dHtml),
-      hasLifetime: /lifetime|one.?time|forever/i.test(dHtml),
-      hasFreeTier: /free (?:plan|tier|forever|trial)|get started free|start free/i.test(dHtml),
-      hasTrial: /free trial|trial period|\d+.?day trial/i.test(dHtml),
-      hasCredits: /credit|token|usage.?based|pay.?as.?you.?go|metered/i.test(dHtml),
-    };
-    const checkoutSignals = {
-      hasCheckout: /checkout|check.?out|payment|pay now|complete purchase|place order/i.test(dHtml),
-      hasCart: /add to cart|shopping cart|view cart|cart items/i.test(dHtml),
-      hasSubscription: /subscription|subscribe|recurring|billing cycle/i.test(dHtml),
-      hasCoupons: /coupon|discount|promo code|voucher/i.test(dHtml),
-      hasUpsell: /upgrade|upsell|add.?on|premium feature|unlock/i.test(dHtml),
-      hasCrossSell: /you might also|recommended|frequently bought|bundle/i.test(dHtml),
-      hasDownsell: /downgrade|lower plan|cancel|pause subscription/i.test(dHtml),
-      hasBulkPricing: /bulk|volume|enterprise pricing|custom pricing|contact sales/i.test(dHtml),
-    };
-    const pricingData = { pricePoints: priceMatches, planNames, billingTerms, checkoutSignals };
 
     // Detection using deep corpus
     const dHtml = deep?.combined || html;
@@ -1474,7 +1423,7 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
       images: { total: imagesWithAlt.length, withAlt: imagesWithAlt.filter(i => i.hasAlt && i.alt).length, withoutAlt: imagesWithAlt.filter(i => !i.hasAlt || !i.alt).length, samples: imagesWithAlt.slice(0, 15) },
       scripts: { external: scripts, inlineCount: (html.match(/<script[^>]*>[\s\S]*?<\/script>/gi) || []).length, stylesheets, inlineStyleCount: (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).length },
       performance: { hasServiceWorker, hasManifest, hasPreconnect, hasPreload, hasDeferScripts, hasAsyncScripts, hasLazyImages, hasResponsiveImages, hasWebP, hasAVIF, pageSizeKB },
-      structuredData, socialLinks, socialHandles, pricingData, detectedPlatforms, headerTechDetections: headerTech, screenshotUrl,
+      structuredData, socialLinks, detectedPlatforms, headerTechDetections: headerTech, screenshotUrl,
       scanCoverage: {
         pagesScanned: deep?.pages || 1, scannedUrls: (deep?.scannedUrls || [url]).slice(0, 30),
         sitemapUrlsFound: deep?.sitemapUrls?.length || 0, sitemapSample: (deep?.sitemapUrls || []).slice(0, 20),

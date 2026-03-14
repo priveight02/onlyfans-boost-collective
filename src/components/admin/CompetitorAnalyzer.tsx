@@ -200,8 +200,7 @@ const CompetitorAnalyzer = ({
   const [scrapeUrl, setScrapeUrl] = useState("");
   const [scrapeResult, setScrapeResult] = useState<any>(null);
   const [scrapeLoading, setScrapeLoading] = useState(false);
-  const [financialData, setFinancialData] = useState<any>(null);
-  const [financialLoading, setFinancialLoading] = useState(false);
+
   const { performAction } = useCreditAction();
 
   // Load competitors on mount
@@ -569,7 +568,6 @@ Return ONLY valid JSON:
     await performAction("site_scrape", async () => {
       setScrapeLoading(true);
       setScrapeResult(null);
-      setFinancialData(null);
       try {
         const { data, error } = await supabase.functions.invoke("site-scraper", {
           body: { url: scrapeUrl.trim() },
@@ -584,116 +582,6 @@ Return ONLY valid JSON:
         throw err;
       } finally {
         setScrapeLoading(false);
-      }
-    });
-  };
-
-  // ─── Financial Intelligence (AI-powered) ─────────
-  const runFinancialAnalysis = async () => {
-    if (!scrapeResult) return;
-    await performAction("competitor_insight", async () => {
-      setFinancialLoading(true);
-      try {
-        const pd = scrapeResult.pricingData || {};
-        const dp = scrapeResult.detectedPlatforms || {};
-        const socialCount = Object.keys(scrapeResult.socialLinks || {}).length;
-        const seo = scrapeResult.seoScore || 0;
-        const scanInfo = scrapeResult.scanCoverage || {};
-
-        const prompt = `You are an elite competitive intelligence and financial analyst. Analyze this website's business model and estimate financial metrics.
-
-SCRAPED DATA:
-- URL: ${scrapeResult.finalUrl || scrapeResult.url}
-- Title: ${scrapeResult.basic?.title || "Unknown"}
-- Description: ${scrapeResult.basic?.description || ""}
-- SEO Score: ${seo}/100
-- Pages Scanned: ${scanInfo.pagesScanned || 1}
-- Sitemap URLs: ${scanInfo.sitemapUrlsFound || 0}
-- Word Count: ${scrapeResult.content?.wordCount || 0}
-- Page Size: ${scrapeResult.performance?.pageSizeKB || 0}KB
-- Social Platforms: ${socialCount}
-- Payment Providers: ${JSON.stringify((dp.payments || []).map((p: any) => p.name))}
-- E-commerce: ${JSON.stringify((dp.ecommerce || []).map((p: any) => p.name))}
-- Analytics: ${JSON.stringify((dp.analytics || []).map((p: any) => p.name))}
-- Backend: ${JSON.stringify((dp.backendProviders || []).map((p: any) => p.name))}
-- CRM: ${JSON.stringify((dp.crm || []).map((p: any) => p.name))}
-- Price Points Found: ${JSON.stringify(pd.pricePoints || [])}
-- Plan Names: ${JSON.stringify(pd.planNames || [])}
-- Billing: Monthly=${pd.billingTerms?.hasMonthly}, Yearly=${pd.billingTerms?.hasYearly}, Lifetime=${pd.billingTerms?.hasLifetime}, FreeTier=${pd.billingTerms?.hasFreeTier}, Trial=${pd.billingTerms?.hasTrial}, Credits=${pd.billingTerms?.hasCredits}
-- Checkout: ${JSON.stringify(pd.checkoutSignals || {})}
-- Ads: ${JSON.stringify((dp.ads || []).map((p: any) => p.name))}
-- Affiliate: ${JSON.stringify((dp.affiliate || []).map((p: any) => p.name))}
-
-Based on this data and your knowledge of similar businesses, provide comprehensive financial intelligence.
-
-Return ONLY valid JSON:
-{
-  "trafficEstimates": {
-    "daily": "<number with suffix like 500 or 2.5K>",
-    "weekly": "<number>",
-    "monthly": "<number>",
-    "yearly": "<number>",
-    "trend": "growing/stable/declining",
-    "sources": ["organic", "paid", "social", "direct", "referral"],
-    "topSourcePct": "<e.g. 45% organic>"
-  },
-  "revenueEstimates": {
-    "daily": "<dollar amount like $150 or $2.5K>",
-    "weekly": "<dollar amount>",
-    "monthly": "<dollar amount>",
-    "yearly": "<dollar amount>",
-    "confidence": "low/medium/high",
-    "methodology": "<brief explanation of how you estimated>"
-  },
-  "businessModel": {
-    "type": "<SaaS/E-commerce/Marketplace/Freemium/Ad-supported/etc>",
-    "primaryRevenue": "<main revenue source>",
-    "secondaryRevenue": ["<other sources>"],
-    "monetizationScore": <1-100>
-  },
-  "pricingAnalysis": {
-    "plans": [{"name": "<plan>", "price": "<price>", "billing": "<monthly/yearly>", "features": ["<key feature>"]}],
-    "avgRevenuePerUser": "<ARPU estimate>",
-    "conversionFunnel": "<assessment of their funnel>",
-    "pricingStrategy": "<penetration/premium/freemium/value-based/etc>"
-  },
-  "incomeStreams": [
-    {"source": "<stream name>", "estimatedPct": "<% of total>", "type": "recurring/one-time/usage-based", "details": "<brief>"}
-  ],
-  "commerceSignals": {
-    "hasUpsell": <boolean>,
-    "hasCrossSell": <boolean>,
-    "hasDownsell": <boolean>,
-    "hasBulkPricing": <boolean>,
-    "hasAffiliateProgram": <boolean>,
-    "hasReferralProgram": <boolean>,
-    "loyaltyProgram": <boolean>
-  },
-  "competitivePosition": {
-    "marketSegment": "<segment>",
-    "estimatedMarketShare": "<rough %>",
-    "competitiveAdvantages": ["<advantage>"],
-    "vulnerabilities": ["<vulnerability>"]
-  },
-  "growthIndicators": {
-    "score": <1-100>,
-    "signals": ["<positive signal>"],
-    "risks": ["<risk>"]
-  }
-}
-
-Be as accurate as possible. Use real industry benchmarks. If uncertain, provide ranges.`;
-
-        const aiReply = await callAI(prompt);
-        const parsed = parseJSON(aiReply);
-        setFinancialData(parsed);
-        toast.success("Financial analysis complete");
-        return true;
-      } catch (err: any) {
-        toast.error("Financial analysis failed");
-        throw err;
-      } finally {
-        setFinancialLoading(false);
       }
     });
   };
@@ -1585,168 +1473,174 @@ Be as accurate as possible. Use real industry benchmarks. If uncertain, provide 
                   </CardContent>
                 </Card>
 
-                {/* ═══ UNIFIED SOCIAL MEDIA CARD ═══ */}
-                <Card className="crm-card md:col-span-2">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-pink-400 flex items-center gap-2">
-                      <Users className="h-4 w-4" /> Social Media Presence
-                      <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">
-                        {Object.keys(scrapeResult.socialLinks || {}).length + Object.keys(scrapeResult.socialHandles || {}).length > 0
-                          ? `${Object.keys(scrapeResult.socialLinks || {}).length} platforms`
-                          : "0 found"}
-                      </Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {Object.keys(scrapeResult.socialLinks || {}).length > 0 ? (
-                      <div className="space-y-3">
-                        {/* Handles grid */}
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                          {Object.entries(scrapeResult.socialLinks || {}).map(([platform, links]) => {
-                            const handles = (scrapeResult.socialHandles || {})[platform] || [];
-                            const platformIcons: Record<string, string> = {
-                              facebook: "🔵", twitter: "🐦", instagram: "📸", linkedin: "💼", youtube: "🎬",
-                              tiktok: "🎵", pinterest: "📌", github: "🐙", reddit: "🔴", discord: "💬",
-                              telegram: "✈️", whatsapp: "💬", snapchat: "👻", threads: "🧵", mastodon: "🐘",
-                              bluesky: "🦋", twitch: "🟣", spotify: "🎧", medium: "📝", substack: "📰",
-                              patreon: "🎨", onlyfans: "💎", linktree: "🌳", beacons: "🔗", cashapp: "💵", venmo: "💳",
-                            };
-                            return (
-                              <div key={platform} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                                <div className="flex items-center gap-2 mb-1.5">
-                                  <span className="text-base">{platformIcons[platform] || "🌐"}</span>
-                                  <span className="text-xs font-medium text-white/80 capitalize">{platform}</span>
-                                </div>
-                                {handles.length > 0 ? (
-                                  <div className="space-y-0.5">
-                                    {handles.map((h: string, i: number) => (
-                                      <p key={i} className="text-[11px] text-[hsl(217,91%,60%)] font-mono">@{h}</p>
-                                    ))}
-                                  </div>
-                                ) : (
-                                  <div className="space-y-0.5">
-                                    {(links as string[]).slice(0, 2).map((link, i) => (
-                                      <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[hsl(217,91%,60%)]/60 hover:text-[hsl(217,91%,60%)] block truncate">{link}</a>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
+                {/* Twitter Card */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(217,91%,60%)] flex items-center gap-2"><Hash className="h-4 w-4" /> Twitter Card</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {(() => {
+                      const og = scrapeResult.openGraph || {};
+                      const twitterEntries = Object.entries(scrapeResult.twitterCard || {}).filter(([k, v]) => {
+                        if (!v) return false;
+                        if (["title", "description", "image"].includes(k)) {
+                          const ogValue = (og as Record<string, string>)[k];
+                          return (ogValue || "").trim().toLowerCase() !== String(v).trim().toLowerCase();
+                        }
+                        return true;
+                      });
+
+                      if (twitterEntries.length === 0) {
+                        return <p className="text-xs text-white/30 text-center py-4">No unique Twitter Card tags found</p>;
+                      }
+
+                      return twitterEntries.map(([k, v]) => (
+                        <div key={k} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02]">
+                          <span className="text-[10px] text-white/40 w-16 flex-shrink-0">{k}</span>
+                          {k === "image" ? (
+                            <div className="flex-1">
+                              <img src={v as string} alt="Twitter Card" className="max-h-20 rounded border border-white/10" onError={e => (e.currentTarget.style.display = "none")} />
+                              <p className="text-[10px] text-white/40 mt-1 break-all">{v as string}</p>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-white/70 flex-1 break-all">{v as string}</span>
+                          )}
                         </div>
-                        {/* Twitter/OG card data if unique */}
-                        {(() => {
-                          const tc = scrapeResult.twitterCard || {};
-                          const uniqueFields = Object.entries(tc).filter(([k, v]) => {
-                            if (!v) return false;
-                            if (["title", "description", "image"].includes(k)) {
-                              const ogV = (scrapeResult.openGraph || {} as Record<string, string>)[k];
-                              return (ogV || "").trim().toLowerCase() !== String(v).trim().toLowerCase();
-                            }
-                            return true;
-                          });
-                          if (uniqueFields.length === 0) return null;
-                          return (
-                            <div className="pt-2 border-t border-white/[0.04]">
-                              <p className="text-[10px] text-white/30 mb-1.5">Twitter/X Card Meta</p>
-                              <div className="grid grid-cols-2 gap-1.5">
-                                {uniqueFields.map(([k, v]) => (
-                                  <div key={k} className="flex items-center gap-2 p-1.5 rounded bg-white/[0.02]">
-                                    <span className="text-[9px] text-white/40 w-14">{k}</span>
-                                    <span className="text-[10px] text-white/60 truncate flex-1">{String(v)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                        {/* Social API detections */}
-                        {(() => {
-                          const sm = (scrapeResult.detectedPlatforms?.socialMedia || []) as { name: string; confidence: string }[];
-                          if (sm.length === 0) return null;
-                          return (
-                            <div className="pt-2 border-t border-white/[0.04]">
-                              <p className="text-[10px] text-white/30 mb-1.5">Social API Integrations</p>
-                              <div className="flex flex-wrap gap-1.5">
-                                {sm.map((s: any) => (
-                                  <Badge key={s.name} variant="outline" className={`text-[9px] ${s.confidence === "high" ? "border-pink-400/30 text-pink-400" : "border-white/10 text-white/40"}`}>{s.name}</Badge>
-                                ))}
-                              </div>
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-white/30 text-center py-4">No social media presence detected</p>
-                    )}
+                      ));
+                    })()}
                   </CardContent>
                 </Card>
 
-                {/* ═══ UNIFIED TECH INFRASTRUCTURE CARD ═══ */}
+                {/* Headings */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-400 flex items-center gap-2"><FileText className="h-4 w-4" /> Heading Structure</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {(scrapeResult.headings?.h1 || []).map((h: string, i: number) => (
+                      <div key={`h1-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-emerald-400/15 text-emerald-400 text-[9px]">H1</Badge>
+                        <span className="text-xs text-white/70">{h}</span>
+                      </div>
+                    ))}
+                    {(scrapeResult.headings?.h2 || []).slice(0, 10).map((h: string, i: number) => (
+                      <div key={`h2-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)] text-[9px]">H2</Badge>
+                        <span className="text-xs text-white/70">{h}</span>
+                      </div>
+                    ))}
+                    {(scrapeResult.headings?.h3 || []).slice(0, 5).map((h: string, i: number) => (
+                      <div key={`h3-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-white/10 text-white/50 text-[9px]">H3</Badge>
+                        <span className="text-xs text-white/70">{h}</span>
+                      </div>
+                    ))}
+                    {scrapeResult.headings?.h1?.length === 0 && <p className="text-xs text-red-400/70 text-center py-2">⚠ No H1 tag found — bad for SEO</p>}
+                    {(scrapeResult.headings?.h1?.length || 0) > 1 && <p className="text-xs text-amber-400/70 text-center py-2">⚠ Multiple H1 tags — consider using only one</p>}
+                  </CardContent>
+                </Card>
+
+              {/* Detected Platforms - categorized */}
                 {(() => {
                   const dp = scrapeResult.detectedPlatforms || {};
-                  const infraCategories = [
-                    { key: "payments", label: "💳 Payment Platforms", items: dp.payments || [] },
-                    { key: "crm", label: "📊 CRM Systems", items: dp.crm || [] },
-                    { key: "analytics", label: "📈 Analytics & Tracking", items: dp.analytics || [] },
-                    { key: "marketing", label: "📧 Email & Marketing", items: dp.marketing || [] },
-                    { key: "support", label: "💬 Customer Support", items: dp.support || [] },
-                    { key: "ecommerce", label: "🛒 E-commerce", items: dp.ecommerce || [] },
-                    { key: "hosting", label: "🌐 Hosting & Infra", items: dp.hosting || [] },
-                    { key: "cdn", label: "⚡ CDN Providers", items: dp.cdn || [] },
-                    { key: "fileStorage", label: "💾 File Storage", items: dp.fileStorage || [] },
-                    { key: "frameworks", label: "🔧 Frameworks & CMS", items: dp.frameworks || [] },
-                    { key: "backendProviders", label: "🖥️ Backend Providers", items: dp.backendProviders || [] },
-                    { key: "identityAuth", label: "🔐 Identity & Auth", items: dp.identityAuth || [] },
-                    { key: "databaseInfra", label: "🗄️ Database & Data", items: dp.databaseInfra || [] },
-                    { key: "observability", label: "📡 Observability", items: dp.observability || [] },
-                    { key: "ads", label: "📢 Ads & Monetization", items: dp.ads || [] },
-                    { key: "security", label: "🛡️ Security", items: dp.security || [] },
-                    { key: "aiTools", label: "🤖 AI & ML Tools", items: dp.aiTools || [] },
-                    { key: "scheduling", label: "📅 Scheduling", items: dp.scheduling || [] },
-                    { key: "forms", label: "📝 Forms & Surveys", items: dp.forms || [] },
-                    { key: "socialProof", label: "⭐ Reviews & Social Proof", items: dp.socialProof || [] },
-                    { key: "seoTools", label: "🔍 SEO Tools", items: dp.seoTools || [] },
-                    { key: "productivity", label: "🚀 Productivity", items: dp.productivity || [] },
-                    { key: "affiliate", label: "🤝 Affiliate & Referral", items: dp.affiliate || [] },
-                    { key: "personalization", label: "🎯 A/B Testing", items: dp.personalization || [] },
-                    { key: "engagement", label: "📱 Engagement", items: dp.engagement || [] },
-                  ].filter(c => (c.items as any[]).length > 0);
-
-                  const totalDetected = infraCategories.reduce((a, c) => a + (c.items as any[]).length, 0);
-
-                  return (
+                  const categories: { key: string; label: string; color: string; icon: any }[] = [
+                    { key: "crm", label: "CRM Systems", color: "text-purple-400", icon: Users },
+                    { key: "payments", label: "Payment Platforms", color: "text-emerald-400", icon: Zap },
+                    { key: "analytics", label: "Analytics & Tracking", color: "text-[hsl(217,91%,60%)]", icon: BarChart3 },
+                    { key: "marketing", label: "Email & Marketing", color: "text-pink-400", icon: Sparkles },
+                    { key: "support", label: "Customer Support & Chat", color: "text-cyan-400", icon: Activity },
+                    { key: "ecommerce", label: "E-commerce Platform", color: "text-orange-400", icon: Globe },
+                    { key: "hosting", label: "Hosting & Infrastructure", color: "text-teal-400", icon: Globe },
+                    { key: "cdn", label: "CDN Providers", color: "text-sky-400", icon: Globe },
+                    { key: "fileStorage", label: "File Storage & Media CDN", color: "text-violet-400", icon: ImageIcon },
+                    { key: "frameworks", label: "Frameworks & CMS", color: "text-amber-400", icon: Code },
+                    { key: "ads", label: "Ads & Monetization", color: "text-yellow-400", icon: TrendingUp },
+                    { key: "security", label: "Security, Auth & Monitoring", color: "text-red-400", icon: Shield },
+                    { key: "identityAuth", label: "Identity & Auth Providers", color: "text-rose-300", icon: Lock },
+                    { key: "databaseInfra", label: "Database & Data Infra", color: "text-emerald-300", icon: Activity },
+                    { key: "observability", label: "Observability & Monitoring", color: "text-orange-300", icon: Eye },
+                    { key: "scheduling", label: "Scheduling & Booking", color: "text-indigo-400", icon: Calendar },
+                    { key: "forms", label: "Forms & Surveys", color: "text-lime-400", icon: FileText },
+                    { key: "engagement", label: "Engagement & Media", color: "text-sky-400", icon: Eye },
+                    { key: "socialProof", label: "Reviews & Social Proof", color: "text-amber-300", icon: Star },
+                    { key: "seoTools", label: "SEO & Compliance Tools", color: "text-green-400", icon: Search },
+                    { key: "productivity", label: "Productivity & Collaboration", color: "text-violet-400", icon: Crown },
+                    { key: "socialMedia", label: "Social Media Integrations", color: "text-pink-500", icon: Globe },
+                    { key: "backendProviders", label: "Backend Providers", color: "text-cyan-300", icon: Code },
+                    { key: "aiTools", label: "AI & ML Tools", color: "text-fuchsia-400", icon: Sparkles },
+                    { key: "affiliate", label: "Affiliate & Referral", color: "text-rose-400", icon: TrendingUp },
+                    { key: "personalization", label: "Personalization & A/B Testing", color: "text-sky-300", icon: Eye },
+                  ];
+                  const persistentCards = ["backendProviders", "cdn", "fileStorage", "identityAuth", "databaseInfra", "observability"];
+                  const activeCats = categories.filter(c => persistentCards.includes(c.key) || (dp[c.key] || []).length > 0);
+                  if (activeCats.length === 0) return (
                     <Card className="crm-card md:col-span-2">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm font-medium text-cyan-400 flex items-center gap-2">
-                          <Code className="h-4 w-4" /> Tech Stack & Infrastructure
-                          <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{totalDetected} detected</Badge>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {infraCategories.length > 0 ? (
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                            {infraCategories.map(cat => (
-                              <div key={cat.key} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                                <p className="text-[10px] font-medium text-white/50 mb-1.5">{cat.label}</p>
-                                <div className="space-y-1">
-                                  {(cat.items as { name: string; confidence: string }[]).map((p: any) => (
-                                    <div key={p.name} className="flex items-center justify-between">
-                                      <span className="text-[11px] text-white/80">{p.name}</span>
-                                      <Badge variant="outline" className={`text-[8px] ${p.confidence === "high" ? "border-emerald-400/30 text-emerald-400" : "border-white/10 text-white/30"}`}>{p.confidence}</Badge>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="text-xs text-white/30 text-center py-4">No platforms detected</p>
-                        )}
+                      <CardContent className="p-6 text-center">
+                        <Code className="h-6 w-6 text-white/20 mx-auto mb-2" />
+                        <p className="text-xs text-white/30">No external platforms detected</p>
                       </CardContent>
                     </Card>
                   );
+                  return activeCats.map(cat => {
+                    const providers = (dp[cat.key] as { name: string; confidence: string }[]) || [];
+                    return (
+                      <Card key={cat.key} className="crm-card">
+                        <CardHeader className="pb-2">
+                          <CardTitle className={`text-sm font-medium flex items-center gap-2 ${cat.color}`}>
+                            <cat.icon className="h-4 w-4" /> {cat.label}
+                            <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{providers.length}</Badge>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {providers.length > 0 ? (
+                            <div className="space-y-1.5 max-h-64 overflow-auto">
+                              {providers.map((p: any) => (
+                                <div key={p.name} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                                  <span className="text-xs text-white/80">{p.name}</span>
+                                  <Badge variant="outline" className={`text-[9px] ${p.confidence === "high" ? "border-emerald-400/30 text-emerald-400" : "border-white/10 text-white/40"}`}>
+                                    {p.confidence}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-white/35">None detected</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  });
                 })()}
+
+                {/* Social Presence - Enhanced */}
+                <Card className="crm-card md:col-span-2">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2"><Link className="h-4 w-4" /> Social Presence <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{Object.keys(scrapeResult.socialLinks || {}).length} platforms</Badge></CardTitle></CardHeader>
+                  <CardContent>
+                    {Object.keys(scrapeResult.socialLinks || {}).length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {Object.entries(scrapeResult.socialLinks || {}).map(([platform, links]) => {
+                          const platformIcons: Record<string, string> = {
+                            facebook: "🔵", twitter: "🐦", instagram: "📸", linkedin: "💼", youtube: "🎬",
+                            tiktok: "🎵", pinterest: "📌", github: "🐙", reddit: "🔴", discord: "💬",
+                            telegram: "✈️", whatsapp: "💬", snapchat: "👻", threads: "🧵", mastodon: "🐘",
+                          };
+                          return (
+                            <div key={platform} className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-lg">{platformIcons[platform] || "🌐"}</span>
+                                <span className="text-xs font-medium text-white/80 capitalize">{platform}</span>
+                                <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{(links as string[]).length}</Badge>
+                              </div>
+                              <div className="space-y-1">
+                                {(links as string[]).map((link, i) => (
+                                  <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[hsl(217,91%,60%)]/70 hover:text-[hsl(217,91%,60%)] block break-all overflow-hidden text-ellipsis">{link}</a>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-white/30 text-center py-4">No social links found</p>
+                    )}
+                  </CardContent>
+                </Card>
 
                 {/* Security Headers */}
                 <Card className="crm-card">
@@ -1886,195 +1780,58 @@ Be as accurate as possible. Use real industry benchmarks. If uncertain, provide 
                 </Card>
               </div>
 
-              {/* ═══ UNIFIED DEEP ANALYSIS CARD ═══ */}
+              {/* ═══ CURATED METRICS ═══ */}
               {scrapeResult.curatedMetrics && (
-                <Card className="crm-card">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-white/70 flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4 text-[hsl(217,91%,60%)]" /> Deep Analysis
-                      <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{Object.keys(scrapeResult.curatedMetrics).length} sections</Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium text-white/50 flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" /> Deep Analysis
+                    <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{Object.keys(scrapeResult.curatedMetrics).length} categories</Badge>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {Object.entries(scrapeResult.curatedMetrics as Record<string, { label: string; items: Record<string, any> }>).map(([key, category]) => {
-                      const catEmojis: Record<string, string> = {
-                        contentQuality: "📝", seoSignals: "🔍", mediaAssets: "🖼️",
-                        techStack: "⚙️", monetization: "💰", uxFeatures: "✨",
-                        linkProfile: "🔗", securityScore: "🛡️",
+                      const catColors: Record<string, string> = {
+                        contentQuality: "text-cyan-400", seoSignals: "text-emerald-400", mediaAssets: "text-amber-400",
+                        techStack: "text-purple-400", monetization: "text-green-400", uxFeatures: "text-pink-400",
+                        linkProfile: "text-[hsl(217,91%,60%)]", securityScore: "text-red-400",
                       };
+                      const catIcons: Record<string, any> = {
+                        contentQuality: FileText, seoSignals: Target, mediaAssets: ImageIcon,
+                        techStack: Code, monetization: Zap, uxFeatures: Eye,
+                        linkProfile: Link, securityScore: Shield,
+                      };
+                      const IconComp = catIcons[key] || BarChart3;
+                      const color = catColors[key] || "text-white/60";
                       return (
-                        <div key={key} className="p-3 rounded-lg bg-white/[0.015] border border-white/[0.04]">
-                          <p className="text-[11px] font-medium text-white/60 mb-2">{catEmojis[key] || "📊"} {category.label}</p>
-                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-1">
-                            {Object.entries(category.items).map(([label, value]) => (
-                              <div key={label} className="flex items-center justify-between py-1 border-b border-white/[0.03]">
-                                <span className="text-[10px] text-white/40">{label}</span>
-                                {value === "✓" ? (
-                                  <CheckCircle className="h-3 w-3 text-emerald-400" />
-                                ) : value === "✗" ? (
-                                  <XCircle className="h-3 w-3 text-white/15" />
-                                ) : (
-                                  <span className="text-[11px] font-medium text-white/80">{String(value)}</span>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                        <Card key={key} className="crm-card">
+                          <CardHeader className="pb-2">
+                            <CardTitle className={`text-sm font-medium flex items-center gap-2 ${color}`}>
+                              <IconComp className="h-4 w-4" /> {category.label}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-1.5">
+                            {Object.entries(category.items).map(([label, value]) => {
+                              const isCheck = value === "✓";
+                              const isCross = value === "✗";
+                              return (
+                                <div key={label} className="flex items-center justify-between p-1.5 rounded bg-white/[0.02]">
+                                  <span className="text-[10px] text-white/50">{label}</span>
+                                  {isCheck ? (
+                                    <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+                                  ) : isCross ? (
+                                    <XCircle className="h-3.5 w-3.5 text-white/20" />
+                                  ) : (
+                                    <span className="text-xs font-medium text-white/80">{String(value)}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </CardContent>
+                        </Card>
                       );
                     })}
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* ═══ FINANCIAL INTELLIGENCE ═══ */}
-              <Card className="crm-card">
-                <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-medium text-green-400 flex items-center gap-2">
-                      <TrendingUp className="h-4 w-4" /> Financial Intelligence
-                      {financialData && <Badge variant="outline" className="text-[9px] border-green-400/20 text-green-400">AI-Analyzed</Badge>}
-                    </CardTitle>
-                    <Button size="sm" onClick={runFinancialAnalysis} disabled={financialLoading || !scrapeResult} className="bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-400/20 gap-1.5 text-xs h-7">
-                      {financialLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
-                      {financialLoading ? "Analyzing..." : financialData ? "Re-Analyze" : "Run Analysis"}
-                    </Button>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {financialData ? (
-                    <div className="space-y-4">
-                      {/* Revenue & Traffic Overview */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                        {[
-                          { label: "Daily Revenue", value: financialData.revenueEstimates?.daily, color: "text-green-400" },
-                          { label: "Monthly Revenue", value: financialData.revenueEstimates?.monthly, color: "text-green-400" },
-                          { label: "Yearly Revenue", value: financialData.revenueEstimates?.yearly, color: "text-emerald-400" },
-                          { label: "Monthly Traffic", value: financialData.trafficEstimates?.monthly, color: "text-[hsl(217,91%,60%)]" },
-                        ].map((m, i) => (
-                          <div key={i} className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.05] text-center">
-                            <p className="text-[10px] text-white/40">{m.label}</p>
-                            <p className={`text-sm font-bold ${m.color}`}>{m.value || "N/A"}</p>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Business Model & Pricing */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="p-3 rounded-lg bg-white/[0.015] border border-white/[0.04]">
-                          <p className="text-[10px] font-medium text-white/50 mb-2">💼 Business Model</p>
-                          <div className="space-y-1.5">
-                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Type</span><span className="text-[11px] text-white/80 font-medium">{financialData.businessModel?.type}</span></div>
-                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Primary Revenue</span><span className="text-[11px] text-white/80">{financialData.businessModel?.primaryRevenue}</span></div>
-                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Monetization</span><span className="text-[11px] text-white/80">{financialData.businessModel?.monetizationScore}/100</span></div>
-                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Strategy</span><span className="text-[11px] text-white/80">{financialData.pricingAnalysis?.pricingStrategy}</span></div>
-                            <div className="flex justify-between"><span className="text-[10px] text-white/40">ARPU</span><span className="text-[11px] text-white/80">{financialData.pricingAnalysis?.avgRevenuePerUser}</span></div>
-                          </div>
-                        </div>
-
-                        <div className="p-3 rounded-lg bg-white/[0.015] border border-white/[0.04]">
-                          <p className="text-[10px] font-medium text-white/50 mb-2">📊 Traffic Breakdown</p>
-                          <div className="space-y-1.5">
-                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Daily</span><span className="text-[11px] text-white/80">{financialData.trafficEstimates?.daily}</span></div>
-                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Weekly</span><span className="text-[11px] text-white/80">{financialData.trafficEstimates?.weekly}</span></div>
-                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Trend</span><span className="text-[11px] text-white/80">{financialData.trafficEstimates?.trend}</span></div>
-                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Top Source</span><span className="text-[11px] text-white/80">{financialData.trafficEstimates?.topSourcePct}</span></div>
-                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Confidence</span>
-                              <Badge variant="outline" className={`text-[8px] ${financialData.revenueEstimates?.confidence === "high" ? "border-emerald-400/30 text-emerald-400" : financialData.revenueEstimates?.confidence === "medium" ? "border-amber-400/30 text-amber-400" : "border-white/10 text-white/40"}`}>{financialData.revenueEstimates?.confidence}</Badge>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Plans */}
-                      {(financialData.pricingAnalysis?.plans || []).length > 0 && (
-                        <div className="p-3 rounded-lg bg-white/[0.015] border border-white/[0.04]">
-                          <p className="text-[10px] font-medium text-white/50 mb-2">💳 Detected Plans & Pricing</p>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                            {(financialData.pricingAnalysis.plans as any[]).map((plan: any, i: number) => (
-                              <div key={i} className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="text-[11px] font-medium text-white/80">{plan.name}</span>
-                                  <span className="text-[11px] font-bold text-green-400">{plan.price}</span>
-                                </div>
-                                <span className="text-[9px] text-white/30">{plan.billing}</span>
-                                {plan.features && (
-                                  <div className="mt-1 flex flex-wrap gap-1">
-                                    {(plan.features as string[]).slice(0, 3).map((f: string, fi: number) => (
-                                      <Badge key={fi} variant="outline" className="text-[8px] border-white/10 text-white/30">{f}</Badge>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Income Streams */}
-                      {(financialData.incomeStreams || []).length > 0 && (
-                        <div className="p-3 rounded-lg bg-white/[0.015] border border-white/[0.04]">
-                          <p className="text-[10px] font-medium text-white/50 mb-2">💵 Income Streams</p>
-                          <div className="space-y-1.5">
-                            {(financialData.incomeStreams as any[]).map((s: any, i: number) => (
-                              <div key={i} className="flex items-center justify-between p-1.5 rounded bg-white/[0.02]">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[11px] text-white/80">{s.source}</span>
-                                  <Badge variant="outline" className="text-[8px] border-white/10 text-white/30">{s.type}</Badge>
-                                </div>
-                                <span className="text-[11px] font-medium text-green-400/80">{s.estimatedPct}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Commerce Signals & Growth */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="p-3 rounded-lg bg-white/[0.015] border border-white/[0.04]">
-                          <p className="text-[10px] font-medium text-white/50 mb-2">🛒 Commerce Signals</p>
-                          <div className="grid grid-cols-2 gap-1">
-                            {Object.entries(financialData.commerceSignals || {}).map(([k, v]) => (
-                              <div key={k} className="flex items-center gap-1.5 py-0.5">
-                                {v ? <CheckCircle className="h-3 w-3 text-emerald-400" /> : <XCircle className="h-3 w-3 text-white/15" />}
-                                <span className="text-[10px] text-white/50">{k.replace(/([A-Z])/g, " $1").replace(/^has /, "")}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        <div className="p-3 rounded-lg bg-white/[0.015] border border-white/[0.04]">
-                          <p className="text-[10px] font-medium text-white/50 mb-2">📈 Growth Score: {financialData.growthIndicators?.score || "?"}/100</p>
-                          <div className="space-y-1">
-                            {(financialData.growthIndicators?.signals || []).slice(0, 3).map((s: string, i: number) => (
-                              <div key={i} className="flex items-start gap-1.5">
-                                <ArrowUpRight className="h-3 w-3 text-emerald-400 mt-0.5 flex-shrink-0" />
-                                <span className="text-[10px] text-white/60">{s}</span>
-                              </div>
-                            ))}
-                            {(financialData.growthIndicators?.risks || []).slice(0, 2).map((r: string, i: number) => (
-                              <div key={i} className="flex items-start gap-1.5">
-                                <AlertTriangle className="h-3 w-3 text-amber-400 mt-0.5 flex-shrink-0" />
-                                <span className="text-[10px] text-white/60">{r}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Methodology note */}
-                      {financialData.revenueEstimates?.methodology && (
-                        <p className="text-[9px] text-white/25 italic">📐 Methodology: {financialData.revenueEstimates.methodology}</p>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="text-center py-6">
-                      <TrendingUp className="h-8 w-8 text-white/15 mx-auto mb-2" />
-                      <p className="text-xs text-white/30">Click "Run Analysis" to generate AI-powered financial intelligence</p>
-                      <p className="text-[10px] text-white/20 mt-1">Analyzes checkout flow, pricing, income streams, traffic & revenue estimates</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                </div>
+              )}
 
               {/* Links & Images stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
