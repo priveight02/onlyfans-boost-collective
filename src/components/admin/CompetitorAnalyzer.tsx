@@ -595,7 +595,7 @@ Return ONLY valid JSON:
     });
   };
 
-  // ─── Site Scraper ──────────────────────────────────
+  // ─── Site Analysis ──────────────────────────────────
   const scrapeSite = async () => {
     if (!scrapeUrl.trim()) return;
     await performAction("site_scrape", async () => {
@@ -603,20 +603,26 @@ Return ONLY valid JSON:
       setScrapeResult(null);
       try {
         const { data, error } = await supabase.functions.invoke("site-scraper", {
-          body: { url: scrapeUrl.trim() },
+          body: { url: scrapeUrl.trim(), keywords: analysisKeywords.trim() || undefined },
         });
-        if (error) throw new Error(error.message || "Scrape failed");
-        if (!data?.success) throw new Error(data?.error || "Scrape failed");
-        setScrapeResult(data);
-        toast.success("Site scraped successfully");
+        if (error) throw new Error(error.message || "Analysis failed");
+        if (!data?.success) throw new Error(data?.error || "Analysis failed");
+        setScrapeResult({ ...data, analysisKeywords: analysisKeywords.trim() });
+        toast.success("Site analyzed successfully");
         return true;
       } catch (err: any) {
-        toast.error(err.message || "Scrape failed");
+        toast.error(err.message || "Analysis failed");
         throw err;
       } finally {
         setScrapeLoading(false);
       }
     });
+  };
+
+  // Refresh AI usage count after any AI call
+  const refreshAIUsage = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) setAiUsageCount(getAIUsageCount(user.id));
   };
 
   // ─── Financial Intelligence Analysis ────────────────
