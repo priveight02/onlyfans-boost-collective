@@ -291,8 +291,8 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
     }
   }
 
-  const chunkScripts = [...chunkCandidates].slice(0, 50);
-  const chunkBodies = (await Promise.all(chunkScripts.map(c => safeFetchText(c, 8000, 1_200_000)))).filter(Boolean);
+  const chunkScripts = [...chunkCandidates].slice(0, 8);
+  const chunkBodies = (await Promise.all(chunkScripts.map(c => safeFetchText(c, 4000, 300_000)))).filter(Boolean);
 
   const combined = pages.map(p => p.html).join("\n<!-- page -->\n") + "\n" + [...jsBodies, ...chunkBodies].join("\n");
 
