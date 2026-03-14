@@ -1719,8 +1719,8 @@ Return ONLY valid JSON:
                 )}
               </Card>
 
-              {/* ═══ DETECTED PLATFORMS - All in one card ═══ */}
-              <Card className="crm-card">
+               {/* ═══ DETECTED PLATFORMS - All in one card ═══ */}
+               <Card className="crm-card overflow-hidden">
                 <CardHeader className="pb-2 cursor-pointer" onClick={() => toggleSection("platforms")}>
                   <CardTitle className="text-sm font-medium text-cyan-400 flex items-center gap-2">
                     <Code className="h-4 w-4" /> Detected Platforms & Tech Stack
@@ -1731,54 +1731,81 @@ Return ONLY valid JSON:
                   </CardTitle>
                 </CardHeader>
                 {expandedSections.platforms && (
-                  <CardContent>
+                  <CardContent className="pt-0">
                     {(() => {
                       const dp = scrapeResult.detectedPlatforms || {};
-                      const categories: { key: string; label: string; color: string }[] = [
-                        { key: "crm", label: "CRM", color: "text-purple-400" },
-                        { key: "payments", label: "Payments", color: "text-emerald-400" },
-                        { key: "analytics", label: "Analytics", color: "text-[hsl(217,91%,60%)]" },
-                        { key: "marketing", label: "Marketing", color: "text-pink-400" },
-                        { key: "support", label: "Support", color: "text-cyan-400" },
-                        { key: "ecommerce", label: "E-commerce", color: "text-orange-400" },
-                        { key: "hosting", label: "Hosting", color: "text-teal-400" },
-                        { key: "cdn", label: "CDN", color: "text-sky-400" },
-                        { key: "fileStorage", label: "Storage", color: "text-violet-400" },
-                        { key: "frameworks", label: "Frameworks", color: "text-amber-400" },
-                        { key: "ads", label: "Ads", color: "text-yellow-400" },
-                        { key: "security", label: "Security", color: "text-red-400" },
-                        { key: "identityAuth", label: "Auth", color: "text-rose-300" },
-                        { key: "databaseInfra", label: "Database", color: "text-emerald-300" },
-                        { key: "observability", label: "Observability", color: "text-orange-300" },
-                        { key: "backendProviders", label: "Backend", color: "text-cyan-300" },
-                        { key: "aiTools", label: "AI/ML", color: "text-fuchsia-400" },
-                        { key: "socialMedia", label: "Social APIs", color: "text-pink-500" },
-                        { key: "scheduling", label: "Scheduling", color: "text-indigo-400" },
-                        { key: "forms", label: "Forms", color: "text-lime-400" },
-                        { key: "engagement", label: "Engagement", color: "text-sky-400" },
-                        { key: "socialProof", label: "Social Proof", color: "text-amber-300" },
-                        { key: "seoTools", label: "SEO Tools", color: "text-green-400" },
-                        { key: "productivity", label: "Productivity", color: "text-violet-400" },
-                        { key: "affiliate", label: "Affiliate", color: "text-rose-400" },
-                        { key: "personalization", label: "Personalization", color: "text-sky-300" },
+                      const categoryIcons: Record<string, string> = {
+                        crm: "👥", payments: "💳", analytics: "📊", marketing: "📢", support: "🎧",
+                        ecommerce: "🛒", hosting: "🖥️", cdn: "🌐", fileStorage: "💾", frameworks: "⚡",
+                        ads: "📣", security: "🔒", identityAuth: "🔑", databaseInfra: "🗄️",
+                        observability: "📡", backendProviders: "☁️", aiTools: "🤖", socialMedia: "📱",
+                        scheduling: "📅", forms: "📝", engagement: "💬", socialProof: "⭐",
+                        seoTools: "🔍", productivity: "✅", affiliate: "🤝", personalization: "🎯",
+                      };
+                      const categoryColors: Record<string, { bg: string; border: string; text: string; badge: string }> = {
+                        crm: { bg: "bg-purple-500/[0.06]", border: "border-purple-500/20", text: "text-purple-400", badge: "border-purple-400/30 text-purple-300 bg-purple-500/10" },
+                        payments: { bg: "bg-emerald-500/[0.06]", border: "border-emerald-500/20", text: "text-emerald-400", badge: "border-emerald-400/30 text-emerald-300 bg-emerald-500/10" },
+                        analytics: { bg: "bg-blue-500/[0.06]", border: "border-blue-500/20", text: "text-blue-400", badge: "border-blue-400/30 text-blue-300 bg-blue-500/10" },
+                        marketing: { bg: "bg-pink-500/[0.06]", border: "border-pink-500/20", text: "text-pink-400", badge: "border-pink-400/30 text-pink-300 bg-pink-500/10" },
+                        support: { bg: "bg-cyan-500/[0.06]", border: "border-cyan-500/20", text: "text-cyan-400", badge: "border-cyan-400/30 text-cyan-300 bg-cyan-500/10" },
+                        ecommerce: { bg: "bg-orange-500/[0.06]", border: "border-orange-500/20", text: "text-orange-400", badge: "border-orange-400/30 text-orange-300 bg-orange-500/10" },
+                        hosting: { bg: "bg-teal-500/[0.06]", border: "border-teal-500/20", text: "text-teal-400", badge: "border-teal-400/30 text-teal-300 bg-teal-500/10" },
+                        cdn: { bg: "bg-sky-500/[0.06]", border: "border-sky-500/20", text: "text-sky-400", badge: "border-sky-400/30 text-sky-300 bg-sky-500/10" },
+                        fileStorage: { bg: "bg-violet-500/[0.06]", border: "border-violet-500/20", text: "text-violet-400", badge: "border-violet-400/30 text-violet-300 bg-violet-500/10" },
+                        frameworks: { bg: "bg-amber-500/[0.06]", border: "border-amber-500/20", text: "text-amber-400", badge: "border-amber-400/30 text-amber-300 bg-amber-500/10" },
+                        ads: { bg: "bg-yellow-500/[0.06]", border: "border-yellow-500/20", text: "text-yellow-400", badge: "border-yellow-400/30 text-yellow-300 bg-yellow-500/10" },
+                        security: { bg: "bg-red-500/[0.06]", border: "border-red-500/20", text: "text-red-400", badge: "border-red-400/30 text-red-300 bg-red-500/10" },
+                        identityAuth: { bg: "bg-rose-500/[0.06]", border: "border-rose-500/20", text: "text-rose-300", badge: "border-rose-400/30 text-rose-300 bg-rose-500/10" },
+                        databaseInfra: { bg: "bg-emerald-500/[0.06]", border: "border-emerald-500/20", text: "text-emerald-300", badge: "border-emerald-400/30 text-emerald-300 bg-emerald-500/10" },
+                        observability: { bg: "bg-orange-500/[0.06]", border: "border-orange-500/20", text: "text-orange-300", badge: "border-orange-400/30 text-orange-300 bg-orange-500/10" },
+                        backendProviders: { bg: "bg-cyan-500/[0.06]", border: "border-cyan-500/20", text: "text-cyan-300", badge: "border-cyan-400/30 text-cyan-300 bg-cyan-500/10" },
+                        aiTools: { bg: "bg-fuchsia-500/[0.06]", border: "border-fuchsia-500/20", text: "text-fuchsia-400", badge: "border-fuchsia-400/30 text-fuchsia-300 bg-fuchsia-500/10" },
+                        socialMedia: { bg: "bg-pink-500/[0.06]", border: "border-pink-500/20", text: "text-pink-400", badge: "border-pink-400/30 text-pink-300 bg-pink-500/10" },
+                        scheduling: { bg: "bg-indigo-500/[0.06]", border: "border-indigo-500/20", text: "text-indigo-400", badge: "border-indigo-400/30 text-indigo-300 bg-indigo-500/10" },
+                        forms: { bg: "bg-lime-500/[0.06]", border: "border-lime-500/20", text: "text-lime-400", badge: "border-lime-400/30 text-lime-300 bg-lime-500/10" },
+                        engagement: { bg: "bg-sky-500/[0.06]", border: "border-sky-500/20", text: "text-sky-400", badge: "border-sky-400/30 text-sky-300 bg-sky-500/10" },
+                        socialProof: { bg: "bg-amber-500/[0.06]", border: "border-amber-500/20", text: "text-amber-300", badge: "border-amber-400/30 text-amber-300 bg-amber-500/10" },
+                        seoTools: { bg: "bg-green-500/[0.06]", border: "border-green-500/20", text: "text-green-400", badge: "border-green-400/30 text-green-300 bg-green-500/10" },
+                        productivity: { bg: "bg-violet-500/[0.06]", border: "border-violet-500/20", text: "text-violet-400", badge: "border-violet-400/30 text-violet-300 bg-violet-500/10" },
+                        affiliate: { bg: "bg-rose-500/[0.06]", border: "border-rose-500/20", text: "text-rose-400", badge: "border-rose-400/30 text-rose-300 bg-rose-500/10" },
+                        personalization: { bg: "bg-sky-500/[0.06]", border: "border-sky-500/20", text: "text-sky-300", badge: "border-sky-400/30 text-sky-300 bg-sky-500/10" },
+                      };
+                      const categories: { key: string; label: string }[] = [
+                        { key: "crm", label: "CRM" }, { key: "payments", label: "Payments" },
+                        { key: "analytics", label: "Analytics" }, { key: "marketing", label: "Marketing" },
+                        { key: "support", label: "Support" }, { key: "ecommerce", label: "E-commerce" },
+                        { key: "hosting", label: "Hosting" }, { key: "cdn", label: "CDN" },
+                        { key: "fileStorage", label: "Storage" }, { key: "frameworks", label: "Frameworks" },
+                        { key: "ads", label: "Ads" }, { key: "security", label: "Security" },
+                        { key: "identityAuth", label: "Auth" }, { key: "databaseInfra", label: "Database" },
+                        { key: "observability", label: "Observability" }, { key: "backendProviders", label: "Backend" },
+                        { key: "aiTools", label: "AI/ML" }, { key: "socialMedia", label: "Social APIs" },
+                        { key: "scheduling", label: "Scheduling" }, { key: "forms", label: "Forms" },
+                        { key: "engagement", label: "Engagement" }, { key: "socialProof", label: "Social Proof" },
+                        { key: "seoTools", label: "SEO Tools" }, { key: "productivity", label: "Productivity" },
+                        { key: "affiliate", label: "Affiliate" }, { key: "personalization", label: "Personalization" },
                       ];
-                      const activeCats = categories.filter(c => (dp[c.key] || []).length > 0);
+                      const activeCats = categories.filter(c => ((dp as any)[c.key] || []).length > 0);
                       if (activeCats.length === 0) return <p className="text-xs text-white/30 text-center py-4">No external platforms detected</p>;
                       return (
-                        <div className="space-y-3">
+                        <div className="grid grid-cols-2 lg:grid-cols-3 gap-2.5">
                           {activeCats.map(cat => {
-                            const providers = (dp[cat.key] as { name: string; confidence: string }[]) || [];
+                            const providers = ((dp as any)[cat.key] as { name: string; confidence: string }[]) || [];
+                            const colors = categoryColors[cat.key] || categoryColors.crm;
+                            const icon = categoryIcons[cat.key] || "📦";
                             return (
-                              <div key={cat.key} className="space-y-1.5">
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-xs font-medium ${cat.color}`}>{cat.label}</span>
-                                  <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{providers.length}</Badge>
+                              <div key={cat.key} className={`rounded-xl border ${colors.border} ${colors.bg} backdrop-blur-sm p-3 transition-all hover:scale-[1.02] hover:shadow-lg`}>
+                                <div className="flex items-center gap-2 mb-2.5">
+                                  <span className="text-sm">{icon}</span>
+                                  <span className={`text-[11px] font-semibold tracking-wide uppercase ${colors.text}`}>{cat.label}</span>
+                                  <span className="ml-auto text-[9px] text-white/30 font-medium bg-white/[0.04] rounded-full px-1.5 py-0.5">{providers.length}</span>
                                 </div>
-                                <div className="flex flex-wrap gap-1.5">
+                                <div className="flex flex-wrap gap-1">
                                   {providers.map((p: any) => (
-                                    <Badge key={p.name} variant="outline" className={`text-[10px] ${p.confidence === "high" ? "border-emerald-400/30 text-emerald-400" : "border-white/10 text-white/50"}`}>
+                                    <span key={p.name} className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium ${colors.badge} transition-colors`}>
+                                      {p.confidence === "high" && <span className="h-1 w-1 rounded-full bg-emerald-400 shrink-0" />}
                                       {p.name}
-                                    </Badge>
+                                    </span>
                                   ))}
                                 </div>
                               </div>
@@ -1787,20 +1814,26 @@ Return ONLY valid JSON:
                         </div>
                       );
                     })()}
-                    {/* Header-based tech inline */}
+                    {/* Header-based tech */}
                     {(scrapeResult.headerTechDetections || []).length > 0 && (
                       <div className="mt-4 pt-3 border-t border-white/[0.04]">
-                        <span className="text-xs font-medium text-cyan-400">Header-based Detections</span>
-                        <div className="flex flex-wrap gap-1.5 mt-2">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-sm">📡</span>
+                          <span className="text-[11px] font-semibold tracking-wide uppercase text-cyan-400">Header-based Detections</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
                           {(scrapeResult.headerTechDetections as { name: string; source: string }[]).map((t: any, i: number) => (
-                            <Badge key={i} variant="outline" className="text-[10px] border-cyan-400/20 text-cyan-400">{t.name} ({t.source})</Badge>
+                            <span key={i} className="inline-flex items-center gap-1 rounded-md border border-cyan-400/20 bg-cyan-500/10 px-2 py-0.5 text-[10px] font-medium text-cyan-300">
+                              <span className="h-1 w-1 rounded-full bg-cyan-400 shrink-0" />
+                              {t.name} · {t.source}
+                            </span>
                           ))}
                         </div>
                       </div>
                     )}
                   </CardContent>
                 )}
-              </Card>
+               </Card>
 
               {/* ═══ FINANCIAL INTELLIGENCE CARD ═══ */}
               <Card className="crm-card">
