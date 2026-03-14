@@ -1936,7 +1936,8 @@ RULES:
                                 </div>
 
                                 {/* Expandable URL list per category */}
-                                {isExpanded && allCategoryUrls.length > 0 && (
+                                {isExpanded && (
+                                  allCategoryUrls.length > 0 ? (
                                   <div className="mt-2.5 pt-2 border-t border-white/[0.06] space-y-2 max-h-60 overflow-y-auto">
                                     {providers.filter(p => providerUrls[p.name]?.length).map(p => (
                                       <div key={p.name}>
