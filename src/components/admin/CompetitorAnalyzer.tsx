@@ -142,13 +142,32 @@ const mapRow = (d: any): Competitor => ({
   metadata: d.metadata || {},
 });
 
-// AI helper - calls dedicated competitor-analyze edge function
+// AI helper - calls dedicated competitor-analyze edge function with rate limiting
+const RATE_LIMIT_MAX = 20;
+const getRateLimitKey = (userId: string) => `competitor_ai_${userId}_${new Date().toISOString().slice(0, 10)}`;
+const getAIUsageCount = (userId: string): number => {
+  try { return parseInt(localStorage.getItem(getRateLimitKey(userId)) || "0", 10); } catch { return 0; }
+};
+const incrementAIUsage = (userId: string) => {
+  const key = getRateLimitKey(userId);
+  const current = getAIUsageCount(userId);
+  localStorage.setItem(key, String(current + 1));
+};
+const isAIRateLimited = (userId: string): boolean => getAIUsageCount(userId) >= RATE_LIMIT_MAX;
+
 const callAI = async (prompt: string): Promise<any> => {
+  // Check rate limit
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user && isAIRateLimited(user.id)) {
+    throw new Error("Daily AI analysis limit reached (20/day). AI-powered fields will be left blank until reset.");
+  }
   const { data, error } = await supabase.functions.invoke("competitor-analyze", {
     body: { prompt },
   });
   if (error) throw new Error(error.message || "AI request failed");
   if (!data?.reply) throw new Error("No AI response received");
+  // Increment usage on success
+  if (user) incrementAIUsage(user.id);
   return data.reply;
 };
 
