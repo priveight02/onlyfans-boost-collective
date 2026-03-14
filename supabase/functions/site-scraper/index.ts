@@ -748,9 +748,10 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
     else if (supabaseMedium) upsertDetection(detectedPlatforms.backendProviders, "Supabase", "medium");
 
     const polarStrong = /(?:api|sandbox-api|checkout|sandbox-checkout)\.polar\.sh/i.test(dHtml) || deepLc.includes("polar_access_token") || deepLc.includes("polar_webhook");
-    const polarMedium = deepLc.includes("@polar-sh") || deepLc.includes("polar-setup") || deepLc.includes("/v1/checkouts") || (deepLc.includes("customer-sessions") && deepLc.includes("polar"));
+    const polarFlowSignals = ["create-checkout", "customer-portal", "verify-credit-purchase", "purchase-credits", "billing-info"].filter((k) => deepLc.includes(k)).length;
+    const polarMedium = deepLc.includes("@polar-sh") || deepLc.includes("polar-setup") || deepLc.includes("/v1/checkouts") || (deepLc.includes("customer-sessions") && deepLc.includes("polar")) || polarFlowSignals >= 3;
     if (polarStrong) upsertDetection(detectedPlatforms.payments, "Polar.sh", "high");
-    else if (polarMedium) upsertDetection(detectedPlatforms.payments, "Polar.sh", "medium");
+    else if (polarMedium) upsertDetection(detectedPlatforms.payments, "Polar.sh", polarFlowSignals >= 4 ? "high" : "medium");
 
     // Merge header-based detections
     if (headerTech.length > 0) {
