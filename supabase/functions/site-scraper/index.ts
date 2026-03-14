@@ -889,6 +889,7 @@ function extractMetadata(html: string, url: string, securityHeaders?: Record<str
     iframes,
     contactInfo: { phoneNumbers, emailAddresses },
     content: { wordCount, textPreview: textContent.slice(0, 500) },
+    advancedMetrics,
     seoScore: Math.min(seoScore, 100),
   };
 }
