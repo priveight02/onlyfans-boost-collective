@@ -228,7 +228,7 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
 
   const seedLinks = extractLinks(seedHtml, startUrl, rootDomain);
   const probes = origins.flatMap(o => INTENT_PATHS.map(p => `${o}${p}`));
-  let queue = prioritize([...new Set([...smResult.urls, ...seedLinks, ...probes])].filter(u => !visited.has(u))).slice(0, 500);
+  let queue = prioritize([...new Set([...smResult.urls, ...seedLinks, ...probes])].filter(u => !visited.has(u))).slice(0, 40);
 
   while (queue.length > 0 && pages.length < MAX_PAGES) {
     const batch = queue.splice(0, 6).filter(u => !visited.has(u));
