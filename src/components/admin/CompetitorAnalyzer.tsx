@@ -1937,32 +1937,34 @@ RULES:
 
                                 {/* Expandable URL list per category */}
                                 {isExpanded && (
-                                  allCategoryUrls.length > 0 ? (
-                                  <div className="mt-2.5 pt-2 border-t border-white/[0.06] space-y-2 max-h-60 overflow-y-auto">
-                                    {providers.filter(p => providerUrls[p.name]?.length).map(p => (
-                                      <div key={p.name}>
-                                        <p className={`text-[10px] font-semibold ${colors.text} mb-1`}>{p.name} URLs ({providerUrls[p.name].length})</p>
-                                        <div className="space-y-0.5">
-                                          {providerUrls[p.name].map((url, ui) => (
-                                            <a
-                                              key={ui}
-                                              href={url}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="block text-[9px] text-white/40 hover:text-white/70 break-all p-0.5 rounded hover:bg-white/[0.03] transition-colors truncate"
-                                              title={url}
-                                            >
-                                              <ExternalLink className="h-2.5 w-2.5 inline mr-1 shrink-0" />
-                                              {url}
-                                            </a>
-                                          ))}
-                                        </div>
+                                  <div className="mt-2.5 pt-2 border-t border-white/[0.06]">
+                                    {allCategoryUrls.length > 0 ? (
+                                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                                        {providers.filter(p => providerUrls[p.name]?.length).map(p => (
+                                          <div key={p.name}>
+                                            <p className={`text-[10px] font-semibold ${colors.text} mb-1`}>{p.name} URLs ({providerUrls[p.name].length})</p>
+                                            <div className="space-y-0.5">
+                                              {providerUrls[p.name].map((url, ui) => (
+                                                <a
+                                                  key={ui}
+                                                  href={url}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="block text-[9px] text-white/40 hover:text-white/70 break-all p-0.5 rounded hover:bg-white/[0.03] transition-colors truncate"
+                                                  title={url}
+                                                >
+                                                  <ExternalLink className="h-2.5 w-2.5 inline mr-1 shrink-0" />
+                                                  {url}
+                                                </a>
+                                              ))}
+                                            </div>
+                                          </div>
+                                        ))}
                                       </div>
-                                    ))}
+                                    ) : (
+                                      <p className="text-[9px] text-white/20 italic">Detected via code signatures — no direct URLs matched</p>
+                                    )}
                                   </div>
-                                )}
-                                {isExpanded && allCategoryUrls.length === 0 && (
-                                  <p className="mt-2 text-[9px] text-white/20 italic">Detected via code signatures — no direct URLs matched</p>
                                 )}
                               </div>
                             );
