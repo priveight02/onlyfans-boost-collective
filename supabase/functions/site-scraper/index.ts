@@ -79,24 +79,10 @@ async function safeFetchText(url: string, timeoutMs = 5000, maxLen = 150_000): P
   } catch { return ""; }
 }
 
-function compressForDetection(input: string, maxLen = 450_000): string {
+function compressForDetection(input: string, maxLen = 200_000): string {
   if (!input || input.length <= maxLen) return input;
-
-  const segments = 4;
-  const chunkLen = Math.max(1, Math.floor(maxLen / segments));
-  const lastStart = Math.max(0, input.length - chunkLen);
-  const starts = [
-    0,
-    Math.max(0, Math.floor(input.length * 0.33) - Math.floor(chunkLen / 2)),
-    Math.max(0, Math.floor(input.length * 0.66) - Math.floor(chunkLen / 2)),
-    lastStart,
-  ];
-
-  const sampled = [...new Set(starts)]
-    .map((start) => input.slice(start, start + chunkLen))
-    .filter(Boolean);
-
-  return sampled.join("\n/* sampled-js-segment */\n");
+  const chunkLen = Math.floor(maxLen / 2);
+  return input.slice(0, chunkLen) + "\n/* sampled */\n" + input.slice(-chunkLen);
 }
 
 async function safeFetchTextForDetection(url: string, timeoutMs = 6000, maxLen = 450_000): Promise<string> {
