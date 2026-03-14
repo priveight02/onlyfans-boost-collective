@@ -530,7 +530,126 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     if (sigs.some(s => lc.includes(s))) productivity.push({ name, confidence: "medium" });
   }
 
-  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity };
+  // Social Media Integrations (SDKs, embeds, share buttons, login)
+  const socialMedia: { name: string; confidence: string }[] = [];
+  const socialChecks: [string, string[]][] = [
+    ["Facebook SDK", ["connect.facebook.net", "fb-root", "facebook-jssdk", "fb.init"]],
+    ["Facebook Login", ["facebook.com/dialog/oauth", "fb-login", "login/facebook"]],
+    ["Facebook Share", ["facebook.com/sharer", "fb-share"]],
+    ["Instagram Embed", ["instagram.com/embed", "instgrm.Embeds"]],
+    ["Instagram API", ["graph.instagram.com", "instagram-api"]],
+    ["Twitter/X Embed", ["platform.twitter.com/widgets", "twitter-timeline", "twitter-tweet"]],
+    ["Twitter/X Share", ["twitter.com/intent/tweet", "twitter.com/share"]],
+    ["TikTok Embed", ["tiktok.com/embed", "tiktok-embed"]],
+    ["TikTok SDK", ["analytics.tiktok.com"]],
+    ["YouTube Embed", ["youtube.com/embed", "youtube-nocookie.com"]],
+    ["YouTube API", ["youtube.googleapis.com"]],
+    ["LinkedIn Share", ["linkedin.com/shareArticle", "in/share"]],
+    ["LinkedIn SDK", ["platform.linkedin.com"]],
+    ["Pinterest Widget", ["assets.pinterest.com/js/pinit", "pinterest.com/pin/create"]],
+    ["Reddit Embed", ["embed.reddit.com"]],
+    ["Discord Widget", ["discord.com/widget", "discordapp.com/widget"]],
+    ["Telegram Widget", ["telegram.org/js/telegram-widget"]],
+    ["WhatsApp Share", ["api.whatsapp.com", "wa.me"]],
+    ["Snapchat Embed", ["snapkit.com", "snap-connected"]],
+    ["Threads Share", ["threads.net"]],
+    ["Bluesky", ["bsky.app", "atproto"]],
+    ["Tumblr Share", ["tumblr.com/share", "tumblr.com/widgets"]],
+    ["Twitch Embed", ["player.twitch.tv", "embed.twitch.tv"]],
+    ["Spotify Embed", ["open.spotify.com/embed"]],
+    ["SoundCloud Embed", ["w.soundcloud.com/player"]],
+    ["ShareThis", ["sharethis.com", "platform-api.sharethis.com"]],
+    ["AddThis", ["addthis.com", "addthiscdn.com"]],
+    ["Google Sign-In", ["accounts.google.com/gsi", "google-signin", "g_id_onload"]],
+    ["Apple Sign-In", ["appleid.apple.com"]],
+    ["GitHub Login", ["github.com/login/oauth"]],
+  ];
+  for (const [name, sigs] of socialChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) socialMedia.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // Database & Backend-as-a-Service
+  const database: { name: string; confidence: string }[] = [];
+  const dbChecks: [string, string[]][] = [
+    ["Supabase", ["supabase.co", "supabase.com"]],
+    ["Firebase", ["firebase.google.com", "firebaseio.com", "firebaseapp.com"]],
+    ["MongoDB Realm", ["realm.mongodb.com"]],
+    ["AWS Amplify", ["aws-amplify", "amplifyapp.com"]],
+    ["Appwrite", ["appwrite.io"]],
+    ["Convex", ["convex.dev", "convex.cloud"]],
+    ["Neon", ["neon.tech"]],
+    ["PlanetScale", ["planetscale.com"]],
+    ["Upstash", ["upstash.com"]],
+    ["Hasura", ["hasura.io", "hasura.app"]],
+    ["Sanity", ["sanity.io", "cdn.sanity.io"]],
+    ["Contentful", ["contentful.com", "ctfassets.net"]],
+    ["Strapi", ["strapi.io"]],
+    ["Storyblok", ["storyblok.com"]],
+    ["Builder.io", ["builder.io", "cdn.builder.io"]],
+    ["Algolia", ["algolia.com", "algolianet.com", "algoliasearch"]],
+    ["Xata", ["xata.io"]],
+  ];
+  for (const [name, sigs] of dbChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) database.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // AI & ML Tools
+  const aiTools: { name: string; confidence: string }[] = [];
+  const aiChecks: [string, string[]][] = [
+    ["OpenAI/ChatGPT", ["openai.com", "api.openai.com"]],
+    ["Anthropic/Claude", ["anthropic.com"]],
+    ["Google AI/Gemini", ["generativelanguage.googleapis.com"]],
+    ["Replicate", ["replicate.com", "replicate.delivery"]],
+    ["Hugging Face", ["huggingface.co"]],
+    ["ElevenLabs", ["elevenlabs.io"]],
+    ["Deepgram", ["deepgram.com"]],
+    ["Jasper AI", ["jasper.ai"]],
+    ["Synthesia", ["synthesia.io"]],
+    ["Algolia AI", ["algolia.com"]],
+    ["Pinecone", ["pinecone.io"]],
+  ];
+  for (const [name, sigs] of aiChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) aiTools.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // Affiliate & Referral
+  const affiliate: { name: string; confidence: string }[] = [];
+  const affChecks: [string, string[]][] = [
+    ["ReferralCandy", ["referralcandy.com"]],
+    ["PartnerStack", ["partnerstack.com"]],
+    ["Impact", ["impact.com", "impactradius.com"]],
+    ["CJ Affiliate", ["cj.com"]],
+    ["ShareASale", ["shareasale.com"]],
+    ["Awin", ["awin.com", "awin1.com"]],
+    ["Refersion", ["refersion.com"]],
+    ["Tapfiliate", ["tapfiliate.com"]],
+    ["FirstPromoter", ["firstpromoter.com"]],
+    ["Rewardful", ["rewardful.com"]],
+  ];
+  for (const [name, sigs] of affChecks) {
+    if (sigs.some(s => lc.includes(s))) affiliate.push({ name, confidence: "medium" });
+  }
+
+  // Personalization & A/B Testing
+  const personalization: { name: string; confidence: string }[] = [];
+  const persChecks: [string, string[]][] = [
+    ["Optimizely", ["optimizely.com"]],
+    ["VWO", ["visualwebsiteoptimizer.com", "vwo_"]],
+    ["AB Tasty", ["abtasty.com"]],
+    ["LaunchDarkly", ["launchdarkly.com"]],
+    ["Statsig", ["statsig.com"]],
+    ["GrowthBook", ["growthbook.io"]],
+    ["Dynamic Yield", ["dynamicyield.com"]],
+    ["Nosto", ["nosto.com"]],
+  ];
+  for (const [name, sigs] of persChecks) {
+    if (sigs.some(s => lc.includes(s))) personalization.push({ name, confidence: "medium" });
+  }
+
+  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity, socialMedia, database, aiTools, affiliate, personalization };
 }
 
 function extractMetadata(html: string, url: string, securityHeaders?: Record<string, string>) {
