@@ -686,14 +686,14 @@ CONTENT PREVIEW: ${(scrapeResult.content?.textPreview || "").slice(0, 800)}
 CRITICAL ACCURACY RULES:
 1. If the site has NO checkout flow, NO payment providers, NO subscription UI, and NO price points detected — revenue MUST be "$0" or "None" for ALL revenue fields. Do NOT fabricate revenue numbers.
 2. If there is no evidence of actual sales or customers, say "$0" or "No sales detected" — never invent ranges.
-3. Only estimate revenue when there are CLEAR monetization signals (detected payment providers, checkout flows, price points, subscription UI).
-4. For traffic, if there is no analytics data, state "Unknown — no public data" rather than guessing.
-5. Be brutally honest. A site with zero payment infrastructure has zero revenue. A brand-new site with no traction should show "$0" across the board.
-6. Base estimates ONLY on concrete detected signals, never on what a site "could" earn.
-7. ALL financial data must be CURRENT as of ${new Date().toISOString().slice(0, 10)}. If you cannot verify current data, clearly state "Unverified" or "No current data available".
+3. If checkout flow is detected OR price points are found, treat the business as monetized and provide best-effort ESTIMATED ranges for all revenueEstimates fields (dailyRevenue, weeklyRevenue, monthlyRevenue, yearlyRevenue, averageOrderValue, ltv, cac).
+4. For monetized sites, NEVER return placeholders such as "No current data available", "Unknown", "N/A", "Not available" for revenueEstimates fields.
+5. Only use "$0"/"None" for revenue fields when monetization signals are truly absent.
+6. For traffic, if no analytics data exists, estimate using benchmark ranges and mark as "Estimated".
+7. ALL financial data must be CURRENT as of ${new Date().toISOString().slice(0, 10)}. If exact current data is unavailable, provide a conservative estimate and label it clearly as "Estimated".
 8. If the business keywords suggest a specific niche, use that context to validate or invalidate revenue claims.
 
-Cross-reference with publicly available information and industry benchmarks ONLY when monetization signals are actually present.
+Cross-reference with publicly available information and industry benchmarks when monetization signals are present.
 
 Return ONLY valid JSON:
 {
