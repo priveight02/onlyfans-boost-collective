@@ -1174,7 +1174,7 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     if (sigs.some(s => lc.includes(s))) personalization.push({ name, confidence: "medium" });
   }
 
-  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity, socialMedia, database, aiTools, affiliate, personalization };
+  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity, socialMedia, backendProviders, database, aiTools, affiliate, personalization };
 }
 
 function extractMetadata(html: string, url: string, securityHeaders: Record<string, string>, deepScan?: DeepScanCorpus) {
