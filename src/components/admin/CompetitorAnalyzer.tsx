@@ -1351,7 +1351,7 @@ Return ONLY valid JSON:
           )}
         </TabsContent>
         {/* ═══ SITE SCRAPER TAB ═══ */}
-        <TabsContent value="scraper" className="space-y-5 w-full max-w-[1200px] mx-auto overflow-x-hidden">
+        <TabsContent value="scraper" className="space-y-5 w-full overflow-x-hidden overflow-y-auto" style={{ maxWidth: 'calc(100vw - 340px)' }}>
           <Card className="crm-card">
             <CardContent className="p-4">
               <div className="flex gap-3 items-end">
