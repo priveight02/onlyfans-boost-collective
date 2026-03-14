@@ -1702,8 +1702,9 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
       links: { internal: [], external: [], totalInternal: 0, totalExternal: 0 },
       images: { total: 0, withAlt: 0, withoutAlt: 0, samples: [] },
       scripts: { external: [], inlineCount: 0, stylesheets: [], inlineStyleCount: 0 },
+      resourceUrls: [],
       performance: {}, structuredData: [], socialLinks: {}, detectedPlatforms: {},
-      headerTechDetections: headerTech, screenshotUrl: "", scanCoverage: {},
+      headerTechDetections: headerTech, screenshotUrl: "", scanCoverage: {}, urlDiscovery: { all: [], firstParty: [], thirdParty: [] },
       accessibility: {}, fonts: {}, iframes: [], contactInfo: {},
       content: { wordCount: 0, textPreview: "" }, curatedMetrics: {}, seoScore: 0,
     };
