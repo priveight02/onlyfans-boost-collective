@@ -1187,13 +1187,12 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
       } catch {}
     }
 
-    // Detection using deep corpus
-    const dHtml = deep?.combined || html;
-    const dScripts = deep?.scripts?.length ? deep.scripts : scripts;
-    const dStyles = deep?.stylesheets?.length ? deep.stylesheets : stylesheets;
-    const dExtLinks = deep?.externalLinks?.length ? deep.externalLinks : externalLinks;
-    const dIframes = deep?.iframes?.length ? deep.iframes : iframes;
-    const detectedPlatforms = detectPlatforms(dHtml, dScripts, dStyles, dExtLinks, dIframes);
+    // Detection using deep corpus (dHtml, dScripts etc. declared at function top)
+    const scriptsForDetect = deep?.scripts?.length ? deep.scripts : scripts;
+    const stylesForDetect = deep?.stylesheets?.length ? deep.stylesheets : stylesheets;
+    const extLinksForDetect = deep?.externalLinks?.length ? deep.externalLinks : externalLinks;
+    const iframesForDetect = deep?.iframes?.length ? deep.iframes : iframes;
+    const detectedPlatforms = detectPlatforms(dHtml, scriptsForDetect, stylesForDetect, extLinksForDetect, iframesForDetect);
 
     const upsertDetection = (
       bucket: { name: string; confidence: string }[],
@@ -1205,7 +1204,6 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
       else if (bucket[i].confidence !== "high" && confidence === "high") bucket[i].confidence = "high";
     };
 
-    const deepLc = dHtml.toLowerCase();
 
     // Heuristics for hidden backend/payment providers in route chunks
     const supabaseSignals = {
