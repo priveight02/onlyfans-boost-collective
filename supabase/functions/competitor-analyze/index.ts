@@ -7,19 +7,47 @@ const corsHeaders = {
 };
 
 const RATE_LIMIT_MAX = 20;
+const NO_ESTIMATE_PATTERN = /\b(estimate|estimated|approx|approximately|around|about|projected|forecast|modeled|assumed|inferred)\b/i;
+const UNVERIFIED_PATTERN = /\b(no verified data|not available|unknown|n\/a|unverified|insufficient data|no public data)\b/i;
+
+const sanitizeFinancialValue = (value: unknown): unknown => {
+  if (value === null || value === undefined) return "Not publicly disclosed";
+
+  if (Array.isArray(value)) return value.map((item) => sanitizeFinancialValue(item));
+
+  if (typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      out[k] = sanitizeFinancialValue(v);
+    }
+    return out;
+  }
+
+  if (typeof value !== "string") return value;
+
+  const trimmed = value.trim();
+  if (!trimmed) return "Not publicly disclosed";
+  if (NO_ESTIMATE_PATTERN.test(trimmed) || UNVERIFIED_PATTERN.test(trimmed)) {
+    return "Not publicly disclosed";
+  }
+
+  return trimmed;
+};
+
+const sanitizeFinancialPayload = <T>(payload: T): T => sanitizeFinancialValue(payload) as T;
 
 const financialTool = {
   type: "function" as const,
   function: {
     name: "financial_report",
-    description: "Return a complete financial intelligence report for a website/company.",
+    description: "Return a factual financial intelligence report with latest verifiable values only.",
     parameters: {
       type: "object",
       properties: {
         companyOverview: {
           type: "object",
           properties: {
-            estimatedEmployees: { type: "string" },
+            estimatedEmployees: { type: "string", description: "Latest verifiable employee count with source/date." },
             foundedYear: { type: "string" },
             businessModel: { type: "string" },
             stage: { type: "string" },
@@ -30,10 +58,10 @@ const financialTool = {
         trafficEstimates: {
           type: "object",
           properties: {
-            dailyVisitors: { type: "string" },
-            weeklyVisitors: { type: "string" },
-            monthlyVisitors: { type: "string" },
-            yearlyVisitors: { type: "string" },
+            dailyVisitors: { type: "string", description: "Latest verified value (or derived from verified monthly value)." },
+            weeklyVisitors: { type: "string", description: "Latest verified value (or derived from verified monthly value)." },
+            monthlyVisitors: { type: "string", description: "Latest verified value with source/date." },
+            yearlyVisitors: { type: "string", description: "Latest verified value with source/date." },
             bounceRate: { type: "string" },
             avgSessionDuration: { type: "string" },
             topTrafficSources: {
@@ -59,10 +87,10 @@ const financialTool = {
         revenueEstimates: {
           type: "object",
           properties: {
-            dailyRevenue: { type: "string" },
-            weeklyRevenue: { type: "string" },
-            monthlyRevenue: { type: "string" },
-            yearlyRevenue: { type: "string" },
+            dailyRevenue: { type: "string", description: "Latest verified value (or derived from verified annual/quarterly value)." },
+            weeklyRevenue: { type: "string", description: "Latest verified value (or derived from verified annual/quarterly value)." },
+            monthlyRevenue: { type: "string", description: "Latest verified value (or derived from verified annual/quarterly value)." },
+            yearlyRevenue: { type: "string", description: "Latest verified annual/TTM revenue with source/date." },
             revenueModel: { type: "string" },
             averageOrderValue: { type: "string" },
             estimatedConversionRate: { type: "string" },
@@ -80,7 +108,7 @@ const financialTool = {
             type: "object",
             properties: {
               source: { type: "string" },
-              estimatedShare: { type: "string" },
+              estimatedShare: { type: "string", description: "Verified share or 'Not publicly disclosed'." },
               type: { type: "string" },
               details: { type: "string" },
             },
@@ -139,10 +167,47 @@ const financialTool = {
           },
           required: ["techMaturity", "marketingEfficiency", "productMarketFit", "scalabilityScore", "overallHealthScore"],
         },
+        dataFreshness: {
+          type: "object",
+          properties: {
+            generatedOn: { type: "string" },
+            latestFinancialPeriod: { type: "string" },
+            latestTrafficPeriod: { type: "string" },
+            recencyCheck: { type: "string" },
+          },
+          required: ["generatedOn", "latestFinancialPeriod", "latestTrafficPeriod", "recencyCheck"],
+        },
+        sourceLedger: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              metric: { type: "string" },
+              value: { type: "string" },
+              sourceName: { type: "string" },
+              sourceUrl: { type: "string" },
+              sourceType: { type: "string" },
+              publishedOn: { type: "string" },
+            },
+            required: ["metric", "value", "sourceName", "sourceUrl", "sourceType", "publishedOn"],
+          },
+        },
         confidenceLevel: { type: "string" },
         methodology: { type: "string" },
       },
-      required: ["companyOverview", "trafficEstimates", "revenueEstimates", "incomeSources", "pricingAnalysis", "competitivePosition", "growthIndicators", "confidenceLevel", "methodology"],
+      required: [
+        "companyOverview",
+        "trafficEstimates",
+        "revenueEstimates",
+        "incomeSources",
+        "pricingAnalysis",
+        "competitivePosition",
+        "growthIndicators",
+        "dataFreshness",
+        "sourceLedger",
+        "confidenceLevel",
+        "methodology",
+      ],
     },
   },
 };
