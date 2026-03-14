@@ -1381,7 +1381,7 @@ Return ONLY valid JSON:
                   { label: "Word Count", value: `${scrapeResult.content?.wordCount?.toLocaleString() || 0}`, icon: FileText, color: "text-white" },
                   { label: "HTTPS", value: scrapeResult.isHttps ? "Secure" : "Not Secure", icon: scrapeResult.isHttps ? Lock : Shield, color: scrapeResult.isHttps ? "text-emerald-400" : "text-red-400" },
                   { label: "Platforms Found", value: String(Object.values(scrapeResult.detectedPlatforms || {}).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0)), icon: Globe, color: "text-[hsl(217,91%,60%)]" },
-                  { label: "Social Profiles", value: Object.keys(scrapeResult.socialLinks || {}).length, icon: Users, color: "text-purple-400" },
+                  { label: "Social Profiles", value: String(Object.keys(scrapeResult.socialLinks || {}).length), icon: Users, color: "text-purple-400" },
                 ].map((s, i) => (
                   <Card key={i} className="crm-card">
                     <CardContent className="p-3 flex items-center gap-3">
