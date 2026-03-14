@@ -1670,6 +1670,72 @@ Return ONLY valid JSON:
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Header-based Tech Detections */}
+                {(scrapeResult.headerTechDetections || []).length > 0 && (
+                  <Card className="crm-card">
+                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-cyan-400 flex items-center gap-2"><Zap className="h-4 w-4" /> Header-based Detections</CardTitle></CardHeader>
+                    <CardContent className="space-y-1.5">
+                      {(scrapeResult.headerTechDetections as { name: string; source: string }[]).map((t: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                          <span className="text-xs text-white/80">{t.name}</span>
+                          <Badge variant="outline" className="text-[9px] border-cyan-400/20 text-cyan-400">{t.source}</Badge>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Sensitive File Exposure */}
+                <Card className="crm-card md:col-span-2">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-red-400 flex items-center gap-2">
+                      <Lock className="h-4 w-4" /> Sensitive File Exposure Probe
+                      <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">
+                        {scrapeResult.sensitiveFiles?.totalChecked || 0} checked
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {(scrapeResult.sensitiveFiles?.exposedFiles || []).length > 0 ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 p-2 rounded-lg bg-red-400/10 border border-red-400/20">
+                          <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />
+                          <span className="text-xs text-red-400 font-medium">⚠ {scrapeResult.sensitiveFiles.exposedFiles.length} exposed file(s) found!</span>
+                        </div>
+                        {(scrapeResult.sensitiveFiles.exposedFiles as { url: string; path: string; snippet: string }[]).map((f: any, i: number) => (
+                          <div key={i} className="p-3 rounded-lg bg-white/[0.02] border border-red-400/10 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs text-red-400 font-mono">{f.path}</span>
+                              <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[hsl(217,91%,60%)] hover:underline">View</a>
+                            </div>
+                            {f.snippet && (
+                              <pre className="text-[10px] text-white/40 bg-black/30 p-2 rounded overflow-auto max-h-24 font-mono">{f.snippet}</pre>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                        <CheckCircle className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                        <span className="text-xs text-emerald-400/80">No publicly exposed sensitive files detected across {scrapeResult.sensitiveFiles?.totalChecked || 0} probes</span>
+                      </div>
+                    )}
+                    {(scrapeResult.sensitiveFiles?.allChecks || []).length > 0 && (
+                      <details className="mt-3">
+                        <summary className="text-[10px] text-white/30 cursor-pointer hover:text-white/50">Show all probe results</summary>
+                        <div className="mt-2 space-y-1 max-h-36 overflow-auto">
+                          {(scrapeResult.sensitiveFiles.allChecks as { path: string; host: string; status: number; exposed: boolean }[]).map((c: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between p-1.5 rounded bg-white/[0.02] text-[10px]">
+                              <span className="text-white/40 font-mono">{c.host}{c.path}</span>
+                              <span className={c.exposed ? "text-red-400" : c.status === 200 ? "text-amber-400" : "text-white/20"}>{c.status} {c.exposed ? "EXPOSED" : ""}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </CardContent>
+                </Card>
               </div>
 
               {/* ═══ CURATED METRICS ═══ */}
