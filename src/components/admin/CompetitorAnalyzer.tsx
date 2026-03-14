@@ -1374,12 +1374,14 @@ Return ONLY valid JSON:
           {scrapeResult ? (
             <div className="space-y-4">
               {/* Top summary */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
                   { label: "SEO Score", value: `${scrapeResult.seoScore}/100`, icon: Target, color: scrapeResult.seoScore >= 70 ? "text-emerald-400" : scrapeResult.seoScore >= 40 ? "text-amber-400" : "text-red-400" },
                   { label: "Page Size", value: `${scrapeResult.performance?.pageSizeKB || 0} KB`, icon: FileText, color: "text-white" },
                   { label: "Word Count", value: `${scrapeResult.content?.wordCount?.toLocaleString() || 0}`, icon: FileText, color: "text-white" },
                   { label: "HTTPS", value: scrapeResult.isHttps ? "Secure" : "Not Secure", icon: scrapeResult.isHttps ? Lock : Shield, color: scrapeResult.isHttps ? "text-emerald-400" : "text-red-400" },
+                  { label: "Platforms Found", value: Object.values(scrapeResult.detectedPlatforms || {}).reduce((a: number, b: any) => a + (b?.length || 0), 0), icon: Globe, color: "text-[hsl(217,91%,60%)]" },
+                  { label: "Social Profiles", value: Object.keys(scrapeResult.socialLinks || {}).length, icon: Users, color: "text-purple-400" },
                 ].map((s, i) => (
                   <Card key={i} className="crm-card">
                     <CardContent className="p-3 flex items-center gap-3">
