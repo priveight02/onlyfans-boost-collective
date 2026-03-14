@@ -204,42 +204,143 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
 
     const isFinancial = analysisType === "financial";
-    const model = isFinancial ? "google/gemini-2.5-flash" : "google/gemini-2.5-flash";
-
-    const systemPrompt = isFinancial
-      ? `You are a financial intelligence analyst. For known/public companies, use latest known reported figures from official filings/earnings. For unknown companies, provide clearly labeled conservative estimates. Never return placeholders like "N/A" or "Unknown" - always provide your best estimate with a range.`
-      : "You are a social media analytics and competitive intelligence expert. Always respond with ONLY valid JSON as requested. No markdown, no explanation, no code fences. Just raw JSON.";
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 40000);
+    const timeoutId = setTimeout(() => controller.abort(), 55000);
 
-    const requestBody: any = {
-      model,
-      temperature: isFinancial ? 0.1 : 0.3,
-      max_tokens: isFinancial ? 4096 : 1400,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: prompt },
-      ],
-    };
+    let reply = "";
 
-    // Use tool calling for financial analysis to guarantee structured JSON output
-    if (isFinancial) {
-      requestBody.tools = [financialTool];
-      requestBody.tool_choice = { type: "function", function: { name: "financial_report" } };
-    }
-
-    let response: Response;
     try {
-      response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-        signal: controller.signal,
-      });
+      if (isFinancial) {
+        // === TWO-PASS FINANCIAL RESEARCH ===
+        // Pass 1: Deep research with gemini-2.5-pro (best reasoning + knowledge)
+        const researchPrompt = `You are a financial research analyst with deep knowledge of public company financials from SEC filings (10-K, 10-Q), annual reports, earnings calls, SimilarWeb/Semrush traffic data, Crunchbase funding data, LinkedIn employee counts, and industry benchmarks.
+
+Research this company/website thoroughly. Return ONLY factual data with specific sources cited.
+
+COMPANY/WEBSITE TO RESEARCH: ${prompt}
+
+Provide a detailed factual brief:
+1. COMPANY IDENTITY: Legal name, ticker (if public), founding year, HQ, employee count (source: LinkedIn/filing)
+2. REVENUE & FINANCIALS: Latest annual revenue (exact figure from most recent 10-K or annual report), quarterly revenue trend, net income, gross margin, operating margin. For private companies, cite known funding rounds or revenue estimates from Bloomberg/Forbes/TechCrunch.
+3. TRAFFIC: Monthly unique visitors (SimilarWeb/Semrush data), daily visitors, bounce rate, avg session, top sources, top countries with percentages
+4. BUSINESS MODEL: Revenue streams with % breakdown, pricing tiers, AOV
+5. MARKET: Market share estimate with reasoning, top 3-5 competitors, moat/advantages
+6. GROWTH: YoY revenue growth %, traffic trend, employee growth rate
+7. UNIT ECONOMICS: LTV, CAC estimates if available from industry benchmarks
+
+RULES:
+- Use EXACT figures (e.g. "$51.2 billion" not "$50B+")
+- Always cite the source and date (e.g. "FY2024 10-K", "SimilarWeb Jan 2025", "Crunchbase Series C")
+- If a number is your estimate, label it clearly as "Estimated" with reasoning
+- DO NOT fabricate. If unknown, say "No verified data" for that metric`;
+
+        const researchRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-pro",
+            temperature: 0.05,
+            max_tokens: 3000,
+            messages: [{ role: "user", content: researchPrompt }],
+          }),
+          signal: controller.signal,
+        });
+
+        if (!researchRes.ok) {
+          const t = await researchRes.text();
+          console.error("Research pass error:", researchRes.status, t);
+          if (researchRes.status === 429) return new Response(JSON.stringify({ error: "Rate limited. Please try again shortly." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          if (researchRes.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          throw new Error(`Research pass failed: ${researchRes.status}`);
+        }
+
+        const researchData = await researchRes.json();
+        const researchBrief = researchData.choices?.[0]?.message?.content || "";
+        console.log("Research brief length:", researchBrief.length);
+
+        // Pass 2: Structure research into tool call schema using fast model
+        const structurePrompt = `Use ONLY the verified research below to fill the financial report. Use exact numbers from the research. Do not invent data.
+
+=== VERIFIED RESEARCH ===
+${researchBrief}
+=== END RESEARCH ===
+
+ORIGINAL REQUEST: ${prompt}
+
+INSTRUCTIONS:
+- Use EXACT numbers from research (e.g. "$51.2B (FY2024 10-K)" not "$50B")
+- Derive daily/weekly from annual: daily=annual/365, weekly=annual/52, monthly=annual/12
+- Derive traffic periods similarly from monthly figures
+- Include source citations in parentheses
+- If research says "No verified data", estimate with label "Estimated: $X based on [reasoning]"
+- For non-subscription companies: mrr/arr/churn = "Not subscription-based"`;
+
+        const structRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            temperature: 0.05,
+            max_tokens: 4096,
+            messages: [
+              { role: "system", content: "Structure the provided research into the financial report schema. Use only verified data." },
+              { role: "user", content: structurePrompt },
+            ],
+            tools: [financialTool],
+            tool_choice: { type: "function", function: { name: "financial_report" } },
+          }),
+          signal: controller.signal,
+        });
+
+        if (!structRes.ok) {
+          const t = await structRes.text();
+          console.error("Structure pass error:", structRes.status, t);
+          if (structRes.status === 429) return new Response(JSON.stringify({ error: "Rate limited. Please try again shortly." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          if (structRes.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          throw new Error(`Structure pass failed: ${structRes.status}`);
+        }
+
+        const structData = await structRes.json();
+        const toolCall = structData.choices?.[0]?.message?.tool_calls?.[0];
+        if (toolCall?.function?.arguments) {
+          try {
+            const parsed = JSON.parse(toolCall.function.arguments);
+            reply = JSON.stringify(parsed);
+          } catch {
+            reply = toolCall.function.arguments;
+          }
+        } else {
+          reply = structData.choices?.[0]?.message?.content || "";
+        }
+      } else {
+        // Non-financial: single pass
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            temperature: 0.3,
+            max_tokens: 1400,
+            messages: [
+              { role: "system", content: "You are a social media analytics and competitive intelligence expert. Always respond with ONLY valid JSON as requested. No markdown, no explanation, no code fences. Just raw JSON." },
+              { role: "user", content: prompt },
+            ],
+          }),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const t = await response.text();
+          console.error("AI gateway error:", response.status, t);
+          if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limited. Please try again shortly." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          if (response.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          throw new Error(`AI gateway returned ${response.status}`);
+        }
+
+        const data = await response.json();
+        reply = data.choices?.[0]?.message?.content || "";
+      }
     } catch (fetchError: any) {
       if (fetchError?.name === "AbortError") {
         return new Response(
@@ -250,46 +351,6 @@ serve(async (req) => {
       throw fetchError;
     } finally {
       clearTimeout(timeoutId);
-    }
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("AI gateway error:", response.status, errText);
-
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limited. Please try again shortly." }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add funds." }), {
-          status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error(`AI gateway returned ${response.status}`);
-    }
-
-    const data = await response.json();
-    let reply = "";
-
-    if (isFinancial) {
-      // Extract structured data from tool call response
-      const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-      if (toolCall?.function?.arguments) {
-        // The arguments come as a JSON string from the API - already valid JSON
-        try {
-          const parsed = JSON.parse(toolCall.function.arguments);
-          reply = JSON.stringify(parsed);
-        } catch {
-          // Fallback: return raw arguments string
-          reply = toolCall.function.arguments;
-        }
-      } else {
-        // Fallback to content if tool calling wasn't used
-        reply = data.choices?.[0]?.message?.content || "";
-      }
-    } else {
-      reply = data.choices?.[0]?.message?.content || "";
     }
 
     const newCount = currentCount + 1;
