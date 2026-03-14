@@ -239,20 +239,10 @@ const CompetitorAnalyzer = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check for admin-triggered rate limit reset
-      const { data: profileData } = await supabase.from("profiles").select("metadata").eq("user_id", user.id).single() as any;
-      const resetAt = profileData?.metadata?.competitor_ai_reset_at;
-      if (resetAt) {
-        const resetDate = new Date(resetAt).toISOString().slice(0, 10);
-        const today = new Date().toISOString().slice(0, 10);
-        const key = getRateLimitKey(user.id);
-        const storedCount = getAIUsageCount(user.id);
-        if (resetDate === today && storedCount > 0) {
-          localStorage.setItem(key, "0");
-        }
-      }
+      // Check server-side AI usage
+      const usage = await checkAIUsage();
+      setAiUsageCount(usage.count);
 
-      setAiUsageCount(getAIUsageCount(user.id));
       const rows = await competitorRest.select(user.id);
       if (Array.isArray(rows) && rows.length) {
         setCompetitors(rows.map(mapRow));
