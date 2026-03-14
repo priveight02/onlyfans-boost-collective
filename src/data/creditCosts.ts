@@ -118,6 +118,8 @@ export const CRM_ACTION_COSTS: Record<string, number> = {
   competitor_refresh: 5,
   competitor_swot: 15,
   competitor_insight: 10,
+  competitor_keyword_search: 10,
+  competitor_gap_analysis: 12,
 
   // ── Fallback ──
   default_write: 3,
