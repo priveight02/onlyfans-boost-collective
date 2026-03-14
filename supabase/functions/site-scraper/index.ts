@@ -119,6 +119,31 @@ function prioritize(links: string[]): string[] {
   });
 }
 
+function extractJsChunkUrls(jsBody: string, baseScriptUrl: string, rootDomain: string): string[] {
+  const found = new Set<string>();
+  const patterns = [
+    /["'`](\/assets\/[^"'`\s]+?\.js(?:\?[^"'`\s]*)?)["'`]/gi,
+    /["'`]((?:https?:)?\/\/[^"'`\s]+?\.js(?:\?[^"'`\s]*)?)["'`]/gi,
+    /import\(["'`]([^"'`\s]+?\.js(?:\?[^"'`\s]*)?)["'`]\)/gi,
+  ];
+
+  const add = (rawUrl: string) => {
+    try {
+      const resolved = rawUrl.startsWith("//") ? `https:${rawUrl}` : rawUrl;
+      const u = new URL(resolved, baseScriptUrl);
+      if (["http:", "https:"].includes(u.protocol) && isSameSite(rootDomain, u.hostname)) {
+        found.add(u.href);
+      }
+    } catch {}
+  };
+
+  for (const p of patterns) {
+    for (const match of safeMatch(jsBody, p)) add(match);
+  }
+
+  return [...found];
+}
+
 async function fetchSitemapUrls(origins: string[], rootDomain: string): Promise<{ urls: string[]; sources: string[] }> {
   const smPaths = ["/sitemap.xml", "/sitemap_index.xml", "/wp-sitemap.xml", "/sitemap1.xml", "/page-sitemap.xml"];
   const queued = new Set<string>();
@@ -246,10 +271,30 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
   }
 
   // Fetch same-site JS bundles for deeper signature detection
-  const sameScripts = [...scriptSet].filter(s => { try { return isSameSite(rootDomain, new URL(s).hostname); } catch { return false; } }).slice(0, 15);
-  const jsBodies = (await Promise.all(sameScripts.map(s => safeFetchText(s, 5000, 200_000)))).filter(Boolean);
+  const sameScripts = [...scriptSet]
+    .filter(s => { try { return isSameSite(rootDomain, new URL(s).hostname); } catch { return false; } })
+    .slice(0, 24);
 
-  const combined = pages.map(p => p.html).join("\n<!-- page -->\n") + "\n" + jsBodies.join("\n");
+  const jsFetches = await Promise.all(sameScripts.map(async (s) => {
+    const body = await safeFetchText(s, 8000, 2_500_000);
+    return { url: s, body };
+  }));
+
+  const jsBodies = jsFetches.map(j => j.body).filter(Boolean);
+
+  // Discover route-level chunk bundles referenced inside initial JS files
+  const chunkCandidates = new Set<string>();
+  for (const j of jsFetches) {
+    if (!j.body) continue;
+    for (const c of extractJsChunkUrls(j.body, j.url, rootDomain)) {
+      if (!sameScripts.includes(c)) chunkCandidates.add(c);
+    }
+  }
+
+  const chunkScripts = [...chunkCandidates].slice(0, 50);
+  const chunkBodies = (await Promise.all(chunkScripts.map(c => safeFetchText(c, 8000, 1_200_000)))).filter(Boolean);
+
+  const combined = pages.map(p => p.html).join("\n<!-- page -->\n") + "\n" + [...jsBodies, ...chunkBodies].join("\n");
 
   return {
     combined,
@@ -386,9 +431,15 @@ function detectPlatforms(corpus: string, scripts: string[], stylesheets: string[
     ["Apple Pay", ["apple-pay", "applepay"]], ["Google Pay", ["google-pay", "googlepay", "gpay"]],
     ["Amazon Pay", ["amazonpay", "payments.amazon"]], ["Razorpay", ["razorpay.com", "razorpay"]],
     ["Mollie", ["mollie.com"]], ["2Checkout/Verifone", ["2checkout.com", "verifone.com"]],
-    ["Authorize.net", ["authorize.net"]], ["Paddle", ["paddle.com", "paddle.js", "cdn.paddle.com", "vendors.paddle.com"]],
-    ["Lemon Squeezy", ["lemonsqueezy.com", "lmsqueezy", "lemon-squeezy", "store.lemonsqueezy.com", "lemonsqueezy"]],
-    ["Polar.sh", ["polar.sh", "api.polar.sh", "sandbox-api.polar.sh", "checkout.polar.sh", "sandbox-checkout.polar.sh", "@polar-sh", "polar-checkout", "polar_sh", "polar_customer", "polar_checkout", "polar_access_token", "/v1/checkouts", "customer-sessions", "benefit_grant", "polar_webhook", "polar.sh/", "polar-", "polarsource"]],
+    ["Authorize.net", ["authorize.net"]], ["Paddle", ["paddle.com", "paddle.js", "cdn.paddle.com", "vendors.paddle.com", "paddle_checkout", "paddle billing"]],
+    ["Lemon Squeezy", ["lemonsqueezy.com", "lmsqueezy", "lemon-squeezy", "store.lemonsqueezy.com", "lemonsqueezy", "app.lemonsqueezy.com/js/lemon.js"]],
+    ["Polar.sh", [
+      "polar.sh", "api.polar.sh", "sandbox-api.polar.sh", "checkout.polar.sh", "sandbox-checkout.polar.sh",
+      "@polar-sh", "@polar_sh", "polar-checkout", "polar_sh", "polar_customer", "polar_checkout", "polar_access_token",
+      "polar_access_token_sandbox", "polar_webhook", "polar_webhook_secret", "polar_mode", "polar-setup",
+      "polar-setup-discounts", "polar-setup-first-order", "customer-sessions", "/customer-sessions", "/v1/checkouts",
+      "benefit_grant", "polar.sh/", "polar source", "portal.polar.sh"
+    ]],
     ["Gumroad", ["gumroad.com"]], ["Chargebee", ["chargebee.com"]], ["Recurly", ["recurly.com"]],
     ["FastSpring", ["fastspring.com"]], ["Wise", ["wise.com"]], ["Venmo", ["venmo.com"]], ["Cash App", ["cash.app"]],
     ["Sezzle", ["sezzle.com"]], ["Zip/QuadPay", ["zip.co", "quadpay.com"]],
@@ -536,10 +587,15 @@ function detectPlatforms(corpus: string, scripts: string[], stylesheets: string[
   ]);
 
   const backendProviders = detect([
-    ["Supabase", ["supabase.co", "supabase.com", "supabase-js"]], ["Firebase", ["firebaseio.com", "firebaseapp.com", "gstatic.com/firebasejs"]],
-    ["Google Cloud", ["cloudfunctions.net", "run.app", "storage.googleapis.com"]], ["AWS", ["amazonaws.com", "execute-api", "amplifyapp.com"]],
-    ["Azure", ["azurewebsites.net", "azure-api.net"]], ["Cloudflare Workers", ["workers.dev"]],
-    ["Vercel Functions", ["vercel.app"]], ["Netlify Functions", ["/.netlify/functions/"]],
+    ["Supabase", [
+      "supabase.co", "supabase.com", "supabase-js", "x-client-info=supabase-js", "@supabase/supabase-js",
+      "/rest/v1/", "/auth/v1/", "/storage/v1/", "/functions/v1/", ".supabase.co/functions/v1"
+    ]],
+    ["Firebase", ["firebaseio.com", "firebaseapp.com", "gstatic.com/firebasejs", "firebasestorage.googleapis.com"]],
+    ["Google Cloud", ["cloudfunctions.net", "run.app", "storage.googleapis.com", "googleapis.com"]],
+    ["AWS", ["amazonaws.com", "execute-api", "amplifyapp.com", "aws-sdk"]],
+    ["Azure", ["azurewebsites.net", "azure-api.net", "azure.com"]], ["Cloudflare Workers", ["workers.dev"]],
+    ["Vercel Functions", ["vercel.app", "x-vercel-id"]], ["Netlify Functions", ["/.netlify/functions/", "netlify.app"]],
     ["Render", ["onrender.com"]], ["Railway", ["railway.app"]], ["Fly.io", ["fly.dev"]],
     ["Heroku", ["herokuapp.com"]], ["Appwrite", ["appwrite.io"]], ["Nhost", ["nhost.io"]],
     ["PocketBase", ["pocketbase"]], ["Hasura", ["hasura.io", "x-hasura"]], ["Convex", ["convex.dev"]],
@@ -673,13 +729,42 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
     const dIframes = deep?.iframes?.length ? deep.iframes : iframes;
     const detectedPlatforms = detectPlatforms(dHtml, dScripts, dStyles, dExtLinks, dIframes);
 
+    const upsertDetection = (
+      bucket: { name: string; confidence: string }[],
+      name: string,
+      confidence: "high" | "medium" = "medium",
+    ) => {
+      const i = bucket.findIndex((x) => x.name.toLowerCase() === name.toLowerCase());
+      if (i === -1) bucket.push({ name, confidence });
+      else if (bucket[i].confidence !== "high" && confidence === "high") bucket[i].confidence = "high";
+    };
+
+    const deepLc = dHtml.toLowerCase();
+
+    // Heuristics for hidden backend/payment providers in route chunks
+    const supabaseStrong = /https?:\/\/[a-z0-9-]{10,}\.supabase\.co/i.test(dHtml) || deepLc.includes("@supabase/supabase-js") || deepLc.includes("x-client-info=supabase-js");
+    const supabaseMedium = deepLc.includes("supabase-js") || (deepLc.includes("/rest/v1/") && deepLc.includes("/auth/v1/"));
+    if (supabaseStrong) upsertDetection(detectedPlatforms.backendProviders, "Supabase", "high");
+    else if (supabaseMedium) upsertDetection(detectedPlatforms.backendProviders, "Supabase", "medium");
+
+    const polarStrong = /(?:api|sandbox-api|checkout|sandbox-checkout)\.polar\.sh/i.test(dHtml) || deepLc.includes("polar_access_token") || deepLc.includes("polar_webhook");
+    const polarFlowSignals = ["create-checkout", "customer-portal", "verify-credit-purchase", "purchase-credits", "billing-info"].filter((k) => deepLc.includes(k)).length;
+    const polarMedium = deepLc.includes("@polar-sh") || deepLc.includes("polar-setup") || deepLc.includes("/v1/checkouts") || (deepLc.includes("customer-sessions") && deepLc.includes("polar")) || polarFlowSignals >= 3;
+    if (polarStrong) upsertDetection(detectedPlatforms.payments, "Polar.sh", "high");
+    else if (polarMedium) upsertDetection(detectedPlatforms.payments, "Polar.sh", polarFlowSignals >= 4 ? "high" : "medium");
+
     // Merge header-based detections
     if (headerTech.length > 0) {
+      const backendServerSignals = new Set(["cloudflare", "vercel", "netlify", "aws", "render", "railway", "fly.io", "deno deploy", "github pages"]);
+
       for (const ht of headerTech) {
-        // Add to hosting if not already
         const allNames = [...detectedPlatforms.hosting, ...detectedPlatforms.frameworks, ...detectedPlatforms.backendProviders].map(p => p.name.toLowerCase());
         if (!allNames.includes(ht.name.toLowerCase())) {
           detectedPlatforms.hosting.push({ name: `${ht.name} (via ${ht.source})`, confidence: "high" });
+        }
+
+        if (backendServerSignals.has(ht.name.toLowerCase())) {
+          upsertDetection(detectedPlatforms.backendProviders, ht.name, "medium");
         }
       }
     }
