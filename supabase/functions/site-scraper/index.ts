@@ -271,10 +271,30 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
   }
 
   // Fetch same-site JS bundles for deeper signature detection
-  const sameScripts = [...scriptSet].filter(s => { try { return isSameSite(rootDomain, new URL(s).hostname); } catch { return false; } }).slice(0, 15);
-  const jsBodies = (await Promise.all(sameScripts.map(s => safeFetchText(s, 5000, 200_000)))).filter(Boolean);
+  const sameScripts = [...scriptSet]
+    .filter(s => { try { return isSameSite(rootDomain, new URL(s).hostname); } catch { return false; } })
+    .slice(0, 24);
 
-  const combined = pages.map(p => p.html).join("\n<!-- page -->\n") + "\n" + jsBodies.join("\n");
+  const jsFetches = await Promise.all(sameScripts.map(async (s) => {
+    const body = await safeFetchText(s, 7000, 900_000);
+    return { url: s, body };
+  }));
+
+  const jsBodies = jsFetches.map(j => j.body).filter(Boolean);
+
+  // Discover route-level chunk bundles referenced inside initial JS files
+  const chunkCandidates = new Set<string>();
+  for (const j of jsFetches) {
+    if (!j.body) continue;
+    for (const c of extractJsChunkUrls(j.body, j.url, rootDomain)) {
+      if (!sameScripts.includes(c)) chunkCandidates.add(c);
+    }
+  }
+
+  const chunkScripts = [...chunkCandidates].slice(0, 40);
+  const chunkBodies = (await Promise.all(chunkScripts.map(c => safeFetchText(c, 7000, 500_000)))).filter(Boolean);
+
+  const combined = pages.map(p => p.html).join("\n<!-- page -->\n") + "\n" + [...jsBodies, ...chunkBodies].join("\n");
 
   return {
     combined,
