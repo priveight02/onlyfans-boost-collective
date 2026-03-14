@@ -120,6 +120,7 @@ const TAB_SLUGS: Record<string, string> = {
   tasks: "tasks", contracts: "contracts", team: "team", "team-perf": "performance",
   automation: "storyline", persona: "persona-dna", copilot: "uplyze-assistant", emotional: "emotional",
   content: "content", social: "social-media", "ad-creatives": "ad-creatives",
+  competitors: "competitor-analyzer",
   lookup: "lookup", audience: "audience", reports: "reports",
   settings: "settings", api: "api",
 };
