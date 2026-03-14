@@ -1886,58 +1886,195 @@ Be as accurate as possible. Use real industry benchmarks. If uncertain, provide 
                 </Card>
               </div>
 
-              {/* ═══ CURATED METRICS ═══ */}
+              {/* ═══ UNIFIED DEEP ANALYSIS CARD ═══ */}
               {scrapeResult.curatedMetrics && (
-                <div className="space-y-4">
-                  <h3 className="text-sm font-medium text-white/50 flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4" /> Deep Analysis
-                    <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{Object.keys(scrapeResult.curatedMetrics).length} categories</Badge>
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <Card className="crm-card">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-white/70 flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-[hsl(217,91%,60%)]" /> Deep Analysis
+                      <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{Object.keys(scrapeResult.curatedMetrics).length} sections</Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
                     {Object.entries(scrapeResult.curatedMetrics as Record<string, { label: string; items: Record<string, any> }>).map(([key, category]) => {
-                      const catColors: Record<string, string> = {
-                        contentQuality: "text-cyan-400", seoSignals: "text-emerald-400", mediaAssets: "text-amber-400",
-                        techStack: "text-purple-400", monetization: "text-green-400", uxFeatures: "text-pink-400",
-                        linkProfile: "text-[hsl(217,91%,60%)]", securityScore: "text-red-400",
+                      const catEmojis: Record<string, string> = {
+                        contentQuality: "📝", seoSignals: "🔍", mediaAssets: "🖼️",
+                        techStack: "⚙️", monetization: "💰", uxFeatures: "✨",
+                        linkProfile: "🔗", securityScore: "🛡️",
                       };
-                      const catIcons: Record<string, any> = {
-                        contentQuality: FileText, seoSignals: Target, mediaAssets: ImageIcon,
-                        techStack: Code, monetization: Zap, uxFeatures: Eye,
-                        linkProfile: Link, securityScore: Shield,
-                      };
-                      const IconComp = catIcons[key] || BarChart3;
-                      const color = catColors[key] || "text-white/60";
                       return (
-                        <Card key={key} className="crm-card">
-                          <CardHeader className="pb-2">
-                            <CardTitle className={`text-sm font-medium flex items-center gap-2 ${color}`}>
-                              <IconComp className="h-4 w-4" /> {category.label}
-                            </CardTitle>
-                          </CardHeader>
-                          <CardContent className="space-y-1.5">
-                            {Object.entries(category.items).map(([label, value]) => {
-                              const isCheck = value === "✓";
-                              const isCross = value === "✗";
-                              return (
-                                <div key={label} className="flex items-center justify-between p-1.5 rounded bg-white/[0.02]">
-                                  <span className="text-[10px] text-white/50">{label}</span>
-                                  {isCheck ? (
-                                    <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
-                                  ) : isCross ? (
-                                    <XCircle className="h-3.5 w-3.5 text-white/20" />
-                                  ) : (
-                                    <span className="text-xs font-medium text-white/80">{String(value)}</span>
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </CardContent>
-                        </Card>
+                        <div key={key} className="p-3 rounded-lg bg-white/[0.015] border border-white/[0.04]">
+                          <p className="text-[11px] font-medium text-white/60 mb-2">{catEmojis[key] || "📊"} {category.label}</p>
+                          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-1">
+                            {Object.entries(category.items).map(([label, value]) => (
+                              <div key={label} className="flex items-center justify-between py-1 border-b border-white/[0.03]">
+                                <span className="text-[10px] text-white/40">{label}</span>
+                                {value === "✓" ? (
+                                  <CheckCircle className="h-3 w-3 text-emerald-400" />
+                                ) : value === "✗" ? (
+                                  <XCircle className="h-3 w-3 text-white/15" />
+                                ) : (
+                                  <span className="text-[11px] font-medium text-white/80">{String(value)}</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       );
                     })}
-                  </div>
-                </div>
+                  </CardContent>
+                </Card>
               )}
+
+              {/* ═══ FINANCIAL INTELLIGENCE ═══ */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium text-green-400 flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4" /> Financial Intelligence
+                      {financialData && <Badge variant="outline" className="text-[9px] border-green-400/20 text-green-400">AI-Analyzed</Badge>}
+                    </CardTitle>
+                    <Button size="sm" onClick={runFinancialAnalysis} disabled={financialLoading || !scrapeResult} className="bg-green-500/10 hover:bg-green-500/20 text-green-400 border border-green-400/20 gap-1.5 text-xs h-7">
+                      {financialLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Zap className="h-3 w-3" />}
+                      {financialLoading ? "Analyzing..." : financialData ? "Re-Analyze" : "Run Analysis"}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {financialData ? (
+                    <div className="space-y-4">
+                      {/* Revenue & Traffic Overview */}
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        {[
+                          { label: "Daily Revenue", value: financialData.revenueEstimates?.daily, color: "text-green-400" },
+                          { label: "Monthly Revenue", value: financialData.revenueEstimates?.monthly, color: "text-green-400" },
+                          { label: "Yearly Revenue", value: financialData.revenueEstimates?.yearly, color: "text-emerald-400" },
+                          { label: "Monthly Traffic", value: financialData.trafficEstimates?.monthly, color: "text-[hsl(217,91%,60%)]" },
+                        ].map((m, i) => (
+                          <div key={i} className="p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.05] text-center">
+                            <p className="text-[10px] text-white/40">{m.label}</p>
+                            <p className={`text-sm font-bold ${m.color}`}>{m.value || "N/A"}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Business Model & Pricing */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="p-3 rounded-lg bg-white/[0.015] border border-white/[0.04]">
+                          <p className="text-[10px] font-medium text-white/50 mb-2">💼 Business Model</p>
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Type</span><span className="text-[11px] text-white/80 font-medium">{financialData.businessModel?.type}</span></div>
+                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Primary Revenue</span><span className="text-[11px] text-white/80">{financialData.businessModel?.primaryRevenue}</span></div>
+                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Monetization</span><span className="text-[11px] text-white/80">{financialData.businessModel?.monetizationScore}/100</span></div>
+                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Strategy</span><span className="text-[11px] text-white/80">{financialData.pricingAnalysis?.pricingStrategy}</span></div>
+                            <div className="flex justify-between"><span className="text-[10px] text-white/40">ARPU</span><span className="text-[11px] text-white/80">{financialData.pricingAnalysis?.avgRevenuePerUser}</span></div>
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-lg bg-white/[0.015] border border-white/[0.04]">
+                          <p className="text-[10px] font-medium text-white/50 mb-2">📊 Traffic Breakdown</p>
+                          <div className="space-y-1.5">
+                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Daily</span><span className="text-[11px] text-white/80">{financialData.trafficEstimates?.daily}</span></div>
+                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Weekly</span><span className="text-[11px] text-white/80">{financialData.trafficEstimates?.weekly}</span></div>
+                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Trend</span><span className="text-[11px] text-white/80">{financialData.trafficEstimates?.trend}</span></div>
+                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Top Source</span><span className="text-[11px] text-white/80">{financialData.trafficEstimates?.topSourcePct}</span></div>
+                            <div className="flex justify-between"><span className="text-[10px] text-white/40">Confidence</span>
+                              <Badge variant="outline" className={`text-[8px] ${financialData.revenueEstimates?.confidence === "high" ? "border-emerald-400/30 text-emerald-400" : financialData.revenueEstimates?.confidence === "medium" ? "border-amber-400/30 text-amber-400" : "border-white/10 text-white/40"}`}>{financialData.revenueEstimates?.confidence}</Badge>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Plans */}
+                      {(financialData.pricingAnalysis?.plans || []).length > 0 && (
+                        <div className="p-3 rounded-lg bg-white/[0.015] border border-white/[0.04]">
+                          <p className="text-[10px] font-medium text-white/50 mb-2">💳 Detected Plans & Pricing</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {(financialData.pricingAnalysis.plans as any[]).map((plan: any, i: number) => (
+                              <div key={i} className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[11px] font-medium text-white/80">{plan.name}</span>
+                                  <span className="text-[11px] font-bold text-green-400">{plan.price}</span>
+                                </div>
+                                <span className="text-[9px] text-white/30">{plan.billing}</span>
+                                {plan.features && (
+                                  <div className="mt-1 flex flex-wrap gap-1">
+                                    {(plan.features as string[]).slice(0, 3).map((f: string, fi: number) => (
+                                      <Badge key={fi} variant="outline" className="text-[8px] border-white/10 text-white/30">{f}</Badge>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Income Streams */}
+                      {(financialData.incomeStreams || []).length > 0 && (
+                        <div className="p-3 rounded-lg bg-white/[0.015] border border-white/[0.04]">
+                          <p className="text-[10px] font-medium text-white/50 mb-2">💵 Income Streams</p>
+                          <div className="space-y-1.5">
+                            {(financialData.incomeStreams as any[]).map((s: any, i: number) => (
+                              <div key={i} className="flex items-center justify-between p-1.5 rounded bg-white/[0.02]">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[11px] text-white/80">{s.source}</span>
+                                  <Badge variant="outline" className="text-[8px] border-white/10 text-white/30">{s.type}</Badge>
+                                </div>
+                                <span className="text-[11px] font-medium text-green-400/80">{s.estimatedPct}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Commerce Signals & Growth */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="p-3 rounded-lg bg-white/[0.015] border border-white/[0.04]">
+                          <p className="text-[10px] font-medium text-white/50 mb-2">🛒 Commerce Signals</p>
+                          <div className="grid grid-cols-2 gap-1">
+                            {Object.entries(financialData.commerceSignals || {}).map(([k, v]) => (
+                              <div key={k} className="flex items-center gap-1.5 py-0.5">
+                                {v ? <CheckCircle className="h-3 w-3 text-emerald-400" /> : <XCircle className="h-3 w-3 text-white/15" />}
+                                <span className="text-[10px] text-white/50">{k.replace(/([A-Z])/g, " $1").replace(/^has /, "")}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="p-3 rounded-lg bg-white/[0.015] border border-white/[0.04]">
+                          <p className="text-[10px] font-medium text-white/50 mb-2">📈 Growth Score: {financialData.growthIndicators?.score || "?"}/100</p>
+                          <div className="space-y-1">
+                            {(financialData.growthIndicators?.signals || []).slice(0, 3).map((s: string, i: number) => (
+                              <div key={i} className="flex items-start gap-1.5">
+                                <ArrowUpRight className="h-3 w-3 text-emerald-400 mt-0.5 flex-shrink-0" />
+                                <span className="text-[10px] text-white/60">{s}</span>
+                              </div>
+                            ))}
+                            {(financialData.growthIndicators?.risks || []).slice(0, 2).map((r: string, i: number) => (
+                              <div key={i} className="flex items-start gap-1.5">
+                                <AlertTriangle className="h-3 w-3 text-amber-400 mt-0.5 flex-shrink-0" />
+                                <span className="text-[10px] text-white/60">{r}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Methodology note */}
+                      {financialData.revenueEstimates?.methodology && (
+                        <p className="text-[9px] text-white/25 italic">📐 Methodology: {financialData.revenueEstimates.methodology}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <TrendingUp className="h-8 w-8 text-white/15 mx-auto mb-2" />
+                      <p className="text-xs text-white/30">Click "Run Analysis" to generate AI-powered financial intelligence</p>
+                      <p className="text-[10px] text-white/20 mt-1">Analyzes checkout flow, pricing, income streams, traffic & revenue estimates</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Links & Images stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
