@@ -811,7 +811,7 @@ Return ONLY valid JSON:
   "methodology": "<brief explanation of how you derived these numbers>"
 }`;
 
-        const aiReply = await callAI(prompt);
+        const aiReply = await callAI(prompt, "financial");
         const parsed = normalizeFinancialData(parseJSON(aiReply), monetization);
         setFinancialData(parsed);
         await refreshAIUsage();
