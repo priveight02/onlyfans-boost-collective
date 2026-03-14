@@ -1253,7 +1253,7 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
 
     if (polarKeywordSignals >= 2 || (polarKeywordSignals >= 1 && polarFlowSignals >= 2)) {
       upsertDetection(detectedPlatforms.payments, "Polar.sh", "high");
-    } else if (polarKeywordSignals >= 1 || polarFlowSignals >= 4) {
+    } else if (polarKeywordSignals >= 1 || polarFlowSignals >= 3) {
       upsertDetection(detectedPlatforms.payments, "Polar.sh", "medium");
     }
 
