@@ -161,7 +161,7 @@ async function fetchSitemapUrls(origins: string[], rootDomain: string): Promise<
   for (const o of origins) smPaths.forEach(p => addCandidate(p, o));
 
   // robots.txt
-  await Promise.all(origins.slice(0, 8).map(async o => {
+  await Promise.all(origins.slice(0, 3).map(async o => {
     try {
       const txt = await safeFetchText(`${o}/robots.txt`, 4000, 50_000);
       for (const line of txt.match(/^Sitemap:\s*(.+)$/gmi) || []) addCandidate(line.replace(/^Sitemap:\s*/i, "").trim(), o);
