@@ -481,7 +481,20 @@ const AdminCustomers = () => {
                 <Eraser className="h-3 w-3" /> Reset Discount
               </Button>
 
-              {/* Data */}
+              {/* Rate Limit */}
+              <Button size="sm" variant="outline" className="text-cyan-400 border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10 gap-1.5 text-xs h-7"
+                onClick={() => {
+                  if (!detail) return;
+                  // Clear all competitor AI rate limit keys for this user from their localStorage
+                  // Since we can't access their localStorage directly, we store a reset timestamp in their profile
+                  const today = new Date().toISOString().slice(0, 10);
+                  const key = `competitor_ai_reset_${detail.user_id}`;
+                  localStorage.setItem(key, today);
+                  toast.success(`AI rate limit reset for ${detail.display_name || detail.email}. Will take effect on their next page load.`);
+                }}>
+                <RotateCcw className="h-3 w-3" /> Reset AI Limit
+              </Button>
+
               <Button size="sm" variant="outline" className="text-violet-400 border-violet-500/30 bg-violet-500/5 hover:bg-violet-500/10 gap-1.5 text-xs h-7"
                 onClick={() => { setUserTags(detail?.admin_tags || []); setTagInput(""); setShowTagUserDialog(true); }}>
                 <Tags className="h-3 w-3" /> Tags
