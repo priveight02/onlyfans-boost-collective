@@ -170,7 +170,9 @@ const callAI = async (prompt: string): Promise<any> => {
 };
 
 const parseJSON = (text: string): any => {
-  const match = text.match(/\{[\s\S]*\}/);
+  // Strip markdown code fences first
+  let cleaned = text.replace(/```(?:json)?\s*/gi, '').replace(/```\s*/g, '');
+  const match = cleaned.match(/\{[\s\S]*\}/);
   if (!match) throw new Error("No JSON found in AI response");
   // Sanitize control characters inside JSON string values that break JSON.parse
   const sanitized = match[0].replace(/[\x00-\x1F\x7F]/g, (ch) => {
