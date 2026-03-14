@@ -1552,6 +1552,9 @@ Return ONLY valid JSON:
                     { key: "frameworks", label: "Frameworks & CMS", color: "text-amber-400", icon: Code },
                     { key: "ads", label: "Ads & Monetization", color: "text-yellow-400", icon: TrendingUp },
                     { key: "security", label: "Security, Auth & Monitoring", color: "text-red-400", icon: Shield },
+                    { key: "identityAuth", label: "Identity & Auth Providers", color: "text-rose-300", icon: Lock },
+                    { key: "databaseInfra", label: "Database & Data Infra", color: "text-emerald-300", icon: Activity },
+                    { key: "observability", label: "Observability & Monitoring", color: "text-orange-300", icon: Eye },
                     { key: "scheduling", label: "Scheduling & Booking", color: "text-indigo-400", icon: Calendar },
                     { key: "forms", label: "Forms & Surveys", color: "text-lime-400", icon: FileText },
                     { key: "engagement", label: "Engagement & Media", color: "text-sky-400", icon: Eye },
@@ -1564,7 +1567,8 @@ Return ONLY valid JSON:
                     { key: "affiliate", label: "Affiliate & Referral", color: "text-rose-400", icon: TrendingUp },
                     { key: "personalization", label: "Personalization & A/B Testing", color: "text-sky-300", icon: Eye },
                   ];
-                  const activeCats = categories.filter(c => ["backendProviders", "cdn", "fileStorage"].includes(c.key) || (dp[c.key] || []).length > 0);
+                  const persistentCards = ["backendProviders", "cdn", "fileStorage", "identityAuth", "databaseInfra", "observability"];
+                  const activeCats = categories.filter(c => persistentCards.includes(c.key) || (dp[c.key] || []).length > 0);
                   if (activeCats.length === 0) return (
                     <Card className="crm-card md:col-span-2">
                       <CardContent className="p-6 text-center">
