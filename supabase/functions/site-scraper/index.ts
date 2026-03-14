@@ -933,8 +933,12 @@ function extractMetadata(html: string, url: string, securityHeaders: Record<stri
     if (matches.length) socialLinks[platform] = matches.slice(0, 5);
   }
 
-  // Detect platforms
-  const detectedPlatforms = detectPlatforms(html, scripts, stylesheets, externalLinks);
+  // Detect platforms using deep multi-page corpus when available
+  const detectionHtml = deepScan?.combinedHtml || html;
+  const detectionScripts = deepScan?.combinedScripts?.length ? deepScan.combinedScripts : scripts;
+  const detectionStylesheets = deepScan?.combinedStylesheets?.length ? deepScan.combinedStylesheets : stylesheets;
+  const detectionExternalLinks = deepScan?.combinedExternalLinks?.length ? deepScan.combinedExternalLinks : externalLinks;
+  const detectedPlatforms = detectPlatforms(detectionHtml, detectionScripts, detectionStylesheets, detectionExternalLinks);
 
   // Accessibility checks
   const formCount = (html.match(/<form/gi) || []).length;
