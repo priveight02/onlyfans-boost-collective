@@ -62,7 +62,7 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     if (matched.length > 0) crm.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
   }
 
-  // Payment Platforms
+  // Payment Platforms (comprehensive as of March 2026)
   const payments: { name: string; confidence: string }[] = [];
   const payChecks: [string, string[]][] = [
     ["Stripe", ["stripe.com", "js.stripe.com", "stripe-js", "stripe.js", "stripe_"]],
@@ -79,10 +79,11 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     ["Amazon Pay", ["amazonpay", "amazon-pay", "payments.amazon"]],
     ["Razorpay", ["razorpay.com", "razorpay"]],
     ["Mollie", ["mollie.com", "mollie-"]],
-    ["2Checkout", ["2checkout.com", "2co.com"]],
+    ["2Checkout/Verifone", ["2checkout.com", "2co.com", "verifone.com"]],
     ["Authorize.net", ["authorize.net", "authorizenet"]],
-    ["Paddle", ["paddle.com", "paddle.js"]],
-    ["Lemon Squeezy", ["lemonsqueezy.com", "lmsqueezy"]],
+    ["Paddle", ["paddle.com", "paddle.js", "cdn.paddle.com"]],
+    ["Lemon Squeezy", ["lemonsqueezy.com", "lmsqueezy", "lemon-squeezy"]],
+    ["Polar.sh", ["polar.sh", "api.polar.sh", "sandbox-api.polar.sh", "polar-sh"]],
     ["Gumroad", ["gumroad.com"]],
     ["Chargebee", ["chargebee.com", "cbinstance"]],
     ["Recurly", ["recurly.com", "recurly-"]],
@@ -92,6 +93,44 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     ["Cash App", ["cash.app"]],
     ["Sezzle", ["sezzle.com"]],
     ["Zip (QuadPay)", ["zip.co", "quadpay.com"]],
+    ["Coinbase Commerce", ["commerce.coinbase.com", "coinbase.com/commerce"]],
+    ["BitPay", ["bitpay.com"]],
+    ["Crypto.com Pay", ["crypto.com/pay", "pay.crypto.com"]],
+    ["Patreon", ["patreon.com"]],
+    ["Buy Me a Coffee", ["buymeacoffee.com"]],
+    ["Ko-fi", ["ko-fi.com"]],
+    ["Flutterwave", ["flutterwave.com", "rave.flutterwave"]],
+    ["Paystack", ["paystack.com", "paystack.co"]],
+    ["Worldpay", ["worldpay.com"]],
+    ["Checkout.com", ["checkout.com/js"]],
+    ["GoCardless", ["gocardless.com"]],
+    ["Paysafe", ["paysafe.com", "paysafecard"]],
+    ["Skrill", ["skrill.com"]],
+    ["Neteller", ["neteller.com"]],
+    ["iDEAL", ["ideal.nl"]],
+    ["Bancontact", ["bancontact"]],
+    ["SEPA", ["sepa"]],
+    ["ACH", ["plaid.com"]],
+    ["Plaid", ["plaid.com", "cdn.plaid.com"]],
+    ["ThriveCart", ["thrivecart.com"]],
+    ["SamCart", ["samcart.com"]],
+    ["SendOwl", ["sendownl.com"]],
+    ["Payhip", ["payhip.com"]],
+    ["Sellfy", ["sellfy.com"]],
+    ["Podia Payments", ["podia.com"]],
+    ["Whop", ["whop.com"]],
+    ["Lemfi", ["lemfi.com"]],
+    ["Mercado Pago", ["mercadopago.com", "mercadolibre.com"]],
+    ["iZettle/Zettle", ["zettle.com", "izettle.com"]],
+    ["SumUp", ["sumup.com"]],
+    ["Bolt Payments", ["bolt.com/checkout"]],
+    ["RevenueCat", ["revenuecat.com"]],
+    ["Zuora", ["zuora.com"]],
+    ["Chargify/Maxio", ["chargify.com", "maxio.com"]],
+    ["Aria Systems", ["ariasystems.com"]],
+    ["Spring (Teespring)", ["spri.ng", "teespring.com"]],
+    ["Printful", ["printful.com"]],
+    ["Printify", ["printify.com"]],
   ];
   for (const [name, sigs] of payChecks) {
     const matched = sigs.filter(s => lc.includes(s));
@@ -187,28 +226,64 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     if (matched.length > 0) support.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
   }
 
-  // E-commerce Platforms
+  // E-commerce Platforms (comprehensive — strict matching to avoid false positives)
   const ecommerce: { name: string; confidence: string }[] = [];
   const ecomChecks: [string, string[]][] = [
-    ["Shopify", ["shopify.com", "cdn.shopify.com", "shopifycdn.com", "myshopify.com"]],
+    ["Shopify", ["cdn.shopify.com", "shopifycdn.com", "myshopify.com", "shopify-buy"]],
     ["WooCommerce", ["woocommerce", "wc-ajax", "wp-content/plugins/woocommerce"]],
-    ["Magento", ["magento", "mage/", "varien"]],
+    ["Magento", ["magento.com", "mage/cookies", "magento-", "/static/version", "mage/translate", "Magento_"]],
     ["BigCommerce", ["bigcommerce.com", "mybigcommerce"]],
-    ["Squarespace Commerce", ["squarespace.com", "static1.squarespace.com"]],
+    ["Squarespace Commerce", ["squarespace.com/commerce", "static1.squarespace.com"]],
     ["Wix eCommerce", ["wix.com", "wixsite.com", "parastorage.com"]],
-    ["PrestaShop", ["prestashop.com", "presta"]],
-    ["OpenCart", ["opencart"]],
-    ["Ecwid", ["ecwid.com"]],
+    ["PrestaShop", ["prestashop.com", "prestashop"]],
+    ["OpenCart", ["opencart.com", "route=product"]],
+    ["Ecwid", ["ecwid.com", "app.ecwid.com"]],
     ["Volusion", ["volusion.com"]],
-    ["3dcart/Shift4Shop", ["3dcart.com", "shift4shop"]],
+    ["Shift4Shop (3dcart)", ["3dcart.com", "shift4shop"]],
     ["Sellfy", ["sellfy.com"]],
     ["ThriveCart", ["thrivecart.com"]],
     ["SamCart", ["samcart.com"]],
-    ["Kajabi", ["kajabi.com"]],
+    ["Kajabi", ["kajabi.com", "kajabi-"]],
     ["Teachable", ["teachable.com"]],
     ["Podia", ["podia.com"]],
     ["Gumroad", ["gumroad.com"]],
     ["Etsy Pattern", ["etsy.com", "etsystatic.com"]],
+    ["Snipcart", ["snipcart.com", "cdn.snipcart.com"]],
+    ["Medusa", ["medusajs.com"]],
+    ["Saleor", ["saleor.io"]],
+    ["Spree Commerce", ["spreecommerce.org"]],
+    ["nopCommerce", ["nopcommerce.com"]],
+    ["osCommerce", ["oscommerce.com"]],
+    ["CS-Cart", ["cs-cart.com"]],
+    ["X-Cart", ["x-cart.com"]],
+    ["Zen Cart", ["zen-cart.com"]],
+    ["Shopware", ["shopware.com", "shopware"]],
+    ["Lightspeed", ["lightspeedhq.com", "webshopapp.com"]],
+    ["Square Online", ["squareonline.com", "square.site"]],
+    ["Webflow Ecommerce", ["webflow.com/ecommerce"]],
+    ["Lemon Squeezy Store", ["lemonsqueezy.com"]],
+    ["Polar Store", ["polar.sh"]],
+    ["Whop", ["whop.com"]],
+    ["Payhip", ["payhip.com"]],
+    ["SendOwl", ["sendownl.com"]],
+    ["Spring (Teespring)", ["spri.ng", "teespring.com"]],
+    ["Printful", ["printful.com"]],
+    ["Printify", ["printify.com"]],
+    ["Redbubble", ["redbubble.com"]],
+    ["Teemill", ["teemill.com"]],
+    ["Fourthwall", ["fourthwall.com"]],
+    ["Pietra", ["pietrastudio.com"]],
+    ["CommerceJS", ["commercejs.com"]],
+    ["Crystallize", ["crystallize.com"]],
+    ["Swell", ["swell.is"]],
+    ["Elastic Path", ["elasticpath.com"]],
+    ["Fabric", ["fabric.inc"]],
+    ["Salesforce Commerce Cloud", ["demandware.net", "salesforce.com/commerce"]],
+    ["Oracle Commerce", ["oracle.com/commerce"]],
+    ["SAP Commerce", ["sap.com/commerce", "hybris"]],
+    ["Adobe Commerce", ["adobe.com/commerce", "magento.com"]],
+    ["Wix Stores", ["wixstores"]],
+    ["Amazon Storefront", ["amazon.com/stores"]],
   ];
   for (const [name, sigs] of ecomChecks) {
     const matched = sigs.filter(s => lc.includes(s));
@@ -455,10 +530,129 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     if (sigs.some(s => lc.includes(s))) productivity.push({ name, confidence: "medium" });
   }
 
-  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity };
+  // Social Media Integrations (SDKs, embeds, share buttons, login)
+  const socialMedia: { name: string; confidence: string }[] = [];
+  const socialChecks: [string, string[]][] = [
+    ["Facebook SDK", ["connect.facebook.net", "fb-root", "facebook-jssdk", "fb.init"]],
+    ["Facebook Login", ["facebook.com/dialog/oauth", "fb-login", "login/facebook"]],
+    ["Facebook Share", ["facebook.com/sharer", "fb-share"]],
+    ["Instagram Embed", ["instagram.com/embed", "instgrm.Embeds"]],
+    ["Instagram API", ["graph.instagram.com", "instagram-api"]],
+    ["Twitter/X Embed", ["platform.twitter.com/widgets", "twitter-timeline", "twitter-tweet"]],
+    ["Twitter/X Share", ["twitter.com/intent/tweet", "twitter.com/share"]],
+    ["TikTok Embed", ["tiktok.com/embed", "tiktok-embed"]],
+    ["TikTok SDK", ["analytics.tiktok.com"]],
+    ["YouTube Embed", ["youtube.com/embed", "youtube-nocookie.com"]],
+    ["YouTube API", ["youtube.googleapis.com"]],
+    ["LinkedIn Share", ["linkedin.com/shareArticle", "in/share"]],
+    ["LinkedIn SDK", ["platform.linkedin.com"]],
+    ["Pinterest Widget", ["assets.pinterest.com/js/pinit", "pinterest.com/pin/create"]],
+    ["Reddit Embed", ["embed.reddit.com"]],
+    ["Discord Widget", ["discord.com/widget", "discordapp.com/widget"]],
+    ["Telegram Widget", ["telegram.org/js/telegram-widget"]],
+    ["WhatsApp Share", ["api.whatsapp.com", "wa.me"]],
+    ["Snapchat Embed", ["snapkit.com", "snap-connected"]],
+    ["Threads Share", ["threads.net"]],
+    ["Bluesky", ["bsky.app", "atproto"]],
+    ["Tumblr Share", ["tumblr.com/share", "tumblr.com/widgets"]],
+    ["Twitch Embed", ["player.twitch.tv", "embed.twitch.tv"]],
+    ["Spotify Embed", ["open.spotify.com/embed"]],
+    ["SoundCloud Embed", ["w.soundcloud.com/player"]],
+    ["ShareThis", ["sharethis.com", "platform-api.sharethis.com"]],
+    ["AddThis", ["addthis.com", "addthiscdn.com"]],
+    ["Google Sign-In", ["accounts.google.com/gsi", "google-signin", "g_id_onload"]],
+    ["Apple Sign-In", ["appleid.apple.com"]],
+    ["GitHub Login", ["github.com/login/oauth"]],
+  ];
+  for (const [name, sigs] of socialChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) socialMedia.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // Database & Backend-as-a-Service
+  const database: { name: string; confidence: string }[] = [];
+  const dbChecks: [string, string[]][] = [
+    ["Supabase", ["supabase.co", "supabase.com"]],
+    ["Firebase", ["firebase.google.com", "firebaseio.com", "firebaseapp.com"]],
+    ["MongoDB Realm", ["realm.mongodb.com"]],
+    ["AWS Amplify", ["aws-amplify", "amplifyapp.com"]],
+    ["Appwrite", ["appwrite.io"]],
+    ["Convex", ["convex.dev", "convex.cloud"]],
+    ["Neon", ["neon.tech"]],
+    ["PlanetScale", ["planetscale.com"]],
+    ["Upstash", ["upstash.com"]],
+    ["Hasura", ["hasura.io", "hasura.app"]],
+    ["Sanity", ["sanity.io", "cdn.sanity.io"]],
+    ["Contentful", ["contentful.com", "ctfassets.net"]],
+    ["Strapi", ["strapi.io"]],
+    ["Storyblok", ["storyblok.com"]],
+    ["Builder.io", ["builder.io", "cdn.builder.io"]],
+    ["Algolia", ["algolia.com", "algolianet.com", "algoliasearch"]],
+    ["Xata", ["xata.io"]],
+  ];
+  for (const [name, sigs] of dbChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) database.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // AI & ML Tools
+  const aiTools: { name: string; confidence: string }[] = [];
+  const aiChecks: [string, string[]][] = [
+    ["OpenAI/ChatGPT", ["openai.com", "api.openai.com"]],
+    ["Anthropic/Claude", ["anthropic.com"]],
+    ["Google AI/Gemini", ["generativelanguage.googleapis.com"]],
+    ["Replicate", ["replicate.com", "replicate.delivery"]],
+    ["Hugging Face", ["huggingface.co"]],
+    ["ElevenLabs", ["elevenlabs.io"]],
+    ["Deepgram", ["deepgram.com"]],
+    ["Jasper AI", ["jasper.ai"]],
+    ["Synthesia", ["synthesia.io"]],
+    ["Algolia AI", ["algolia.com"]],
+    ["Pinecone", ["pinecone.io"]],
+  ];
+  for (const [name, sigs] of aiChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) aiTools.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // Affiliate & Referral
+  const affiliate: { name: string; confidence: string }[] = [];
+  const affChecks: [string, string[]][] = [
+    ["ReferralCandy", ["referralcandy.com"]],
+    ["PartnerStack", ["partnerstack.com"]],
+    ["Impact", ["impact.com", "impactradius.com"]],
+    ["CJ Affiliate", ["cj.com"]],
+    ["ShareASale", ["shareasale.com"]],
+    ["Awin", ["awin.com", "awin1.com"]],
+    ["Refersion", ["refersion.com"]],
+    ["Tapfiliate", ["tapfiliate.com"]],
+    ["FirstPromoter", ["firstpromoter.com"]],
+    ["Rewardful", ["rewardful.com"]],
+  ];
+  for (const [name, sigs] of affChecks) {
+    if (sigs.some(s => lc.includes(s))) affiliate.push({ name, confidence: "medium" });
+  }
+
+  // Personalization & A/B Testing
+  const personalization: { name: string; confidence: string }[] = [];
+  const persChecks: [string, string[]][] = [
+    ["Optimizely", ["optimizely.com"]],
+    ["VWO", ["visualwebsiteoptimizer.com", "vwo_"]],
+    ["AB Tasty", ["abtasty.com"]],
+    ["LaunchDarkly", ["launchdarkly.com"]],
+    ["Statsig", ["statsig.com"]],
+    ["GrowthBook", ["growthbook.io"]],
+    ["Dynamic Yield", ["dynamicyield.com"]],
+    ["Nosto", ["nosto.com"]],
+  ];
+  for (const [name, sigs] of persChecks) {
+    if (sigs.some(s => lc.includes(s))) personalization.push({ name, confidence: "medium" });
+  }
+
+  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity, socialMedia, database, aiTools, affiliate, personalization };
 }
 
-function extractMetadata(html: string, url: string, securityHeaders?: Record<string, string>) {
+  const lc = html.toLowerCase();
   const title = getTag(html, "title");
   const description = getMeta(html, "name", "description") || getMeta(html, "property", "og:description");
   const keywords = getMeta(html, "name", "keywords");
@@ -870,6 +1064,70 @@ function extractMetadata(html: string, url: string, securityHeaders?: Record<str
     metric_social_proof_tools_detected: detectedPlatforms.socialProof.length,
     metric_seo_tools_detected: detectedPlatforms.seoTools.length,
     metric_productivity_tools_detected: detectedPlatforms.productivity.length,
+    metric_social_media_integrations_detected: detectedPlatforms.socialMedia.length,
+    metric_database_baas_detected: detectedPlatforms.database.length,
+    metric_ai_ml_tools_detected: detectedPlatforms.aiTools.length,
+    metric_affiliate_tools_detected: detectedPlatforms.affiliate.length,
+    metric_personalization_tools_detected: detectedPlatforms.personalization.length,
+
+    // Content depth
+    metric_avg_heading_length: round2(headingCount ? ([...h1s, ...h2s, ...h3s].reduce((a, h) => a + h.length, 0)) / headingCount : 0),
+    metric_content_density_per_kb: round2(pageSizeKB ? wordCount / pageSizeKB : 0),
+    metric_reading_time_minutes: round2(wordCount / 200),
+    metric_flesch_word_complexity: round2(wordCount ? (longWordCount / wordCount) * 100 : 0),
+    metric_link_density_percent: round2(totalTagCount ? (anchorTags.length / totalTagCount) * 100 : 0),
+    metric_image_density_per_1000_words: round2(wordCount ? (imageTags.length / wordCount) * 1000 : 0),
+    metric_script_density_per_1000_words: round2(wordCount ? (scriptTags.length / wordCount) * 1000 : 0),
+
+    // Tech stack depth
+    metric_has_spa_framework: boolToNumber(lc.includes("__next") || lc.includes("__nuxt") || lc.includes("__gatsby") || lc.includes("__react") || lc.includes("__vue")),
+    metric_has_pwa: boolToNumber(hasServiceWorker && hasManifest),
+    metric_has_ssr_indicators: boolToNumber(lc.includes("__next_data__") || lc.includes("__nuxt__") || lc.includes("__gatsby")),
+    metric_has_graphql: boolToNumber(lc.includes("graphql")),
+    metric_has_websocket: boolToNumber(lc.includes("websocket") || lc.includes("wss://")),
+    metric_has_webrtc: boolToNumber(lc.includes("webrtc") || lc.includes("rtcpeerconnection")),
+    metric_has_web_components: boolToNumber(lc.includes("customelements") || lc.includes("shadow-root") || lc.includes("shadowdom")),
+    metric_has_wasm: boolToNumber(lc.includes("webassembly") || lc.includes(".wasm")),
+    metric_has_web_workers: boolToNumber(lc.includes("new worker(") || lc.includes("web worker")),
+
+    // Social & engagement depth
+    metric_social_share_buttons: boolToNumber(lc.includes("share") && (lc.includes("facebook") || lc.includes("twitter") || lc.includes("linkedin"))),
+    metric_social_login_present: boolToNumber(lc.includes("social-login") || lc.includes("oauth") || lc.includes("g_id_onload") || lc.includes("fb-login")),
+    metric_has_comments_system: boolToNumber(lc.includes("disqus") || lc.includes("comments") || lc.includes("comment-form")),
+    metric_has_newsletter_signup: boolToNumber(lc.includes("newsletter") || lc.includes("subscribe") || lc.includes("mailing-list")),
+    metric_has_cookie_consent: boolToNumber(lc.includes("cookie") && (lc.includes("consent") || lc.includes("accept") || lc.includes("gdpr"))),
+    metric_has_gdpr_notice: boolToNumber(lc.includes("gdpr") || lc.includes("privacy-policy") || lc.includes("data-protection")),
+    metric_has_live_chat: boolToNumber(detectedPlatforms.support.length > 0),
+    metric_has_search_bar: boolToNumber(lc.includes("search") && (lc.includes('type="search"') || lc.includes("search-input") || lc.includes("search-form"))),
+    metric_has_dark_mode: boolToNumber(lc.includes("dark-mode") || lc.includes("theme-toggle") || lc.includes("color-scheme")),
+    metric_has_i18n: boolToNumber(hreflangCount > 0 || lc.includes("i18n") || lc.includes("intl") || lc.includes("translate")),
+    metric_has_breadcrumbs: boolToNumber(lc.includes("breadcrumb")),
+    metric_has_pagination: boolToNumber(lc.includes("pagination") || lc.includes("page-numbers")),
+    metric_has_infinite_scroll: boolToNumber(lc.includes("infinite-scroll") || lc.includes("load-more")),
+    metric_has_sticky_header: boolToNumber(lc.includes("sticky") && lc.includes("header")),
+    metric_has_back_to_top: boolToNumber(lc.includes("back-to-top") || lc.includes("scroll-top")),
+    metric_has_modal_popup: boolToNumber(lc.includes("modal") || lc.includes("popup") || lc.includes("dialog")),
+    metric_has_carousel_slider: boolToNumber(lc.includes("carousel") || lc.includes("slider") || lc.includes("swiper")),
+    metric_has_accordion_tabs: boolToNumber(lc.includes("accordion") || lc.includes("tab-panel") || lc.includes("tabpanel")),
+    metric_has_animation_library: boolToNumber(lc.includes("gsap") || lc.includes("framer-motion") || lc.includes("animate.css") || lc.includes("lottie")),
+    metric_has_map_embed: boolToNumber(lc.includes("maps.google") || lc.includes("mapbox") || lc.includes("leaflet")),
+    metric_has_video_player: boolToNumber(videoTagCount > 0 || lc.includes("video-js") || lc.includes("plyr") || lc.includes("videojs")),
+    metric_has_audio_player: boolToNumber(audioTagCount > 0),
+    metric_has_file_upload: boolToNumber(lc.includes('type="file"') || lc.includes("dropzone") || lc.includes("file-upload")),
+    metric_has_pricing_page: boolToNumber(lc.includes("pricing") || lc.includes("plans")),
+    metric_has_testimonials: boolToNumber(lc.includes("testimonial") || lc.includes("review") || lc.includes("client-says")),
+    metric_has_faq_section: boolToNumber(lc.includes("faq") || lc.includes("frequently-asked")),
+    metric_has_blog: boolToNumber(lc.includes("/blog") || lc.includes("blog-post") || lc.includes("article")),
+    metric_has_sitemap_link: boolToNumber(lc.includes("sitemap.xml")),
+    metric_has_robots_meta: boolToNumber(Boolean(robots)),
+    metric_has_print_stylesheet: boolToNumber(lc.includes('media="print"')),
+    metric_has_minified_assets: boolToNumber(lc.includes(".min.js") || lc.includes(".min.css")),
+    metric_has_cdn_assets: boolToNumber(lc.includes("cdn.") || lc.includes("cloudfront.net") || lc.includes("cloudflare")),
+    metric_third_party_script_count: scripts.filter(s => { try { return new URL(s, url).hostname !== domain; } catch { return false; } }).length,
+    metric_data_attribute_count: (html.match(/\sdata-[a-z]/gi) || []).length,
+    metric_css_custom_property_count: (html.match(/--[a-z][a-z0-9-]*/gi) || []).length,
+    metric_total_external_domains: externalDomains.size,
+    metric_dom_nesting_depth_estimate: (() => { const depths = html.split("\n").slice(0, 500).map(l => (l.match(/^\s*/)?.[0]?.length || 0) / 2); return depths.length ? Math.min(50, Math.max(...depths)) : 0; })(),
   };
 
   return {
