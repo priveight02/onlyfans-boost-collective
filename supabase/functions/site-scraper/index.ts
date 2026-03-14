@@ -279,7 +279,18 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
     const body = await safeFetchText(s, 8000, 2_500_000);
     return { url: s, body };
   }));
-...
+
+  const jsBodies = jsFetches.map(j => j.body).filter(Boolean);
+
+  // Discover route-level chunk bundles referenced inside initial JS files
+  const chunkCandidates = new Set<string>();
+  for (const j of jsFetches) {
+    if (!j.body) continue;
+    for (const c of extractJsChunkUrls(j.body, j.url, rootDomain)) {
+      if (!sameScripts.includes(c)) chunkCandidates.add(c);
+    }
+  }
+
   const chunkScripts = [...chunkCandidates].slice(0, 50);
   const chunkBodies = (await Promise.all(chunkScripts.map(c => safeFetchText(c, 8000, 1_200_000)))).filter(Boolean);
 
