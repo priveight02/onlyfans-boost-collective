@@ -134,7 +134,7 @@ const SUB_TAB_SLUGS: Record<string, Record<string, string>> = {
   "ad-creatives": { creatives: "creatives", generate: "ai-image-gen", copy: "copy-cta", analytics: "analytics", settings: "targeting", integrations: "integrations", campaigns: "campaigns", store: "store-manager" },
   api: { keys: "api-keys", docs: "documentation", playground: "playground", quickstart: "quick-start", history: "key-history" },
   lookup: { overview: "overview", revenue: "revenue", audience: "audience", fans: "fans", content: "content", engagement: "engagement", traffic: "traffic", messaging: "messaging", links: "links", chargebacks: "chargebacks", highlights: "highlights", bio: "bio-strategy", ai: "ai-analysis", raw: "raw-data" },
-  competitors: { tracker: "tracker", benchmarks: "benchmarks", content: "content-intel", swot: "swot-analysis", strategy: "ai-strategy" },
+  competitors: { tracker: "tracker", benchmarks: "benchmarks", keywords: "keyword-search", gaps: "gap-analysis", content: "content-intel", swot: "swot-analysis", strategy: "ai-strategy" },
 };
 
 // Social platform slugs (instagram, tiktok, etc.)
@@ -223,7 +223,7 @@ const CRM = () => {
       "ad-creatives": { creatives: "Creatives", generate: "AI Image Gen", copy: "Copy & CTA", analytics: "Ad Analytics", settings: "Targeting", integrations: "Integrations", campaigns: "Campaigns", store: "Store Manager" },
       api: { keys: "API Keys", docs: "Documentation", playground: "Playground", quickstart: "Quick Start", history: "Key History" },
       lookup: { overview: "Overview", revenue: "Revenue", audience: "Audience", fans: "Fans", content: "Content", engagement: "Engagement", traffic: "Traffic", messaging: "Messaging", links: "Links", chargebacks: "Chargebacks", highlights: "Highlights", bio: "Bio Strategy", ai: "AI Analysis", raw: "Raw Data" },
-      competitors: { tracker: "Tracker", benchmarks: "Benchmarks", content: "Content Intel", swot: "SWOT Analysis", strategy: "AI Strategy" },
+      competitors: { tracker: "Tracker", benchmarks: "Benchmarks", keywords: "Keyword Search", gaps: "Gap Analysis", content: "Content Intel", swot: "SWOT Analysis", strategy: "AI Strategy" },
     };
     for (const [mainTab, subs] of Object.entries(subTabLabels)) {
       const mainLabel = navSections.flatMap(s => s.items).find(i => i.id === mainTab)?.label || mainTab;
