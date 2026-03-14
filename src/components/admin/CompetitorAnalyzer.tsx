@@ -142,13 +142,32 @@ const mapRow = (d: any): Competitor => ({
   metadata: d.metadata || {},
 });
 
-// AI helper - calls dedicated competitor-analyze edge function
+// AI helper - calls dedicated competitor-analyze edge function with rate limiting
+const RATE_LIMIT_MAX = 20;
+const getRateLimitKey = (userId: string) => `competitor_ai_${userId}_${new Date().toISOString().slice(0, 10)}`;
+const getAIUsageCount = (userId: string): number => {
+  try { return parseInt(localStorage.getItem(getRateLimitKey(userId)) || "0", 10); } catch { return 0; }
+};
+const incrementAIUsage = (userId: string) => {
+  const key = getRateLimitKey(userId);
+  const current = getAIUsageCount(userId);
+  localStorage.setItem(key, String(current + 1));
+};
+const isAIRateLimited = (userId: string): boolean => getAIUsageCount(userId) >= RATE_LIMIT_MAX;
+
 const callAI = async (prompt: string): Promise<any> => {
+  // Check rate limit
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user && isAIRateLimited(user.id)) {
+    throw new Error("Daily AI analysis limit reached (20/day). AI-powered fields will be left blank until reset.");
+  }
   const { data, error } = await supabase.functions.invoke("competitor-analyze", {
     body: { prompt },
   });
   if (error) throw new Error(error.message || "AI request failed");
   if (!data?.reply) throw new Error("No AI response received");
+  // Increment usage on success
+  if (user) incrementAIUsage(user.id);
   return data.reply;
 };
 
@@ -197,10 +216,12 @@ const CompetitorAnalyzer = ({
   const [gapAnalysis, setGapAnalysis] = useState<any>(null);
   const [gapLoading, setGapLoading] = useState(false);
 
-  // Site scraper state
+  // Site analysis state
   const [scrapeUrl, setScrapeUrl] = useState("");
+  const [analysisKeywords, setAnalysisKeywords] = useState("");
   const [scrapeResult, setScrapeResult] = useState<any>(null);
   const [scrapeLoading, setScrapeLoading] = useState(false);
+  const [aiUsageCount, setAiUsageCount] = useState(0);
 
   // Financial intelligence state
   const [financialData, setFinancialData] = useState<any>(null);
@@ -214,11 +235,26 @@ const CompetitorAnalyzer = ({
 
   const { performAction } = useCreditAction();
 
-  // Load competitors on mount
+  // Load competitors on mount & track AI usage
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+
+      // Check for admin-triggered rate limit reset
+      const { data: profileData } = await supabase.from("profiles").select("metadata").eq("user_id", user.id).single() as any;
+      const resetAt = profileData?.metadata?.competitor_ai_reset_at;
+      if (resetAt) {
+        const resetDate = new Date(resetAt).toISOString().slice(0, 10);
+        const today = new Date().toISOString().slice(0, 10);
+        const key = getRateLimitKey(user.id);
+        const storedCount = getAIUsageCount(user.id);
+        if (resetDate === today && storedCount > 0) {
+          localStorage.setItem(key, "0");
+        }
+      }
+
+      setAiUsageCount(getAIUsageCount(user.id));
       const rows = await competitorRest.select(user.id);
       if (Array.isArray(rows) && rows.length) {
         setCompetitors(rows.map(mapRow));
@@ -573,7 +609,7 @@ Return ONLY valid JSON:
     });
   };
 
-  // ─── Site Scraper ──────────────────────────────────
+  // ─── Site Analysis ──────────────────────────────────
   const scrapeSite = async () => {
     if (!scrapeUrl.trim()) return;
     await performAction("site_scrape", async () => {
@@ -581,20 +617,26 @@ Return ONLY valid JSON:
       setScrapeResult(null);
       try {
         const { data, error } = await supabase.functions.invoke("site-scraper", {
-          body: { url: scrapeUrl.trim() },
+          body: { url: scrapeUrl.trim(), keywords: analysisKeywords.trim() || undefined },
         });
-        if (error) throw new Error(error.message || "Scrape failed");
-        if (!data?.success) throw new Error(data?.error || "Scrape failed");
-        setScrapeResult(data);
-        toast.success("Site scraped successfully");
+        if (error) throw new Error(error.message || "Analysis failed");
+        if (!data?.success) throw new Error(data?.error || "Analysis failed");
+        setScrapeResult({ ...data, analysisKeywords: analysisKeywords.trim() });
+        toast.success("Site analyzed successfully");
         return true;
       } catch (err: any) {
-        toast.error(err.message || "Scrape failed");
+        toast.error(err.message || "Analysis failed");
         throw err;
       } finally {
         setScrapeLoading(false);
       }
     });
+  };
+
+  // Refresh AI usage count after any AI call
+  const refreshAIUsage = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) setAiUsageCount(getAIUsageCount(user.id));
   };
 
   // ─── Financial Intelligence Analysis ────────────────
@@ -609,8 +651,10 @@ Return ONLY valid JSON:
         const socialCount = Object.keys(scrapeResult.socialLinks || {}).length;
         const platformCount = Object.values(dp).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0);
 
-        const prompt = `You are a world-class competitive intelligence and financial analyst. Analyze this website and provide EXTREMELY DETAILED financial intelligence.
+        const keywordsContext = scrapeResult.analysisKeywords ? `\n\nBUSINESS KEYWORDS PROVIDED BY USER: ${scrapeResult.analysisKeywords}\nUse these keywords to research this business more thoroughly — search for public mentions, reviews, funding news, social proof, and any revenue/traction data related to these terms.\n` : "";
 
+        const prompt = `You are a world-class competitive intelligence and financial analyst. Today's date is ${new Date().toISOString().slice(0, 10)}. Analyze this website and provide EXTREMELY DETAILED and CURRENT financial intelligence. All data must reflect the CURRENT state as of today — not outdated or historical unless explicitly labeled.
+${keywordsContext}
 WEBSITE: ${scrapeResult.finalUrl || scrapeResult.url}
 TITLE: ${scrapeResult.basic?.title || "Unknown"}
 DESCRIPTION: ${scrapeResult.basic?.description || "Unknown"}
@@ -649,6 +693,8 @@ CRITICAL ACCURACY RULES:
 4. For traffic, if there is no analytics data, state "Unknown — no public data" rather than guessing.
 5. Be brutally honest. A site with zero payment infrastructure has zero revenue. A brand-new site with no traction should show "$0" across the board.
 6. Base estimates ONLY on concrete detected signals, never on what a site "could" earn.
+7. ALL financial data must be CURRENT as of ${new Date().toISOString().slice(0, 10)}. If you cannot verify current data, clearly state "Unverified" or "No current data available".
+8. If the business keywords suggest a specific niche, use that context to validate or invalidate revenue claims.
 
 Cross-reference with publicly available information and industry benchmarks ONLY when monetization signals are actually present.
 
@@ -717,6 +763,7 @@ Return ONLY valid JSON:
         const aiReply = await callAI(prompt);
         const parsed = parseJSON(aiReply);
         setFinancialData(parsed);
+        await refreshAIUsage();
         toast.success("Financial intelligence generated");
         return true;
       } catch (err: any) {
@@ -776,7 +823,7 @@ Return ONLY valid JSON:
             { value: "content", icon: Calendar, label: "Content Intel" },
             { value: "swot", icon: Target, label: "SWOT" },
             { value: "strategy", icon: Brain, label: "AI Strategy" },
-            { value: "scraper", icon: Globe, label: "Site Scraper" },
+            { value: "analysis", icon: Globe, label: "Site Analysis" },
           ].map(tab => (
             <TabsTrigger key={tab.value} value={tab.value} className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium">
               <tab.icon className="h-3.5 w-3.5" /> {tab.label}
@@ -1492,8 +1539,8 @@ Return ONLY valid JSON:
             </Card>
           )}
         </TabsContent>
-        {/* ═══ SITE SCRAPER TAB ═══ */}
-        <TabsContent value="scraper" className="space-y-5 w-full overflow-x-hidden overflow-y-auto" style={{ maxWidth: 'calc(100vw - 340px)' }}>
+        {/* ═══ SITE ANALYSIS TAB ═══ */}
+        <TabsContent value="analysis" className="space-y-5 w-full overflow-x-hidden overflow-y-auto" style={{ maxWidth: 'calc(100vw - 340px)' }}>
           <Card className="crm-card">
             <CardContent className="p-4">
               <div className="flex gap-3 items-end">
@@ -1504,12 +1551,22 @@ Return ONLY valid JSON:
                     <Input value={scrapeUrl} onChange={e => setScrapeUrl(e.target.value)} placeholder="example.com or https://example.com" className="crm-input pl-9" onKeyDown={e => e.key === "Enter" && !scrapeLoading && scrapeSite()} />
                   </div>
                 </div>
+                <div className="flex-1 space-y-1.5">
+                  <label className="text-xs font-medium text-white/50">Business Keywords <span className="text-white/25">(optional — adds AI context)</span></label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                    <Input value={analysisKeywords} onChange={e => setAnalysisKeywords(e.target.value)} placeholder="e.g. SaaS, AI marketing, subscription" className="crm-input pl-9" onKeyDown={e => e.key === "Enter" && !scrapeLoading && scrapeSite()} />
+                  </div>
+                </div>
                 <Button onClick={scrapeSite} disabled={scrapeLoading || !scrapeUrl.trim()} className="bg-gradient-to-r from-[hsl(217,91%,60%)] to-[hsl(262,83%,58%)] hover:opacity-90 text-white gap-1.5 h-10">
                   {scrapeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                  {scrapeLoading ? "Scraping..." : "Deep Scrape"}
+                  {scrapeLoading ? "Analyzing..." : "Deep Analysis"}
                 </Button>
               </div>
-              <p className="text-[10px] text-white/30 mt-2">Extracts SEO metadata, technologies, social links, security headers, structured data, and more · no API key needed</p>
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-[10px] text-white/30">Extracts SEO metadata, technologies, social links, security headers, structured data, and more · no API key needed</p>
+                <span className="text-[10px] text-white/25">AI calls: {aiUsageCount}/{RATE_LIMIT_MAX} today</span>
+              </div>
             </CardContent>
           </Card>
 
@@ -2291,8 +2348,8 @@ Return ONLY valid JSON:
             <Card className="crm-card">
               <CardContent className="p-12 text-center">
                 <Globe className="h-10 w-10 text-white/20 mx-auto mb-3" />
-                <h3 className="text-white/50 font-medium mb-1">Deep Site Scraper</h3>
-                <p className="text-white/30 text-sm max-w-md mx-auto">Enter any website URL to extract SEO, tech stack, social profiles, financial intelligence, and security analysis</p>
+                <h3 className="text-white/50 font-medium mb-1">Deep Site Analysis</h3>
+                <p className="text-white/30 text-sm max-w-md mx-auto">Enter any website URL and optional business keywords to extract SEO, tech stack, social profiles, financial intelligence, and security analysis</p>
               </CardContent>
             </Card>
           )}

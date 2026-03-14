@@ -481,7 +481,21 @@ const AdminCustomers = () => {
                 <Eraser className="h-3 w-3" /> Reset Discount
               </Button>
 
-              {/* Data */}
+              {/* Rate Limit */}
+              <Button size="sm" variant="outline" className="text-cyan-400 border-cyan-500/30 bg-cyan-500/5 hover:bg-cyan-500/10 gap-1.5 text-xs h-7"
+                onClick={async () => {
+                  if (!detail) return;
+                  try {
+                    const { error } = await supabase.from("profiles").update({
+                      metadata: { ...(detail.metadata || {}), competitor_ai_reset_at: new Date().toISOString() }
+                    } as any).eq("user_id", detail.user_id);
+                    if (error) throw error;
+                    toast.success(`AI rate limit reset for ${detail.display_name || detail.email}`);
+                  } catch (e: any) { toast.error(e.message || "Reset failed"); }
+                }}>
+                <RotateCcw className="h-3 w-3" /> Reset AI Limit
+              </Button>
+
               <Button size="sm" variant="outline" className="text-violet-400 border-violet-500/30 bg-violet-500/5 hover:bg-violet-500/10 gap-1.5 text-xs h-7"
                 onClick={() => { setUserTags(detail?.admin_tags || []); setTagInput(""); setShowTagUserDialog(true); }}>
                 <Tags className="h-3 w-3" /> Tags
