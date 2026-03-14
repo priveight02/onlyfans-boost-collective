@@ -140,13 +140,10 @@ const mapRow = (d: any): Competitor => ({
   metadata: d.metadata || {},
 });
 
-// AI helper - calls agency-copilot and parses JSON from response
+// AI helper - calls dedicated competitor-analyze edge function
 const callAI = async (prompt: string): Promise<any> => {
-  const { data, error } = await supabase.functions.invoke("agency-copilot", {
-    body: {
-      messages: [{ role: "user", content: prompt }],
-      model: "google/gemini-2.5-flash",
-    },
+  const { data, error } = await supabase.functions.invoke("competitor-analyze", {
+    body: { prompt },
   });
   if (error) throw new Error(error.message || "AI request failed");
   if (!data?.reply) throw new Error("No AI response received");
