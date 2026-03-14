@@ -2050,7 +2050,7 @@ RULES:
                                   <span className="text-xs text-white/80">{s.source}</span>
                                   <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{s.type}</Badge>
                                 </div>
-                                <span className="text-xs font-medium text-emerald-400">{s.estimatedShare}</span>
+                                <span className="text-xs font-medium text-emerald-400">{s.share || s.estimatedShare || "Not publicly disclosed"}</span>
                               </div>
                             ))}
                           </div>
