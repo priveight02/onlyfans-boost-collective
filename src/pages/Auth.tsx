@@ -455,6 +455,8 @@ const Auth = () => {
             </div>
           </motion.div>
         </div>
+          </div>
+        </AnimatedBackground>
       </div>
     </div>
   );
