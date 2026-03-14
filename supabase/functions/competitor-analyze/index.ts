@@ -98,8 +98,8 @@ If unknown, provide clearly labeled conservative estimates.`
         },
         body: JSON.stringify({
           model,
-          temperature: isFinancial ? 0.15 : 0.3,
-          max_tokens: isFinancial ? 1800 : 1400,
+          temperature: isFinancial ? 0.1 : 0.3,
+          max_tokens: isFinancial ? 3000 : 1400,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: prompt },
