@@ -335,8 +335,8 @@ async function buildDeepScanCorpus(startUrl: string, seedHtml: string): Promise<
   };
 }
 
-function detectPlatforms(html: string, scripts: string[], stylesheets: string[], externalLinks: string[]) {
-  const all = html + " " + scripts.join(" ") + " " + stylesheets.join(" ") + " " + externalLinks.join(" ");
+function detectPlatforms(html: string, scripts: string[], stylesheets: string[], externalLinks: string[], iframes?: string[]) {
+  const all = html + " " + scripts.join(" ") + " " + stylesheets.join(" ") + " " + externalLinks.join(" ") + " " + (iframes || []).join(" ");
   const lc = all.toLowerCase();
 
   // CRM Systems
