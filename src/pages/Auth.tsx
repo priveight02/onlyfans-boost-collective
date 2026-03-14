@@ -315,7 +315,7 @@ const Auth = () => {
                   </button>
                 </div>
                 <Button type="submit" disabled={isSubmitting}
-                  className="w-full h-[52px] rounded-2xl text-sm font-semibold transition-all duration-300 hover:scale-[1.015] active:scale-[0.99] hover:bg-white/[0.12]"
+                  className="w-full h-[52px] rounded-2xl text-sm font-semibold transition-all duration-300 hover:ring-2 hover:ring-white/30 hover:ring-offset-2 hover:ring-offset-transparent hover:bg-white/[0.12]"
                   style={{
                     background: "hsla(0, 0%, 100%, 0.06)",
                     border: "1px solid hsla(0, 0%, 100%, 0.08)",
