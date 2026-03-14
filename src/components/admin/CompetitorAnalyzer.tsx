@@ -1372,7 +1372,7 @@ Return ONLY valid JSON:
           </Card>
 
           {scrapeResult ? (
-            <div className="space-y-4">
+            <div className="space-y-4 w-full max-w-full overflow-x-hidden">
               {/* Top summary */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
