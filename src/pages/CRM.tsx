@@ -134,7 +134,7 @@ const SUB_TAB_SLUGS: Record<string, Record<string, string>> = {
   "ad-creatives": { creatives: "creatives", generate: "ai-image-gen", copy: "copy-cta", analytics: "analytics", settings: "targeting", integrations: "integrations", campaigns: "campaigns", store: "store-manager" },
   api: { keys: "api-keys", docs: "documentation", playground: "playground", quickstart: "quick-start", history: "key-history" },
   lookup: { overview: "overview", revenue: "revenue", audience: "audience", fans: "fans", content: "content", engagement: "engagement", traffic: "traffic", messaging: "messaging", links: "links", chargebacks: "chargebacks", highlights: "highlights", bio: "bio-strategy", ai: "ai-analysis", raw: "raw-data" },
-  competitors: { tracker: "tracker", benchmarks: "benchmarks", content: "content-intel", swot: "swot-analysis", strategy: "ai-strategy" },
+  competitors: { tracker: "tracker", benchmarks: "benchmarks", keywords: "keyword-search", gaps: "gap-analysis", content: "content-intel", swot: "swot-analysis", strategy: "ai-strategy" },
 };
 
 // Social platform slugs (instagram, tiktok, etc.)
