@@ -1618,6 +1618,47 @@ Return ONLY valid JSON:
                 </CardContent>
               </Card>
 
+              {/* Advanced Metrics */}
+              {scrapeResult.advancedMetrics && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" /> Advanced Metrics ({Object.keys(scrapeResult.advancedMetrics || {}).length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {Object.entries(scrapeResult.advancedMetrics || {})
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([key, value]) => {
+                          const formattedLabel = key
+                            .replace(/^metric_/, "")
+                            .replace(/_/g, " ")
+                            .replace(/\b\w/g, c => c.toUpperCase());
+
+                          const displayValue =
+                            typeof value === "number"
+                              ? Number.isInteger(value)
+                                ? value.toString()
+                                : value.toFixed(2)
+                              : typeof value === "boolean"
+                              ? value
+                                ? "Yes"
+                                : "No"
+                              : String(value);
+
+                          return (
+                            <div key={key} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] min-w-0">
+                              <p className="text-[10px] text-white/40 break-words">{formattedLabel}</p>
+                              <p className="text-sm text-white font-medium break-words mt-1">{displayValue}</p>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Contact Info */}
               {((scrapeResult.contactInfo?.emailAddresses?.length || 0) > 0 || (scrapeResult.contactInfo?.phoneNumbers?.length || 0) > 0) && (
                 <Card className="crm-card">
