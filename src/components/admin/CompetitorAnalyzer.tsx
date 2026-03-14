@@ -617,9 +617,9 @@ Return ONLY valid JSON:
             <CardContent className="p-4">
               <div className="flex gap-3 items-end">
                 <div className="flex-1 space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Username</label>
+                  <label className="text-xs font-medium text-white/50">Username</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">@</span>
                     <Input value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="competitor_username" className="crm-input pl-7" onKeyDown={e => e.key === "Enter" && !analyzing && addCompetitor()} />
                   </div>
                 </div>
