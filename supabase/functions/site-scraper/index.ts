@@ -1372,7 +1372,16 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
       ...mediaSrcs, ...dataSrcs, ...bgUrls,
       ...(manifestUrl ? [manifestUrl] : []),
       ...(faviconUrl ? [faviconUrl] : []),
-    ])].slice(0, 100);
+    ])]
+      .map((u) => normalizeDiscoveredUrl(u, url))
+      .filter(Boolean)
+      .slice(0, 300);
+
+    const mergedResourceUrls = [...new Set([
+      ...allResourceUrls,
+      ...(deep?.resourceUrls || []),
+      ...(deep?.allDiscoveredUrls || []),
+    ])].slice(0, 1500);
 
     const lc = html.toLowerCase();
     const hasServiceWorker = lc.includes("serviceworker");
