@@ -1351,7 +1351,7 @@ Return ONLY valid JSON:
           )}
         </TabsContent>
         {/* ═══ SITE SCRAPER TAB ═══ */}
-        <TabsContent value="scraper" className="space-y-5">
+        <TabsContent value="scraper" className="space-y-5 w-full max-w-[1200px] mx-auto overflow-x-hidden">
           <Card className="crm-card">
             <CardContent className="p-4">
               <div className="flex gap-3 items-end">
@@ -1372,7 +1372,7 @@ Return ONLY valid JSON:
           </Card>
 
           {scrapeResult ? (
-            <div className="space-y-4">
+            <div className="space-y-4 w-full max-w-full overflow-x-hidden">
               {/* Top summary */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
@@ -1381,7 +1381,7 @@ Return ONLY valid JSON:
                   { label: "Word Count", value: `${scrapeResult.content?.wordCount?.toLocaleString() || 0}`, icon: FileText, color: "text-white" },
                   { label: "HTTPS", value: scrapeResult.isHttps ? "Secure" : "Not Secure", icon: scrapeResult.isHttps ? Lock : Shield, color: scrapeResult.isHttps ? "text-emerald-400" : "text-red-400" },
                   { label: "Platforms Found", value: String(Object.values(scrapeResult.detectedPlatforms || {}).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0)), icon: Globe, color: "text-[hsl(217,91%,60%)]" },
-                  { label: "Social Profiles", value: Object.keys(scrapeResult.socialLinks || {}).length, icon: Users, color: "text-purple-400" },
+                  { label: "Social Profiles", value: String(Object.keys(scrapeResult.socialLinks || {}).length), icon: Users, color: "text-purple-400" },
                 ].map((s, i) => (
                   <Card key={i} className="crm-card">
                     <CardContent className="p-3 flex items-center gap-3">
@@ -1410,9 +1410,9 @@ Return ONLY valid JSON:
                     { label: "Final URL", value: scrapeResult.finalUrl },
                     { label: "Server", value: scrapeResult.server },
                   ].filter(r => r.value).map((r, i) => (
-                    <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                    <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] overflow-hidden">
                       <span className="text-[10px] text-white/40 w-20 flex-shrink-0 pt-0.5">{r.label}</span>
-                      <span className="text-xs text-white/70 flex-1 break-all">{r.value}</span>
+                      <span className="text-xs text-white/70 flex-1 min-w-0 break-words whitespace-normal">{r.value}</span>
                       {r.max && r.value && (
                         <Badge variant="outline" className={`text-[9px] flex-shrink-0 ${r.value.length <= r.max ? "border-emerald-400/20 text-emerald-400" : "border-red-400/20 text-red-400"}`}>
                           {r.value.length}/{r.max}
@@ -1617,6 +1617,47 @@ Return ONLY valid JSON:
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Advanced Metrics */}
+              {scrapeResult.advancedMetrics && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" /> Advanced Metrics ({Object.keys(scrapeResult.advancedMetrics || {}).length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {Object.entries(scrapeResult.advancedMetrics || {})
+                        .sort(([a], [b]) => a.localeCompare(b))
+                        .map(([key, value]) => {
+                          const formattedLabel = key
+                            .replace(/^metric_/, "")
+                            .replace(/_/g, " ")
+                            .replace(/\b\w/g, c => c.toUpperCase());
+
+                          const displayValue =
+                            typeof value === "number"
+                              ? Number.isInteger(value)
+                                ? value.toString()
+                                : value.toFixed(2)
+                              : typeof value === "boolean"
+                              ? value
+                                ? "Yes"
+                                : "No"
+                              : String(value);
+
+                          return (
+                            <div key={key} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] min-w-0">
+                              <p className="text-[10px] text-white/40 break-words">{formattedLabel}</p>
+                              <p className="text-sm text-white font-medium break-words mt-1">{displayValue}</p>
+                            </div>
+                          );
+                        })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Contact Info */}
               {((scrapeResult.contactInfo?.emailAddresses?.length || 0) > 0 || (scrapeResult.contactInfo?.phoneNumbers?.length || 0) > 0) && (
