@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { trackAdminLogin } from "@/hooks/useVisitorTracking";
 import authHeroFull from "@/assets/auth-side-hero.png";
+import AnimatedBackground from "@/components/AnimatedBackground";
 import {
   Eye, EyeOff, LogIn, Lock, Mail, User, ArrowLeft,
   Sparkles, KeyRound, Send, UserPlus, Chrome,
