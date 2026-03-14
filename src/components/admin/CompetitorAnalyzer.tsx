@@ -637,8 +637,10 @@ Return ONLY valid JSON:
         const socialCount = Object.keys(scrapeResult.socialLinks || {}).length;
         const platformCount = Object.values(dp).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0);
 
-        const prompt = `You are a world-class competitive intelligence and financial analyst. Analyze this website and provide EXTREMELY DETAILED financial intelligence.
+        const keywordsContext = scrapeResult.analysisKeywords ? `\n\nBUSINESS KEYWORDS PROVIDED BY USER: ${scrapeResult.analysisKeywords}\nUse these keywords to research this business more thoroughly — search for public mentions, reviews, funding news, social proof, and any revenue/traction data related to these terms.\n` : "";
 
+        const prompt = `You are a world-class competitive intelligence and financial analyst. Today's date is ${new Date().toISOString().slice(0, 10)}. Analyze this website and provide EXTREMELY DETAILED and CURRENT financial intelligence. All data must reflect the CURRENT state as of today — not outdated or historical unless explicitly labeled.
+${keywordsContext}
 WEBSITE: ${scrapeResult.finalUrl || scrapeResult.url}
 TITLE: ${scrapeResult.basic?.title || "Unknown"}
 DESCRIPTION: ${scrapeResult.basic?.description || "Unknown"}
@@ -677,6 +679,8 @@ CRITICAL ACCURACY RULES:
 4. For traffic, if there is no analytics data, state "Unknown — no public data" rather than guessing.
 5. Be brutally honest. A site with zero payment infrastructure has zero revenue. A brand-new site with no traction should show "$0" across the board.
 6. Base estimates ONLY on concrete detected signals, never on what a site "could" earn.
+7. ALL financial data must be CURRENT as of ${new Date().toISOString().slice(0, 10)}. If you cannot verify current data, clearly state "Unverified" or "No current data available".
+8. If the business keywords suggest a specific niche, use that context to validate or invalidate revenue claims.
 
 Cross-reference with publicly available information and industry benchmarks ONLY when monetization signals are actually present.
 
