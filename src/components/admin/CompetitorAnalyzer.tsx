@@ -1878,171 +1878,319 @@ RULES:
                             const colors = categoryColors[cat.key] || categoryColors.crm;
                             const icon = categoryIcons[cat.key] || "📦";
 
-                            // Collect all URL sources from scrape result (correct data paths)
+                            // ─── Collect ALL URL sources from every part of scrape result ───
                             const toArr = (v: unknown): string[] => Array.isArray(v) ? v : [];
-                            const allUrls = [
-                              ...toArr(scrapeResult?.scripts?.external),
-                              ...toArr(scrapeResult?.scripts?.stylesheets),
-                              ...toArr(scrapeResult?.links?.external?.map?.((l: any) => typeof l === 'string' ? l : l?.href || l?.url || '')),
-                              ...toArr(scrapeResult?.links?.internal?.map?.((l: any) => typeof l === 'string' ? l : l?.href || l?.url || '')),
-                              ...toArr(scrapeResult?.iframes),
-                              ...toArr(scrapeResult?.scanCoverage?.scannedUrls),
-                            ].filter(Boolean);
+                            const baseUrl = scrapeResult?.finalUrl || scrapeResult?.url || '';
+                            const baseOrigin = (() => { try { return new URL(baseUrl).origin; } catch { return ''; } })();
 
-                            // Comprehensive provider → domain signature map
+                            // Resolve relative/protocol-relative URLs to full absolute clickable URLs
+                            const resolveUrl = (raw: string): string => {
+                              if (!raw || typeof raw !== 'string') return '';
+                              let u = raw.trim();
+                              if (u.startsWith('//')) u = 'https:' + u;
+                              if (u.startsWith('/')) u = baseOrigin + u;
+                              if (!u.startsWith('http://') && !u.startsWith('https://')) {
+                                if (u.includes('.') && !u.includes(' ')) u = 'https://' + u;
+                                else return '';
+                              }
+                              return u;
+                            };
+
+                            // Extract string URLs from various data shapes
+                            const extractStr = (v: any): string => typeof v === 'string' ? v : v?.href || v?.url || v?.src || '';
+
+                            const rawUrls: string[] = [
+                              // Scripts (external JS files)
+                              ...toArr(scrapeResult?.scripts?.external),
+                              // Stylesheets
+                              ...toArr(scrapeResult?.scripts?.stylesheets),
+                              // External links (anchors pointing off-domain)
+                              ...toArr(scrapeResult?.links?.external).map(extractStr),
+                              // Internal links
+                              ...toArr(scrapeResult?.links?.internal).map(extractStr),
+                              // Iframes
+                              ...toArr(scrapeResult?.iframes),
+                              // Scanned pages from deep crawl
+                              ...toArr(scrapeResult?.scanCoverage?.scannedUrls),
+                              // Sitemap sample URLs
+                              ...toArr(scrapeResult?.scanCoverage?.sitemapSample),
+                              // Subdomains found
+                              ...toArr(scrapeResult?.scanCoverage?.subdomainsFound).map((s: string) => `https://${s}`),
+                              // Image sources
+                              ...toArr(scrapeResult?.images?.samples).map((img: any) => extractStr(img)),
+                              // Font URLs
+                              ...toArr(scrapeResult?.fonts?.googleFonts),
+                              ...toArr(scrapeResult?.fonts?.adobeFonts),
+                              ...toArr(scrapeResult?.fonts?.customFonts),
+                              // Social link URLs
+                              ...Object.values(scrapeResult?.socialLinks || {}).filter((v): v is string => typeof v === 'string'),
+                              // Open Graph / Twitter images
+                              scrapeResult?.openGraph?.image || '',
+                              scrapeResult?.openGraph?.url || '',
+                              scrapeResult?.twitterCard?.image || '',
+                              // Canonical
+                              scrapeResult?.basic?.canonical || '',
+                              // Structured data URLs
+                              ...toArr(scrapeResult?.structuredData).flatMap((sd: any) => {
+                                const urls: string[] = [];
+                                try { const s = JSON.stringify(sd); for (const m of s.matchAll(/"(https?:\/\/[^"]+)"/g)) urls.push(m[1]); } catch {}
+                                return urls;
+                              }),
+                            ];
+
+                            // Resolve all to absolute clickable URLs and deduplicate
+                            const allUrls = [...new Set(rawUrls.map(resolveUrl).filter(u => u.startsWith('http')))];
+
+                            // ─── Comprehensive provider → domain/path signature map ───
                             const KNOWN_SIGS: Record<string, string[]> = {
                               // CDN
-                              "Cloudflare CDN": ["cdnjs.cloudflare.com","cdn-cgi","cloudflare.com","cloudflareinsights"],
-                              "AWS CloudFront": ["cloudfront.net","d1","d2","d3"],
-                              "Akamai": ["akamai.net","akamaized.net","akamaistream.net","akamaihd.net","edgekey.net","edgesuite.net"],
-                              "cdnjs": ["cdnjs.cloudflare.com","cdnjs.com"],
-                              "YouTube CDN": ["ytimg.com","youtube.com/embed","googlevideo.com","yt3.ggpht.com","youtube-nocookie.com"],
-                              "Facebook Ad CDN": ["fbcdn.net","facebook.com/tr","connect.facebook.net","facebook.net"],
-                              "Facebook CDN": ["fbcdn.net","fbstatic-a.akamaihd.net","static.xx.fbcdn.net","facebook.com"],
-                              "New Relic CDN": ["nr-data.net","newrelic.com","js-agent.newrelic.com","bam.nr-data.net"],
+                              "Cloudflare CDN": ["cdnjs.cloudflare.com","cdn-cgi/","cloudflare.com","cloudflareinsights.com","ajax.cloudflare.com"],
+                              "AWS CloudFront": ["cloudfront.net",".cloudfront.net/"],
+                              "Akamai": ["akamai.net","akamaized.net","akamaistream.net","akamaihd.net","edgekey.net","edgesuite.net","akadns.net","akstat.io"],
+                              "cdnjs": ["cdnjs.cloudflare.com/ajax/libs"],
+                              "YouTube CDN": ["ytimg.com","youtube.com","googlevideo.com","yt3.ggpht.com","youtube-nocookie.com","i.ytimg.com","s.ytimg.com"],
+                              "Facebook Ad CDN": ["fbcdn.net","facebook.com/tr","connect.facebook.net","facebook.net","fbsbx.com"],
+                              "Facebook CDN": ["fbcdn.net","fbstatic","static.xx.fbcdn.net","facebook.com","scontent."],
+                              "New Relic CDN": ["nr-data.net","newrelic.com","js-agent.newrelic.com","bam.nr-data.net","bam-cell.nr-data.net"],
                               "jsDelivr": ["cdn.jsdelivr.net","jsdelivr.net"],
                               "unpkg": ["unpkg.com"],
                               "KeyCDN": ["kxcdn.com","keycdn.com"],
-                              "Fastly": ["fastly.net","fastlylb.net","global.ssl.fastly.net"],
-                              "StackPath": ["stackpathcdn.com","stackpath.com","bootstrapcdn.com"],
+                              "Fastly": ["fastly.net","fastlylb.net","global.ssl.fastly.net","a.fastly.net","dualstack."],
+                              "StackPath": ["stackpathcdn.com","stackpath.com","bootstrapcdn.com","maxcdn.bootstrapcdn.com"],
                               "BunnyCDN": ["b-cdn.net","bunnycdn.com","bunny.net"],
-                              "Google CDN": ["ajax.googleapis.com","fonts.googleapis.com","fonts.gstatic.com","storage.googleapis.com","gstatic.com","googleusercontent.com"],
+                              "Google CDN": ["ajax.googleapis.com","fonts.googleapis.com","fonts.gstatic.com","storage.googleapis.com","gstatic.com","googleusercontent.com","lh3.googleusercontent","lh4.googleusercontent","lh5.googleusercontent","lh6.googleusercontent"],
+                              "Cloudinary CDN": ["res.cloudinary.com","cloudinary.com"],
+                              "Imgix": ["imgix.net"],
+                              "Amazon S3": ["s3.amazonaws.com","s3-us-","s3-eu-","s3-ap-",".s3.amazonaws",".s3.us-",".s3.eu-"],
                               // Frameworks
-                              "React": ["react.","reactdom","react-dom","_react","__react"],
-                              "Next.js": ["_next/","next/","__next","nextjs"],
-                              "Vue.js": ["vue.js","vue.min","vuejs.org","vue.global","vue.esm"],
-                              "Angular": ["angular.","ng-","angular.io","zone.js"],
-                              "Ember.js": ["ember.","emberjs.com","ember-cli"],
-                              "Vite": ["/@vite","vite/","vitejs"],
-                              "Svelte": ["svelte","__svelte"],
-                              "Nuxt": ["_nuxt/","nuxt."],
-                              "jQuery": ["jquery.","jquery/","jquery.min","code.jquery.com"],
+                              "React": ["react.production","react-dom","_react","__react","react.development"],
+                              "Next.js": ["/_next/","__next","__NEXT_DATA__","_next/static","_next/image"],
+                              "Vue.js": ["vue.js","vue.min.js","vuejs.org","vue.global","vue.esm","vue.runtime"],
+                              "Angular": ["angular.min","ng-version","angular.io","zone.js","angular-cli","angular.json"],
+                              "Ember.js": ["ember.","emberjs.com","ember-cli","ember.min"],
+                              "Vite": ["/@vite/","vite/","vitejs.dev","@vitejs"],
+                              "Svelte": ["svelte","__svelte","svelte-kit"],
+                              "Nuxt": ["_nuxt/","__NUXT__","nuxt."],
+                              "jQuery": ["jquery.","jquery/","jquery.min","code.jquery.com","jquery-"],
+                              "Gatsby": ["gatsby","__gatsby"],
+                              "Remix": ["remix.run"],
+                              "Astro": ["astro.build"],
+                              "Tailwind CSS": ["tailwindcss","tailwind.min"],
+                              "Bootstrap": ["bootstrap.min","bootstrap.bundle","getbootstrap.com","bootstrap.css","bootstrap.js"],
+                              "Material UI": ["mui.com","@mui/"],
+                              "Alpine.js": ["alpinejs","cdn.jsdelivr.net/npm/alpinejs"],
+                              "HTMX": ["htmx.org","hx-get","hx-post"],
                               // Hosting
-                              "Cloudflare": ["cloudflare.com","cdn-cgi","cloudflareinsights.com"],
-                              "Vercel": ["vercel.app","vercel.com","vercel-insights","va.vercel-scripts.com","_vercel"],
-                              "Netlify": ["netlify.app","netlify.com","netlify-cms"],
-                              "AWS": ["amazonaws.com","aws.amazon.com","s3.amazonaws","elasticbeanstalk"],
-                              "Google Cloud": ["googleapis.com","google.com","gstatic.com","firebase"],
+                              "Cloudflare": ["cloudflare.com","cdn-cgi/","cloudflareinsights.com","challenges.cloudflare.com"],
+                              "Vercel": ["vercel.app","vercel.com","vercel-insights","va.vercel-scripts.com","_vercel","vercel-analytics"],
+                              "Netlify": ["netlify.app","netlify.com","netlify-cms","/.netlify/"],
+                              "AWS": ["amazonaws.com","aws.amazon.com","s3.amazonaws","elasticbeanstalk.com","execute-api","amplifyapp.com"],
+                              "Google Cloud": ["googleapis.com","google.com","gstatic.com","firebase","cloudfunctions.net","run.app"],
                               "Heroku": ["herokuapp.com","heroku.com"],
                               "DigitalOcean": ["digitaloceanspaces.com","digitalocean.com"],
                               "Fly.io": ["fly.dev","fly.io"],
                               "Railway": ["railway.app"],
                               "Render": ["onrender.com"],
                               // Analytics
-                              "Google Analytics": ["google-analytics.com","analytics.js","gtag/js","googletagmanager.com","ga.js","collect?v="],
-                              "Google Tag Manager": ["googletagmanager.com","gtm.js","tagmanager.google"],
-                              "Segment": ["segment.com","segment.io","cdn.segment.com","analytics.min.js"],
-                              "Mixpanel": ["mixpanel.com","mxpnl.com","cdn.mxpnl.com"],
-                              "Amplitude": ["amplitude.com","cdn.amplitude.com","amplitude.min"],
-                              "Hotjar": ["hotjar.com","static.hotjar.com","script.hotjar.com"],
+                              "Google Analytics": ["google-analytics.com","analytics.js","gtag/js","googletagmanager.com","ga.js","collect?v=","analytics.google.com"],
+                              "Google Tag Manager": ["googletagmanager.com","gtm.js","tagmanager.google.com"],
+                              "Segment": ["segment.com","segment.io","cdn.segment.com","analytics.min.js","api.segment.io"],
+                              "Mixpanel": ["mixpanel.com","mxpnl.com","cdn.mxpnl.com","api.mixpanel.com"],
+                              "Amplitude": ["amplitude.com","cdn.amplitude.com","amplitude.min","api.amplitude.com","api2.amplitude.com"],
+                              "Hotjar": ["hotjar.com","static.hotjar.com","script.hotjar.com","vars.hotjar.com"],
                               "Heap": ["heap.io","heapanalytics.com","cdn.heapanalytics.com"],
                               "Plausible": ["plausible.io"],
-                              "PostHog": ["posthog.com","app.posthog.com","us.posthog.com"],
+                              "PostHog": ["posthog.com","app.posthog.com","us.posthog.com","eu.posthog.com"],
                               "Clarity": ["clarity.ms","microsoft.com/clarity"],
-                              "FullStory": ["fullstory.com","rs.fullstory.com"],
-                              "LogRocket": ["logrocket.com","cdn.logrocket.io","lr-in.com"],
+                              "FullStory": ["fullstory.com","rs.fullstory.com","edge.fullstory.com"],
+                              "LogRocket": ["logrocket.com","cdn.logrocket.io","lr-in.com","cdn.lr-in.com","cdn.lr-ingest.io"],
+                              "Pendo": ["pendo.io","cdn.pendo.io","app.pendo.io"],
+                              "Kissmetrics": ["kissmetrics.com","i.kissmetrics.com"],
+                              "Mouseflow": ["mouseflow.com","cdn.mouseflow.com"],
+                              "Lucky Orange": ["luckyorange.com","tools.luckyorange.com"],
+                              "Matomo": ["matomo.","piwik.","cdn.matomo.cloud"],
+                              "Fathom": ["usefathom.com","cdn.usefathom.com"],
+                              "Simple Analytics": ["simpleanalytics.com","scripts.simpleanalyticscdn.com"],
                               // Payments
-                              "Stripe": ["stripe.com","js.stripe.com","stripe.network","m.stripe.com","m.stripe.network"],
-                              "PayPal": ["paypal.com","paypalobjects.com","braintreegateway.com","braintree-api.com"],
-                              "Braintree": ["braintreegateway.com","braintree-api.com"],
-                              "Square": ["squareup.com","squareupsandbox.com","square.site"],
+                              "Stripe": ["stripe.com","js.stripe.com","stripe.network","m.stripe.com","m.stripe.network","api.stripe.com","checkout.stripe.com"],
+                              "PayPal": ["paypal.com","paypalobjects.com","braintreegateway.com","braintree-api.com","paypal.me"],
+                              "Braintree": ["braintreegateway.com","braintree-api.com","js.braintreegateway.com"],
+                              "Square": ["squareup.com","squareupsandbox.com","square.site","squarecdn.com","js.squareup.com"],
                               "Paddle": ["paddle.com","cdn.paddle.com"],
                               "LemonSqueezy": ["lemonsqueezy.com","lmsqueezy.com"],
+                              "Razorpay": ["razorpay.com","checkout.razorpay.com"],
+                              "Mollie": ["mollie.com","js.mollie.com"],
+                              "Klarna": ["klarna.com","js.klarna.com","x.klarnacdn.net"],
+                              "Afterpay": ["afterpay.com","static.afterpay.com"],
+                              "Affirm": ["affirm.com","cdn1.affirm.com"],
                               // E-commerce
-                              "Shopify": ["shopify.com","cdn.shopify.com","myshopify.com","shopifycdn.com"],
-                              "WooCommerce": ["woocommerce","wc-ajax"],
+                              "Shopify": ["shopify.com","cdn.shopify.com","myshopify.com","shopifycdn.com","shopify-assets"],
+                              "WooCommerce": ["woocommerce","wc-ajax","/?wc-api"],
                               "BigCommerce": ["bigcommerce.com","mybigcommerce.com"],
-                              "Magento": ["magento","mage/"],
+                              "Magento": ["magento","mage/","static.magento"],
+                              "PrestaShop": ["prestashop.com","prestashop"],
+                              "Salesforce Commerce": ["demandware.net","salesforce-commerce"],
+                              "Gumroad": ["gumroad.com","assets.gumroad.com"],
+                              "Etsy": ["etsy.com","etsystatic.com"],
                               // Security
-                              "reCAPTCHA": ["recaptcha","google.com/recaptcha","gstatic.com/recaptcha"],
+                              "reCAPTCHA": ["recaptcha","google.com/recaptcha","gstatic.com/recaptcha","recaptcha.net"],
                               "hCaptcha": ["hcaptcha.com","js.hcaptcha.com"],
-                              "Cloudflare Turnstile": ["challenges.cloudflare.com","turnstile"],
-                              "New Relic": ["newrelic.com","nr-data.net","js-agent.newrelic","bam.nr-data"],
+                              "Cloudflare Turnstile": ["challenges.cloudflare.com/turnstile","challenges.cloudflare.com"],
+                              "New Relic": ["newrelic.com","nr-data.net","js-agent.newrelic","bam.nr-data","bam-cell.nr-data"],
+                              "Sentry": ["sentry.io","browser.sentry-cdn.com","sentry-cdn.com","o0.ingest.sentry.io"],
+                              "Auth0": ["auth0.com","cdn.auth0.com",".auth0.com"],
+                              "Okta": ["okta.com",".oktacdn.com"],
+                              "Clerk": ["clerk.com","clerk.dev","clerk.accounts.dev"],
                               // Observability
-                              "Datadog": ["datadoghq.com","datadog-agent","dd-agent"],
-                              "Sentry": ["sentry.io","browser.sentry-cdn.com","sentry-cdn.com"],
+                              "Datadog": ["datadoghq.com","datadog-agent","dd-agent","datadoghq.eu","ddog-gov.com","browser-intake-datadoghq"],
+                              "Bugsnag": ["bugsnag.com","d2wy8f7a9ursnm.cloudfront.net"],
+                              "Rollbar": ["rollbar.com","cdn.rollbar.com"],
                               // Social APIs
-                              "Facebook SDK": ["connect.facebook.net","facebook.com/plugins","fbcdn.net","fb.com"],
-                              "YouTube Embed": ["youtube.com/embed","youtube-nocookie.com","ytimg.com"],
-                              "Twitter/X": ["platform.twitter.com","twitter.com/widgets","x.com","cdn.syndication.twimg.com"],
-                              "Instagram": ["instagram.com","cdninstagram.com"],
-                              "TikTok": ["tiktok.com","sf16-website-login"],
-                              "LinkedIn": ["platform.linkedin.com","linkedin.com"],
-                              "Pinterest": ["pinimg.com","pinterest.com","assets.pinterest.com"],
+                              "Facebook SDK": ["connect.facebook.net","facebook.com/plugins","fbcdn.net","fb.com","facebook.com/v"],
+                              "YouTube Embed": ["youtube.com/embed","youtube-nocookie.com/embed","ytimg.com"],
+                              "Twitter/X": ["platform.twitter.com","twitter.com/widgets","x.com","cdn.syndication.twimg.com","pbs.twimg.com","abs.twimg.com"],
+                              "Instagram": ["instagram.com","cdninstagram.com","scontent-"],
+                              "TikTok": ["tiktok.com","sf16-website-login","tiktokcdn.com","byteoversea.com"],
+                              "LinkedIn": ["platform.linkedin.com","linkedin.com","licdn.com","media.licdn.com"],
+                              "Pinterest": ["pinimg.com","pinterest.com","assets.pinterest.com","ct.pinterest.com"],
+                              "Reddit": ["reddit.com","redditstatic.com","redditmedia.com"],
+                              "Snapchat": ["snapchat.com","snap.com","sc-cdn.net","sc-static.net"],
+                              "Spotify": ["spotify.com","open.spotify.com","scdn.co","i.scdn.co"],
+                              "Twitch": ["twitch.tv","player.twitch.tv","static.twitchcdn.net"],
+                              "Discord": ["discord.com","discord.gg","discordapp.com","cdn.discordapp.com"],
+                              "WhatsApp": ["whatsapp.com","wa.me","api.whatsapp.com"],
+                              "Telegram": ["telegram.org","t.me","core.telegram.org"],
                               // Engagement
-                              "Intercom": ["intercom.io","intercomcdn.com","widget.intercom.io","js.intercomcdn.com"],
+                              "Intercom": ["intercom.io","intercomcdn.com","widget.intercom.io","js.intercomcdn.com","api.intercom.io"],
                               "Drift": ["drift.com","js.driftt.com","driftt.com"],
-                              "Zendesk": ["zendesk.com","zdassets.com","zopim.com"],
+                              "Zendesk": ["zendesk.com","zdassets.com","zopim.com","static.zdassets.com","ekr.zdassets.com"],
                               "Crisp": ["crisp.chat","client.crisp.chat"],
-                              "HubSpot": ["hubspot.com","hs-analytics.net","hs-scripts.com","hsforms.com","hubspot.net","hscollectedforms.net","hsadspixel.net"],
+                              "HubSpot": ["hubspot.com","hs-analytics.net","hs-scripts.com","hsforms.com","hubspot.net","hscollectedforms.net","hsadspixel.net","js.hs-scripts.com","js.hubspot.com","forms.hubspot.com","track.hubspot.com","api.hubspot.com"],
                               "Iterable In-App": ["iterable.com","js.iterable.com","api.iterable.com"],
                               "LiveChat": ["livechatinc.com","livechat.com","cdn.livechatinc.com"],
                               "Tawk.to": ["tawk.to","embed.tawk.to"],
-                              "Freshdesk": ["freshdesk.com","freshworks.com"],
+                              "Freshdesk": ["freshdesk.com","freshworks.com","fw-cdn.com"],
+                              "OneSignal": ["onesignal.com","cdn.onesignal.com"],
+                              "Pusher": ["pusher.com","js.pusher.com"],
+                              "Beamer": ["getbeamer.com","app.getbeamer.com"],
+                              "Appcues": ["appcues.com","fast.appcues.com"],
+                              "Wistia": ["wistia.com","fast.wistia.com","fast.wistia.net","embed.wistia.com","embedwistia-a.akamaihd.net"],
+                              "Vimeo": ["vimeo.com","player.vimeo.com","vimeocdn.com","i.vimeocdn.com","f.vimeocdn.com"],
+                              "Loom": ["loom.com","cdn.loom.com"],
+                              "Calendly": ["calendly.com","assets.calendly.com"],
+                              "Cal.com": ["cal.com","app.cal.com"],
+                              "Tidio": ["tidio.co","code.tidio.co"],
                               // Marketing / Email
-                              "Mailchimp": ["mailchimp.com","chimpstatic.com","list-manage.com","mc.us"],
+                              "Mailchimp": ["mailchimp.com","chimpstatic.com","list-manage.com","mc.us","mcusercontent.com"],
                               "SendGrid": ["sendgrid.net","sendgrid.com"],
-                              "Klaviyo": ["klaviyo.com","static.klaviyo.com"],
+                              "Klaviyo": ["klaviyo.com","static.klaviyo.com","a.klaviyo.com"],
                               "ActiveCampaign": ["activecampaign.com","trackcmp.net"],
+                              "ConvertKit": ["convertkit.com","convertkit-mail2.com"],
+                              "Brevo": ["brevo.com","sendinblue.com"],
+                              "Customer.io": ["customer.io","track.customer.io"],
+                              "Drip": ["getdrip.com","d33wubrfki0l68.cloudfront.net"],
                               // CRM
-                              "Salesforce": ["salesforce.com","force.com","sfdc.net","salesforceliveagent.com"],
+                              "Salesforce": ["salesforce.com","force.com","sfdc.net","salesforceliveagent.com","my.salesforce.com"],
+                              "Pipedrive": ["pipedrive.com"],
+                              "Zoho": ["zoho.com","zoho.eu","zohocdn.com"],
                               // Ads
-                              "Google Ads": ["googlesyndication.com","googleadservices.com","doubleclick.net","google.com/pagead","adservice.google"],
+                              "Google Ads": ["googlesyndication.com","googleadservices.com","doubleclick.net","google.com/pagead","adservice.google","pagead2.googlesyndication"],
+                              "Google AdSense": ["pagead2.googlesyndication.com","adsbygoogle"],
                               "Facebook Pixel": ["facebook.com/tr","connect.facebook.net/en_US/fbevents","fbevents.js"],
                               "Bing Ads": ["bat.bing.com","bing.com/bat"],
                               "TikTok Pixel": ["analytics.tiktok.com","tiktok.com/i18n"],
-                              "Criteo": ["criteo.com","static.criteo.net"],
-                              "Taboola": ["taboola.com","cdn.taboola.com"],
+                              "Criteo": ["criteo.com","static.criteo.net","dis.criteo.com"],
+                              "Taboola": ["taboola.com","cdn.taboola.com","trc.taboola.com"],
                               "Outbrain": ["outbrain.com","widgets.outbrain.com"],
-                              // Testing
-                              "Optimizely": ["optimizely.com","cdn.optimizely.com"],
-                              "VWO": ["visualwebsiteoptimizer.com","dev.visualwebsiteoptimizer.com"],
-                              "LaunchDarkly": ["launchdarkly.com","events.launchdarkly.com"],
+                              "Amazon Ads": ["amazon-adsystem.com"],
+                              "AdRoll": ["adroll.com","d.adroll.com"],
+                              "MediaVine": ["mediavine.com","scripts.mediavine.com"],
+                              "Carbon Ads": ["carbonads.com","cdn.carbonads.com","srv.carbonads.net"],
+                              "LinkedIn Ads": ["snap.licdn.com","linkedin.com/li.lms-analytics","px.ads.linkedin.com"],
+                              "Twitter Ads": ["static.ads-twitter.com","analytics.twitter.com","t.co"],
+                              "Snapchat Pixel": ["sc-static.net/scevent.min.js","tr.snapchat.com"],
+                              "Pinterest Tag": ["ct.pinterest.com","pintrk"],
+                              // Testing / Optimization
+                              "Optimizely": ["optimizely.com","cdn.optimizely.com","logx.optimizely.com"],
+                              "VWO": ["visualwebsiteoptimizer.com","dev.visualwebsiteoptimizer.com","d5nxst8fruw4z.cloudfront.net"],
+                              "LaunchDarkly": ["launchdarkly.com","events.launchdarkly.com","app.launchdarkly.com"],
+                              "AB Tasty": ["abtasty.com","try.abtasty.com"],
+                              "Google Optimize": ["optimize.google.com","googleoptimize.com"],
                               // Fonts & Design
                               "Google Fonts": ["fonts.googleapis.com","fonts.gstatic.com"],
                               "Adobe Fonts": ["use.typekit.net","typekit.com","p.typekit.net"],
-                              "Font Awesome": ["fontawesome.com","use.fontawesome.com","kit.fontawesome.com","fa."],
+                              "Font Awesome": ["fontawesome.com","use.fontawesome.com","kit.fontawesome.com","ka-f.fontawesome.com","cdnjs.cloudflare.com/ajax/libs/font-awesome"],
                               // Auth
-                              "Auth0": ["auth0.com","cdn.auth0.com"],
-                              "Firebase": ["firebase.com","firebaseapp.com","firebaseio.com","gstatic.com/firebasejs"],
+                              "Firebase": ["firebase.com","firebaseapp.com","firebaseio.com","gstatic.com/firebasejs","firebasestorage.googleapis.com"],
                               "Supabase": ["supabase.co","supabase.com","supabase.in"],
-                              "Clerk": ["clerk.com","clerk.dev","clerk.accounts.dev"],
-                              // Misc
-                              "WordPress": ["wp-content","wp-includes","wp-json","wordpress.com","wordpress.org"],
-                              "Wix": ["wix.com","parastorage.com","wixsite.com","static.wixstatic.com"],
-                              "Squarespace": ["squarespace.com","sqspcdn.com","static1.squarespace.com"],
-                              "Webflow": ["webflow.com","assets.website-files.com","uploads-ssl.webflow.com"],
+                              "AWS Cognito": ["cognito-idp","cognito-identity","auth.us-east","auth.eu-west"],
+                              "Stytch": ["stytch.com","sdk.stytch.com"],
+                              // Misc / CMS
+                              "WordPress": ["wp-content/","wp-includes/","wp-json/","wordpress.com","wordpress.org","wp-admin"],
+                              "Wix": ["wix.com","parastorage.com","wixsite.com","static.wixstatic.com","wixmp.com"],
+                              "Squarespace": ["squarespace.com","sqspcdn.com","static1.squarespace.com","images.squarespace-cdn.com"],
+                              "Webflow": ["webflow.com","assets.website-files.com","uploads-ssl.webflow.com","global-uploads.webflow.com"],
                               "Ghost": ["ghost.io","ghost.org"],
-                              "Contentful": ["contentful.com","ctfassets.net","images.ctfassets.net"],
+                              "Contentful": ["contentful.com","ctfassets.net","images.ctfassets.net","cdn.contentful.com"],
                               "Sanity": ["sanity.io","cdn.sanity.io","apicdn.sanity.io"],
-                              "Algolia": ["algolia.net","algolianet.com","algolia.com","algoliasearch"],
-                              "Twilio": ["twilio.com"],
-                              "Mapbox": ["mapbox.com","api.mapbox.com","tiles.mapbox.com"],
+                              "Algolia": ["algolia.net","algolianet.com","algolia.com","algoliasearch",".algolia.net"],
+                              "Twilio": ["twilio.com","api.twilio.com"],
+                              "Mapbox": ["mapbox.com","api.mapbox.com","tiles.mapbox.com","events.mapbox.com"],
                               "Google Maps": ["maps.googleapis.com","maps.google.com","maps.gstatic.com"],
+                              // Social Proof
+                              "Trustpilot": ["trustpilot.com","widget.trustpilot.com"],
+                              "Yotpo": ["yotpo.com","staticw2.yotpo.com"],
+                              "Judge.me": ["judge.me","cdn.judge.me"],
+                              // Compliance
+                              "Cookiebot": ["cookiebot.com","consent.cookiebot.com"],
+                              "OneTrust": ["onetrust.com","cdn.cookielaw.org","cookielaw.org","optanon.blob.core.windows.net"],
+                              "CookieYes": ["cookieyes.com"],
+                              "Iubenda": ["iubenda.com","cdn.iubenda.com"],
+                              "Termly": ["termly.io","app.termly.io"],
+                              // File Storage
+                              "Uploadcare": ["ucarecdn.com","uploadcare.com"],
+                              "Mux Video": ["stream.mux.com","image.mux.com","mux.com"],
+                              "Cloudinary": ["res.cloudinary.com","cloudinary.com"],
+                              // Backend
+                              "Hasura": ["hasura.io","hasura.app"],
+                              "Convex": ["convex.dev","convex.cloud"],
+                              "Neon": ["neon.tech"],
+                              "PlanetScale": ["planetscale.com"],
+                              "Upstash": ["upstash.com","upstash.io"],
+                              "MongoDB Atlas": ["mongodb.net","mongodb.com","cloud.mongodb.com"],
                             };
 
                             // Build signatures: use known map first, fallback to name-based
                             const providerSigs: Record<string, string[]> = {};
                             for (const p of providers) {
-                              // Try exact match, then partial match against known sigs
                               const nameLC = p.name.toLowerCase();
-                              const knownKey = Object.keys(KNOWN_SIGS).find(k => k.toLowerCase() === nameLC);
-                              if (knownKey) {
-                                providerSigs[p.name] = KNOWN_SIGS[knownKey];
+                              const nameClean = nameLC.replace(/[^a-z0-9]/g, "");
+                              // Exact match
+                              let matched = Object.keys(KNOWN_SIGS).find(k => k.toLowerCase() === nameLC);
+                              // Fuzzy match: contains or contained
+                              if (!matched) matched = Object.keys(KNOWN_SIGS).find(k => {
+                                const kn = k.toLowerCase().replace(/[^a-z0-9]/g, "");
+                                return kn === nameClean || kn.includes(nameClean) || nameClean.includes(kn);
+                              });
+                              // Word-boundary match for multi-word names
+                              if (!matched) matched = Object.keys(KNOWN_SIGS).find(k => {
+                                const words = k.toLowerCase().split(/[\s\-_./]+/).filter(w => w.length > 2);
+                                const pWords = nameLC.split(/[\s\-_./]+/).filter(w => w.length > 2);
+                                return words.some(w => pWords.some(pw => pw.includes(w) || w.includes(pw)));
+                              });
+                              if (matched) {
+                                providerSigs[p.name] = KNOWN_SIGS[matched];
                               } else {
-                                // Fuzzy: find any known key that contains this name or vice versa
-                                const fuzzyKey = Object.keys(KNOWN_SIGS).find(k => {
-                                  const kn = k.toLowerCase().replace(/[^a-z0-9]/g, "");
-                                  const pn = nameLC.replace(/[^a-z0-9]/g, "");
-                                  return kn.includes(pn) || pn.includes(kn);
-                                });
-                                if (fuzzyKey) {
-                                  providerSigs[p.name] = KNOWN_SIGS[fuzzyKey];
-                                } else {
-                                  // Fallback: name-based
-                                  const clean = nameLC.replace(/[^a-z0-9]/g, "");
-                                  providerSigs[p.name] = [clean, clean + ".com", clean + ".io", clean + ".co", clean + ".net", clean + ".org", clean + ".js", clean + ".min.js"];
-                                }
+                                // Aggressive fallback: generate many domain variants
+                                const clean = nameClean;
+                                const dashed = nameLC.replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+                                providerSigs[p.name] = [
+                                  clean, dashed,
+                                  clean + ".com", clean + ".io", clean + ".co", clean + ".net", clean + ".org", clean + ".dev", clean + ".app",
+                                  dashed + ".com", dashed + ".io", dashed + ".co", dashed + ".dev",
+                                  clean + ".js", clean + ".min.js", clean + ".min.css", clean + ".css",
+                                  "cdn." + clean, "js." + clean, "api." + clean, "sdk." + clean,
+                                ];
                               }
                             }
 
