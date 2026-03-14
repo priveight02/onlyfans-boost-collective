@@ -160,3 +160,9 @@ verify_jwt = false
 
 [functions.create-user-admin]
 verify_jwt = false
+
+[functions.competitor-analyze]
+verify_jwt = false
+
+[functions.site-scraper]
+verify_jwt = false

@@ -10,6 +10,7 @@ import {
   BarChart3, Users, Hash, Zap, Brain, Target, ArrowUpRight, ArrowDownRight,
   Loader2, Clock, AlertTriangle, Calendar, Search, Eye, Globe, Sparkles,
   Shield, Flame, Crown, Download, Copy, ChevronDown, ChevronUp, Star,
+  Link, Lock, FileText, Image as ImageIcon, Code, Activity, CheckCircle, XCircle, ExternalLink,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -194,6 +195,11 @@ const CompetitorAnalyzer = ({
   // Gap analysis state
   const [gapAnalysis, setGapAnalysis] = useState<any>(null);
   const [gapLoading, setGapLoading] = useState(false);
+
+  // Site scraper state
+  const [scrapeUrl, setScrapeUrl] = useState("");
+  const [scrapeResult, setScrapeResult] = useState<any>(null);
+  const [scrapeLoading, setScrapeLoading] = useState(false);
 
   const { performAction } = useCreditAction();
 
@@ -556,6 +562,30 @@ Return ONLY valid JSON:
     });
   };
 
+  // ─── Site Scraper ──────────────────────────────────
+  const scrapeSite = async () => {
+    if (!scrapeUrl.trim()) return;
+    await performAction("site_scrape", async () => {
+      setScrapeLoading(true);
+      setScrapeResult(null);
+      try {
+        const { data, error } = await supabase.functions.invoke("site-scraper", {
+          body: { url: scrapeUrl.trim() },
+        });
+        if (error) throw new Error(error.message || "Scrape failed");
+        if (!data?.success) throw new Error(data?.error || "Scrape failed");
+        setScrapeResult(data);
+        toast.success("Site scraped successfully");
+        return true;
+      } catch (err: any) {
+        toast.error(err.message || "Scrape failed");
+        throw err;
+      } finally {
+        setScrapeLoading(false);
+      }
+    });
+  };
+
   const selected = competitors.find(c => c.id === selectedCompetitor) || competitors[0] || null;
   const getThreatColor = (score: number) => score >= 70 ? "text-red-400" : score >= 40 ? "text-amber-400" : "text-emerald-400";
   const getThreatBg = (score: number) => score >= 70 ? "bg-red-400/10 border-red-400/20" : score >= 40 ? "bg-amber-400/10 border-amber-400/20" : "bg-emerald-400/10 border-emerald-400/20";
@@ -604,6 +634,7 @@ Return ONLY valid JSON:
             { value: "content", icon: Calendar, label: "Content Intel" },
             { value: "swot", icon: Target, label: "SWOT" },
             { value: "strategy", icon: Brain, label: "AI Strategy" },
+            { value: "scraper", icon: Globe, label: "Site Scraper" },
           ].map(tab => (
             <TabsTrigger key={tab.value} value={tab.value} className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium">
               <tab.icon className="h-3.5 w-3.5" /> {tab.label}
@@ -1315,6 +1346,271 @@ Return ONLY valid JSON:
                 <Brain className="h-10 w-10 text-white/20 mx-auto mb-3" />
                 <h3 className="text-white/50 font-medium mb-1">{competitors.length === 0 ? "Add competitors first" : "Generate your strategy"}</h3>
                 <p className="text-white/30 text-sm">{competitors.length === 0 ? "Track competitors, then generate an AI strategy" : 'Click "Generate Strategy" for a comprehensive competitive game plan'}</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+        {/* ═══ SITE SCRAPER TAB ═══ */}
+        <TabsContent value="scraper" className="space-y-5">
+          <Card className="crm-card">
+            <CardContent className="p-4">
+              <div className="flex gap-3 items-end">
+                <div className="flex-1 space-y-1.5">
+                  <label className="text-xs font-medium text-white/50">Website URL</label>
+                  <div className="relative">
+                    <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                    <Input value={scrapeUrl} onChange={e => setScrapeUrl(e.target.value)} placeholder="example.com or https://example.com" className="crm-input pl-9" onKeyDown={e => e.key === "Enter" && !scrapeLoading && scrapeSite()} />
+                  </div>
+                </div>
+                <Button onClick={scrapeSite} disabled={scrapeLoading || !scrapeUrl.trim()} className="bg-gradient-to-r from-[hsl(217,91%,60%)] to-[hsl(262,83%,58%)] hover:opacity-90 text-white gap-1.5 h-10">
+                  {scrapeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+                  {scrapeLoading ? "Scraping..." : "Deep Scrape"}
+                </Button>
+              </div>
+              <p className="text-[10px] text-white/30 mt-2">Extracts SEO metadata, technologies, social links, security headers, structured data, and more · no API key needed</p>
+            </CardContent>
+          </Card>
+
+          {scrapeResult ? (
+            <div className="space-y-4">
+              {/* Top summary */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: "SEO Score", value: `${scrapeResult.seoScore}/100`, icon: Target, color: scrapeResult.seoScore >= 70 ? "text-emerald-400" : scrapeResult.seoScore >= 40 ? "text-amber-400" : "text-red-400" },
+                  { label: "Page Size", value: `${scrapeResult.performance?.pageSizeKB || 0} KB`, icon: FileText, color: "text-white" },
+                  { label: "Word Count", value: `${scrapeResult.content?.wordCount?.toLocaleString() || 0}`, icon: FileText, color: "text-white" },
+                  { label: "HTTPS", value: scrapeResult.isHttps ? "Secure" : "Not Secure", icon: scrapeResult.isHttps ? Lock : Shield, color: scrapeResult.isHttps ? "text-emerald-400" : "text-red-400" },
+                ].map((s, i) => (
+                  <Card key={i} className="crm-card">
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-white/[0.04] flex items-center justify-center"><s.icon className={`h-4 w-4 ${s.color}`} /></div>
+                      <div>
+                        <p className="text-[10px] text-white/40">{s.label}</p>
+                        <p className={`text-sm font-semibold ${s.color}`}>{s.value}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Basic Meta */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><FileText className="h-4 w-4" /> SEO & Meta Data</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  {[
+                    { label: "Title", value: scrapeResult.basic?.title, max: 60 },
+                    { label: "Description", value: scrapeResult.basic?.description, max: 160 },
+                    { label: "Keywords", value: scrapeResult.basic?.keywords },
+                    { label: "Canonical", value: scrapeResult.basic?.canonical },
+                    { label: "Language", value: scrapeResult.basic?.language },
+                    { label: "Robots", value: scrapeResult.basic?.robots },
+                    { label: "Generator", value: scrapeResult.basic?.generator },
+                    { label: "Final URL", value: scrapeResult.finalUrl },
+                    { label: "Server", value: scrapeResult.server },
+                  ].filter(r => r.value).map((r, i) => (
+                    <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                      <span className="text-[10px] text-white/40 w-20 flex-shrink-0 pt-0.5">{r.label}</span>
+                      <span className="text-xs text-white/70 flex-1 break-all">{r.value}</span>
+                      {r.max && r.value && (
+                        <Badge variant="outline" className={`text-[9px] flex-shrink-0 ${r.value.length <= r.max ? "border-emerald-400/20 text-emerald-400" : "border-red-400/20 text-red-400"}`}>
+                          {r.value.length}/{r.max}
+                        </Badge>
+                      )}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Open Graph */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(217,91%,60%)] flex items-center gap-2"><ExternalLink className="h-4 w-4" /> Open Graph</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {Object.entries(scrapeResult.openGraph || {}).filter(([_, v]) => v).map(([k, v]) => (
+                      <div key={k} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02]">
+                        <span className="text-[10px] text-white/40 w-16 flex-shrink-0">{k}</span>
+                        {k === "image" ? (
+                          <div className="flex-1">
+                            <img src={v as string} alt="OG" className="max-h-20 rounded border border-white/10" onError={e => (e.currentTarget.style.display = "none")} />
+                            <p className="text-[10px] text-white/40 mt-1 break-all">{v as string}</p>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-white/70 flex-1 break-all">{v as string}</span>
+                        )}
+                      </div>
+                    ))}
+                    {!Object.values(scrapeResult.openGraph || {}).some(Boolean) && <p className="text-xs text-white/30 text-center py-4">No Open Graph tags found</p>}
+                  </CardContent>
+                </Card>
+
+                {/* Twitter Card */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(217,91%,60%)] flex items-center gap-2"><Hash className="h-4 w-4" /> Twitter Card</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {Object.entries(scrapeResult.twitterCard || {}).filter(([_, v]) => v).map(([k, v]) => (
+                      <div key={k} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02]">
+                        <span className="text-[10px] text-white/40 w-16 flex-shrink-0">{k}</span>
+                        <span className="text-xs text-white/70 flex-1 break-all">{v as string}</span>
+                      </div>
+                    ))}
+                    {!Object.values(scrapeResult.twitterCard || {}).some(Boolean) && <p className="text-xs text-white/30 text-center py-4">No Twitter Card tags found</p>}
+                  </CardContent>
+                </Card>
+
+                {/* Headings */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-400 flex items-center gap-2"><FileText className="h-4 w-4" /> Heading Structure</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {(scrapeResult.headings?.h1 || []).map((h: string, i: number) => (
+                      <div key={`h1-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-emerald-400/15 text-emerald-400 text-[9px]">H1</Badge>
+                        <span className="text-xs text-white/70">{h}</span>
+                      </div>
+                    ))}
+                    {(scrapeResult.headings?.h2 || []).slice(0, 10).map((h: string, i: number) => (
+                      <div key={`h2-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)] text-[9px]">H2</Badge>
+                        <span className="text-xs text-white/70">{h}</span>
+                      </div>
+                    ))}
+                    {(scrapeResult.headings?.h3 || []).slice(0, 5).map((h: string, i: number) => (
+                      <div key={`h3-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-white/10 text-white/50 text-[9px]">H3</Badge>
+                        <span className="text-xs text-white/70">{h}</span>
+                      </div>
+                    ))}
+                    {scrapeResult.headings?.h1?.length === 0 && <p className="text-xs text-red-400/70 text-center py-2">⚠ No H1 tag found — bad for SEO</p>}
+                    {(scrapeResult.headings?.h1?.length || 0) > 1 && <p className="text-xs text-amber-400/70 text-center py-2">⚠ Multiple H1 tags — consider using only one</p>}
+                  </CardContent>
+                </Card>
+
+                {/* Technologies */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><Code className="h-4 w-4" /> Technologies Detected</CardTitle></CardHeader>
+                  <CardContent>
+                    {(scrapeResult.technologies || []).length > 0 ? (
+                      <div className="flex flex-wrap gap-2">
+                        {scrapeResult.technologies.map((tech: string) => (
+                          <Badge key={tech} variant="outline" className="text-xs border-white/10 text-white/70 bg-white/[0.03]">{tech}</Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-white/30 text-center py-4">No technologies detected</p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Social Links */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2"><Link className="h-4 w-4" /> Social Presence</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {Object.entries(scrapeResult.socialLinks || {}).map(([platform, links]) => (
+                      <div key={platform} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge variant="outline" className="text-[10px] border-white/10 text-white/60 capitalize">{platform}</Badge>
+                        <div className="flex-1 space-y-1">
+                          {(links as string[]).map((link, i) => (
+                            <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[hsl(217,91%,60%)]/70 hover:text-[hsl(217,91%,60%)] block break-all">{link}</a>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                    {Object.keys(scrapeResult.socialLinks || {}).length === 0 && <p className="text-xs text-white/30 text-center py-4">No social links found</p>}
+                  </CardContent>
+                </Card>
+
+                {/* Security Headers */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-red-400 flex items-center gap-2"><Shield className="h-4 w-4" /> Security Headers</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {Object.entries(scrapeResult.securityHeaders || {}).map(([header, value]) => (
+                      <div key={header} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02]">
+                        <span className="text-[10px] text-white/50">{header.replace(/([A-Z])/g, " $1").trim()}</span>
+                        {value === "Missing" ? (
+                          <Badge className="bg-red-400/10 text-red-400 text-[9px]"><XCircle className="h-3 w-3 mr-1" /> Missing</Badge>
+                        ) : value === "Present" ? (
+                          <Badge className="bg-emerald-400/10 text-emerald-400 text-[9px]"><CheckCircle className="h-3 w-3 mr-1" /> Present</Badge>
+                        ) : (
+                          <span className="text-[10px] text-emerald-400/70 max-w-[200px] truncate">{value as string}</span>
+                        )}
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Links & Images stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: "Internal Links", value: scrapeResult.links?.totalInternal || 0, icon: Link },
+                  { label: "External Links", value: scrapeResult.links?.totalExternal || 0, icon: ExternalLink },
+                  { label: "Images", value: scrapeResult.images?.total || 0, icon: ImageIcon },
+                  { label: "Images w/ Alt", value: `${scrapeResult.images?.withAlt || 0}/${scrapeResult.images?.total || 0}`, icon: CheckCircle },
+                ].map((s, i) => (
+                  <Card key={i} className="crm-card">
+                    <CardContent className="p-3 text-center">
+                      <s.icon className="h-4 w-4 text-white/30 mx-auto mb-1" />
+                      <p className="text-sm font-semibold text-white">{s.value}</p>
+                      <p className="text-[10px] text-white/40">{s.label}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              {/* Performance */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Activity className="h-4 w-4" /> Performance Signals</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {[
+                      { label: "Service Worker", value: scrapeResult.performance?.hasServiceWorker },
+                      { label: "Web Manifest", value: scrapeResult.performance?.hasManifest },
+                      { label: "Preconnect", value: scrapeResult.performance?.hasPreconnect },
+                      { label: "Preload", value: scrapeResult.performance?.hasPreload },
+                      { label: "Defer Scripts", value: scrapeResult.performance?.hasDeferScripts },
+                      { label: "Async Scripts", value: scrapeResult.performance?.hasAsyncScripts },
+                      { label: "Lazy Images", value: scrapeResult.performance?.hasLazyImages },
+                    ].map((p, i) => (
+                      <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        {p.value ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <XCircle className="h-3.5 w-3.5 text-white/20" />}
+                        <span className={`text-xs ${p.value ? "text-white/70" : "text-white/30"}`}>{p.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Structured Data */}
+              {(scrapeResult.structuredData || []).length > 0 && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Code className="h-4 w-4" /> Structured Data (JSON-LD)</CardTitle></CardHeader>
+                  <CardContent>
+                    <pre className="text-[10px] text-white/50 bg-white/[0.02] p-3 rounded-lg overflow-auto max-h-48 border border-white/[0.04]">
+                      {JSON.stringify(scrapeResult.structuredData, null, 2)}
+                    </pre>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* External links sample */}
+              {(scrapeResult.links?.external || []).length > 0 && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><ExternalLink className="h-4 w-4" /> External Links ({scrapeResult.links.totalExternal})</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="space-y-1 max-h-48 overflow-auto">
+                      {scrapeResult.links.external.slice(0, 30).map((link: string, i: number) => (
+                        <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-[hsl(217,91%,60%)]/60 hover:text-[hsl(217,91%,60%)] break-all p-1 rounded hover:bg-white/[0.02]">{link}</a>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          ) : (
+            <Card className="crm-card">
+              <CardContent className="p-12 text-center">
+                <Globe className="h-10 w-10 text-white/20 mx-auto mb-3" />
+                <h3 className="text-white/50 font-medium mb-1">Deep Site Scraper</h3>
+                <p className="text-white/30 text-sm max-w-md mx-auto">Enter any website URL to extract detailed SEO metadata, technologies, social links, security headers, structured data, performance signals, and more — all using free, legal methods</p>
               </CardContent>
             </Card>
           )}
