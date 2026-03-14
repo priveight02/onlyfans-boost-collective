@@ -5,75 +5,498 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Extract meta tags, links, headers, text content, images, scripts, styles, etc.
+function getAllMatches(html: string, regex: RegExp): string[] {
+  const results: string[] = [];
+  let m;
+  while ((m = regex.exec(html)) !== null) results.push(m[1]);
+  return results;
+}
+
+function getMeta(html: string, attr: string, val: string): string {
+  const patterns = [
+    new RegExp(`<meta[^>]*${attr}=["']${val}["'][^>]*content=["']([^"']*)["']`, "i"),
+    new RegExp(`<meta[^>]*content=["']([^"']*)["'][^>]*${attr}=["']${val}["']`, "i"),
+  ];
+  for (const p of patterns) {
+    const m = html.match(p);
+    if (m) return m[1];
+  }
+  return "";
+}
+
+function getTag(html: string, name: string): string {
+  const m = html.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, "i"));
+  return m?.[1]?.trim() || "";
+}
+
+function detectPlatforms(html: string, scripts: string[], stylesheets: string[], externalLinks: string[]) {
+  const all = html + " " + scripts.join(" ") + " " + stylesheets.join(" ") + " " + externalLinks.join(" ");
+  const lc = all.toLowerCase();
+
+  // CRM Systems
+  const crm: { name: string; confidence: string }[] = [];
+  const crmChecks: [string, string[]][] = [
+    ["Salesforce", ["salesforce.com", "force.com", "pardot", "salesforce-"]],
+    ["HubSpot", ["hubspot.com", "hs-scripts.com", "hs-analytics", "hbspt", "hubspot"]],
+    ["Zoho CRM", ["zoho.com/crm", "zohocdn.com", "zsalesiq", "zoho"]],
+    ["Pipedrive", ["pipedrive.com", "pd-analytics"]],
+    ["Freshsales", ["freshsales.io", "freshworks.com", "freshchat"]],
+    ["Monday CRM", ["monday.com"]],
+    ["Copper CRM", ["copper.com", "prosperworks"]],
+    ["Insightly", ["insightly.com"]],
+    ["Keap/Infusionsoft", ["keap.com", "infusionsoft.com", "infusionsoft"]],
+    ["ActiveCampaign", ["activecampaign.com", "trackcmp.net"]],
+    ["Close CRM", ["close.com", "close.io"]],
+    ["Zendesk Sell", ["zendesk.com/sell", "getbase.com"]],
+    ["Bitrix24", ["bitrix24", "b24-"]],
+    ["SugarCRM", ["sugarcrm.com"]],
+    ["Microsoft Dynamics", ["dynamics.com", "dynamics365"]],
+    ["Vtiger", ["vtiger.com"]],
+    ["Nimble", ["nimble.com"]],
+    ["Agile CRM", ["agilecrm.com"]],
+    ["Capsule CRM", ["capsulecrm.com"]],
+    ["Less Annoying CRM", ["lessannoyingcrm.com"]],
+  ];
+  for (const [name, sigs] of crmChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) crm.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // Payment Platforms
+  const payments: { name: string; confidence: string }[] = [];
+  const payChecks: [string, string[]][] = [
+    ["Stripe", ["stripe.com", "js.stripe.com", "stripe-js", "stripe.js", "stripe_"]],
+    ["PayPal", ["paypal.com", "paypalobjects.com", "paypal-"]],
+    ["Square", ["squareup.com", "square.site", "squarecdn.com"]],
+    ["Braintree", ["braintreegateway.com", "braintree-web", "braintree"]],
+    ["Adyen", ["adyen.com", "adyencheckout"]],
+    ["Shopify Payments", ["shopify.com/payments", "shopifycdn.com"]],
+    ["Klarna", ["klarna.com", "klarna-"]],
+    ["Afterpay", ["afterpay.com", "afterpay"]],
+    ["Affirm", ["affirm.com", "affirm-"]],
+    ["Apple Pay", ["apple-pay", "applepay"]],
+    ["Google Pay", ["google-pay", "googlepay", "gpay"]],
+    ["Amazon Pay", ["amazonpay", "amazon-pay", "payments.amazon"]],
+    ["Razorpay", ["razorpay.com", "razorpay"]],
+    ["Mollie", ["mollie.com", "mollie-"]],
+    ["2Checkout", ["2checkout.com", "2co.com"]],
+    ["Authorize.net", ["authorize.net", "authorizenet"]],
+    ["Paddle", ["paddle.com", "paddle.js"]],
+    ["Lemon Squeezy", ["lemonsqueezy.com", "lmsqueezy"]],
+    ["Gumroad", ["gumroad.com"]],
+    ["Chargebee", ["chargebee.com", "cbinstance"]],
+    ["Recurly", ["recurly.com", "recurly-"]],
+    ["FastSpring", ["fastspring.com"]],
+    ["Wise/TransferWise", ["wise.com", "transferwise.com"]],
+    ["Venmo", ["venmo.com"]],
+    ["Cash App", ["cash.app"]],
+    ["Sezzle", ["sezzle.com"]],
+    ["Zip (QuadPay)", ["zip.co", "quadpay.com"]],
+  ];
+  for (const [name, sigs] of payChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) payments.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // Analytics & Tracking
+  const analytics: { name: string; confidence: string }[] = [];
+  const analyticsChecks: [string, string[]][] = [
+    ["Google Analytics (GA4)", ["gtag(", "googletagmanager.com", "google-analytics.com", "analytics.js"]],
+    ["Google Tag Manager", ["googletagmanager.com/gtm", "gtm.js", "GTM-"]],
+    ["Meta Pixel", ["fbq(", "facebook.net/en_US/fbevents", "connect.facebook.net"]],
+    ["TikTok Pixel", ["analytics.tiktok.com", "ttq.load"]],
+    ["Hotjar", ["hotjar.com", "hj(", "hjSiteSettings"]],
+    ["Mixpanel", ["mixpanel.com", "mixpanel.init"]],
+    ["Amplitude", ["amplitude.com", "amplitude.getInstance"]],
+    ["Segment", ["segment.com", "analytics.load", "cdn.segment.com"]],
+    ["Heap", ["heap-analytics", "heap.load"]],
+    ["FullStory", ["fullstory.com", "fs.identify"]],
+    ["Mouseflow", ["mouseflow.com"]],
+    ["Lucky Orange", ["luckyorange.com"]],
+    ["Clarity", ["clarity.ms", "microsoft clarity"]],
+    ["Pendo", ["pendo.io", "pendo-"]],
+    ["PostHog", ["posthog.com", "posthog.init"]],
+    ["Plausible", ["plausible.io"]],
+    ["Fathom", ["usefathom.com"]],
+    ["Matomo/Piwik", ["matomo", "piwik"]],
+    ["Kissmetrics", ["kissmetrics.com"]],
+    ["Crazy Egg", ["crazyegg.com"]],
+    ["VWO", ["visualwebsiteoptimizer.com", "vwo_"]],
+    ["Optimizely", ["optimizely.com", "optimizely"]],
+    ["AB Tasty", ["abtasty.com"]],
+    ["Snap Pixel", ["sc-static.net/scevent"]],
+    ["Pinterest Tag", ["pintrk", "pinimg.com/ct"]],
+    ["LinkedIn Insight", ["snap.licdn.com", "_linkedin_partner_id"]],
+    ["Twitter/X Pixel", ["static.ads-twitter.com", "twq("]],
+    ["Reddit Pixel", ["rdt(", "alb.reddit.com"]],
+  ];
+  for (const [name, sigs] of analyticsChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) analytics.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // Marketing & Email
+  const marketing: { name: string; confidence: string }[] = [];
+  const marketingChecks: [string, string[]][] = [
+    ["Mailchimp", ["mailchimp.com", "chimpstatic.com", "mc.us"]],
+    ["Klaviyo", ["klaviyo.com", "klviyo"]],
+    ["SendGrid", ["sendgrid.net", "sendgrid.com"]],
+    ["Mailgun", ["mailgun.com"]],
+    ["ConvertKit", ["convertkit.com", "ck.page"]],
+    ["Drip", ["getdrip.com", "drip.com"]],
+    ["Constant Contact", ["constantcontact.com"]],
+    ["AWeber", ["aweber.com"]],
+    ["GetResponse", ["getresponse.com"]],
+    ["Omnisend", ["omnisend.com", "omnisrc"]],
+    ["Brevo/Sendinblue", ["brevo.com", "sendinblue.com", "sib-"]],
+    ["Campaign Monitor", ["createsend.com"]],
+    ["Beehiiv", ["beehiiv.com"]],
+    ["Substack", ["substack.com", "substackcdn.com"]],
+    ["MailerLite", ["mailerlite.com"]],
+    ["Moosend", ["moosend.com"]],
+    ["Customer.io", ["customer.io", "customerioforms"]],
+  ];
+  for (const [name, sigs] of marketingChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) marketing.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // Customer Support & Chat
+  const support: { name: string; confidence: string }[] = [];
+  const supportChecks: [string, string[]][] = [
+    ["Intercom", ["intercom.com", "intercomcdn.com", "intercom-"]],
+    ["Zendesk", ["zendesk.com", "zdassets.com", "zopim"]],
+    ["Drift", ["drift.com", "js.driftt.com"]],
+    ["Crisp", ["crisp.chat", "crisp.im"]],
+    ["LiveChat", ["livechatinc.com", "livechat-"]],
+    ["Tawk.to", ["tawk.to", "embed.tawk"]],
+    ["Freshdesk", ["freshdesk.com", "freshworks.com"]],
+    ["Olark", ["olark.com"]],
+    ["HelpScout", ["helpscout.net", "beacon-v2"]],
+    ["Tidio", ["tidio.co", "tidiochat"]],
+    ["Gorgias", ["gorgias.chat", "gorgias.io"]],
+    ["Front", ["frontapp.com"]],
+    ["Chatwoot", ["chatwoot.com"]],
+    ["Re:amaze", ["reamaze.com"]],
+    ["Chatbot", ["chatbot.com"]],
+    ["Kommunicate", ["kommunicate.io"]],
+    ["LiveAgent", ["ladesk.com"]],
+  ];
+  for (const [name, sigs] of supportChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) support.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // E-commerce Platforms
+  const ecommerce: { name: string; confidence: string }[] = [];
+  const ecomChecks: [string, string[]][] = [
+    ["Shopify", ["shopify.com", "cdn.shopify.com", "shopifycdn.com", "myshopify.com"]],
+    ["WooCommerce", ["woocommerce", "wc-ajax", "wp-content/plugins/woocommerce"]],
+    ["Magento", ["magento", "mage/", "varien"]],
+    ["BigCommerce", ["bigcommerce.com", "mybigcommerce"]],
+    ["Squarespace Commerce", ["squarespace.com", "static1.squarespace.com"]],
+    ["Wix eCommerce", ["wix.com", "wixsite.com", "parastorage.com"]],
+    ["PrestaShop", ["prestashop.com", "presta"]],
+    ["OpenCart", ["opencart"]],
+    ["Ecwid", ["ecwid.com"]],
+    ["Volusion", ["volusion.com"]],
+    ["3dcart/Shift4Shop", ["3dcart.com", "shift4shop"]],
+    ["Sellfy", ["sellfy.com"]],
+    ["ThriveCart", ["thrivecart.com"]],
+    ["SamCart", ["samcart.com"]],
+    ["Kajabi", ["kajabi.com"]],
+    ["Teachable", ["teachable.com"]],
+    ["Podia", ["podia.com"]],
+    ["Gumroad", ["gumroad.com"]],
+    ["Etsy Pattern", ["etsy.com", "etsystatic.com"]],
+  ];
+  for (const [name, sigs] of ecomChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) ecommerce.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // Hosting & CDN
+  const hosting: { name: string; confidence: string }[] = [];
+  const hostChecks: [string, string[]][] = [
+    ["Cloudflare", ["cloudflare.com", "cdnjs.cloudflare.com", "cf-ray", "__cfduid"]],
+    ["AWS CloudFront", ["cloudfront.net", "amazonaws.com"]],
+    ["Vercel", ["vercel.app", "vercel.com", "v0.dev"]],
+    ["Netlify", ["netlify.app", "netlify.com"]],
+    ["Fastly", ["fastly.net", "fastly.com"]],
+    ["Akamai", ["akamaized.net", "akamai.net"]],
+    ["Google Cloud CDN", ["storage.googleapis.com", "googleusercontent.com"]],
+    ["DigitalOcean", ["digitaloceanspaces.com"]],
+    ["Heroku", ["herokuapp.com"]],
+    ["Render", ["onrender.com"]],
+    ["Railway", ["railway.app"]],
+    ["Fly.io", ["fly.dev"]],
+    ["Firebase Hosting", ["firebaseapp.com", "web.app"]],
+    ["GitHub Pages", ["github.io"]],
+    ["Surge", ["surge.sh"]],
+    ["Bunny CDN", ["b-cdn.net"]],
+    ["KeyCDN", ["kxcdn.com"]],
+    ["StackPath", ["stackpathdns.com"]],
+    ["Sucuri", ["sucuri.net"]],
+  ];
+  for (const [name, sigs] of hostChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) hosting.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // Frameworks & CMS
+  const frameworks: { name: string; confidence: string }[] = [];
+  const fwChecks: [string, string[]][] = [
+    ["React", ["react", "reactdom", "__REACT"]],
+    ["Vue.js", ["vue.js", "vuejs.org", "__VUE"]],
+    ["Angular", ["angular", "ng-version"]],
+    ["Next.js", ["__NEXT_DATA__", "_next/", "nextjs"]],
+    ["Nuxt", ["__NUXT__", "_nuxt/"]],
+    ["Svelte", ["svelte", "__svelte"]],
+    ["Gatsby", ["gatsby", "__gatsby"]],
+    ["Remix", ["remix.run", "__remix"]],
+    ["Astro", ["astro.build", "astro-"]],
+    ["WordPress", ["wordpress", "wp-content", "wp-includes", "wp-json"]],
+    ["Drupal", ["drupal", "sites/default/files"]],
+    ["Joomla", ["joomla", "/components/com_"]],
+    ["Ghost", ["ghost.org", "ghost-"]],
+    ["Webflow", ["webflow.com", "webflow.io", "wf-"]],
+    ["Framer", ["framer.com", "framerusercontent"]],
+    ["Bubble", ["bubble.io"]],
+    ["Carrd", ["carrd.co"]],
+    ["Typedream", ["typedream.com"]],
+    ["Duda", ["duda.co", "dudaone.com"]],
+    ["Weebly", ["weebly.com"]],
+    ["Strikingly", ["strikingly.com"]],
+    ["Unbounce", ["unbounce.com"]],
+    ["Instapage", ["instapage.com"]],
+    ["ClickFunnels", ["clickfunnels.com"]],
+    ["Leadpages", ["leadpages.com", "leadpages.net"]],
+    ["Tailwind CSS", ["tailwind", "tailwindcss"]],
+    ["Bootstrap", ["bootstrap.min", "getbootstrap.com"]],
+    ["Material UI", ["mui.com", "@mui/"]],
+    ["Chakra UI", ["chakra-ui.com"]],
+    ["Bulma", ["bulma.io", "bulma.min"]],
+    ["Foundation", ["foundation.zurb"]],
+    ["jQuery", ["jquery.min", "jquery.com", "jquery-"]],
+    ["Alpine.js", ["alpinejs", "x-data"]],
+    ["HTMX", ["htmx.org", "hx-"]],
+    ["Stimulus", ["stimulus"]],
+    ["Turbo", ["turbo.hotwired"]],
+    ["Lit", ["lit-element", "lit.dev"]],
+  ];
+  for (const [name, sigs] of fwChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) frameworks.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // Ads & Monetization
+  const ads: { name: string; confidence: string }[] = [];
+  const adChecks: [string, string[]][] = [
+    ["Google Ads", ["googleads.g.doubleclick", "googlesyndication", "adservice.google"]],
+    ["Google AdSense", ["pagead2.googlesyndication", "adsbygoogle"]],
+    ["Amazon Ads", ["amazon-adsystem.com"]],
+    ["Taboola", ["taboola.com"]],
+    ["Outbrain", ["outbrain.com"]],
+    ["Criteo", ["criteo.com", "criteo.net"]],
+    ["AdRoll", ["adroll.com"]],
+    ["MediaVine", ["mediavine.com"]],
+    ["Ezoic", ["ezoic.net", "ezoic.com"]],
+    ["Raptive/AdThrive", ["adthrive.com", "raptive.com"]],
+    ["Carbon Ads", ["carbonads.com", "cdn.carbonads"]],
+    ["BuySellAds", ["buysellads.com"]],
+  ];
+  for (const [name, sigs] of adChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) ads.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // Security & Auth
+  const security: { name: string; confidence: string }[] = [];
+  const secChecks: [string, string[]][] = [
+    ["reCAPTCHA", ["recaptcha", "google.com/recaptcha"]],
+    ["hCaptcha", ["hcaptcha.com"]],
+    ["Cloudflare Turnstile", ["turnstile", "challenges.cloudflare.com"]],
+    ["Auth0", ["auth0.com", "auth0-"]],
+    ["Firebase Auth", ["firebase.google.com/auth", "firebaseauth"]],
+    ["Supabase Auth", ["supabase.co/auth", "supabase"]],
+    ["Okta", ["okta.com"]],
+    ["OneLogin", ["onelogin.com"]],
+    ["Clerk", ["clerk.com", "clerk.dev"]],
+    ["Stytch", ["stytch.com"]],
+    ["AWS Cognito", ["cognito-idp", "cognito-identity"]],
+    ["Sentry", ["sentry.io", "sentry-"]],
+    ["Datadog", ["datadoghq.com", "dd-rum"]],
+    ["New Relic", ["newrelic.com", "nr-data"]],
+    ["LogRocket", ["logrocket.com", "lr-"]],
+    ["Bugsnag", ["bugsnag.com"]],
+    ["Rollbar", ["rollbar.com"]],
+  ];
+  for (const [name, sigs] of secChecks) {
+    const matched = sigs.filter(s => lc.includes(s));
+    if (matched.length > 0) security.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+  }
+
+  // Scheduling & Booking
+  const scheduling: { name: string; confidence: string }[] = [];
+  const schedChecks: [string, string[]][] = [
+    ["Calendly", ["calendly.com"]],
+    ["Cal.com", ["cal.com"]],
+    ["Acuity", ["acuityscheduling.com"]],
+    ["Booksy", ["booksy.com"]],
+    ["Square Appointments", ["squareup.com/appointments"]],
+    ["SimplyBook.me", ["simplybook.me"]],
+    ["HoneyBook", ["honeybook.com"]],
+    ["Dubsado", ["dubsado.com"]],
+  ];
+  for (const [name, sigs] of schedChecks) {
+    if (sigs.some(s => lc.includes(s))) scheduling.push({ name, confidence: "medium" });
+  }
+
+  // Forms & Surveys
+  const forms: { name: string; confidence: string }[] = [];
+  const formChecks: [string, string[]][] = [
+    ["Typeform", ["typeform.com"]],
+    ["JotForm", ["jotform.com"]],
+    ["Google Forms", ["docs.google.com/forms"]],
+    ["Tally", ["tally.so"]],
+    ["Formspree", ["formspree.io"]],
+    ["Netlify Forms", ["netlify"]],
+    ["Basin", ["usebasin.com"]],
+    ["SurveyMonkey", ["surveymonkey.com"]],
+    ["Paperform", ["paperform.co"]],
+  ];
+  for (const [name, sigs] of formChecks) {
+    if (sigs.some(s => lc.includes(s))) forms.push({ name, confidence: "medium" });
+  }
+
+  // Notifications & Engagement
+  const engagement: { name: string; confidence: string }[] = [];
+  const engChecks: [string, string[]][] = [
+    ["OneSignal", ["onesignal.com"]],
+    ["Pusher", ["pusher.com", "js.pusher.com"]],
+    ["Firebase Cloud Messaging", ["firebase-messaging"]],
+    ["Beamer", ["getbeamer.com"]],
+    ["Appcues", ["appcues.com"]],
+    ["UserPilot", ["userpilot.com"]],
+    ["WalkMe", ["walkme.com"]],
+    ["Chameleon", ["chameleon.io"]],
+    ["Product Fruits", ["productfruits.com"]],
+    ["Loom", ["loom.com"]],
+    ["Wistia", ["wistia.com", "wistia.net"]],
+    ["Vimeo", ["vimeo.com", "player.vimeo"]],
+    ["YouTube Embed", ["youtube.com/embed", "youtube-nocookie.com"]],
+    ["Calendly Embed", ["assets.calendly.com"]],
+  ];
+  for (const [name, sigs] of engChecks) {
+    if (sigs.some(s => lc.includes(s))) engagement.push({ name, confidence: "medium" });
+  }
+
+  // Social proof & Reviews
+  const socialProof: { name: string; confidence: string }[] = [];
+  const proofChecks: [string, string[]][] = [
+    ["Trustpilot", ["trustpilot.com"]],
+    ["G2", ["g2.com"]],
+    ["Capterra", ["capterra.com"]],
+    ["Yotpo", ["yotpo.com"]],
+    ["Judge.me", ["judge.me"]],
+    ["Loox", ["loox.io"]],
+    ["Stamped.io", ["stamped.io"]],
+    ["Bazaarvoice", ["bazaarvoice.com"]],
+    ["Feefo", ["feefo.com"]],
+    ["Reviews.io", ["reviews.io"]],
+    ["ProveSource", ["provesrc.com"]],
+    ["FOMO", ["fomo.com"]],
+    ["Proof", ["useproof.com"]],
+    ["TrustSwiftly", ["trustswiftly.com"]],
+  ];
+  for (const [name, sigs] of proofChecks) {
+    if (sigs.some(s => lc.includes(s))) socialProof.push({ name, confidence: "medium" });
+  }
+
+  // SEO & Content tools
+  const seoTools: { name: string; confidence: string }[] = [];
+  const seoChecks: [string, string[]][] = [
+    ["Yoast SEO", ["yoast", "yoast-schema"]],
+    ["Rank Math", ["rankmath"]],
+    ["All in One SEO", ["aioseo"]],
+    ["SEMrush", ["semrush.com"]],
+    ["Ahrefs", ["ahrefs.com"]],
+    ["Schema Pro", ["schema-pro"]],
+    ["Elementor", ["elementor"]],
+    ["Divi", ["divi", "et-boc"]],
+    ["Gutenberg", ["wp-block-"]],
+    ["ContentSquare", ["contentsquare.com"]],
+    ["Cookiebot", ["cookiebot.com"]],
+    ["OneTrust", ["onetrust.com", "optanon"]],
+    ["CookieYes", ["cookieyes.com"]],
+    ["Iubenda", ["iubenda.com"]],
+    ["Termly", ["termly.io"]],
+  ];
+  for (const [name, sigs] of seoChecks) {
+    if (sigs.some(s => lc.includes(s))) seoTools.push({ name, confidence: "medium" });
+  }
+
+  // Project Management / Productivity (embedded links)
+  const productivity: { name: string; confidence: string }[] = [];
+  const prodChecks: [string, string[]][] = [
+    ["Notion", ["notion.so", "notion.com"]],
+    ["Airtable", ["airtable.com"]],
+    ["Slack", ["slack.com"]],
+    ["Discord", ["discord.com", "discord.gg"]],
+    ["Trello", ["trello.com"]],
+    ["Asana", ["asana.com"]],
+    ["Linear", ["linear.app"]],
+    ["ClickUp", ["clickup.com"]],
+    ["Miro", ["miro.com"]],
+    ["Figma", ["figma.com"]],
+    ["Canva", ["canva.com"]],
+  ];
+  for (const [name, sigs] of prodChecks) {
+    if (sigs.some(s => lc.includes(s))) productivity.push({ name, confidence: "medium" });
+  }
+
+  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity };
+}
+
 function extractMetadata(html: string, url: string) {
-  const getTag = (name: string): string => {
-    const m = html.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, "i"));
-    return m?.[1]?.trim() || "";
-  };
-
-  const getMeta = (attr: string, val: string): string => {
-    const patterns = [
-      new RegExp(`<meta[^>]*${attr}=["']${val}["'][^>]*content=["']([^"']*)["']`, "i"),
-      new RegExp(`<meta[^>]*content=["']([^"']*)["'][^>]*${attr}=["']${val}["']`, "i"),
-    ];
-    for (const p of patterns) {
-      const m = html.match(p);
-      if (m) return m[1];
-    }
-    return "";
-  };
-
-  const getAllMatches = (regex: RegExp): string[] => {
-    const results: string[] = [];
-    let m;
-    while ((m = regex.exec(html)) !== null) results.push(m[1]);
-    return results;
-  };
-
-  // Basic info
-  const title = getTag("title");
-  const description = getMeta("name", "description") || getMeta("property", "og:description");
-  const keywords = getMeta("name", "keywords");
-  const author = getMeta("name", "author");
-  const robots = getMeta("name", "robots");
+  const title = getTag(html, "title");
+  const description = getMeta(html, "name", "description") || getMeta(html, "property", "og:description");
+  const keywords = getMeta(html, "name", "keywords");
+  const author = getMeta(html, "name", "author");
+  const robots = getMeta(html, "name", "robots");
   const canonical = html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']*)["']/i)?.[1] || "";
   const language = html.match(/<html[^>]*lang=["']([^"']*)["']/i)?.[1] || "";
   const charset = html.match(/<meta[^>]*charset=["']?([^"'\s>]+)/i)?.[1] || "";
-  const viewport = getMeta("name", "viewport");
-  const generator = getMeta("name", "generator");
-  const themeColor = getMeta("name", "theme-color");
+  const viewport = getMeta(html, "name", "viewport");
+  const generator = getMeta(html, "name", "generator");
+  const themeColor = getMeta(html, "name", "theme-color");
 
-  // Open Graph
   const og = {
-    title: getMeta("property", "og:title"),
-    description: getMeta("property", "og:description"),
-    image: getMeta("property", "og:image"),
-    url: getMeta("property", "og:url"),
-    type: getMeta("property", "og:type"),
-    siteName: getMeta("property", "og:site_name"),
-    locale: getMeta("property", "og:locale"),
+    title: getMeta(html, "property", "og:title"),
+    description: getMeta(html, "property", "og:description"),
+    image: getMeta(html, "property", "og:image"),
+    url: getMeta(html, "property", "og:url"),
+    type: getMeta(html, "property", "og:type"),
+    siteName: getMeta(html, "property", "og:site_name"),
+    locale: getMeta(html, "property", "og:locale"),
   };
 
-  // Twitter Card
   const twitter = {
-    card: getMeta("name", "twitter:card") || getMeta("property", "twitter:card"),
-    site: getMeta("name", "twitter:site") || getMeta("property", "twitter:site"),
-    creator: getMeta("name", "twitter:creator") || getMeta("property", "twitter:creator"),
-    title: getMeta("name", "twitter:title") || getMeta("property", "twitter:title"),
-    description: getMeta("name", "twitter:description") || getMeta("property", "twitter:description"),
-    image: getMeta("name", "twitter:image") || getMeta("property", "twitter:image"),
+    card: getMeta(html, "name", "twitter:card") || getMeta(html, "property", "twitter:card"),
+    site: getMeta(html, "name", "twitter:site") || getMeta(html, "property", "twitter:site"),
+    creator: getMeta(html, "name", "twitter:creator") || getMeta(html, "property", "twitter:creator"),
+    title: getMeta(html, "name", "twitter:title") || getMeta(html, "property", "twitter:title"),
+    description: getMeta(html, "name", "twitter:description") || getMeta(html, "property", "twitter:description"),
+    image: getMeta(html, "name", "twitter:image") || getMeta(html, "property", "twitter:image"),
   };
 
-  // Headings
-  const h1s = getAllMatches(/<h1[^>]*>([\s\S]*?)<\/h1>/gi).map(h => h.replace(/<[^>]*>/g, "").trim()).filter(Boolean);
-  const h2s = getAllMatches(/<h2[^>]*>([\s\S]*?)<\/h2>/gi).map(h => h.replace(/<[^>]*>/g, "").trim()).filter(Boolean);
-  const h3s = getAllMatches(/<h3[^>]*>([\s\S]*?)<\/h3>/gi).map(h => h.replace(/<[^>]*>/g, "").trim()).filter(Boolean);
+  const h1s = getAllMatches(html, /<h1[^>]*>([\s\S]*?)<\/h1>/gi).map(h => h.replace(/<[^>]*>/g, "").trim()).filter(Boolean);
+  const h2s = getAllMatches(html, /<h2[^>]*>([\s\S]*?)<\/h2>/gi).map(h => h.replace(/<[^>]*>/g, "").trim()).filter(Boolean);
+  const h3s = getAllMatches(html, /<h3[^>]*>([\s\S]*?)<\/h3>/gi).map(h => h.replace(/<[^>]*>/g, "").trim()).filter(Boolean);
 
-  // Links
   const internalLinks: string[] = [];
   const externalLinks: string[] = [];
-  const allAnchors = getAllMatches(/<a[^>]*href=["']([^"'#]+)["']/gi);
+  const allAnchors = getAllMatches(html, /<a[^>]*href=["']([^"'#]+)["']/gi);
   const domain = new URL(url).hostname;
   for (const href of allAnchors) {
     try {
@@ -83,11 +506,9 @@ function extractMetadata(html: string, url: string) {
       } else {
         if (!externalLinks.includes(linkUrl.href)) externalLinks.push(linkUrl.href);
       }
-    } catch { /* skip invalid */ }
+    } catch { /* skip */ }
   }
 
-  // Images
-  const images = getAllMatches(/<img[^>]*src=["']([^"']+)["']/gi).slice(0, 50);
   const imagesWithAlt: { src: string; alt: string; hasAlt: boolean }[] = [];
   const imgRegex = /<img[^>]*>/gi;
   let imgMatch;
@@ -99,13 +520,11 @@ function extractMetadata(html: string, url: string) {
     if (src) imagesWithAlt.push({ src, alt, hasAlt });
   }
 
-  // Scripts & styles
-  const scripts = getAllMatches(/<script[^>]*src=["']([^"']+)["']/gi).slice(0, 30);
-  const stylesheets = getAllMatches(/<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi).slice(0, 20);
+  const scripts = getAllMatches(html, /<script[^>]*src=["']([^"']+)["']/gi).slice(0, 50);
+  const stylesheets = getAllMatches(html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi).slice(0, 30);
   const inlineScriptCount = (html.match(/<script[^>]*>[\s\S]*?<\/script>/gi) || []).length;
   const inlineStyleCount = (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).length;
 
-  // Performance hints
   const hasServiceWorker = html.includes("serviceWorker") || html.includes("service-worker");
   const hasManifest = /<link[^>]*rel=["']manifest["']/i.test(html);
   const hasPreconnect = /<link[^>]*rel=["']preconnect["']/i.test(html);
@@ -113,14 +532,13 @@ function extractMetadata(html: string, url: string) {
   const hasDeferScripts = /<script[^>]*defer/i.test(html);
   const hasAsyncScripts = /<script[^>]*async/i.test(html);
   const hasLazyImages = /loading=["']lazy["']/i.test(html);
+  const hasResponsiveImages = /srcset=["']/i.test(html);
+  const hasWebP = /\.webp/i.test(html);
+  const hasAVIF = /\.avif/i.test(html);
 
-  // Schema.org / JSON-LD
-  const jsonLdBlocks = getAllMatches(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
-  const structuredData = jsonLdBlocks.map(block => {
-    try { return JSON.parse(block); } catch { return null; }
-  }).filter(Boolean);
+  const jsonLdBlocks = getAllMatches(html, /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  const structuredData = jsonLdBlocks.map(b => { try { return JSON.parse(b); } catch { return null; } }).filter(Boolean);
 
-  // Social links detection
   const socialPatterns: Record<string, RegExp> = {
     facebook: /facebook\.com\/[^"'\s)]+/gi,
     twitter: /(?:twitter|x)\.com\/[^"'\s)]+/gi,
@@ -130,40 +548,41 @@ function extractMetadata(html: string, url: string) {
     tiktok: /tiktok\.com\/@[^"'\s)]+/gi,
     pinterest: /pinterest\.com\/[^"'\s)]+/gi,
     github: /github\.com\/[^"'\s)]+/gi,
+    reddit: /reddit\.com\/[^"'\s)]+/gi,
+    discord: /discord\.gg\/[^"'\s)]+/gi,
+    telegram: /t\.me\/[^"'\s)]+/gi,
+    whatsapp: /wa\.me\/[^"'\s)]+/gi,
+    snapchat: /snapchat\.com\/add\/[^"'\s)]+/gi,
+    threads: /threads\.net\/@[^"'\s)]+/gi,
+    mastodon: /mastodon\.[^"'\s)]+\/@[^"'\s)]+/gi,
   };
   const socialLinks: Record<string, string[]> = {};
   for (const [platform, regex] of Object.entries(socialPatterns)) {
     const matches = [...new Set(html.match(regex) || [])].map(m => m.startsWith("http") ? m : `https://${m}`);
-    if (matches.length) socialLinks[platform] = matches.slice(0, 3);
+    if (matches.length) socialLinks[platform] = matches.slice(0, 5);
   }
 
-  // Technology detection
-  const technologies: string[] = [];
-  if (html.includes("react")) technologies.push("React");
-  if (html.includes("vue")) technologies.push("Vue.js");
-  if (html.includes("angular")) technologies.push("Angular");
-  if (html.includes("next") || html.includes("__NEXT")) technologies.push("Next.js");
-  if (html.includes("nuxt")) technologies.push("Nuxt");
-  if (html.includes("svelte")) technologies.push("Svelte");
-  if (html.includes("gatsby")) technologies.push("Gatsby");
-  if (html.includes("wordpress") || html.includes("wp-content")) technologies.push("WordPress");
-  if (html.includes("shopify")) technologies.push("Shopify");
-  if (html.includes("wix")) technologies.push("Wix");
-  if (html.includes("squarespace")) technologies.push("Squarespace");
-  if (html.includes("webflow")) technologies.push("Webflow");
-  if (html.includes("tailwind")) technologies.push("Tailwind CSS");
-  if (html.includes("bootstrap")) technologies.push("Bootstrap");
-  if (html.includes("jquery")) technologies.push("jQuery");
-  if (html.includes("gtag") || html.includes("google-analytics") || html.includes("googletagmanager")) technologies.push("Google Analytics");
-  if (html.includes("fbq(") || html.includes("facebook.net")) technologies.push("Facebook Pixel");
-  if (html.includes("hotjar")) technologies.push("Hotjar");
-  if (html.includes("intercom")) technologies.push("Intercom");
-  if (html.includes("crisp")) technologies.push("Crisp Chat");
-  if (html.includes("stripe")) technologies.push("Stripe");
-  if (html.includes("recaptcha")) technologies.push("reCAPTCHA");
-  if (html.includes("cloudflare")) technologies.push("Cloudflare");
+  // Detect platforms
+  const detectedPlatforms = detectPlatforms(html, scripts, stylesheets, externalLinks);
 
-  // Text content for word count
+  // Accessibility checks
+  const formCount = (html.match(/<form/gi) || []).length;
+  const inputsWithLabels = (html.match(/<label/gi) || []).length;
+  const ariaCount = (html.match(/aria-/gi) || []).length;
+  const roleCount = (html.match(/role=["']/gi) || []).length;
+  const tabIndexCount = (html.match(/tabindex/gi) || []).length;
+  const hasSkipNav = /skip.*(nav|content|main)/i.test(html);
+  const hasFocusStyles = /focus/i.test(html);
+
+  // Font detection
+  const googleFonts = [...new Set(getAllMatches(html, /fonts\.googleapis\.com\/css2?\?family=([^"'&]+)/gi))];
+  const customFonts = [...new Set(getAllMatches(html, /font-family:\s*['"]?([^;'"]+)/gi))].slice(0, 10);
+  const adobeFonts = html.includes("use.typekit.net") || html.includes("adobe");
+
+  // iFrames
+  const iframes = getAllMatches(html, /<iframe[^>]*src=["']([^"']+)["']/gi).slice(0, 15);
+
+  // Text content
   const textContent = html
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<style[\s\S]*?<\/style>/gi, "")
@@ -172,14 +591,17 @@ function extractMetadata(html: string, url: string) {
     .trim();
   const wordCount = textContent.split(/\s+/).filter(Boolean).length;
 
+  // Phone numbers & emails on page
+  const phoneNumbers = [...new Set(textContent.match(/(?:\+?\d{1,4}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,4}/g) || [])].slice(0, 5);
+  const emailAddresses = [...new Set(html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [])].slice(0, 10);
+
   // SEO score
   let seoScore = 0;
   if (title) seoScore += 10;
   if (title.length >= 30 && title.length <= 60) seoScore += 5;
   if (description) seoScore += 10;
   if (description.length >= 120 && description.length <= 160) seoScore += 5;
-  if (h1s.length === 1) seoScore += 10;
-  if (h1s.length > 1) seoScore += 3;
+  if (h1s.length === 1) seoScore += 10; else if (h1s.length > 1) seoScore += 3;
   if (canonical) seoScore += 5;
   if (og.title && og.description && og.image) seoScore += 10;
   if (twitter.card) seoScore += 5;
@@ -188,12 +610,13 @@ function extractMetadata(html: string, url: string) {
   if (hasLazyImages) seoScore += 5;
   if (language) seoScore += 5;
   if (robots && !robots.includes("noindex")) seoScore += 5;
+  if (hasResponsiveImages) seoScore += 3;
+  if (hasWebP || hasAVIF) seoScore += 2;
   if (imagesWithAlt.length > 0) {
     const altRatio = imagesWithAlt.filter(i => i.hasAlt && i.alt).length / imagesWithAlt.length;
     seoScore += Math.round(altRatio * 10);
   }
 
-  // Page size
   const pageSizeKB = Math.round(new TextEncoder().encode(html).length / 1024);
 
   return {
@@ -201,23 +624,17 @@ function extractMetadata(html: string, url: string) {
     openGraph: og,
     twitterCard: twitter,
     headings: { h1: h1s, h2: h2s, h3: h3s },
-    links: {
-      internal: internalLinks.slice(0, 50),
-      external: externalLinks.slice(0, 50),
-      totalInternal: internalLinks.length,
-      totalExternal: externalLinks.length,
-    },
-    images: {
-      total: imagesWithAlt.length,
-      withAlt: imagesWithAlt.filter(i => i.hasAlt && i.alt).length,
-      withoutAlt: imagesWithAlt.filter(i => !i.hasAlt || !i.alt).length,
-      samples: imagesWithAlt.slice(0, 15),
-    },
+    links: { internal: internalLinks.slice(0, 50), external: externalLinks.slice(0, 50), totalInternal: internalLinks.length, totalExternal: externalLinks.length },
+    images: { total: imagesWithAlt.length, withAlt: imagesWithAlt.filter(i => i.hasAlt && i.alt).length, withoutAlt: imagesWithAlt.filter(i => !i.hasAlt || !i.alt).length, samples: imagesWithAlt.slice(0, 15) },
     scripts: { external: scripts, inlineCount: inlineScriptCount, stylesheets, inlineStyleCount },
-    performance: { hasServiceWorker, hasManifest, hasPreconnect, hasPreload, hasDeferScripts, hasAsyncScripts, hasLazyImages, pageSizeKB },
+    performance: { hasServiceWorker, hasManifest, hasPreconnect, hasPreload, hasDeferScripts, hasAsyncScripts, hasLazyImages, hasResponsiveImages, hasWebP, hasAVIF, pageSizeKB },
     structuredData,
     socialLinks,
-    technologies: [...new Set(technologies)],
+    detectedPlatforms,
+    accessibility: { formCount, inputsWithLabels, ariaCount, roleCount, tabIndexCount, hasSkipNav, hasFocusStyles },
+    fonts: { googleFonts, customFonts, adobeFonts },
+    iframes,
+    contactInfo: { phoneNumbers, emailAddresses },
     content: { wordCount, textPreview: textContent.slice(0, 500) },
     seoScore: Math.min(seoScore, 100),
   };
@@ -235,15 +652,9 @@ serve(async (req) => {
       formattedUrl = `https://${formattedUrl}`;
     }
 
-    // Validate URL
     let parsedUrl: URL;
-    try {
-      parsedUrl = new URL(formattedUrl);
-    } catch {
-      throw new Error("Invalid URL format");
-    }
+    try { parsedUrl = new URL(formattedUrl); } catch { throw new Error("Invalid URL format"); }
 
-    // Block private/internal IPs
     const hostname = parsedUrl.hostname;
     if (hostname === "localhost" || hostname.startsWith("127.") || hostname.startsWith("192.168.") || hostname.startsWith("10.") || hostname === "0.0.0.0") {
       throw new Error("Cannot scrape internal/private addresses");
@@ -251,7 +662,6 @@ serve(async (req) => {
 
     console.log("Scraping:", formattedUrl);
 
-    // Fetch with realistic browser headers
     const response = await fetch(formattedUrl, {
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -265,17 +675,13 @@ serve(async (req) => {
       redirect: "follow",
     });
 
-    if (!response.ok) {
-      throw new Error(`Site returned HTTP ${response.status} ${response.statusText}`);
-    }
+    if (!response.ok) throw new Error(`Site returned HTTP ${response.status} ${response.statusText}`);
 
     const html = await response.text();
-    const finalUrl = response.url; // after redirects
-    const contentType = response.headers.get("content-type") || "";
+    const finalUrl = response.url;
     const server = response.headers.get("server") || "";
     const xPoweredBy = response.headers.get("x-powered-by") || "";
 
-    // Security headers
     const securityHeaders = {
       strictTransportSecurity: response.headers.get("strict-transport-security") || "",
       contentSecurityPolicy: response.headers.get("content-security-policy") ? "Present" : "Missing",
@@ -286,24 +692,18 @@ serve(async (req) => {
     };
 
     const metadata = extractMetadata(html, finalUrl);
-
-    // DNS/SSL info from headers
     const isHttps = finalUrl.startsWith("https://");
 
-    const result = {
+    return new Response(JSON.stringify({
       success: true,
       url: formattedUrl,
       finalUrl,
-      contentType,
+      contentType: response.headers.get("content-type") || "",
       server: server || xPoweredBy || "Unknown",
       isHttps,
       securityHeaders,
       ...metadata,
-    };
-
-    return new Response(JSON.stringify(result), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("site-scraper error:", e);
     return new Response(
