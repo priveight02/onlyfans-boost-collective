@@ -140,13 +140,10 @@ const mapRow = (d: any): Competitor => ({
   metadata: d.metadata || {},
 });
 
-// AI helper - calls agency-copilot and parses JSON from response
+// AI helper - calls dedicated competitor-analyze edge function
 const callAI = async (prompt: string): Promise<any> => {
-  const { data, error } = await supabase.functions.invoke("agency-copilot", {
-    body: {
-      messages: [{ role: "user", content: prompt }],
-      model: "google/gemini-2.5-flash",
-    },
+  const { data, error } = await supabase.functions.invoke("competitor-analyze", {
+    body: { prompt },
   });
   if (error) throw new Error(error.message || "AI request failed");
   if (!data?.reply) throw new Error("No AI response received");
@@ -591,8 +588,8 @@ Return ONLY valid JSON:
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-foreground font-heading">Competitor Analyzer</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">AI-powered competitive intelligence — track, benchmark, and outperform</p>
+          <h1 className="text-lg font-semibold text-white font-heading">Competitor Analyzer</h1>
+          <p className="text-sm text-white/50 mt-0.5">AI-powered competitive intelligence · track, benchmark, and outperform</p>
         </div>
         <CreditCostBadge cost="5-15" variant="header" label="per action" />
       </div>
@@ -620,15 +617,15 @@ Return ONLY valid JSON:
             <CardContent className="p-4">
               <div className="flex gap-3 items-end">
                 <div className="flex-1 space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Username</label>
+                  <label className="text-xs font-medium text-white/50">Username</label>
                   <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</span>
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">@</span>
                     <Input value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="competitor_username" className="crm-input pl-7" onKeyDown={e => e.key === "Enter" && !analyzing && addCompetitor()} />
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Platform</label>
-                  <select value={newPlatform} onChange={e => setNewPlatform(e.target.value)} className="h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-foreground text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
+                  <label className="text-xs font-medium text-white/50">Platform</label>
+                  <select value={newPlatform} onChange={e => setNewPlatform(e.target.value)} className="h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
                     <option value="instagram">Instagram</option>
                     <option value="tiktok">TikTok</option>
                     <option value="twitter">Twitter/X</option>
@@ -647,9 +644,9 @@ Return ONLY valid JSON:
           {competitors.length === 0 ? (
             <Card className="crm-card">
               <CardContent className="p-12 text-center">
-                <Crosshair className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <h3 className="text-muted-foreground font-medium mb-1">No competitors tracked yet</h3>
-                <p className="text-muted-foreground/60 text-sm">Add a competitor username above — AI will analyze their real profile data</p>
+                <Crosshair className="h-10 w-10 text-white/20 mx-auto mb-3" />
+                <h3 className="text-white/50 font-medium mb-1">No competitors tracked yet</h3>
+                <p className="text-white/30 text-sm">Add a competitor username above · AI will analyze their real profile data</p>
               </CardContent>
             </Card>
           ) : (
@@ -663,13 +660,13 @@ Return ONLY valid JSON:
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center text-foreground font-bold text-sm border border-white/[0.06]">
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center text-white font-bold text-sm border border-white/[0.06]">
                           {comp.username[0]?.toUpperCase()}
                         </div>
                         <div>
-                          <p className="text-foreground font-medium text-sm">@{comp.username}</p>
+                          <p className="text-white font-medium text-sm">@{comp.username}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <Badge variant="outline" className="text-[10px] border-white/10 text-muted-foreground">{comp.platform}</Badge>
+                            <Badge variant="outline" className="text-[10px] border-white/10 text-white/50">{comp.platform}</Badge>
                             {comp.metadata?.niche && (
                               <Badge variant="outline" className="text-[10px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]/60">{comp.metadata.niche}</Badge>
                             )}
@@ -677,10 +674,10 @@ Return ONLY valid JSON:
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={e => { e.stopPropagation(); refreshCompetitor(comp); }} disabled={refreshingId === comp.id}>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-white/40 hover:text-white" onClick={e => { e.stopPropagation(); refreshCompetitor(comp); }} disabled={refreshingId === comp.id}>
                           <RefreshCw className={`h-3.5 w-3.5 ${refreshingId === comp.id ? "animate-spin" : ""}`} />
                         </Button>
-                        <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-red-400" onClick={e => { e.stopPropagation(); removeCompetitor(comp.id); }}>
+                        <Button size="icon" variant="ghost" className="h-7 w-7 text-white/40 hover:text-red-400" onClick={e => { e.stopPropagation(); removeCompetitor(comp.id); }}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </div>
@@ -693,9 +690,9 @@ Return ONLY valid JSON:
                         { label: "Growth", value: null },
                       ].map((m, i) => (
                         <div key={i} className="text-center p-2 rounded-lg bg-white/[0.02]">
-                          <p className="text-[10px] text-muted-foreground">{m.label}</p>
+                          <p className="text-[10px] text-white/40">{m.label}</p>
                           {m.value !== null ? (
-                            <p className="text-sm font-semibold text-foreground">{m.value}</p>
+                            <p className="text-sm font-semibold text-white">{m.value}</p>
                           ) : (
                             <p className={`text-sm font-semibold flex items-center justify-center gap-0.5 ${comp.growthRate >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                               {comp.growthRate >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
@@ -708,16 +705,16 @@ Return ONLY valid JSON:
 
                     <div className="grid grid-cols-3 gap-2">
                       <div className="text-center p-2 rounded-lg bg-white/[0.02]">
-                        <p className="text-[10px] text-muted-foreground">Avg Likes</p>
-                        <p className="text-sm font-semibold text-foreground">{fmtNum(comp.avgLikes)}</p>
+                        <p className="text-[10px] text-white/40">Avg Likes</p>
+                        <p className="text-sm font-semibold text-white">{fmtNum(comp.avgLikes)}</p>
                       </div>
                       <div className="text-center p-2 rounded-lg bg-white/[0.02]">
-                        <p className="text-[10px] text-muted-foreground">Posts/Wk</p>
-                        <p className="text-sm font-semibold text-foreground">{comp.postFrequency}</p>
+                        <p className="text-[10px] text-white/40">Posts/Wk</p>
+                        <p className="text-sm font-semibold text-white">{comp.postFrequency}</p>
                       </div>
                       <div className="text-center p-2 rounded-lg bg-white/[0.02]">
-                        <p className="text-[10px] text-muted-foreground">Total Posts</p>
-                        <p className="text-sm font-semibold text-foreground">{fmtNum(comp.posts)}</p>
+                        <p className="text-[10px] text-white/40">Total Posts</p>
+                        <p className="text-sm font-semibold text-white">{fmtNum(comp.posts)}</p>
                       </div>
                     </div>
 
@@ -726,29 +723,29 @@ Return ONLY valid JSON:
                       <div className="space-y-2 pt-2 border-t border-white/[0.04]">
                         {comp.metadata?.contentStyle && (
                           <div className="p-2 rounded-lg bg-white/[0.02]">
-                            <p className="text-[10px] text-muted-foreground mb-1">Content Style</p>
-                            <p className="text-xs text-foreground/70">{comp.metadata.contentStyle}</p>
+                            <p className="text-[10px] text-white/40 mb-1">Content Style</p>
+                            <p className="text-xs text-white/70">{comp.metadata.contentStyle}</p>
                           </div>
                         )}
                         {comp.metadata?.audienceDemo && (
                           <div className="p-2 rounded-lg bg-white/[0.02]">
-                            <p className="text-[10px] text-muted-foreground mb-1">Audience</p>
-                            <p className="text-xs text-foreground/70">{comp.metadata.audienceDemo}</p>
+                            <p className="text-[10px] text-white/40 mb-1">Audience</p>
+                            <p className="text-xs text-white/70">{comp.metadata.audienceDemo}</p>
                           </div>
                         )}
                         {comp.metadata?.bestPostingTimes && (
                           <div className="p-2 rounded-lg bg-white/[0.02]">
-                            <p className="text-[10px] text-muted-foreground mb-1">Best Posting Times</p>
+                            <p className="text-[10px] text-white/40 mb-1">Best Posting Times</p>
                             <div className="flex gap-1 flex-wrap">
                               {comp.metadata.bestPostingTimes.map((t: string) => (
-                                <Badge key={t} variant="outline" className="text-[10px] border-white/10">{t}</Badge>
+                                <Badge key={t} variant="outline" className="text-[10px] border-white/10 text-white/60">{t}</Badge>
                               ))}
                             </div>
                           </div>
                         )}
                         {comp.topHashtags.length > 0 && (
                           <div className="p-2 rounded-lg bg-white/[0.02]">
-                            <p className="text-[10px] text-muted-foreground mb-1">Top Hashtags</p>
+                            <p className="text-[10px] text-white/40 mb-1">Top Hashtags</p>
                             <div className="flex gap-1 flex-wrap">
                               {comp.topHashtags.map(tag => (
                                 <Badge key={tag} variant="outline" className="text-[10px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]/60">#{tag}</Badge>
@@ -758,8 +755,8 @@ Return ONLY valid JSON:
                         )}
                         {comp.metadata?.recentTrend && (
                           <div className="p-2 rounded-lg bg-white/[0.02]">
-                            <p className="text-[10px] text-muted-foreground mb-1">Recent Trend</p>
-                            <p className="text-xs text-foreground/70">{comp.metadata.recentTrend}</p>
+                            <p className="text-[10px] text-white/40 mb-1">Recent Trend</p>
+                            <p className="text-xs text-white/70">{comp.metadata.recentTrend}</p>
                           </div>
                         )}
                       </div>
@@ -771,11 +768,11 @@ Return ONLY valid JSON:
                         <span className={`text-xs font-medium ${getThreatColor(comp.score)}`}>{getThreatLabel(comp.score)} ({comp.score})</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                        <span className="text-[10px] text-white/40 flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           {new Date(comp.lastAnalyzed).toLocaleDateString()}
                         </span>
-                        <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground" onClick={e => { e.stopPropagation(); setExpandedCard(expandedCard === comp.id ? null : comp.id); }}>
+                        <Button size="icon" variant="ghost" className="h-6 w-6 text-white/40" onClick={e => { e.stopPropagation(); setExpandedCard(expandedCard === comp.id ? null : comp.id); }}>
                           {expandedCard === comp.id ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                         </Button>
                       </div>
@@ -790,13 +787,13 @@ Return ONLY valid JSON:
         {/* ═══ BENCHMARKS TAB ═══ */}
         <TabsContent value="benchmarks" className="space-y-5">
           {competitors.length === 0 ? (
-            <Card className="crm-card"><CardContent className="p-12 text-center"><p className="text-muted-foreground">Add competitors first to see benchmarks</p></CardContent></Card>
+            <Card className="crm-card"><CardContent className="p-12 text-center"><p className="text-white/50">Add competitors first to see benchmarks</p></CardContent></Card>
           ) : (
             <>
               {/* Radar */}
               <Card className="crm-card">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-muted-foreground">Performance Radar — All Competitors</CardTitle>
+                  <CardTitle className="text-sm font-medium text-white/60">Performance Radar · All Competitors</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="h-[320px]">
@@ -825,7 +822,7 @@ Return ONLY valid JSON:
               {/* Follower comparison bar */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card className="crm-card">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Follower Count Comparison</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Follower Count Comparison</CardTitle></CardHeader>
                   <CardContent>
                     <div className="h-[220px]">
                       <ResponsiveContainer width="100%" height="100%">
@@ -841,7 +838,7 @@ Return ONLY valid JSON:
                 </Card>
 
                 <Card className="crm-card">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Engagement Rate Comparison</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Engagement Rate Comparison</CardTitle></CardHeader>
                   <CardContent>
                     <div className="h-[220px]">
                       <ResponsiveContainer width="100%" height="100%">
@@ -860,7 +857,7 @@ Return ONLY valid JSON:
               {/* History chart for selected */}
               {selected && getHistoryData(selected) && (
                 <Card className="crm-card">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">@{selected.username} — Historical Tracking</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">@{selected.username} · Historical Tracking</CardTitle></CardHeader>
                   <CardContent>
                     <div className="h-[220px]">
                       <ResponsiveContainer width="100%" height="100%">
@@ -881,14 +878,14 @@ Return ONLY valid JSON:
 
               {/* Comparison Table */}
               <Card className="crm-card">
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Side-by-Side Comparison</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Side-by-Side Comparison</CardTitle></CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-white/[0.06]">
-                          <th className="text-left py-2 text-muted-foreground font-medium text-xs">Metric</th>
-                          {competitors.map(c => <th key={c.id} className="text-center py-2 text-muted-foreground font-medium text-xs">@{c.username}</th>)}
+                          <th className="text-left py-2 text-white/50 font-medium text-xs">Metric</th>
+                          {competitors.map(c => <th key={c.id} className="text-center py-2 text-white/50 font-medium text-xs">@{c.username}</th>)}
                         </tr>
                       </thead>
                       <tbody>
@@ -906,11 +903,11 @@ Return ONLY valid JSON:
                           const best = row.higher ? Math.max(...vals) : Math.min(...vals);
                           return (
                             <tr key={row.label} className="border-b border-white/[0.03]">
-                              <td className="py-2.5 text-muted-foreground text-xs">{row.label}</td>
+                              <td className="py-2.5 text-white/50 text-xs">{row.label}</td>
                               {competitors.map(c => {
                                 const val = c[row.key] as number;
                                 const isBest = val === best;
-                                return <td key={c.id} className={`text-center py-2.5 text-xs font-medium ${isBest ? "text-emerald-400" : "text-foreground/70"}`}>{row.fmt(val)}</td>;
+                                return <td key={c.id} className={`text-center py-2.5 text-xs font-medium ${isBest ? "text-emerald-400" : "text-white/70"}`}>{row.fmt(val)}</td>;
                               })}
                             </tr>
                           );
@@ -930,12 +927,12 @@ Return ONLY valid JSON:
             <CardContent className="p-4">
               <div className="flex gap-3 items-end">
                 <div className="flex-1 space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Keyword / Niche</label>
+                  <label className="text-xs font-medium text-white/50">Keyword / Niche</label>
                   <Input value={keywordQuery} onChange={e => setKeywordQuery(e.target.value)} placeholder="e.g. fitness influencer, vegan recipes, streetwear..." className="crm-input" onKeyDown={e => e.key === "Enter" && !keywordLoading && searchKeywordCompetitors()} />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Platform</label>
-                  <select value={keywordPlatform} onChange={e => setKeywordPlatform(e.target.value)} className="h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-foreground text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
+                  <label className="text-xs font-medium text-white/50">Platform</label>
+                  <select value={keywordPlatform} onChange={e => setKeywordPlatform(e.target.value)} className="h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
                     <option value="instagram">Instagram</option>
                     <option value="tiktok">TikTok</option>
                     <option value="twitter">Twitter/X</option>
@@ -958,45 +955,45 @@ Return ONLY valid JSON:
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${idx === 0 ? "bg-[hsl(217,91%,60%)]/15" : "bg-white/[0.04]"}`}>
-                          <Hash className={`h-4 w-4 ${idx === 0 ? "text-[hsl(217,91%,60%)]" : "text-muted-foreground"}`} />
+                          <Hash className={`h-4 w-4 ${idx === 0 ? "text-[hsl(217,91%,60%)]" : "text-white/40"}`} />
                         </div>
                         <div>
-                          <p className="text-foreground font-medium text-sm">{kr.keyword}</p>
+                          <p className="text-white font-medium text-sm">{kr.keyword}</p>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <Badge variant="outline" className="text-[10px] border-white/10">Vol: {kr.volume}</Badge>
+                            <Badge variant="outline" className="text-[10px] border-white/10 text-white/60">Vol: {kr.volume}</Badge>
                             <Badge variant="outline" className={`text-[10px] ${kr.difficulty === "low" ? "border-emerald-400/20 text-emerald-400" : kr.difficulty === "medium" ? "border-amber-400/20 text-amber-400" : "border-red-400/20 text-red-400"}`}>
                               {kr.difficulty} difficulty
                             </Badge>
                           </div>
                         </div>
                       </div>
-                      <Button size="sm" variant="outline" className="text-xs gap-1 border-white/10 text-muted-foreground hover:text-foreground" onClick={() => { setNewUsername(kr.topAccounts[0]?.username || ""); setActiveTab("tracker"); }}>
+                      <Button size="sm" variant="outline" className="text-xs gap-1 border-white/10 text-white/50 hover:text-white" onClick={() => { setNewUsername(kr.topAccounts[0]?.username || ""); setActiveTab("tracker"); }}>
                         <Plus className="h-3 w-3" /> Track Top
                       </Button>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div className="space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground">Top Accounts</p>
+                        <p className="text-xs font-medium text-white/50">Top Accounts</p>
                         {kr.topAccounts.map((acc, i) => (
                           <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
                             <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center text-[10px] font-bold text-foreground">{acc.username[0]?.toUpperCase()}</div>
-                              <span className="text-sm text-foreground/80">@{acc.username}</span>
+                              <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center text-[10px] font-bold text-white">{acc.username[0]?.toUpperCase()}</div>
+                              <span className="text-sm text-white/80">@{acc.username}</span>
                             </div>
                             <div className="flex items-center gap-2">
-                              <span className="text-xs text-muted-foreground">{acc.followers}</span>
-                              <Badge variant="outline" className={`text-[9px] ${acc.relevance === "high" ? "border-emerald-400/20 text-emerald-400" : "border-white/10 text-muted-foreground"}`}>{acc.relevance}</Badge>
+                              <span className="text-xs text-white/50">{acc.followers}</span>
+                              <Badge variant="outline" className={`text-[9px] ${acc.relevance === "high" ? "border-emerald-400/20 text-emerald-400" : "border-white/10 text-white/40"}`}>{acc.relevance}</Badge>
                             </div>
                           </div>
                         ))}
                       </div>
                       <div className="space-y-2">
-                        <p className="text-xs font-medium text-muted-foreground">Content Ideas</p>
+                        <p className="text-xs font-medium text-white/50">Content Ideas</p>
                         {kr.contentIdeas.map((idea, i) => (
                           <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
                             <Sparkles className="h-3.5 w-3.5 text-[hsl(217,91%,60%)] mt-0.5 flex-shrink-0" />
-                            <span className="text-sm text-foreground/70">{idea}</span>
+                            <span className="text-sm text-white/70">{idea}</span>
                           </div>
                         ))}
                       </div>
@@ -1008,9 +1005,9 @@ Return ONLY valid JSON:
           ) : (
             <Card className="crm-card">
               <CardContent className="p-12 text-center">
-                <Search className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <h3 className="text-muted-foreground font-medium mb-1">Search for competitors by keyword</h3>
-                <p className="text-muted-foreground/60 text-sm">Enter a niche, topic, or keyword to discover top competitors and content opportunities</p>
+                <Search className="h-10 w-10 text-white/20 mx-auto mb-3" />
+                <h3 className="text-white/50 font-medium mb-1">Search for competitors by keyword</h3>
+                <p className="text-white/30 text-sm">Enter a niche, topic, or keyword to discover top competitors and content opportunities</p>
               </CardContent>
             </Card>
           )}
@@ -1022,8 +1019,8 @@ Return ONLY valid JSON:
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-medium text-foreground/80">Content & Hashtag Gap Analysis</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">AI finds opportunities your competitors are missing</p>
+                  <h3 className="text-sm font-medium text-white/80">Content & Hashtag Gap Analysis</h3>
+                  <p className="text-xs text-white/40 mt-0.5">AI finds opportunities your competitors are missing</p>
                 </div>
                 <Button onClick={runGapAnalysis} disabled={gapLoading || competitors.length < 1} className="bg-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,55%)] text-white gap-1.5">
                   {gapLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
@@ -1040,11 +1037,11 @@ Return ONLY valid JSON:
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center border border-white/[0.06]">
-                      <span className="text-xl font-bold text-foreground">{gapAnalysis.overallScore || "?"}</span>
+                      <span className="text-xl font-bold text-white">{gapAnalysis.overallScore || "?"}</span>
                     </div>
                     <div>
-                      <p className="text-foreground font-medium">Opportunity Score</p>
-                      <p className="text-xs text-muted-foreground">{(gapAnalysis.overallScore || 0) >= 70 ? "High opportunity — many gaps to exploit" : (gapAnalysis.overallScore || 0) >= 40 ? "Moderate opportunity — some gaps available" : "Low opportunity — market is well-covered"}</p>
+                      <p className="text-white font-medium">Opportunity Score</p>
+                      <p className="text-xs text-white/50">{(gapAnalysis.overallScore || 0) >= 70 ? "High opportunity · many gaps to exploit" : (gapAnalysis.overallScore || 0) >= 40 ? "Moderate opportunity · some gaps available" : "Low opportunity · market is well-covered"}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -1060,10 +1057,10 @@ Return ONLY valid JSON:
                     {(gapAnalysis.hashtagGaps || []).map((gap: any, i: number) => (
                       <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-foreground font-medium">{gap.hashtag}</span>
+                          <span className="text-sm text-white font-medium">{gap.hashtag}</span>
                           <Badge variant="outline" className="text-[10px] border-emerald-400/20 text-emerald-400">{gap.potentialReach} reach</Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">{gap.recommendation}</p>
+                        <p className="text-xs text-white/50">{gap.recommendation}</p>
                       </div>
                     ))}
                   </CardContent>
@@ -1078,10 +1075,10 @@ Return ONLY valid JSON:
                     {(gapAnalysis.topicGaps || []).map((gap: any, i: number) => (
                       <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-foreground font-medium">{gap.topic}</span>
-                          <Badge variant="outline" className={`text-[10px] ${gap.demandLevel === "high" ? "border-amber-400/20 text-amber-400" : "border-white/10 text-muted-foreground"}`}>{gap.demandLevel} demand</Badge>
+                          <span className="text-sm text-white font-medium">{gap.topic}</span>
+                          <Badge variant="outline" className={`text-[10px] ${gap.demandLevel === "high" ? "border-amber-400/20 text-amber-400" : "border-white/10 text-white/40"}`}>{gap.demandLevel} demand</Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">{gap.actionItem}</p>
+                        <p className="text-xs text-white/50">{gap.actionItem}</p>
                       </div>
                     ))}
                   </CardContent>
@@ -1096,10 +1093,10 @@ Return ONLY valid JSON:
                     {(gapAnalysis.contentFormatGaps || []).map((gap: any, i: number) => (
                       <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-foreground font-medium">{gap.format}</span>
-                          <Badge variant="outline" className="text-[10px] border-white/10 text-muted-foreground">{gap.competitorAdoption} adoption</Badge>
+                          <span className="text-sm text-white font-medium">{gap.format}</span>
+                          <Badge variant="outline" className="text-[10px] border-white/10 text-white/40">{gap.competitorAdoption} adoption</Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">{gap.opportunity}</p>
+                        <p className="text-xs text-white/50">{gap.opportunity}</p>
                       </div>
                     ))}
                   </CardContent>
@@ -1114,10 +1111,10 @@ Return ONLY valid JSON:
                     {(gapAnalysis.timingGaps || []).map((gap: any, i: number) => (
                       <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-foreground font-medium">{gap.timeSlot}</span>
+                          <span className="text-sm text-white font-medium">{gap.timeSlot}</span>
                           <Badge variant="outline" className="text-[10px] border-emerald-400/20 text-emerald-400">{gap.expectedLift}</Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground">{gap.reason}</p>
+                        <p className="text-xs text-white/50">{gap.reason}</p>
                       </div>
                     ))}
                   </CardContent>
@@ -1127,9 +1124,9 @@ Return ONLY valid JSON:
           ) : (
             <Card className="crm-card">
               <CardContent className="p-12 text-center">
-                <Eye className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <h3 className="text-muted-foreground font-medium mb-1">{competitors.length < 1 ? "Add competitors first" : "Run a gap analysis"}</h3>
-                <p className="text-muted-foreground/60 text-sm">AI analyzes all tracked competitors to find hashtag, content, topic, and timing gaps you can exploit</p>
+                <Eye className="h-10 w-10 text-white/20 mx-auto mb-3" />
+                <h3 className="text-white/50 font-medium mb-1">{competitors.length < 1 ? "Add competitors first" : "Run a gap analysis"}</h3>
+                <p className="text-white/30 text-sm">AI analyzes all tracked competitors to find hashtag, content, topic, and timing gaps you can exploit</p>
               </CardContent>
             </Card>
           )}
@@ -1138,14 +1135,14 @@ Return ONLY valid JSON:
         {/* ═══ CONTENT INTEL TAB ═══ */}
         <TabsContent value="content" className="space-y-5">
           {competitors.length === 0 ? (
-            <Card className="crm-card"><CardContent className="p-12 text-center"><p className="text-muted-foreground">Add competitors first</p></CardContent></Card>
+            <Card className="crm-card"><CardContent className="p-12 text-center"><p className="text-white/50">Add competitors first</p></CardContent></Card>
           ) : (
             <>
               {/* Content type pie charts */}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                 {competitors.map(comp => (
                   <Card key={comp.id} className="crm-card">
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">@{comp.username} Content Mix</CardTitle></CardHeader>
+                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">@{comp.username} Content Mix</CardTitle></CardHeader>
                     <CardContent>
                       {comp.contentTypes.length > 0 ? (
                         <div className="h-[200px]">
@@ -1159,7 +1156,7 @@ Return ONLY valid JSON:
                           </ResponsiveContainer>
                         </div>
                       ) : (
-                        <p className="text-muted-foreground/60 text-sm text-center py-8">No content type data — refresh to analyze</p>
+                        <p className="text-white/30 text-sm text-center py-8">No content type data · refresh to analyze</p>
                       )}
                     </CardContent>
                   </Card>
@@ -1168,14 +1165,14 @@ Return ONLY valid JSON:
 
               {/* Hashtag comparison */}
               <Card className="crm-card">
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Hashtag Usage Across Competitors</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Hashtag Usage Across Competitors</CardTitle></CardHeader>
                 <CardContent>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-white/[0.06]">
-                          <th className="text-left py-2 text-muted-foreground font-medium text-xs">Hashtag</th>
-                          {competitors.map(c => <th key={c.id} className="text-center py-2 text-muted-foreground font-medium text-xs">@{c.username}</th>)}
+                          <th className="text-left py-2 text-white/50 font-medium text-xs">Hashtag</th>
+                          {competitors.map(c => <th key={c.id} className="text-center py-2 text-white/50 font-medium text-xs">@{c.username}</th>)}
                         </tr>
                       </thead>
                       <tbody>
@@ -1183,13 +1180,13 @@ Return ONLY valid JSON:
                           const allTags = [...new Set(competitors.flatMap(c => c.topHashtags))];
                           return allTags.slice(0, 15).map(tag => (
                             <tr key={tag} className="border-b border-white/[0.03]">
-                              <td className="py-2 text-foreground/70 text-xs flex items-center gap-1"><Hash className="h-3 w-3 text-[hsl(217,91%,60%)]" />{tag}</td>
+                              <td className="py-2 text-white/70 text-xs flex items-center gap-1"><Hash className="h-3 w-3 text-[hsl(217,91%,60%)]" />{tag}</td>
                               {competitors.map(c => (
                                 <td key={c.id} className="text-center py-2">
                                   {c.topHashtags.includes(tag) ? (
                                     <span className="inline-block w-5 h-5 rounded-full bg-emerald-400/15 text-emerald-400 text-[10px] leading-5">✓</span>
                                   ) : (
-                                    <span className="inline-block w-5 h-5 rounded-full bg-white/[0.03] text-muted-foreground/30 text-[10px] leading-5">—</span>
+                                    <span className="inline-block w-5 h-5 rounded-full bg-white/[0.03] text-white/20 text-[10px] leading-5">·</span>
                                   )}
                                 </td>
                               ))}
@@ -1210,9 +1207,9 @@ Return ONLY valid JSON:
           <Card className="crm-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <select value={selectedCompetitor || ""} onChange={e => setSelectedCompetitor(e.target.value)} className="flex-1 h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-foreground text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
+                <select value={selectedCompetitor || ""} onChange={e => setSelectedCompetitor(e.target.value)} className="flex-1 h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
                   <option value="" disabled>Select competitor...</option>
-                  {competitors.map(c => <option key={c.id} value={c.id}>@{c.username} ({c.platform}) — {fmtNum(c.followers)} followers</option>)}
+                  {competitors.map(c => <option key={c.id} value={c.id}>@{c.username} ({c.platform}) · {fmtNum(c.followers)} followers</option>)}
                 </select>
                 <Button onClick={runSwotAnalysis} disabled={aiLoading || !selectedCompetitor} className="bg-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,55%)] text-white gap-1.5">
                   {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Target className="h-4 w-4" />}
@@ -1240,7 +1237,7 @@ Return ONLY valid JSON:
                     {(swotResult[key] || []).map((item, i) => (
                       <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
                         <div className={`w-1.5 h-1.5 rounded-full mt-1.5 ${dotClass} flex-shrink-0`} />
-                        <p className="text-sm text-foreground/70">{item}</p>
+                        <p className="text-sm text-white/70">{item}</p>
                       </div>
                     ))}
                   </CardContent>
@@ -1250,16 +1247,16 @@ Return ONLY valid JSON:
           ) : !aiLoading ? (
             <Card className="crm-card">
               <CardContent className="p-12 text-center">
-                <Target className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <h3 className="text-muted-foreground font-medium mb-1">Run a SWOT Analysis</h3>
-                <p className="text-muted-foreground/60 text-sm">Select a competitor and click "Run SWOT Analysis" for AI-powered strategic insights</p>
+                <Target className="h-10 w-10 text-white/20 mx-auto mb-3" />
+                <h3 className="text-white/50 font-medium mb-1">Run a SWOT Analysis</h3>
+                <p className="text-white/30 text-sm">Select a competitor and click "Run SWOT Analysis" for AI-powered strategic insights</p>
               </CardContent>
             </Card>
           ) : (
             <Card className="crm-card">
               <CardContent className="p-12 text-center">
                 <Loader2 className="h-10 w-10 text-[hsl(217,91%,60%)] mx-auto mb-3 animate-spin" />
-                <p className="text-muted-foreground text-sm">Analyzing competitive positioning...</p>
+                <p className="text-white/50 text-sm">Analyzing competitive positioning...</p>
               </CardContent>
             </Card>
           )}
@@ -1271,8 +1268,8 @@ Return ONLY valid JSON:
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-medium text-foreground/80">AI Competitive Strategy Brief</h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">Comprehensive game plan based on all tracked competitors</p>
+                  <h3 className="text-sm font-medium text-white/80">AI Competitive Strategy Brief</h3>
+                  <p className="text-xs text-white/40 mt-0.5">Comprehensive game plan based on all tracked competitors</p>
                 </div>
                 <Button onClick={generateAiInsight} disabled={aiLoading || competitors.length === 0} className="bg-gradient-to-r from-[hsl(217,91%,60%)] to-[hsl(262,83%,58%)] hover:opacity-90 text-white gap-1.5">
                   {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
@@ -1286,28 +1283,28 @@ Return ONLY valid JSON:
             <Card className="crm-card">
               <CardContent className="p-5">
                 <div className="flex items-center justify-end mb-3">
-                  <Button size="sm" variant="outline" className="text-xs gap-1 border-white/10 text-muted-foreground hover:text-foreground" onClick={() => { navigator.clipboard.writeText(aiInsight); toast.success("Strategy copied to clipboard"); }}>
+                  <Button size="sm" variant="outline" className="text-xs gap-1 border-white/10 text-white/50 hover:text-white" onClick={() => { navigator.clipboard.writeText(aiInsight); toast.success("Strategy copied to clipboard"); }}>
                     <Copy className="h-3 w-3" /> Copy
                   </Button>
                 </div>
                 <div className="prose prose-invert prose-sm max-w-none">
                   {aiInsight.split("\n").map((line, i) => {
                     if (!line.trim()) return <br key={i} />;
-                    if (line.startsWith("# ") || line.startsWith("## ")) return <h3 key={i} className="text-foreground font-semibold text-sm mt-4 mb-2">{line.replace(/^#+\s/, "")}</h3>;
-                    if (line.startsWith("**") || line.startsWith("### ")) return <h4 key={i} className="text-foreground/80 font-medium text-sm mt-3 mb-1">{line.replace(/\*\*/g, "").replace(/^#+\s/, "")}</h4>;
+                    if (line.startsWith("# ") || line.startsWith("## ")) return <h3 key={i} className="text-white font-semibold text-sm mt-4 mb-2">{line.replace(/^#+\s/, "")}</h3>;
+                    if (line.startsWith("**") || line.startsWith("### ")) return <h4 key={i} className="text-white/80 font-medium text-sm mt-3 mb-1">{line.replace(/\*\*/g, "").replace(/^#+\s/, "")}</h4>;
                     if (line.startsWith("- ") || line.startsWith("* ")) return (
                       <div key={i} className="flex items-start gap-2 ml-2 mb-1">
                         <div className="w-1 h-1 rounded-full bg-[hsl(217,91%,60%)] mt-2 flex-shrink-0" />
-                        <span className="text-foreground/60 text-sm">{line.replace(/^[-*]\s/, "")}</span>
+                        <span className="text-white/60 text-sm">{line.replace(/^[-*]\s/, "")}</span>
                       </div>
                     );
                     if (/^\d+\./.test(line)) return (
                       <div key={i} className="flex items-start gap-2 ml-2 mb-1">
                         <span className="text-[hsl(217,91%,60%)] text-sm font-medium flex-shrink-0">{line.match(/^\d+/)?.[0]}.</span>
-                        <span className="text-foreground/60 text-sm">{line.replace(/^\d+\.\s*/, "")}</span>
+                        <span className="text-white/60 text-sm">{line.replace(/^\d+\.\s*/, "")}</span>
                       </div>
                     );
-                    return <p key={i} className="text-foreground/50 text-sm mb-2">{line}</p>;
+                    return <p key={i} className="text-white/50 text-sm mb-2">{line}</p>;
                   })}
                 </div>
               </CardContent>
@@ -1315,9 +1312,9 @@ Return ONLY valid JSON:
           ) : (
             <Card className="crm-card">
               <CardContent className="p-12 text-center">
-                <Brain className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                <h3 className="text-muted-foreground font-medium mb-1">{competitors.length === 0 ? "Add competitors first" : "Generate your strategy"}</h3>
-                <p className="text-muted-foreground/60 text-sm">{competitors.length === 0 ? "Track competitors, then generate an AI strategy" : 'Click "Generate Strategy" for a comprehensive competitive game plan'}</p>
+                <Brain className="h-10 w-10 text-white/20 mx-auto mb-3" />
+                <h3 className="text-white/50 font-medium mb-1">{competitors.length === 0 ? "Add competitors first" : "Generate your strategy"}</h3>
+                <p className="text-white/30 text-sm">{competitors.length === 0 ? "Track competitors, then generate an AI strategy" : 'Click "Generate Strategy" for a comprehensive competitive game plan'}</p>
               </CardContent>
             </Card>
           )}
