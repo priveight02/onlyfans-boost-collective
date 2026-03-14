@@ -887,7 +887,7 @@ Return ONLY valid JSON:
         toast.success("Financial intelligence generated");
         return true;
       } catch (err: any) {
-        toast.error("Financial analysis failed");
+        toast.error(err?.message || "Financial analysis failed");
         throw err;
       } finally {
         setFinancialLoading(false);
