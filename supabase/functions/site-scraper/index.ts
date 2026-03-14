@@ -1073,31 +1073,52 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     if (matched.length > 0) socialMedia.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
   }
 
-  // Database & Backend-as-a-Service
-  const database: { name: string; confidence: string }[] = [];
-  const dbChecks: [string, string[]][] = [
-    ["Supabase", ["supabase.co", "supabase.com"]],
-    ["Firebase", ["firebase.google.com", "firebaseio.com", "firebaseapp.com"]],
-    ["MongoDB Realm", ["realm.mongodb.com"]],
-    ["AWS Amplify", ["aws-amplify", "amplifyapp.com"]],
-    ["Appwrite", ["appwrite.io"]],
-    ["Convex", ["convex.dev", "convex.cloud"]],
-    ["Neon", ["neon.tech"]],
-    ["PlanetScale", ["planetscale.com"]],
-    ["Upstash", ["upstash.com"]],
-    ["Hasura", ["hasura.io", "hasura.app"]],
+  // Backend Providers (BaaS, Databases, Serverless, Auth, Infra)
+  const backendProviders: { name: string; confidence: string }[] = [];
+  const backendChecks: [string, string[]][] = [
+    ["Supabase", ["supabase.co", "supabase.com", "supabase-js", "supabase/functions"]],
+    ["Firebase", ["firebase.google.com", "firebaseio.com", "firebaseapp.com", "gstatic.com/firebasejs"]],
+    ["Google Cloud", ["cloudfunctions.net", "run.app", "gcp", "storage.googleapis.com"]],
+    ["AWS", ["amazonaws.com", "execute-api", "lambda-url", "aws-amplify", "amplifyapp.com"]],
+    ["Azure", ["azurewebsites.net", "azure-api.net", "azureedge.net"]],
+    ["Cloudflare Workers", ["workers.dev", "cloudflareworkers.com", "cloudflare"]],
+    ["Vercel Functions", ["vercel.app", "vercel.com", "x-vercel-id"]],
+    ["Netlify Functions", ["netlify.app", "netlify.com", "/.netlify/functions/"]],
+    ["Render", ["onrender.com", "render.com"]],
+    ["Railway", ["railway.app", "railway"]],
+    ["Fly.io", ["fly.dev", "fly.io"]],
+    ["Heroku", ["herokuapp.com", "heroku"]],
+    ["Appwrite", ["appwrite.io", "appwrite"]],
+    ["Nhost", ["nhost.io", "nhost.run"]],
+    ["PocketBase", ["pocketbase", "pb_public", "pb.collection"]],
+    ["Parse Server", ["parse-server", "parseplatform"]],
+    ["Hasura", ["hasura.io", "hasura.app", "x-hasura"]],
+    ["Convex", ["convex.dev", "convex.cloud", "convex.site"]],
+    ["Neon", ["neon.tech", "neon.database"]],
+    ["PlanetScale", ["planetscale.com", "psdb.cloud"]],
+    ["Upstash", ["upstash.com", "upstash.io"]],
+    ["Turso", ["turso.io", "libsql"]],
+    ["Xata", ["xata.io"]],
+    ["MongoDB Atlas", ["mongodb.net", "atlas.mongodb.com", "realm.mongodb.com"]],
+    ["Prisma", ["prisma.io", "prismagraphql", "@prisma/client"]],
+    ["Redis Cloud", ["redis.com", "redislabs.com"]],
     ["Sanity", ["sanity.io", "cdn.sanity.io"]],
     ["Contentful", ["contentful.com", "ctfassets.net"]],
-    ["Strapi", ["strapi.io"]],
+    ["Strapi", ["strapi.io", "strapi"]],
     ["Storyblok", ["storyblok.com"]],
     ["Builder.io", ["builder.io", "cdn.builder.io"]],
     ["Algolia", ["algolia.com", "algolianet.com", "algoliasearch"]],
-    ["Xata", ["xata.io"]],
+    ["Clerk", ["clerk.com", "clerk.dev"]],
+    ["Auth0", ["auth0.com", "auth0-"]],
+    ["Okta", ["okta.com"]],
+    ["Stytch", ["stytch.com"]],
   ];
-  for (const [name, sigs] of dbChecks) {
+  for (const [name, sigs] of backendChecks) {
     const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) database.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+    if (matched.length > 0) backendProviders.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
   }
+
+  const database = backendProviders;
 
   // AI & ML Tools
   const aiTools: { name: string; confidence: string }[] = [];
