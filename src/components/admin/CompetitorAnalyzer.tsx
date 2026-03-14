@@ -1877,21 +1877,92 @@ RULES:
                             const providers = ((dp as any)[cat.key] as { name: string; confidence: string }[]) || [];
                             const colors = categoryColors[cat.key] || categoryColors.crm;
                             const icon = categoryIcons[cat.key] || "📦";
+
+                            // Collect all URL sources
+                            const allUrls = [
+                              ...(scrapeResult.scripts || []),
+                              ...(scrapeResult.stylesheets || []),
+                              ...(scrapeResult.externalLinks || []),
+                              ...(scrapeResult.iframes || []),
+                            ];
+
+                            // Build signatures from provider names (lowercase domain-like fragments)
+                            const providerSigs: Record<string, string[]> = {};
+                            for (const p of providers) {
+                              const nameLC = p.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+                              const sigs = [nameLC];
+                              // Add common domain patterns
+                              if (nameLC.length > 2) sigs.push(nameLC + ".com", nameLC + ".io", nameLC + ".co", nameLC + ".net", nameLC + ".org");
+                              providerSigs[p.name] = sigs;
+                            }
+
+                            // Match URLs to each provider
+                            const providerUrls: Record<string, string[]> = {};
+                            for (const p of providers) {
+                              const sigs = providerSigs[p.name] || [];
+                              const matched = allUrls.filter(url => {
+                                const urlLC = url.toLowerCase();
+                                return sigs.some(sig => urlLC.includes(sig));
+                              });
+                              if (matched.length > 0) providerUrls[p.name] = [...new Set(matched)];
+                            }
+
+                            // Collect all matched URLs for the category
+                            const allCategoryUrls = [...new Set(Object.values(providerUrls).flat())];
+                            const isExpanded = expandedSections[`platform_${cat.key}`];
+
                             return (
-                              <div key={cat.key} className={`rounded-xl border ${colors.border} ${colors.bg} backdrop-blur-sm p-3 transition-all hover:scale-[1.02] hover:shadow-lg`}>
-                                <div className="flex items-center gap-2 mb-2.5">
+                              <div key={cat.key} className={`rounded-xl border ${colors.border} ${colors.bg} backdrop-blur-sm p-3 transition-all hover:shadow-lg`}>
+                                <div className="flex items-center gap-2 mb-2.5 cursor-pointer" onClick={() => toggleSection(`platform_${cat.key}`)}>
                                   <span className="text-sm">{icon}</span>
                                   <span className={`text-[11px] font-semibold tracking-wide uppercase ${colors.text}`}>{cat.label}</span>
                                   <span className="ml-auto text-[9px] text-white/30 font-medium bg-white/[0.04] rounded-full px-1.5 py-0.5">{providers.length}</span>
+                                  {allCategoryUrls.length > 0 && (
+                                    isExpanded
+                                      ? <ChevronUp className="h-3 w-3 text-white/20" />
+                                      : <ChevronDown className="h-3 w-3 text-white/20" />
+                                  )}
                                 </div>
                                 <div className="flex flex-wrap gap-1">
                                   {providers.map((p: any) => (
                                     <span key={p.name} className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-medium ${colors.badge} transition-colors`}>
                                       {p.confidence === "high" && <span className="h-1 w-1 rounded-full bg-emerald-400 shrink-0" />}
                                       {p.name}
+                                      {providerUrls[p.name] && (
+                                        <span className="text-[8px] opacity-50 ml-0.5">({providerUrls[p.name].length})</span>
+                                      )}
                                     </span>
                                   ))}
                                 </div>
+
+                                {/* Expandable URL list per category */}
+                                {isExpanded && allCategoryUrls.length > 0 && (
+                                  <div className="mt-2.5 pt-2 border-t border-white/[0.06] space-y-2 max-h-60 overflow-y-auto">
+                                    {providers.filter(p => providerUrls[p.name]?.length).map(p => (
+                                      <div key={p.name}>
+                                        <p className={`text-[10px] font-semibold ${colors.text} mb-1`}>{p.name} URLs ({providerUrls[p.name].length})</p>
+                                        <div className="space-y-0.5">
+                                          {providerUrls[p.name].map((url, ui) => (
+                                            <a
+                                              key={ui}
+                                              href={url}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="block text-[9px] text-white/40 hover:text-white/70 break-all p-0.5 rounded hover:bg-white/[0.03] transition-colors truncate"
+                                              title={url}
+                                            >
+                                              <ExternalLink className="h-2.5 w-2.5 inline mr-1 shrink-0" />
+                                              {url}
+                                            </a>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                                {isExpanded && allCategoryUrls.length === 0 && (
+                                  <p className="mt-2 text-[9px] text-white/20 italic">Detected via code signatures — no direct URLs matched</p>
+                                )}
                               </div>
                             );
                           })}
