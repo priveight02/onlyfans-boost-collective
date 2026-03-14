@@ -29,6 +29,156 @@ function getTag(html: string, name: string): string {
   return m?.[1]?.trim() || "";
 }
 
+const SCRAPE_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9",
+  "Accept-Encoding": "gzip, deflate, br",
+  "Connection": "keep-alive",
+  "Upgrade-Insecure-Requests": "1",
+  "Cache-Control": "max-age=0",
+};
+
+type DeepScanCorpus = {
+  combinedHtml: string;
+  combinedScripts: string[];
+  combinedStylesheets: string[];
+  combinedExternalLinks: string[];
+  scannedUrls: string[];
+  pagesScanned: number;
+};
+
+function isSameSiteHost(rootHost: string, testHost: string): boolean {
+  return testHost === rootHost || testHost.endsWith(`.${rootHost}`) || rootHost.endsWith(`.${testHost}`);
+}
+
+function extractInternalPageLinks(html: string, baseUrl: string, rootHost: string): string[] {
+  const hrefs = getAllMatches(html, /<a[^>]*href=["']([^"'#]+)["']/gi);
+  const links = new Set<string>();
+  const excludedFileExt = /\.(jpg|jpeg|png|gif|svg|webp|avif|mp4|mp3|pdf|zip|rar|css|js|ico|woff2?|ttf|eot|xml)(\?|#|$)/i;
+
+  for (const href of hrefs) {
+    try {
+      const parsed = new URL(href, baseUrl);
+      if (!["http:", "https:"].includes(parsed.protocol)) continue;
+      if (!isSameSiteHost(rootHost, parsed.hostname)) continue;
+      if (excludedFileExt.test(parsed.pathname)) continue;
+      links.add(parsed.href);
+    } catch {
+      // skip invalid links
+    }
+  }
+
+  return [...links];
+}
+
+function prioritizeLinks(links: string[]): string[] {
+  const highIntentKeywords = [
+    "checkout", "payment", "billing", "pricing", "plans", "subscribe", "subscription", "cart", "buy", "upgrade", "portal", "invoice", "pay",
+  ];
+
+  return [...new Set(links)].sort((a, b) => {
+    const al = a.toLowerCase();
+    const bl = b.toLowerCase();
+    const aScore = highIntentKeywords.reduce((acc, keyword) => acc + (al.includes(keyword) ? 10 : 0), 0) - al.length / 500;
+    const bScore = highIntentKeywords.reduce((acc, keyword) => acc + (bl.includes(keyword) ? 10 : 0), 0) - bl.length / 500;
+    return bScore - aScore;
+  });
+}
+
+async function fetchHtmlForDeepScan(targetUrl: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 7000);
+
+  try {
+    const response = await fetch(targetUrl, {
+      headers: SCRAPE_HEADERS,
+      redirect: "follow",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) return null;
+
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.toLowerCase().includes("text/html")) return null;
+
+    return await response.text();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function buildDeepScanCorpus(startUrl: string, seedHtml: string): Promise<DeepScanCorpus> {
+  const maxPages = 10;
+  const maxBatchSize = 3;
+  const maxQueueSize = 120;
+  const rootHost = new URL(startUrl).hostname;
+
+  const visited = new Set<string>([startUrl]);
+  const scannedUrls: string[] = [startUrl];
+  const pageHtmls: { url: string; html: string }[] = [{ url: startUrl, html: seedHtml }];
+
+  let queue = prioritizeLinks(extractInternalPageLinks(seedHtml, startUrl, rootHost));
+
+  while (queue.length > 0 && pageHtmls.length < maxPages) {
+    const batch: string[] = [];
+    const remainingQueue: string[] = [];
+
+    for (const link of queue) {
+      if (visited.has(link)) continue;
+      if (batch.length < maxBatchSize) batch.push(link);
+      else remainingQueue.push(link);
+    }
+
+    if (batch.length === 0) break;
+
+    const fetched = await Promise.all(batch.map(async (link) => ({ link, html: await fetchHtmlForDeepScan(link) })));
+
+    for (const { link, html } of fetched) {
+      visited.add(link);
+      if (!html) continue;
+      pageHtmls.push({ url: link, html });
+      scannedUrls.push(link);
+
+      if (pageHtmls.length >= maxPages) break;
+
+      const discovered = extractInternalPageLinks(html, link, rootHost).filter((next) => !visited.has(next));
+      remainingQueue.push(...discovered);
+    }
+
+    queue = prioritizeLinks(remainingQueue).slice(0, maxQueueSize);
+  }
+
+  const combinedHtml = pageHtmls.map((p) => p.html).join("\n\n<!-- deep-scan-page -->\n\n");
+  const combinedScripts = [...new Set(getAllMatches(combinedHtml, /<script[^>]*src=["']([^"']+)["']/gi))].slice(0, 180);
+  const combinedStylesheets = [...new Set(getAllMatches(combinedHtml, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi))].slice(0, 120);
+
+  const combinedExternalLinksSet = new Set<string>();
+  for (const page of pageHtmls) {
+    const anchors = getAllMatches(page.html, /<a[^>]*href=["']([^"'#]+)["']/gi);
+    for (const href of anchors) {
+      try {
+        const parsed = new URL(href, page.url);
+        if (!["http:", "https:"].includes(parsed.protocol)) continue;
+        if (!isSameSiteHost(rootHost, parsed.hostname)) combinedExternalLinksSet.add(parsed.href);
+      } catch {
+        // skip invalid links
+      }
+    }
+  }
+
+  return {
+    combinedHtml,
+    combinedScripts,
+    combinedStylesheets,
+    combinedExternalLinks: [...combinedExternalLinksSet].slice(0, 250),
+    scannedUrls,
+    pagesScanned: pageHtmls.length,
+  };
+}
+
 function detectPlatforms(html: string, scripts: string[], stylesheets: string[], externalLinks: string[]) {
   const all = html + " " + scripts.join(" ") + " " + stylesheets.join(" ") + " " + externalLinks.join(" ");
   const lc = all.toLowerCase();
