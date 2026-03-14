@@ -1509,6 +1509,120 @@ function extractMetadata(html: string, url: string, securityHeaders: Record<stri
     metric_has_notification_system: boolToNumber(lc.includes("notification") || lc.includes("push-notification") || detectedPlatforms.engagement.length > 0),
   };
 
+  // Build screenshot URL using free public screenshot API
+  const screenshotUrl = `https://image.thum.io/get/width/1280/crop/720/noanimate/${encodeURIComponent(url)}`;
+
+  // Curated advanced metrics - only the most important visual ones grouped by category
+  const curatedMetrics = {
+    contentQuality: {
+      label: "Content Quality",
+      items: {
+        "Word Count": wordCount,
+        "Reading Time": `${round2(wordCount / 200)} min`,
+        "Sentences": sentenceCount,
+        "Paragraphs": paragraphCount,
+        "Unique Word Ratio": `${round2(wordCount ? (uniqueWords.size / wordCount) * 100 : 0)}%`,
+        "Text/HTML Ratio": `${round2(html.length ? (textContent.length / html.length) * 100 : 0)}%`,
+        "Content Density": `${round2(pageSizeKB ? wordCount / pageSizeKB : 0)} words/KB`,
+      },
+    },
+    seoSignals: {
+      label: "SEO Signals",
+      items: {
+        "Title Length": `${title.length}/60`,
+        "Description Length": `${description.length}/160`,
+        "H1 Tags": h1s.length,
+        "H2 Tags": h2s.length,
+        "Canonical": canonicalCount > 0 ? "✓" : "✗",
+        "Hreflang Tags": hreflangCount,
+        "JSON-LD Blocks": structuredData.length,
+        "RSS/Atom Feeds": rssFeedCount,
+        "Sitemap Reference": sitemapMentionCount > 0 ? "✓" : "✗",
+      },
+    },
+    mediaAssets: {
+      label: "Media & Assets",
+      items: {
+        "Total Images": imageTags.length,
+        "Alt Coverage": `${round2(imageTags.length ? (imagesWithAlt.filter(i => i.hasAlt && i.alt).length / imageTags.length) * 100 : 0)}%`,
+        "Lazy Loaded": `${lazyImageCount}/${imageTags.length}`,
+        "Responsive (srcset)": responsiveImageCount,
+        "WebP Used": hasWebP ? "✓" : "✗",
+        "AVIF Used": hasAVIF ? "✓" : "✗",
+        "Videos": videoTagCount,
+        "SVG Elements": svgTagCount,
+        "iFrames": iframes.length,
+      },
+    },
+    techStack: {
+      label: "Tech Stack",
+      items: {
+        "External Scripts": externalScriptTags.length,
+        "Inline Scripts": inlineScriptTags.length,
+        "Stylesheets": stylesheets.length,
+        "Module Scripts": moduleScriptCount,
+        "Page Size": `${pageSizeKB} KB`,
+        "SPA Framework": (lc.includes("__next") || lc.includes("__nuxt") || lc.includes("__gatsby") || lc.includes("__react") || lc.includes("__vue")) ? "✓" : "✗",
+        "PWA Ready": (hasServiceWorker && hasManifest) ? "✓" : "✗",
+        "GraphQL": lc.includes("graphql") ? "✓" : "✗",
+        "WebSocket": (lc.includes("websocket") || lc.includes("wss://")) ? "✓" : "✗",
+      },
+    },
+    monetization: {
+      label: "Monetization & Commerce",
+      items: {
+        "Payment Providers": detectedPlatforms.payments.length,
+        "E-commerce Platforms": detectedPlatforms.ecommerce.length,
+        "Checkout Flow": (lc.includes("checkout") || lc.includes("cart") || lc.includes("add-to-cart")) ? "✓" : "✗",
+        "Subscription UI": (lc.includes("subscription") || lc.includes("recurring") || lc.includes("monthly")) ? "✓" : "✗",
+        "Free Trial": (lc.includes("free trial") || lc.includes("free-trial") || lc.includes("start free")) ? "✓" : "✗",
+        "Price Points Found": (html.match(/[\$€£]\s?\d+[\.,]?\d{0,2}/g) || []).length,
+        "Pricing Page": (lc.includes("pricing") || lc.includes("plans")) ? "✓" : "✗",
+        "Ad Networks": detectedPlatforms.ads.length,
+        "Affiliate Tools": detectedPlatforms.affiliate.length,
+      },
+    },
+    uxFeatures: {
+      label: "UX & Features",
+      items: {
+        "Dark Mode": (lc.includes("dark-mode") || lc.includes("theme-toggle") || lc.includes("color-scheme")) ? "✓" : "✗",
+        "Search Bar": (lc.includes("search") && (lc.includes('type="search"') || lc.includes("search-input"))) ? "✓" : "✗",
+        "Live Chat": detectedPlatforms.support.length > 0 ? "✓" : "✗",
+        "Newsletter Signup": (lc.includes("newsletter") || lc.includes("subscribe") || lc.includes("mailing-list")) ? "✓" : "✗",
+        "Cookie Consent": (lc.includes("cookie") && (lc.includes("consent") || lc.includes("gdpr"))) ? "✓" : "✗",
+        "FAQ Section": (lc.includes("faq") || lc.includes("frequently-asked")) ? "✓" : "✗",
+        "Testimonials": (lc.includes("testimonial") || lc.includes("review") || lc.includes("client-says")) ? "✓" : "✗",
+        "Blog": (lc.includes("/blog") || lc.includes("blog-post")) ? "✓" : "✗",
+        "i18n Support": (hreflangCount > 0 || lc.includes("i18n") || lc.includes("intl")) ? "✓" : "✗",
+      },
+    },
+    linkProfile: {
+      label: "Link Profile",
+      items: {
+        "Internal Links": internalLinks.length,
+        "External Links": externalLinks.length,
+        "External Domains": externalDomains.size,
+        "Nofollow Links": nofollowLinkCount,
+        "Target Blank": targetBlankCount,
+        "Mailto Links": mailtoLinkCount,
+        "Tel Links": telLinkCount,
+        "Social Platforms Linked": Object.keys(socialLinks).length,
+      },
+    },
+    securityScore: {
+      label: "Security & Privacy",
+      items: {
+        "HTTPS": url.startsWith("https://") ? "✓" : "✗",
+        "HSTS": (securityHeaders?.strictTransportSecurity && securityHeaders.strictTransportSecurity !== "") ? "✓" : "✗",
+        "CSP": securityHeaders?.contentSecurityPolicy === "Present" ? "✓" : "✗",
+        "X-Frame-Options": (securityHeaders?.xFrameOptions || "") !== "Missing" ? "✓" : "✗",
+        "Referrer Policy": (securityHeaders?.referrerPolicy || "") !== "Missing" ? "✓" : "✗",
+        "Permissions Policy": securityHeaders?.permissionsPolicy === "Present" ? "✓" : "✗",
+        "Security Headers": `${secureHeadersPresent}/6`,
+      },
+    },
+  };
+
   return {
     basic: { title, description, keywords, author, robots, canonical, language, charset, viewport, generator, themeColor },
     openGraph: og,
@@ -1521,6 +1635,7 @@ function extractMetadata(html: string, url: string, securityHeaders: Record<stri
     structuredData,
     socialLinks,
     detectedPlatforms,
+    screenshotUrl,
     scanCoverage: {
       pagesScanned: deepScan?.pagesScanned || 1,
       scannedUrls: (deepScan?.scannedUrls || [url]).slice(0, 30),
@@ -1533,7 +1648,7 @@ function extractMetadata(html: string, url: string, securityHeaders: Record<stri
     iframes,
     contactInfo: { phoneNumbers, emailAddresses },
     content: { wordCount, textPreview: textContent.slice(0, 500) },
-    advancedMetrics,
+    curatedMetrics,
     seoScore: Math.min(seoScore, 100),
   };
 }
