@@ -1879,75 +1879,127 @@ RULES:
                             const icon = categoryIcons[cat.key] || "📦";
 
                             // ─── Collect ALL URL sources from every part of scrape result ───
-                            const toArr = (v: unknown): string[] => Array.isArray(v) ? v : [];
+                            const toArr = (v: unknown): any[] => Array.isArray(v) ? v : [];
                             const baseUrl = scrapeResult?.finalUrl || scrapeResult?.url || '';
                             const baseOrigin = (() => { try { return new URL(baseUrl).origin; } catch { return ''; } })();
+                            const baseHost = (() => { try { return new URL(baseUrl).hostname; } catch { return ''; } })();
 
-                            // Resolve relative/protocol-relative URLs to full absolute clickable URLs
-                            const resolveUrl = (raw: string): string => {
+                            const normalizeUrl = (raw: string): string => {
                               if (!raw || typeof raw !== 'string') return '';
-                              let u = raw.trim();
-                              if (u.startsWith('//')) u = 'https:' + u;
-                              if (u.startsWith('/')) u = baseOrigin + u;
-                              if (!u.startsWith('http://') && !u.startsWith('https://')) {
-                                if (u.includes('.') && !u.includes(' ')) u = 'https://' + u;
-                                else return '';
+                              let u = raw.trim().replace(/&amp;/g, '&').replace(/^[\s"'`(\[]+|[\s"'`,;:)>\]]+$/g, '');
+                              if (!u) return '';
+                              if (/^(mailto:|tel:|javascript:|data:)/i.test(u)) return '';
+                              if (u.startsWith('//')) u = `https:${u}`;
+                              if (u.startsWith('/')) {
+                                if (!baseOrigin) return '';
+                                u = `${baseOrigin}${u}`;
                               }
-                              return u;
+                              if (!u.startsWith('http://') && !u.startsWith('https://')) {
+                                if (/^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}(?:[/?#].*)?$/i.test(u)) {
+                                  u = `https://${u}`;
+                                } else {
+                                  return '';
+                                }
+                              }
+                              try {
+                                const parsed = new URL(u);
+                                if (!['http:', 'https:'].includes(parsed.protocol)) return '';
+                                parsed.protocol = 'https:';
+                                parsed.hash = '';
+                                return parsed.href;
+                              } catch {
+                                return '';
+                              }
                             };
 
-                            // Extract string URLs from various data shapes
-                            const extractStr = (v: any): string => typeof v === 'string' ? v : v?.href || v?.url || v?.src || '';
+                            const extractStr = (v: any): string => typeof v === 'string' ? v : v?.href || v?.url || v?.src || v?.domain || '';
+                            const extractUrlish = (text: string): string[] => {
+                              if (!text) return [];
+                              const out = new Set<string>();
+                              const patterns = [
+                                /https?:\/\/[^\s"'`<>\\)]+/gi,
+                                /\/\/[a-z0-9.-]+\.[a-z]{2,}[^\s"'`<>\\)]*/gi,
+                                /\b(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[\w\-./?%&=+#:]*)?/gi,
+                              ];
+                              for (const ptn of patterns) {
+                                let m: RegExpExecArray | null;
+                                let guard = 0;
+                                while ((m = ptn.exec(text)) !== null && guard++ < 2000) {
+                                  const resolved = normalizeUrl(m[0]);
+                                  if (resolved) out.add(resolved);
+                                }
+                              }
+                              return [...out];
+                            };
+
+                            const walkObjectForUrlStrings = (input: any): string[] => {
+                              const stack: any[] = [input];
+                              const found = new Set<string>();
+                              let guard = 0;
+
+                              while (stack.length && guard++ < 10000) {
+                                const current = stack.pop();
+                                if (!current) continue;
+
+                                if (typeof current === 'string') {
+                                  const normalized = normalizeUrl(current);
+                                  if (normalized) found.add(normalized);
+                                  for (const extracted of extractUrlish(current)) found.add(extracted);
+                                  continue;
+                                }
+
+                                if (Array.isArray(current)) {
+                                  for (const item of current) stack.push(item);
+                                  continue;
+                                }
+
+                                if (typeof current === 'object') {
+                                  for (const v of Object.values(current)) stack.push(v);
+                                }
+                              }
+
+                              return [...found];
+                            };
 
                             const rawUrls: string[] = [
-                              // Scripts (external JS files from all crawled pages)
-                              ...toArr(scrapeResult?.scripts?.external),
-                              // Stylesheets (from all crawled pages)
-                              ...toArr(scrapeResult?.scripts?.stylesheets),
-                              // Resource URLs (preconnect, preload, prefetch, dns-prefetch, media, bg urls)
-                              ...toArr(scrapeResult?.resourceUrls),
-                              // External links (anchors pointing off-domain, from all pages)
+                              ...toArr(scrapeResult?.scripts?.external).map(extractStr),
+                              ...toArr(scrapeResult?.scripts?.stylesheets).map(extractStr),
+                              ...toArr(scrapeResult?.resourceUrls).map(extractStr),
                               ...toArr(scrapeResult?.links?.external).map(extractStr),
-                              // Internal links (from all pages)
                               ...toArr(scrapeResult?.links?.internal).map(extractStr),
-                              // Iframes (from all crawled pages)
-                              ...toArr(scrapeResult?.iframes),
-                              // Scanned pages from deep crawl
-                              ...toArr(scrapeResult?.scanCoverage?.scannedUrls),
-                              // Sitemap sample URLs
-                              ...toArr(scrapeResult?.scanCoverage?.sitemapSample),
-                              // Subdomains found
+                              ...toArr(scrapeResult?.iframes).map(extractStr),
+                              ...toArr(scrapeResult?.scanCoverage?.scannedUrls).map(extractStr),
+                              ...toArr(scrapeResult?.scanCoverage?.sitemapSample).map(extractStr),
                               ...toArr(scrapeResult?.scanCoverage?.subdomainsFound).map((s: string) => `https://${s}`),
-                              // Image sources
+                              ...toArr(scrapeResult?.scanCoverage?.domainsFound).map((d: string) => `https://${d}`),
+                              ...toArr(scrapeResult?.urlDiscovery?.all).map(extractStr),
+                              ...toArr(scrapeResult?.urlDiscovery?.firstParty).map(extractStr),
+                              ...toArr(scrapeResult?.urlDiscovery?.thirdParty).map(extractStr),
                               ...toArr(scrapeResult?.images?.samples).map((img: any) => extractStr(img)),
-                              // Font URLs
-                              ...toArr(scrapeResult?.fonts?.googleFonts),
-                              ...toArr(scrapeResult?.fonts?.adobeFonts),
-                              ...toArr(scrapeResult?.fonts?.customFonts),
-                              // Social link URLs
-                              ...Object.values(scrapeResult?.socialLinks || {}).filter((v): v is string => typeof v === 'string'),
-                              // Open Graph / Twitter images & URLs
+                              ...toArr(scrapeResult?.fonts?.googleFonts).map(extractStr),
+                              ...toArr(scrapeResult?.fonts?.adobeFonts).map(extractStr),
+                              ...toArr(scrapeResult?.fonts?.customFonts).map(extractStr),
+                              ...Object.values(scrapeResult?.socialLinks || {}).flatMap((v: any) => Array.isArray(v) ? v : [v]).map(extractStr),
                               scrapeResult?.openGraph?.image || '',
                               scrapeResult?.openGraph?.url || '',
                               scrapeResult?.twitterCard?.image || '',
-                              // Canonical
                               scrapeResult?.basic?.canonical || '',
-                              // Generator
                               scrapeResult?.basic?.generator || '',
-                              // Structured data URLs (deep extract from JSON-LD)
-                              ...toArr(scrapeResult?.structuredData).flatMap((sd: any) => {
-                                const urls: string[] = [];
-                                try { const s = JSON.stringify(sd); for (const m of s.matchAll(/"(https?:\/\/[^"]+)"/g)) urls.push(m[1]); } catch {}
-                                return urls;
-                              }),
-                              // Screenshot URL
                               ...(scrapeResult?.screenshotUrl ? [scrapeResult.screenshotUrl] : []),
-                              // Header tech detection sources (construct probe URLs)
-                              ...toArr(scrapeResult?.headerTechDetections).map((h: any) => h?.source || ''),
                             ];
 
-                            // Resolve all to absolute clickable URLs and deduplicate
-                            const allUrls = [...new Set(rawUrls.map(resolveUrl).filter(u => u.startsWith('http')))];
+                            const objectHarvestedUrls = walkObjectForUrlStrings(scrapeResult);
+                            const hostSeeds = [
+                              baseHost,
+                              ...toArr(scrapeResult?.scanCoverage?.subdomainsFound),
+                              ...toArr(scrapeResult?.scanCoverage?.domainsFound),
+                            ].filter((v): v is string => typeof v === 'string' && !!v);
+
+                            const allUrls = [...new Set([
+                              ...rawUrls.map(normalizeUrl),
+                              ...objectHarvestedUrls,
+                              ...hostSeeds.map((h) => normalizeUrl(`https://${h}`)),
+                            ].filter((u): u is string => typeof u === 'string' && u.startsWith('https://')))];
 
                             // ─── Comprehensive provider → domain/path signature map ───
                             const KNOWN_SIGS: Record<string, string[]> = {
@@ -2202,15 +2254,53 @@ RULES:
                               }
                             }
 
-                            // Match URLs to each provider
+                            // Match URLs to each provider (string + regex + hostname token match)
+                            const parsedUrls = allUrls.map((url) => {
+                              try {
+                                const parsed = new URL(url);
+                                return { url, lc: url.toLowerCase(), host: parsed.hostname.toLowerCase(), path: parsed.pathname.toLowerCase() };
+                              } catch {
+                                return { url, lc: url.toLowerCase(), host: '', path: '' };
+                              }
+                            });
+
                             const providerUrls: Record<string, string[]> = {};
                             for (const p of providers) {
                               const sigs = providerSigs[p.name] || [];
-                              const matched = allUrls.filter(url => {
-                                if (!url) return false;
-                                const urlLC = url.toLowerCase();
-                                return sigs.some(sig => urlLC.includes(sig));
-                              });
+                              const providerTokens = p.name
+                                .toLowerCase()
+                                .split(/[^a-z0-9]+/)
+                                .filter((t) => t.length >= 3);
+
+                              const matched = parsedUrls.filter(({ lc, host, path }) => {
+                                if (!lc) return false;
+
+                                const signatureMatch = sigs.some((sig) => {
+                                  const s = sig.toLowerCase().trim();
+                                  if (!s) return false;
+                                  if (lc.includes(s)) return true;
+
+                                  const domainToken = s
+                                    .replace(/^https?:\/\//, '')
+                                    .replace(/^www\./, '')
+                                    .replace(/^\./, '')
+                                    .split('/')[0]
+                                    .replace(/[^a-z0-9.-]/g, '');
+
+                                  if (!domainToken || domainToken.length < 3) return false;
+                                  return host.includes(domainToken) || lc.includes(`.${domainToken}`) || path.includes(domainToken);
+                                });
+
+                                if (signatureMatch) return true;
+
+                                return providerTokens.some((token) =>
+                                  host.includes(token) ||
+                                  path.includes(token) ||
+                                  lc.includes(`.${token}.`) ||
+                                  lc.includes(`/${token}`)
+                                );
+                              }).map((x) => x.url);
+
                               if (matched.length > 0) providerUrls[p.name] = [...new Set(matched)];
                             }
 

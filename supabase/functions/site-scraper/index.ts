@@ -107,8 +107,28 @@ async function safeFetchHtml(url: string): Promise<string | null> {
 }
 
 // ─── Deep scan corpus builder ─────────────────────
-const SUB_SEEDS = ["www", "app", "api", "checkout"];
-const INTENT_PATHS = ["/pricing", "/checkout", "/billing", "/api", "/about"];
+const SUB_SEEDS = ["www", "app", "api", "checkout", "cdn", "static", "assets", "blog", "shop", "store", "docs", "support", "help", "auth", "m"];
+const INTENT_PATHS = [
+  "/",
+  "/pricing",
+  "/plans",
+  "/checkout",
+  "/cart",
+  "/billing",
+  "/payments",
+  "/subscribe",
+  "/products",
+  "/shop",
+  "/store",
+  "/api",
+  "/api/v1",
+  "/docs",
+  "/developers",
+  "/about",
+  "/integrations",
+  "/status",
+  "/cdn-cgi/challenge-platform",
+];
 const SENSITIVE_PATHS = ["/.env", "/.env.local", "/.htaccess", "/.git/config", "/.git/HEAD"];
 
 function extractLinks(html: string, base: string, rootDomain: string): string[] {
@@ -118,8 +138,9 @@ function extractLinks(html: string, base: string, rootDomain: string): string[] 
       try {
         const u = new URL(href, base);
         if (["http:", "https:"].includes(u.protocol) && isSameSite(rootDomain, u.hostname)) {
-          if (!/\.(jpg|jpeg|png|gif|svg|webp|avif|mp4|pdf|zip|css|js|ico|woff2?|ttf)(\?|#|$)/i.test(u.pathname))
+          if (!/\.(jpg|jpeg|png|gif|svg|webp|avif|mp4|pdf|zip|css|js|ico|woff2?|ttf)(\?|#|$)/i.test(u.pathname)) {
             links.add(u.href);
+          }
         }
       } catch {}
     }
@@ -128,12 +149,68 @@ function extractLinks(html: string, base: string, rootDomain: string): string[] 
 }
 
 function prioritize(links: string[]): string[] {
-  const kw = ["checkout", "payment", "billing", "pricing", "plans", "subscribe", "cart", "buy", "shop", "store", "product", "api", "docs"];
+  const kw = ["checkout", "payment", "billing", "pricing", "plans", "subscribe", "cart", "buy", "shop", "store", "product", "api", "docs", "auth", "cdn", "assets"];
   return [...new Set(links)].sort((a, b) => {
     const as = kw.reduce((s, k) => s + (a.toLowerCase().includes(k) ? 10 : 0), 0);
     const bs = kw.reduce((s, k) => s + (b.toLowerCase().includes(k) ? 10 : 0), 0);
     return bs - as;
   });
+}
+
+function normalizeDiscoveredUrl(raw: string, base?: string): string {
+  if (!raw || typeof raw !== "string") return "";
+  let value = raw.trim().replace(/&amp;/g, "&");
+  value = value.replace(/^[\s"'`(\[]+|[\s"'`,;:)>\]]+$/g, "");
+  if (!value) return "";
+  if (/^(mailto:|tel:|javascript:|data:)/i.test(value)) return "";
+
+  if (value.startsWith("//")) {
+    value = `https:${value}`;
+  } else if (value.startsWith("/")) {
+    if (!base) return "";
+    try {
+      value = new URL(value, base).href;
+    } catch {
+      return "";
+    }
+  } else if (!/^https?:\/\//i.test(value)) {
+    if (/^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}(?:[/?#].*)?$/i.test(value)) {
+      value = `https://${value}`;
+    } else {
+      return "";
+    }
+  }
+
+  try {
+    const u = new URL(value, base);
+    if (!["http:", "https:"].includes(u.protocol)) return "";
+    u.protocol = "https:";
+    u.hash = "";
+    return u.href;
+  } catch {
+    return "";
+  }
+}
+
+function extractUrlishStrings(text: string, base?: string): string[] {
+  if (!text) return [];
+  const found = new Set<string>();
+  const patterns = [
+    /https?:\/\/[^\s"'`<>\\)]+/gi,
+    /\/\/[a-z0-9.-]+\.[a-z]{2,}[^\s"'`<>\\)]*/gi,
+    /\b(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[\w\-./?%&=+#:]*)?/gi,
+  ];
+
+  for (const pattern of patterns) {
+    let m: RegExpExecArray | null;
+    let guard = 0;
+    while ((m = pattern.exec(text)) !== null && guard++ < 3000) {
+      const candidate = normalizeDiscoveredUrl(m[0], base);
+      if (candidate) found.add(candidate);
+    }
+  }
+
+  return [...found];
 }
 
 function extractJsChunkUrls(jsBody: string, baseScriptUrl: string, rootDomain: string): string[] {
@@ -170,41 +247,56 @@ async function fetchSitemapUrls(origins: string[], rootDomain: string): Promise<
 
   const addCandidate = (c: string, base?: string) => {
     try {
-      const u = base ? new URL(c, base) : new URL(c);
-      if (!queued.has(u.href) && isSameSite(rootDomain, u.hostname)) { queued.add(u.href); queue.push(u.href); }
+      const normalized = normalizeDiscoveredUrl(c, base);
+      if (!normalized) return;
+      const u = new URL(normalized);
+      if (!queued.has(u.href) && isSameSite(rootDomain, u.hostname)) {
+        queued.add(u.href);
+        queue.push(u.href);
+      }
     } catch {}
   };
 
-  for (const o of origins) smPaths.forEach(p => addCandidate(p, o));
+  for (const o of origins) smPaths.forEach((p) => addCandidate(p, o));
 
   // robots.txt
-  await Promise.all(origins.slice(0, 3).map(async o => {
+  await Promise.all(origins.slice(0, 5).map(async (o) => {
     try {
-      const txt = await safeFetchText(`${o}/robots.txt`, 4000, 50_000);
-      for (const line of txt.match(/^Sitemap:\s*(.+)$/gmi) || []) addCandidate(line.replace(/^Sitemap:\s*/i, "").trim(), o);
+      const txt = await safeFetchText(`${o}/robots.txt`, 4000, 80_000);
+      for (const line of txt.match(/^Sitemap:\s*(.+)$/gmi) || []) {
+        addCandidate(line.replace(/^Sitemap:\s*/i, "").trim(), o);
+      }
     } catch {}
   }));
 
   let processed = 0;
-  while (queue.length > 0 && processed < 10) {
-    const batch = queue.splice(0, 6);
+  while (queue.length > 0 && processed < 18) {
+    const batch = queue.splice(0, 8);
     processed += batch.length;
-    await Promise.all(batch.map(async smUrl => {
+
+    await Promise.all(batch.map(async (smUrl) => {
       try {
-        const txt = await safeFetchText(smUrl, 5000, 200_000);
+        const txt = await safeFetchText(smUrl, 5000, 250_000);
         if (!txt.includes("<loc")) return;
         sources.push(smUrl);
+
         for (const loc of txt.match(/<loc>\s*(.*?)\s*<\/loc>/gi) || []) {
           const v = loc.replace(/<\/?loc>/gi, "").trim();
           if (!v) continue;
-          if (v.endsWith(".xml") || /sitemap/i.test(v)) addCandidate(v, smUrl);
-          else { try { const u = new URL(v, smUrl); if (isSameSite(rootDomain, u.hostname)) urls.add(u.href); } catch {} }
+          if (v.endsWith(".xml") || /sitemap/i.test(v)) {
+            addCandidate(v, smUrl);
+          } else {
+            try {
+              const u = new URL(v, smUrl);
+              if (isSameSite(rootDomain, u.hostname)) urls.add(u.href);
+            } catch {}
+          }
         }
       } catch {}
     }));
   }
 
-  return { urls: prioritize([...urls]).slice(0, 20), sources };
+  return { urls: prioritize([...urls]).slice(0, 120), sources };
 }
 
 interface DeepCorpus {
@@ -217,41 +309,145 @@ interface DeepCorpus {
   pages: number;
   sitemapUrls: string[];
   subdomains: string[];
+  resourceUrls: string[];
+  allDiscoveredUrls: string[];
+  firstPartyUrls: string[];
+  thirdPartyUrls: string[];
+  discoveredDomains: string[];
 }
 
 async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<DeepCorpus> {
-  const MAX_PAGES = 4;
+  const MAX_PAGES = 6;
+  const MAX_QUEUE = 120;
   const root = new URL(startUrl);
+  const rootHost = normalizeHost(root.hostname);
   const rootDomain = getRegistrableDomain(root.hostname);
-  const origins = [...new Set([root.origin, `https://${normalizeHost(rootDomain)}`, `https://www.${normalizeHost(rootDomain)}`, ...SUB_SEEDS.map(s => `https://${s}.${normalizeHost(rootDomain)}`)])];
+  const rootDomainNormalized = normalizeHost(rootDomain);
 
-  const visited = new Set([startUrl]);
+  const origins = [...new Set([
+    root.origin,
+    `https://${rootDomainNormalized}`,
+    `https://www.${rootDomainNormalized}`,
+    ...SUB_SEEDS.map((s) => `https://${s}.${rootDomainNormalized}`),
+  ])];
+
+  const visited = new Set<string>([normalizeDiscoveredUrl(startUrl)]);
   const pages: { url: string; html: string }[] = [{ url: startUrl, html: seedHtml }];
-  const subdomains = new Set<string>();
-  const iframeSet = new Set<string>();
 
-  for (const src of safeMatch(seedHtml, /<iframe[^>]*src=["']([^"']+)["']/gi)) {
-    try { iframeSet.add(new URL(src, startUrl).href); } catch {}
-  }
+  const scriptSet = new Set<string>();
+  const styleSet = new Set<string>();
+  const iframeSet = new Set<string>();
+  const extLinkSet = new Set<string>();
+  const resourceUrlSet = new Set<string>();
+  const allUrlSet = new Set<string>();
+  const firstPartySet = new Set<string>();
+  const thirdPartySet = new Set<string>();
+  const domainSet = new Set<string>();
+  const subdomains = new Set<string>();
+
+  const addDiscovered = (raw: string, base?: string) => {
+    const normalized = normalizeDiscoveredUrl(raw, base || startUrl);
+    if (!normalized) return;
+
+    allUrlSet.add(normalized);
+    try {
+      const host = normalizeHost(new URL(normalized).hostname);
+      if (!host) return;
+      domainSet.add(host);
+      if (isSameSite(rootDomain, host)) {
+        firstPartySet.add(normalized);
+        if (host !== rootHost) subdomains.add(host);
+      } else {
+        thirdPartySet.add(normalized);
+      }
+    } catch {}
+  };
+
+  const collectFromHtml = (html: string, pageUrl: string) => {
+    for (const s of safeMatch(html, /<script[^>]*src=["']([^"']+)["']/gi)) {
+      const normalized = normalizeDiscoveredUrl(s, pageUrl);
+      if (!normalized) continue;
+      scriptSet.add(normalized);
+      addDiscovered(normalized, pageUrl);
+    }
+
+    for (const h of [
+      ...safeMatch(html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi),
+      ...safeMatch(html, /<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["']/gi),
+    ]) {
+      const normalized = normalizeDiscoveredUrl(h, pageUrl);
+      if (!normalized) continue;
+      styleSet.add(normalized);
+      addDiscovered(normalized, pageUrl);
+    }
+
+    for (const src of safeMatch(html, /<iframe[^>]*src=["']([^"']+)["']/gi)) {
+      const normalized = normalizeDiscoveredUrl(src, pageUrl);
+      if (!normalized) continue;
+      iframeSet.add(normalized);
+      addDiscovered(normalized, pageUrl);
+    }
+
+    for (const href of safeMatch(html, /<a[^>]*href=["']([^"'#]+)["']/gi)) {
+      const normalized = normalizeDiscoveredUrl(href, pageUrl);
+      if (!normalized) continue;
+      addDiscovered(normalized, pageUrl);
+      try {
+        if (!isSameSite(rootDomain, new URL(normalized).hostname)) {
+          extLinkSet.add(normalized);
+        }
+      } catch {}
+    }
+
+    const resourceMatches = [
+      ...safeMatch(html, /<link[^>]*href=["']([^"']+)['"][^>]*rel=["'](?:preconnect|dns-prefetch|preload|prefetch|modulepreload|manifest|icon|shortcut icon|apple-touch-icon)['"]/gi),
+      ...safeMatch(html, /<link[^>]*rel=["'](?:preconnect|dns-prefetch|preload|prefetch|modulepreload|manifest|icon|shortcut icon|apple-touch-icon)['"][^>]*href=["']([^"']+)['"]/gi),
+      ...safeMatch(html, /<(?:video|audio|source|embed|object|img)[^>]*src=["']([^"']+)["']/gi),
+      ...safeMatch(html, /<(?:video|audio)[^>]*poster=["']([^"']+)["']/gi),
+      ...safeMatch(html, /data-src=["']([^"']+)["']/gi),
+      ...safeMatch(html, /url\(["']?([^"')]+)["']?\)/gi),
+    ];
+
+    for (const resource of resourceMatches) {
+      const normalized = normalizeDiscoveredUrl(resource, pageUrl);
+      if (!normalized) continue;
+      resourceUrlSet.add(normalized);
+      addDiscovered(normalized, pageUrl);
+    }
+
+    for (const candidate of extractUrlishStrings(html.slice(0, 250_000), pageUrl)) {
+      addDiscovered(candidate, pageUrl);
+      resourceUrlSet.add(candidate);
+    }
+  };
+
+  // Seed collection
+  collectFromHtml(seedHtml, startUrl);
 
   let smResult: { urls: string[]; sources: string[] };
-  try { smResult = await fetchSitemapUrls(origins, rootDomain); } catch { smResult = { urls: [], sources: [] }; }
+  try {
+    smResult = await fetchSitemapUrls(origins, rootDomain);
+  } catch {
+    smResult = { urls: [], sources: [] };
+  }
+
+  for (const u of smResult.urls) addDiscovered(u, startUrl);
 
   console.log(`Sitemap: ${smResult.urls.length} URLs from ${smResult.sources.length} sitemaps`);
 
-  for (const u of smResult.urls) {
-    try { const h = new URL(u).hostname; if (isSameSite(rootDomain, h) && normalizeHost(h) !== normalizeHost(root.hostname)) subdomains.add(h); } catch {}
-  }
-
   const seedLinks = extractLinks(seedHtml, startUrl, rootDomain);
-  const probes = origins.flatMap(o => INTENT_PATHS.map(p => `${o}${p}`));
-  let queue = prioritize([...new Set([...smResult.urls, ...seedLinks, ...probes])].filter(u => !visited.has(u))).slice(0, 40);
+  const probes = origins.flatMap((o) => [o, ...INTENT_PATHS.map((p) => `${o}${p}`)]);
+
+  let queue = prioritize(
+    [...new Set([...smResult.urls, ...seedLinks, ...probes].map((u) => normalizeDiscoveredUrl(u, startUrl)).filter(Boolean) as string[])]
+      .filter((u) => !visited.has(u))
+  ).slice(0, MAX_QUEUE);
 
   while (queue.length > 0 && pages.length < MAX_PAGES) {
-    const batch = queue.splice(0, 3).filter(u => !visited.has(u));
+    const batch = queue.splice(0, 4).filter((u) => !visited.has(u));
     if (!batch.length) continue;
 
-    const results = await Promise.all(batch.map(async u => {
+    const results = await Promise.all(batch.map(async (u) => {
       visited.add(u);
       const html = await safeFetchHtml(u);
       return { u, html };
@@ -260,69 +456,83 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
     for (const { u, html } of results) {
       if (!html) continue;
       pages.push({ url: u, html });
-      try { const h = new URL(u).hostname; if (isSameSite(rootDomain, h) && normalizeHost(h) !== normalizeHost(root.hostname)) subdomains.add(h); } catch {}
-      for (const src of safeMatch(html, /<iframe[^>]*src=["']([^"']+)["']/gi)) {
-        try { iframeSet.add(new URL(src, u).href); } catch {}
-      }
+      collectFromHtml(html, u);
+
       if (pages.length >= MAX_PAGES) break;
-      const newLinks = extractLinks(html, u, rootDomain).filter(l => !visited.has(l));
-      queue.push(...newLinks);
+      const newLinks = extractLinks(html, u, rootDomain);
+      for (const candidate of newLinks) addDiscovered(candidate, u);
+      queue.push(...newLinks.map((l) => normalizeDiscoveredUrl(l, u)).filter(Boolean) as string[]);
     }
-    queue = prioritize([...new Set(queue)]).slice(0, 40);
+
+    queue = prioritize([...new Set(queue)]).filter((u) => !visited.has(u)).slice(0, MAX_QUEUE);
   }
 
-  const scriptSet = new Set<string>();
-  const styleSet = new Set<string>();
-  const extLinkSet = new Set<string>();
-
-  for (const p of pages) {
-    for (const s of safeMatch(p.html, /<script[^>]*src=["']([^"']+)["']/gi)) {
-      try { const u = new URL(s, p.url); scriptSet.add(u.href); } catch {}
-    }
-    for (const h of safeMatch(p.html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi)) {
-      try { const u = new URL(h, p.url); styleSet.add(u.href); } catch {}
-    }
-    for (const h of safeMatch(p.html, /<a[^>]*href=["']([^"'#]+)["']/gi)) {
-      try { const u = new URL(h, p.url); if (!isSameSite(rootDomain, u.hostname)) extLinkSet.add(u.href); } catch {}
-    }
-  }
-
-  // Fetch same-site JS bundles for deeper signature detection
+  // Fetch same-site JS bundles for deeper signature detection and hidden URL extraction
   const sameScripts = [...scriptSet]
-    .filter(s => { try { return isSameSite(rootDomain, new URL(s).hostname); } catch { return false; } })
-    .slice(0, 3);
+    .filter((s) => {
+      try {
+        return isSameSite(rootDomain, new URL(s).hostname);
+      } catch {
+        return false;
+      }
+    })
+    .slice(0, 6);
 
   const jsFetches = await Promise.all(sameScripts.map(async (s) => {
     const body = await safeFetchTextForDetection(s, 4000, 200_000);
     return { url: s, body };
   }));
 
-  const jsBodies = jsFetches.map(j => j.body).filter(Boolean);
-
-  // Discover route-level chunk bundles referenced inside initial JS files
+  const jsBodies: string[] = [];
   const chunkCandidates = new Set<string>();
+
   for (const j of jsFetches) {
     if (!j.body) continue;
+    jsBodies.push(j.body);
+
     for (const c of extractJsChunkUrls(j.body, j.url, rootDomain)) {
-      if (!sameScripts.includes(c)) chunkCandidates.add(c);
+      if (!sameScripts.includes(c)) {
+        chunkCandidates.add(c);
+        scriptSet.add(c);
+        addDiscovered(c, j.url);
+      }
+    }
+
+    for (const candidate of extractUrlishStrings(j.body.slice(0, 200_000), j.url)) {
+      addDiscovered(candidate, j.url);
+      resourceUrlSet.add(candidate);
+      if (/\.(js|css|mjs)(\?|$)/i.test(candidate)) scriptSet.add(candidate);
     }
   }
 
-  const chunkScripts = [...chunkCandidates].slice(0, 4);
-  const chunkBodies = (await Promise.all(chunkScripts.map(c => safeFetchTextForDetection(c, 3000, 150_000)))).filter(Boolean);
+  const chunkScripts = [...chunkCandidates].slice(0, 8);
+  const chunkBodies = (await Promise.all(chunkScripts.map((c) => safeFetchTextForDetection(c, 3000, 150_000)))).filter(Boolean);
 
-  const combined = pages.map(p => p.html).join("\n<!-- page -->\n") + "\n" + [...jsBodies, ...chunkBodies].join("\n");
+  for (const body of chunkBodies) {
+    for (const candidate of extractUrlishStrings(body.slice(0, 150_000), startUrl)) {
+      addDiscovered(candidate, startUrl);
+      resourceUrlSet.add(candidate);
+      if (/\.(js|css|mjs)(\?|$)/i.test(candidate)) scriptSet.add(candidate);
+    }
+  }
+
+  const combined = pages.map((p) => p.html).join("\n<!-- page -->\n") + "\n" + [...jsBodies, ...chunkBodies].join("\n");
 
   return {
     combined,
-    scripts: [...scriptSet].slice(0, 200),
-    stylesheets: [...styleSet].slice(0, 100),
-    externalLinks: [...extLinkSet].slice(0, 400),
-    iframes: [...iframeSet].slice(0, 100),
-    scannedUrls: pages.map(p => p.url).slice(0, 80),
+    scripts: [...scriptSet].slice(0, 400),
+    stylesheets: [...styleSet].slice(0, 200),
+    externalLinks: [...extLinkSet].slice(0, 1200),
+    iframes: [...iframeSet].slice(0, 200),
+    scannedUrls: pages.map((p) => p.url).slice(0, 250),
     pages: pages.length,
-    sitemapUrls: smResult.urls.slice(0, 200),
-    subdomains: [...subdomains].slice(0, 25),
+    sitemapUrls: smResult.urls.slice(0, 300),
+    subdomains: [...subdomains].slice(0, 120),
+    resourceUrls: [...resourceUrlSet].slice(0, 1200),
+    allDiscoveredUrls: [...allUrlSet].slice(0, 2200),
+    firstPartyUrls: [...firstPartySet].slice(0, 1200),
+    thirdPartyUrls: [...thirdPartySet].slice(0, 1200),
+    discoveredDomains: [...domainSet].slice(0, 800),
   };
 }
 
@@ -1162,7 +1372,16 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
       ...mediaSrcs, ...dataSrcs, ...bgUrls,
       ...(manifestUrl ? [manifestUrl] : []),
       ...(faviconUrl ? [faviconUrl] : []),
-    ])].slice(0, 100);
+    ])]
+      .map((u) => normalizeDiscoveredUrl(u, url))
+      .filter(Boolean)
+      .slice(0, 300);
+
+    const mergedResourceUrls = [...new Set([
+      ...allResourceUrls,
+      ...(deep?.resourceUrls || []),
+      ...(deep?.allDiscoveredUrls || []),
+    ])].slice(0, 1500);
 
     const lc = html.toLowerCase();
     const hasServiceWorker = lc.includes("serviceworker");
@@ -1441,16 +1660,34 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
       basic: { title, description, keywords, author, robots, canonical, language, charset, viewport, generator, themeColor },
       openGraph: og, twitterCard: twitter,
       headings: { h1: h1s, h2: h2s, h3: h3s },
-      links: { internal: internalLinks.slice(0, 100), external: allExtLinks.slice(0, 200), totalInternal: internalLinks.length, totalExternal: allExtLinks.length },
+      links: {
+        internal: internalLinks.slice(0, 400),
+        external: allExtLinks.slice(0, 1200),
+        totalInternal: internalLinks.length,
+        totalExternal: allExtLinks.length,
+      },
       images: { total: imagesWithAlt.length, withAlt: imagesWithAlt.filter(i => i.hasAlt && i.alt).length, withoutAlt: imagesWithAlt.filter(i => !i.hasAlt || !i.alt).length, samples: imagesWithAlt.slice(0, 30) },
-      scripts: { external: allScripts.slice(0, 200), inlineCount: (html.match(/<script[^>]*>[\s\S]*?<\/script>/gi) || []).length, stylesheets: allStylesheets.slice(0, 100), inlineStyleCount: (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).length },
-      resourceUrls: allResourceUrls,
+      scripts: {
+        external: allScripts.slice(0, 400),
+        inlineCount: (html.match(/<script[^>]*>[\s\S]*?<\/script>/gi) || []).length,
+        stylesheets: allStylesheets.slice(0, 200),
+        inlineStyleCount: (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).length,
+      },
+      resourceUrls: mergedResourceUrls,
       performance: { hasServiceWorker, hasManifest, hasPreconnect, hasPreload, hasDeferScripts, hasAsyncScripts, hasLazyImages, hasResponsiveImages, hasWebP, hasAVIF, pageSizeKB },
       structuredData, socialLinks, detectedPlatforms, headerTechDetections: headerTech, screenshotUrl,
       scanCoverage: {
-        pagesScanned: deep?.pages || 1, scannedUrls: (deep?.scannedUrls || [url]).slice(0, 80),
-        sitemapUrlsFound: deep?.sitemapUrls?.length || 0, sitemapSample: (deep?.sitemapUrls || []).slice(0, 50),
+        pagesScanned: deep?.pages || 1,
+        scannedUrls: (deep?.scannedUrls || [url]).slice(0, 250),
+        sitemapUrlsFound: deep?.sitemapUrls?.length || 0,
+        sitemapSample: (deep?.sitemapUrls || []).slice(0, 200),
         subdomainsFound: deep?.subdomains || [],
+        domainsFound: deep?.discoveredDomains || [],
+      },
+      urlDiscovery: {
+        all: deep?.allDiscoveredUrls || [],
+        firstParty: deep?.firstPartyUrls || [],
+        thirdParty: deep?.thirdPartyUrls || [],
       },
       accessibility: { formCount, inputsWithLabels, ariaCount, roleCount, tabIndexCount, hasSkipNav, hasFocusStyles },
       fonts: { googleFonts, customFonts, adobeFonts }, iframes: allIframes.slice(0, 100),
@@ -1465,8 +1702,9 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
       links: { internal: [], external: [], totalInternal: 0, totalExternal: 0 },
       images: { total: 0, withAlt: 0, withoutAlt: 0, samples: [] },
       scripts: { external: [], inlineCount: 0, stylesheets: [], inlineStyleCount: 0 },
+      resourceUrls: [],
       performance: {}, structuredData: [], socialLinks: {}, detectedPlatforms: {},
-      headerTechDetections: headerTech, screenshotUrl: "", scanCoverage: {},
+      headerTechDetections: headerTech, screenshotUrl: "", scanCoverage: {}, urlDiscovery: { all: [], firstParty: [], thirdParty: [] },
       accessibility: {}, fonts: {}, iframes: [], contactInfo: {},
       content: { wordCount: 0, textPreview: "" }, curatedMetrics: {}, seoScore: 0,
     };
