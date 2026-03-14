@@ -642,7 +642,15 @@ SITE METRICS:
 
 CONTENT PREVIEW: ${(scrapeResult.content?.textPreview || "").slice(0, 800)}
 
-Based on ALL of this data, cross-referenced with publicly available information and industry benchmarks, provide a comprehensive financial analysis. Be as ACCURATE as possible using real industry data and growth patterns.
+CRITICAL ACCURACY RULES:
+1. If the site has NO checkout flow, NO payment providers, NO subscription UI, and NO price points detected — revenue MUST be "$0" or "None" for ALL revenue fields. Do NOT fabricate revenue numbers.
+2. If there is no evidence of actual sales or customers, say "$0" or "No sales detected" — never invent ranges.
+3. Only estimate revenue when there are CLEAR monetization signals (detected payment providers, checkout flows, price points, subscription UI).
+4. For traffic, if there is no analytics data, state "Unknown — no public data" rather than guessing.
+5. Be brutally honest. A site with zero payment infrastructure has zero revenue. A brand-new site with no traction should show "$0" across the board.
+6. Base estimates ONLY on concrete detected signals, never on what a site "could" earn.
+
+Cross-reference with publicly available information and industry benchmarks ONLY when monetization signals are actually present.
 
 Return ONLY valid JSON:
 {
