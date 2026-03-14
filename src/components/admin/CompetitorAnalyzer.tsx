@@ -1546,7 +1546,9 @@ Return ONLY valid JSON:
                     { key: "marketing", label: "Email & Marketing", color: "text-pink-400", icon: Sparkles },
                     { key: "support", label: "Customer Support & Chat", color: "text-cyan-400", icon: Activity },
                     { key: "ecommerce", label: "E-commerce Platform", color: "text-orange-400", icon: Globe },
-                    { key: "hosting", label: "Hosting & CDN", color: "text-teal-400", icon: Globe },
+                    { key: "hosting", label: "Hosting & Infrastructure", color: "text-teal-400", icon: Globe },
+                    { key: "cdn", label: "CDN Providers", color: "text-sky-400", icon: Globe },
+                    { key: "fileStorage", label: "File Storage & Media CDN", color: "text-violet-400", icon: ImageIcon },
                     { key: "frameworks", label: "Frameworks & CMS", color: "text-amber-400", icon: Code },
                     { key: "ads", label: "Ads & Monetization", color: "text-yellow-400", icon: TrendingUp },
                     { key: "security", label: "Security, Auth & Monitoring", color: "text-red-400", icon: Shield },
@@ -1562,7 +1564,7 @@ Return ONLY valid JSON:
                     { key: "affiliate", label: "Affiliate & Referral", color: "text-rose-400", icon: TrendingUp },
                     { key: "personalization", label: "Personalization & A/B Testing", color: "text-sky-300", icon: Eye },
                   ];
-                  const activeCats = categories.filter(c => c.key === "backendProviders" || (dp[c.key] || []).length > 0);
+                  const activeCats = categories.filter(c => ["backendProviders", "cdn", "fileStorage"].includes(c.key) || (dp[c.key] || []).length > 0);
                   if (activeCats.length === 0) return (
                     <Card className="crm-card md:col-span-2">
                       <CardContent className="p-6 text-center">
@@ -1583,7 +1585,7 @@ Return ONLY valid JSON:
                         </CardHeader>
                         <CardContent>
                           {providers.length > 0 ? (
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 max-h-64 overflow-auto">
                               {providers.map((p: any) => (
                                 <div key={p.name} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
                                   <span className="text-xs text-white/80">{p.name}</span>
@@ -1594,7 +1596,7 @@ Return ONLY valid JSON:
                               ))}
                             </div>
                           ) : (
-                            <p className="text-xs text-white/35">No backend/server providers detected yet</p>
+                            <p className="text-xs text-white/35">None detected</p>
                           )}
                         </CardContent>
                       </Card>
@@ -1693,31 +1695,60 @@ Return ONLY valid JSON:
                   </Card>
                 )}
 
-                {/* Sensitive File Exposure */}
+                {/* Sensitive File Exposure - Full Content */}
                 <Card className="crm-card md:col-span-2">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm font-medium text-red-400 flex items-center gap-2">
-                      <Lock className="h-4 w-4" /> Sensitive File Exposure Probe
+                      <Lock className="h-4 w-4" /> .env / .htaccess / Config Exposure
                       <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">
-                        {scrapeResult.sensitiveFiles?.totalChecked || 0} checked
+                        {scrapeResult.sensitiveFiles?.totalChecked || 0} probed
                       </Badge>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
                     {(scrapeResult.sensitiveFiles?.exposedFiles || []).length > 0 ? (
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         <div className="flex items-center gap-2 p-2 rounded-lg bg-red-400/10 border border-red-400/20">
                           <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />
-                          <span className="text-xs text-red-400 font-medium">⚠ {scrapeResult.sensitiveFiles.exposedFiles.length} exposed file(s) found!</span>
+                          <span className="text-xs text-red-400 font-medium">🚨 {scrapeResult.sensitiveFiles.exposedFiles.length} exposed file(s) found — CRITICAL SECURITY ISSUE</span>
                         </div>
-                        {(scrapeResult.sensitiveFiles.exposedFiles as { url: string; path: string; snippet: string }[]).map((f: any, i: number) => (
-                          <div key={i} className="p-3 rounded-lg bg-white/[0.02] border border-red-400/10 space-y-2">
+                        {(scrapeResult.sensitiveFiles.exposedFiles as { url: string; path: string; snippet: string; fullContent: string; contentType: string }[]).map((f: any, i: number) => (
+                          <div key={i} className="p-3 rounded-lg bg-white/[0.02] border border-red-400/15 space-y-3">
                             <div className="flex items-center justify-between">
-                              <span className="text-xs text-red-400 font-mono">{f.path}</span>
-                              <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[hsl(217,91%,60%)] hover:underline">View</a>
+                              <div className="flex items-center gap-2">
+                                <Badge className={`text-[9px] ${f.path.includes(".env") ? "bg-red-500/20 text-red-400" : f.path.includes(".htaccess") ? "bg-amber-500/20 text-amber-400" : "bg-purple-500/20 text-purple-400"}`}>
+                                  {f.path.includes(".env") ? "ENV" : f.path.includes(".htaccess") ? "HTACCESS" : f.path.includes(".git") ? "GIT" : "CONFIG"}
+                                </Badge>
+                                <span className="text-xs text-red-400 font-mono">{f.path}</span>
+                              </div>
+                              <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[hsl(217,91%,60%)] hover:underline flex items-center gap-1">
+                                <ExternalLink className="h-3 w-3" /> Open
+                              </a>
                             </div>
-                            {f.snippet && (
-                              <pre className="text-[10px] text-white/40 bg-black/30 p-2 rounded overflow-auto max-h-24 font-mono">{f.snippet}</pre>
+                            {f.contentType && (
+                              <div className="text-[10px] text-white/30">Content-Type: {f.contentType}</div>
+                            )}
+                            {/* Full content display */}
+                            {(f.fullContent || f.snippet) && (
+                              <div className="space-y-1">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-[10px] text-white/40 font-medium">Full File Content</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 px-2 text-[9px] text-white/40 hover:text-white"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(f.fullContent || f.snippet);
+                                      toast.success("Content copied to clipboard");
+                                    }}
+                                  >
+                                    <Copy className="h-3 w-3 mr-1" /> Copy
+                                  </Button>
+                                </div>
+                                <pre className="text-[10px] text-white/60 bg-black/40 p-3 rounded-lg overflow-auto max-h-64 font-mono border border-red-400/10 whitespace-pre-wrap break-all">
+                                  {f.fullContent || f.snippet}
+                                </pre>
+                              </div>
                             )}
                           </div>
                         ))}
@@ -1725,17 +1756,17 @@ Return ONLY valid JSON:
                     ) : (
                       <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
                         <CheckCircle className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                        <span className="text-xs text-emerald-400/80">No publicly exposed sensitive files detected across {scrapeResult.sensitiveFiles?.totalChecked || 0} probes</span>
+                        <span className="text-xs text-emerald-400/80">No publicly exposed .env / .htaccess / config files detected ({scrapeResult.sensitiveFiles?.totalChecked || 0} probes)</span>
                       </div>
                     )}
                     {(scrapeResult.sensitiveFiles?.allChecks || []).length > 0 && (
                       <details className="mt-3">
-                        <summary className="text-[10px] text-white/30 cursor-pointer hover:text-white/50">Show all probe results</summary>
+                        <summary className="text-[10px] text-white/30 cursor-pointer hover:text-white/50">Show all {scrapeResult.sensitiveFiles?.allChecks?.length || 0} probe results</summary>
                         <div className="mt-2 space-y-1 max-h-36 overflow-auto">
                           {(scrapeResult.sensitiveFiles.allChecks as { path: string; host: string; status: number; exposed: boolean }[]).map((c: any, i: number) => (
                             <div key={i} className="flex items-center justify-between p-1.5 rounded bg-white/[0.02] text-[10px]">
                               <span className="text-white/40 font-mono">{c.host}{c.path}</span>
-                              <span className={c.exposed ? "text-red-400" : c.status === 200 ? "text-amber-400" : "text-white/20"}>{c.status} {c.exposed ? "EXPOSED" : ""}</span>
+                              <span className={c.exposed ? "text-red-400 font-bold" : c.status === 200 ? "text-amber-400" : "text-white/20"}>{c.status} {c.exposed ? "⚠ EXPOSED" : ""}</span>
                             </div>
                           ))}
                         </div>

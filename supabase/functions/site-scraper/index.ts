@@ -314,7 +314,7 @@ async function probeSensitiveFiles(startUrl: string, rootDomain: string, knownSu
   const hosts = [...new Set([normalizeHost(new URL(startUrl).hostname), normalizeHost(rootDomain), `www.${normalizeHost(rootDomain)}`, ...knownSubs.map(normalizeHost)])].filter(h => isSameSite(rootDomain, h)).slice(0, 6);
   const probes = hosts.flatMap(h => SENSITIVE_PATHS.map(p => ({ url: `https://${h}${p}`, path: p, host: h })));
 
-  const findings: { url: string; path: string; host: string; status: number; exposed: boolean; snippet: string }[] = [];
+  const findings: { url: string; path: string; host: string; status: number; exposed: boolean; snippet: string; fullContent: string; contentType: string }[] = [];
 
   for (let i = 0; i < probes.length; i += 8) {
     const batch = probes.slice(i, i + 8);
@@ -322,17 +322,25 @@ async function probeSensitiveFiles(startUrl: string, rootDomain: string, knownSu
       try {
         const r = await safeFetch(probe.url, 4000);
         if (!r) return;
-        const body = r.ok ? (await r.text()).slice(0, 3000) : "";
+        const body = r.ok ? (await r.text()).slice(0, 10000) : "";
         const lc = body.toLowerCase();
+        const ct = (r.headers.get("content-type") || "").toLowerCase();
 
         // Determine if actually exposed vs error page
-        const isHtmlError = lc.includes("<html") || lc.includes("access denied") || lc.includes("forbidden") || lc.includes("not found") || lc.includes("404");
+        const isHtmlError = lc.includes("<html") || lc.includes("<!doctype") || lc.includes("access denied") || lc.includes("forbidden") || lc.includes("not found") || lc.includes("404") || lc.includes("error");
+        const isEnvFile = probe.path.startsWith("/.env");
+        const isHtaccess = probe.path === "/.htaccess";
+        const isGitFile = probe.path.startsWith("/.git");
+
         const looksReal = !isHtmlError && body.length > 5 && (
-          /^[A-Z_]+=.*/m.test(body) ||  // .env pattern
-          /rewriteengine|authname|deny from|allow from/i.test(body) || // .htaccess
-          /\[core\]|\[remote/i.test(body) || // .git/config
-          /ref:/i.test(body) // .git/HEAD
+          (isEnvFile && /^[A-Z_][A-Z0-9_]*\s*=.*/m.test(body)) ||
+          (isHtaccess && /rewriteengine|rewriterule|rewritecond|authname|deny from|allow from|order|errordocument|header set|redirect|options/i.test(body)) ||
+          (isGitFile && (/\[core\]|\[remote/i.test(body) || /ref:\s*refs\//i.test(body))) ||
+          (!isEnvFile && !isHtaccess && !isGitFile && /^[A-Z_]+=|password|secret|key|token|credential/im.test(body))
         );
+
+        // For exposed files, return full sanitized content
+        const sanitizedFull = looksReal ? body.slice(0, 8000).replace(/[^\x20-\x7E\n\r\t]/g, "") : "";
 
         findings.push({
           url: r.url || probe.url,
@@ -341,6 +349,8 @@ async function probeSensitiveFiles(startUrl: string, rootDomain: string, knownSu
           status: r.status,
           exposed: r.ok && looksReal,
           snippet: looksReal ? body.slice(0, 500).replace(/[^\x20-\x7E\n\r]/g, "") : "",
+          fullContent: sanitizedFull,
+          contentType: ct,
         });
       } catch {}
     }));
@@ -512,6 +522,257 @@ function detectPlatforms(corpus: string, scripts: string[], stylesheets: string[
     ["Surge", ["surge.sh"]], ["StackPath", ["stackpathdns.com"]],
   ]);
 
+  // ─── CDN Detection (300+ providers) ───
+  const cdn = detect([
+    // Major CDNs
+    ["Cloudflare CDN", ["cdnjs.cloudflare.com", "cdn.cloudflare.com", "cf-ray", "cloudflare-nginx", "cdn-cgi/"]],
+    ["AWS CloudFront", ["cloudfront.net", "d1", "d2", "d3"]],
+    ["Akamai", ["akamaized.net", "akamaihd.net", "akamaitechnologies.com", "edgekey.net", "edgesuite.net", "akadns.net", "akam.net", "srip.net"]],
+    ["Fastly", ["fastly.net", "fastlylabs.com", "fastly.com", "global.ssl.fastly.net", "a.prod.fastly.net"]],
+    ["Google CDN", ["googleapis.com", "gstatic.com", "googleusercontent.com", "ggpht.com", "google.com/recaptcha"]],
+    ["Microsoft Azure CDN", ["azureedge.net", "azurefd.net", "msecnd.net", "vo.msecnd.net", "trafficmanager.net", "azure.net"]],
+    ["Bunny CDN", ["b-cdn.net", "bunnycdn.com", "bunny.net", "bunnyinfra.net"]],
+    ["KeyCDN", ["kxcdn.com", "keycdn.com", "proinity.net"]],
+    ["StackPath", ["stackpathdns.com", "stackpathcdn.com", "stackpath.com", "highwinds.com", "hwcdn.net"]],
+    ["MaxCDN", ["maxcdn.com", "maxcdn.bootstrapcdn.com", "netdna.com", "netdna-cdn.com", "netdna-ssl.com"]],
+    ["jsDelivr", ["cdn.jsdelivr.net", "jsdelivr.net", "fastly.jsdelivr.net"]],
+    ["unpkg", ["unpkg.com"]],
+    ["cdnjs", ["cdnjs.cloudflare.com", "cdnjs.com"]],
+    ["Incapsula/Imperva", ["incapdns.net", "incapsula.com", "imperva.com", "impervadns.net"]],
+    ["Sucuri", ["sucuri.net", "sucuridns.com", "cloudproxy.net"]],
+    ["Limelight Networks", ["llnw.net", "llnwd.net", "limelight.com"]],
+    ["Edgecast/Verizon", ["edgecastcdn.net", "edgecast.com", "verizondigitalmedia.com", "systemcdn.net"]],
+    ["CacheFly", ["cachefly.net", "cachefly.com"]],
+    ["CDNetworks", ["cdnetworks.com", "gccdn.net", "cdngc.net", "quantil.com"]],
+    ["Chinacache", ["chinacache.net", "ccgslb.com", "chinacache.com"]],
+    ["ChinaNetCenter/Wangsu", ["wangsu.com", "wscdns.com", "ourwebpic.com", "lxdns.com"]],
+    ["Alibaba Cloud CDN", ["alicdn.com", "aliyuncs.com", "alibabacloud.com", "kunlunaq.com", "kunlunca.com", "kunlungr.com", "kunlunhuf.com", "kunlunno.com"]],
+    ["Tencent Cloud CDN", ["myqcloud.com", "cdntip.com", "tencentcdn.net", "dnsv1.com"]],
+    ["Baidu Cloud CDN", ["bdimg.com", "bcehost.com", "bcebos.com", "bdstatic.com"]],
+    ["Huawei Cloud CDN", ["huaweicloud.com", "c-wms.com", "cdnhwc1.com"]],
+    ["BitGravity", ["bitgravity.com"]],
+    ["Cotendo", ["cotendo.net", "cotendo-cdn.net"]],
+    ["Internap", ["inap.com", "internap.com"]],
+    ["Level3/CenturyLink", ["footprint.net", "centurylink.net", "level3.net", "l3cdn.com"]],
+    ["Mirror Image", ["instacontent.net", "mirror-image.net"]],
+    ["Swarmify", ["swarmify.com", "swarmcdn.com"]],
+    ["Rackspace CDN", ["raxcdn.com", "rackcdn.com"]],
+    ["ArvanCloud", ["arvancloud.com", "arvan.cloud"]],
+    ["BelugaCDN", ["belugacdn.com", "belugacdn.link"]],
+    ["CDN77", ["cdn77.com", "cdn77.org", "rsc.cdn77.org"]],
+    ["Cachefly", ["cachefly.net"]],
+    ["CDNsun", ["cdnsun.net"]],
+    ["CDNvideo", ["cdnvideo.ru", "cdnvideo.com"]],
+    ["G-Core CDN", ["gcorelabs.com", "gcore.com", "gcdn.co"]],
+    ["Medianova", ["medianova.com", "mncdn.com", "mncdn.net", "mncdn.org"]],
+    ["OVH CDN", ["ovh.net", "ovhcloud.com"]],
+    ["section.io", ["section.io"]],
+    ["Transparent CDN", ["transparentcdn.com", "transparentedge.eu"]],
+    ["Turbobytes", ["turbobytes.com", "tbcdn.in"]],
+    ["UDN", ["udomain.com"]],
+    // Image/Media CDNs
+    ["Cloudinary", ["cloudinary.com", "res.cloudinary.com"]],
+    ["Imgix", ["imgix.net", "imgix.com"]],
+    ["ImageKit", ["imagekit.io", "ik.imagekit.io"]],
+    ["Uploadcare", ["ucarecdn.com", "uploadcare.com"]],
+    ["Sirv", ["sirv.com"]],
+    ["TwicPics", ["twicpics.com", "twic.pics"]],
+    ["Optimole", ["optimole.com", "i.optimole.com"]],
+    ["ShortPixel", ["shortpixel.com", "cdn.shortpixel.ai"]],
+    ["Photon (Jetpack)", ["i0.wp.com", "i1.wp.com", "i2.wp.com"]],
+    ["Statically", ["statically.io", "cdn.statically.io"]],
+    // Video CDNs
+    ["Mux", ["mux.com", "stream.mux.com"]],
+    ["Brightcove", ["brightcove.com", "brightcovecdn.com", "bcove.video"]],
+    ["JW Player", ["jwpltx.com", "jwpsrv.com", "jwplayer.com", "jwpcdn.com"]],
+    ["Wistia CDN", ["wistia.com", "wistia.net", "fast.wistia.com", "embedwistia-a.akamaihd.net"]],
+    ["Vimeo CDN", ["vimeocdn.com", "vimeo.com"]],
+    ["YouTube CDN", ["youtube.com", "ytimg.com", "googlevideo.com", "yt3.ggpht.com"]],
+    ["Dailymotion CDN", ["dmcdn.net", "dailymotion.com"]],
+    ["Vidyard", ["vidyard.com", "play.vidyard.com"]],
+    ["Cloudflare Stream", ["cloudflarestream.com", "videodelivery.net"]],
+    ["Fastpix", ["fastpix.io"]],
+    ["api.video", ["api.video"]],
+    // Font CDNs
+    ["Google Fonts", ["fonts.googleapis.com", "fonts.gstatic.com"]],
+    ["Adobe Fonts", ["use.typekit.net", "typekit.com", "p.typekit.net"]],
+    ["Font Awesome CDN", ["fontawesome.com", "use.fontawesome.com", "kit.fontawesome.com"]],
+    ["Fonts.com", ["fast.fonts.net", "fonts.com"]],
+    // JS Library CDNs
+    ["jQuery CDN", ["code.jquery.com"]],
+    ["Bootstrap CDN", ["maxcdn.bootstrapcdn.com", "cdn.jsdelivr.net/npm/bootstrap", "stackpath.bootstrapcdn.com"]],
+    ["Tailwind CDN", ["cdn.tailwindcss.com"]],
+    ["React CDN", ["unpkg.com/react", "cdnjs.cloudflare.com/ajax/libs/react"]],
+    ["Vue CDN", ["cdn.jsdelivr.net/npm/vue", "unpkg.com/vue"]],
+    ["Angular CDN", ["ajax.googleapis.com/ajax/libs/angularjs"]],
+    // E-commerce CDNs
+    ["Shopify CDN", ["cdn.shopify.com", "cdn.shopifycdn.net"]],
+    ["Magento CDN", ["magentocommerce.com"]],
+    ["BigCommerce CDN", ["bigcommerce.com/s-"]],
+    // WordPress CDNs
+    ["WordPress CDN", ["s.w.org", "s0.wp.com", "s1.wp.com", "c0.wp.com"]],
+    ["WP Rocket CDN", ["rocketcdn.me"]],
+    ["WP Super Cache CDN", ["wp-content/cache/supercache"]],
+    ["W3 Total Cache CDN", ["w3tc"]],
+    // Security/DDoS CDNs
+    ["Cloudflare Security", ["challenges.cloudflare.com", "cdn-cgi/challenge-platform"]],
+    ["AWS Shield", ["shield.amazonaws.com"]],
+    ["Azure DDoS Protection", ["azurefd.net"]],
+    // Regional CDNs
+    ["Yandex CDN", ["yastatic.net", "yandex.st"]],
+    ["VK CDN", ["vk.com/js", "userapi.com"]],
+    ["Mail.ru CDN", ["imgsmail.ru"]],
+    ["Naver CDN", ["pstatic.net"]],
+    ["Kakao CDN", ["kakaocdn.net", "daumcdn.net"]],
+    ["Line CDN", ["scdn.line-apps.com"]],
+    // Storage CDNs
+    ["Amazon S3", ["s3.amazonaws.com", "s3-us-west", "s3-eu-west", "s3-ap-", "s3.us-east"]],
+    ["Google Cloud Storage", ["storage.googleapis.com", "storage.cloud.google.com"]],
+    ["Azure Blob", ["blob.core.windows.net"]],
+    ["DigitalOcean Spaces CDN", ["cdn.digitaloceanspaces.com", "digitaloceanspaces.com"]],
+    ["Backblaze B2 CDN", ["f000.backblazeb2.com", "f001.backblazeb2.com", "f002.backblazeb2.com"]],
+    ["Wasabi CDN", ["wasabisys.com", "s3.wasabisys.com"]],
+    ["Linode Object Storage", ["linodeobjects.com"]],
+    ["Vultr Object Storage", ["vultrobjects.com"]],
+    // Edge/Serverless CDNs
+    ["Vercel Edge", ["vercel-edge.com", "_vercel/"]],
+    ["Netlify CDN", ["netlify.app", "netlify.com"]],
+    ["Deno Deploy CDN", ["deno.dev"]],
+    ["Cloudflare Pages", ["pages.dev"]],
+    ["AWS Amplify CDN", ["amplifyapp.com"]],
+    ["Render CDN", ["onrender.com"]],
+    ["Railway CDN", ["railway.app"]],
+    ["Fly.io CDN", ["fly.dev", "edgeapp.net"]],
+    // Analytics/Tag CDNs
+    ["Google Tag CDN", ["googletagmanager.com", "google-analytics.com", "googletagservices.com"]],
+    ["Segment CDN", ["cdn.segment.com", "cdn.segment.io"]],
+    ["Mixpanel CDN", ["cdn.mxpnl.com"]],
+    ["Amplitude CDN", ["cdn.amplitude.com"]],
+    // Ad CDNs
+    ["Google Ad CDN", ["googlesyndication.com", "googleadservices.com", "doubleclick.net", "2mdn.net"]],
+    ["Facebook Ad CDN", ["fbcdn.net", "facebook.com", "connect.facebook.net"]],
+    ["Amazon Ad CDN", ["amazon-adsystem.com"]],
+    ["Twitter Ad CDN", ["ads-twitter.com", "static.ads-twitter.com"]],
+    // Social Media CDNs
+    ["Facebook CDN", ["fbcdn.net", "fbsbx.com", "facebook.com"]],
+    ["Instagram CDN", ["cdninstagram.com", "scontent.cdninstagram.com"]],
+    ["Twitter/X CDN", ["twimg.com", "pbs.twimg.com", "abs.twimg.com"]],
+    ["LinkedIn CDN", ["licdn.com", "media-exp1.licdn.com"]],
+    ["TikTok CDN", ["tiktokcdn.com", "p16-sign.tiktokcdn.com", "sf16-website-login.neutral.ttwstatic.com"]],
+    ["Pinterest CDN", ["pinimg.com", "s.pinimg.com"]],
+    ["Reddit CDN", ["redditstatic.com", "redditmedia.com"]],
+    ["Discord CDN", ["cdn.discordapp.com", "media.discordapp.net"]],
+    ["Telegram CDN", ["telegram.org", "cdn1.telegram-cdn.org"]],
+    ["Twitch CDN", ["static.twitchcdn.net", "jtvnw.net"]],
+    ["Spotify CDN", ["scdn.co", "i.scdn.co"]],
+    ["Apple CDN", ["mzstatic.com", "apple.com/v"]],
+    // CMS CDNs
+    ["Contentful CDN", ["ctfassets.net", "images.ctfassets.net"]],
+    ["Sanity CDN", ["cdn.sanity.io"]],
+    ["Prismic CDN", ["images.prismic.io", "prismic.io"]],
+    ["DatoCMS CDN", ["datocms-assets.com"]],
+    ["Storyblok CDN", ["img2.storyblok.com", "a.storyblok.com"]],
+    ["Builder.io CDN", ["cdn.builder.io"]],
+    ["Ghost CDN", ["ghost.org", "casper.ghost.org"]],
+    // Map CDNs
+    ["Mapbox CDN", ["api.mapbox.com", "tiles.mapbox.com"]],
+    ["Google Maps CDN", ["maps.googleapis.com", "maps.gstatic.com"]],
+    ["Leaflet CDN", ["unpkg.com/leaflet", "cdn.jsdelivr.net/npm/leaflet"]],
+    ["HERE Maps CDN", ["js.api.here.com"]],
+    ["OpenStreetMap CDN", ["tile.openstreetmap.org", "a.tile.openstreetmap.org"]],
+    // Icon CDNs
+    ["Heroicons CDN", ["heroicons.com"]],
+    ["Lucide CDN", ["unpkg.com/lucide"]],
+    ["Material Icons CDN", ["fonts.googleapis.com/icon"]],
+    ["Ionicons CDN", ["unpkg.com/ionicons"]],
+    ["Feather Icons CDN", ["unpkg.com/feather-icons"]],
+    // Payment Widget CDNs
+    ["Stripe JS CDN", ["js.stripe.com"]],
+    ["PayPal CDN", ["paypalobjects.com"]],
+    ["Square CDN", ["squarecdn.com", "js.squareup.com"]],
+    ["Braintree CDN", ["js.braintreegateway.com"]],
+    // Chat/Support CDNs
+    ["Intercom CDN", ["widget.intercom.io", "js.intercomcdn.com"]],
+    ["Zendesk CDN", ["static.zdassets.com"]],
+    ["Drift CDN", ["js.driftt.com"]],
+    ["Crisp CDN", ["client.crisp.chat"]],
+    ["Tawk.to CDN", ["embed.tawk.to"]],
+    ["LiveChat CDN", ["cdn.livechatinc.com"]],
+    ["Tidio CDN", ["code.tidio.co"]],
+    // Monitoring CDNs
+    ["Sentry CDN", ["browser.sentry-cdn.com"]],
+    ["Datadog CDN", ["datadog-browser-agent.com", "datadoghq.com"]],
+    ["New Relic CDN", ["js-agent.newrelic.com"]],
+    ["LogRocket CDN", ["cdn.logrocket.io"]],
+    ["Bugsnag CDN", ["d2wy8f7a9ursnm.cloudfront.net"]],
+    // Misc CDNs
+    ["Gravatar CDN", ["gravatar.com", "s.gravatar.com", "0.gravatar.com"]],
+    ["Giphy CDN", ["giphy.com", "media.giphy.com"]],
+    ["Unsplash CDN", ["images.unsplash.com"]],
+    ["Pexels CDN", ["images.pexels.com"]],
+    ["Lottie CDN", ["assets.lottiefiles.com", "lottie.host"]],
+    ["ReCAPTCHA CDN", ["recaptcha.net", "gstatic.com/recaptcha"]],
+    ["hCaptcha CDN", ["hcaptcha.com", "js.hcaptcha.com"]],
+    ["Turnstile CDN", ["challenges.cloudflare.com/turnstile"]],
+    ["Polyfill.io", ["polyfill.io", "cdn.polyfill.io"]],
+    ["HSTS Preload", ["hstspreload.org"]],
+    ["WebPack CDN", ["webpack.js.org"]],
+    ["Parcel CDN", ["parceljs.org"]],
+    ["Vite CDN", ["vitejs.dev"]],
+    ["ESM.sh", ["esm.sh", "cdn.esm.sh"]],
+    ["Skypack", ["cdn.skypack.dev"]],
+    ["CDNJS Libraries", ["cdnjs.cloudflare.com/ajax/libs"]],
+    ["RawGit/GitHack", ["rawgit.com", "raw.githack.com", "rawcdn.githack.com"]],
+    ["GitHub Raw", ["raw.githubusercontent.com"]],
+    ["GitLab CDN", ["gitlab.com/uploads"]],
+    ["Bitbucket CDN", ["bytebucket.org"]],
+  ]);
+
+  // ─── File Storage Providers ───
+  const fileStorage = detect([
+    ["Amazon S3", ["s3.amazonaws.com", "s3-us-west", "s3-eu-west", "s3-ap-", "s3.us-east", ".s3."]],
+    ["Google Cloud Storage", ["storage.googleapis.com", "storage.cloud.google.com", "commondatastorage.googleapis.com"]],
+    ["Azure Blob Storage", ["blob.core.windows.net", "azureblob"]],
+    ["Cloudinary", ["res.cloudinary.com", "cloudinary.com"]],
+    ["Imgix", ["imgix.net"]],
+    ["Uploadcare", ["ucarecdn.com", "uploadcare.com"]],
+    ["ImageKit", ["ik.imagekit.io", "imagekit.io"]],
+    ["Sirv", ["sirv.com", "my.sirv.com"]],
+    ["Supabase Storage", [".supabase.co/storage/v1", "supabase.co/storage"]],
+    ["Firebase Storage", ["firebasestorage.googleapis.com"]],
+    ["Backblaze B2", ["backblazeb2.com", "f000.backblazeb2.com", "f001.backblazeb2.com"]],
+    ["Wasabi", ["wasabisys.com", "s3.wasabisys.com"]],
+    ["DigitalOcean Spaces", ["digitaloceanspaces.com"]],
+    ["Linode Object Storage", ["linodeobjects.com"]],
+    ["Vultr Object Storage", ["vultrobjects.com"]],
+    ["MinIO", ["minio.io", "minio"]],
+    ["Contabo Object Storage", ["contaboserver.net"]],
+    ["Filebase", ["filebase.com"]],
+    ["Storj", ["storj.io", "link.storjshare.io"]],
+    ["IPFS", ["ipfs.io", "gateway.pinata.cloud", "dweb.link", "cf-ipfs.com", "nftstorage.link", "w3s.link"]],
+    ["Arweave", ["arweave.net"]],
+    ["Pinata", ["pinata.cloud", "gateway.pinata.cloud"]],
+    ["NFT.Storage", ["nftstorage.link"]],
+    ["Web3.Storage", ["w3s.link"]],
+    ["Filecoin", ["filecoin.io"]],
+    ["Mux Video", ["stream.mux.com", "image.mux.com"]],
+    ["Transloadit", ["transloadit.com"]],
+    ["Filestack", ["filestackcontent.com", "filestack.com"]],
+    ["Uploadthing", ["uploadthing.com", "utfs.io"]],
+    ["EdgeStore", ["edgestore.dev"]],
+    ["Upstash QStash", ["qstash.upstash.io"]],
+    ["R2 (Cloudflare)", ["r2.cloudflarestorage.com", "r2.dev"]],
+    ["Vercel Blob", ["vercel-storage.com", "blob.vercel-storage.com"]],
+    ["Netlify Blobs", ["netlify-blobs.netlify.app"]],
+    ["Sanity Assets", ["cdn.sanity.io"]],
+    ["Contentful Assets", ["ctfassets.net", "assets.ctfassets.net"]],
+    ["Strapi Uploads", ["strapi.io/uploads"]],
+    ["Appwrite Storage", ["appwrite.io/v1/storage"]],
+    ["PocketBase Files", ["pocketbase.io"]],
+    ["Nhost Storage", ["nhost.io/v1/storage"]],
+    ["Directus Assets", ["directus.io/assets"]],
+  ]);
+
   const frameworks = detect([
     ["React", ["react", "reactdom", "__REACT"]], ["Vue.js", ["vue.js", "__VUE"]], ["Angular", ["angular", "ng-version"]],
     ["Next.js", ["__NEXT_DATA__", "_next/"]], ["Nuxt", ["__NUXT__", "_nuxt/"]], ["Svelte", ["svelte"]],
@@ -626,7 +887,7 @@ function detectPlatforms(corpus: string, scripts: string[], stylesheets: string[
     ["Statsig", ["statsig.com"]], ["GrowthBook", ["growthbook.io"]], ["AB Tasty", ["abtasty.com"]],
   ]);
 
-  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity, socialMedia, backendProviders, database: backendProviders, aiTools, affiliate, personalization };
+  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity, socialMedia, backendProviders, database: backendProviders, aiTools, affiliate, personalization, cdn, fileStorage };
 }
 
 // ─── Metadata extraction ──────────────────────────
