@@ -5,1617 +5,892 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-function getAllMatches(html: string, regex: RegExp): string[] {
-  const results: string[] = [];
-  let m;
-  while ((m = regex.exec(html)) !== null) results.push(m[1]);
-  return results;
+// ─── Safe helpers ─────────────────────────────────
+function safeMatch(html: string, regex: RegExp): string[] {
+  try {
+    const results: string[] = [];
+    let m;
+    let i = 0;
+    while ((m = regex.exec(html)) !== null && i++ < 500) results.push(m[1] || m[0]);
+    return results;
+  } catch { return []; }
 }
 
 function getMeta(html: string, attr: string, val: string): string {
-  const patterns = [
-    new RegExp(`<meta[^>]*${attr}=["']${val}["'][^>]*content=["']([^"']*)["']`, "i"),
-    new RegExp(`<meta[^>]*content=["']([^"']*)["'][^>]*${attr}=["']${val}["']`, "i"),
-  ];
-  for (const p of patterns) {
-    const m = html.match(p);
-    if (m) return m[1];
-  }
+  try {
+    const patterns = [
+      new RegExp(`<meta[^>]*${attr}=["']${val}["'][^>]*content=["']([^"']*)["']`, "i"),
+      new RegExp(`<meta[^>]*content=["']([^"']*)["'][^>]*${attr}=["']${val}["']`, "i"),
+    ];
+    for (const p of patterns) { const m = html.match(p); if (m) return m[1]; }
+  } catch {}
   return "";
 }
 
 function getTag(html: string, name: string): string {
-  const m = html.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, "i"));
-  return m?.[1]?.trim() || "";
+  try {
+    const m = html.match(new RegExp(`<${name}[^>]*>([\\s\\S]*?)<\\/${name}>`, "i"));
+    return m?.[1]?.trim() || "";
+  } catch { return ""; }
 }
 
-const SCRAPE_HEADERS = {
-  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+const SCRAPE_HEADERS: Record<string, string> = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
   "Accept-Language": "en-US,en;q=0.9",
-  "Accept-Encoding": "gzip, deflate, br",
   "Connection": "keep-alive",
   "Upgrade-Insecure-Requests": "1",
-  "Cache-Control": "max-age=0",
 };
 
-type DeepScanCorpus = {
-  combinedHtml: string;
-  combinedScripts: string[];
-  combinedStylesheets: string[];
-  combinedExternalLinks: string[];
-  combinedIframes: string[];
-  scannedUrls: string[];
-  pagesScanned: number;
-  sitemapUrls: string[];
-  subdomainsFound: string[];
-};
-
-const SUBDOMAIN_SEEDS = ["www", "app", "api", "checkout", "pay", "billing", "portal", "shop", "store", "m", "help", "docs"];
-const HIGH_INTENT_PATH_PROBES = [
-  "/pricing", "/plans", "/checkout", "/cart", "/billing", "/pay", "/subscribe", "/subscription", "/store", "/shop",
-  "/products", "/product", "/api", "/developers", "/docs", "/integrations", "/partners", "/about", "/contact",
-];
-const SENSITIVE_FILE_PATHS = ["/.env", "/.env.local", "/.env.production", "/.env.backup", "/.htaccess", "/.git/config", "/.git/HEAD"];
-
-function normalizeHost(host: string): string {
-  return host.trim().toLowerCase().replace(/^www\./, "");
-}
+// ─── Domain helpers ───────────────────────────────
+function normalizeHost(host: string): string { return host.trim().toLowerCase().replace(/^www\./, ""); }
 
 function getRegistrableDomain(host: string): string {
-  const normalized = normalizeHost(host);
-  const parts = normalized.split(".").filter(Boolean);
-  if (parts.length <= 2) return normalized;
-
-  const tld = parts[parts.length - 1];
-  const sld = parts[parts.length - 2];
-  const commonSecondLevel = new Set(["co", "com", "org", "net", "gov", "edu", "ac"]);
-
-  if (tld.length === 2 && commonSecondLevel.has(sld) && parts.length >= 3) {
-    return parts.slice(-3).join(".");
-  }
+  const n = normalizeHost(host);
+  const parts = n.split(".").filter(Boolean);
+  if (parts.length <= 2) return n;
+  const commonSLD = new Set(["co", "com", "org", "net", "gov", "edu", "ac"]);
+  if (parts[parts.length - 1].length === 2 && commonSLD.has(parts[parts.length - 2]) && parts.length >= 3) return parts.slice(-3).join(".");
   return parts.slice(-2).join(".");
 }
 
-function isSameSiteHost(rootDomain: string, testHost: string): boolean {
-  return getRegistrableDomain(testHost) === getRegistrableDomain(rootDomain);
+function isSameSite(root: string, test: string): boolean {
+  try { return getRegistrableDomain(test) === getRegistrableDomain(root); } catch { return false; }
 }
 
-function buildOriginCandidates(startUrl: string, rootDomain: string): string[] {
-  const start = new URL(startUrl);
-  const candidates = new Set<string>([start.origin]);
-  const normalizedRoot = normalizeHost(rootDomain);
-
-  candidates.add(`https://${normalizedRoot}`);
-  candidates.add(`https://www.${normalizedRoot}`);
-
-  for (const sub of SUBDOMAIN_SEEDS) {
-    candidates.add(`https://${sub}.${normalizedRoot}`);
-  }
-
-  return [...candidates];
+// ─── Safe fetch with timeout ──────────────────────
+async function safeFetch(url: string, timeoutMs = 6000): Promise<Response | null> {
+  const c = new AbortController();
+  const t = setTimeout(() => c.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { headers: SCRAPE_HEADERS, redirect: "follow", signal: c.signal });
+    return r;
+  } catch { return null; }
+  finally { clearTimeout(t); }
 }
 
-function buildProbeUrls(origins: string[]): string[] {
-  const urls = new Set<string>();
-  for (const origin of origins) {
-    for (const path of HIGH_INTENT_PATH_PROBES) {
-      urls.add(`${origin}${path}`);
-    }
-  }
-  return [...urls];
+async function safeFetchText(url: string, timeoutMs = 6000, maxLen = 300_000): Promise<string> {
+  try {
+    const r = await safeFetch(url, timeoutMs);
+    if (!r?.ok) return "";
+    const ct = (r.headers.get("content-type") || "").toLowerCase();
+    if (["image/", "video/", "audio/", "font/"].some(p => ct.startsWith(p))) return "";
+    return (await r.text()).slice(0, maxLen);
+  } catch { return ""; }
 }
 
-function extractInternalPageLinks(html: string, baseUrl: string, rootDomain: string): string[] {
-  const hrefs = getAllMatches(html, /<a[^>]*href=["']([^"'#]+)["']/gi);
+async function safeFetchHtml(url: string): Promise<string | null> {
+  try {
+    const r = await safeFetch(url, 7000);
+    if (!r?.ok) return null;
+    const ct = (r.headers.get("content-type") || "").toLowerCase();
+    if (!ct.includes("text/html") && !ct.includes("xhtml") && !ct.includes("xml")) return null;
+    return (await r.text()).slice(0, 500_000);
+  } catch { return null; }
+}
+
+// ─── Deep scan corpus builder ─────────────────────
+const SUB_SEEDS = ["www", "app", "api", "checkout", "pay", "billing", "portal", "shop", "store", "m", "help", "docs"];
+const INTENT_PATHS = ["/pricing", "/plans", "/checkout", "/cart", "/billing", "/pay", "/subscribe", "/store", "/shop", "/products", "/api", "/docs", "/integrations", "/about", "/contact"];
+const SENSITIVE_PATHS = ["/.env", "/.env.local", "/.env.production", "/.env.backup", "/.htaccess", "/.git/config", "/.git/HEAD", "/wp-config.php.bak", "/.aws/credentials", "/.docker/config.json", "/config.yml", "/database.yml"];
+
+function extractLinks(html: string, base: string, rootDomain: string): string[] {
   const links = new Set<string>();
-  const excludedFileExt = /\.(jpg|jpeg|png|gif|svg|webp|avif|mp4|mp3|pdf|zip|rar|css|js|ico|woff2?|ttf|eot)(\?|#|$)/i;
-
-  for (const href of hrefs) {
-    try {
-      const parsed = new URL(href, baseUrl);
-      if (!["http:", "https:"].includes(parsed.protocol)) continue;
-      if (!isSameSiteHost(rootDomain, parsed.hostname)) continue;
-      if (excludedFileExt.test(parsed.pathname)) continue;
-      links.add(parsed.href);
-    } catch {
-      // skip
+  try {
+    for (const href of safeMatch(html, /<a[^>]*href=["']([^"'#]+)["']/gi)) {
+      try {
+        const u = new URL(href, base);
+        if (["http:", "https:"].includes(u.protocol) && isSameSite(rootDomain, u.hostname)) {
+          if (!/\.(jpg|jpeg|png|gif|svg|webp|avif|mp4|pdf|zip|css|js|ico|woff2?|ttf)(\?|#|$)/i.test(u.pathname))
+            links.add(u.href);
+        }
+      } catch {}
     }
-  }
+  } catch {}
   return [...links];
 }
 
-function prioritizeLinks(links: string[]): string[] {
-  const highIntentKeywords = [
-    "checkout", "payment", "billing", "pricing", "plans", "subscribe", "subscription",
-    "cart", "buy", "upgrade", "portal", "invoice", "pay", "donate", "shop", "store",
-    "product", "membership", "account", "settings", "integrations", "partners",
-    "tools", "features", "api", "developers", "docs", "about", "contact",
-  ];
-
+function prioritize(links: string[]): string[] {
+  const kw = ["checkout", "payment", "billing", "pricing", "plans", "subscribe", "cart", "buy", "shop", "store", "product", "api", "docs"];
   return [...new Set(links)].sort((a, b) => {
-    const al = a.toLowerCase();
-    const bl = b.toLowerCase();
-    const aScore = highIntentKeywords.reduce((acc, kw) => acc + (al.includes(kw) ? 10 : 0), 0) - al.length / 500;
-    const bScore = highIntentKeywords.reduce((acc, kw) => acc + (bl.includes(kw) ? 10 : 0), 0) - bl.length / 500;
-    return bScore - aScore;
+    const as = kw.reduce((s, k) => s + (a.toLowerCase().includes(k) ? 10 : 0), 0);
+    const bs = kw.reduce((s, k) => s + (b.toLowerCase().includes(k) ? 10 : 0), 0);
+    return bs - as;
   });
 }
 
-async function fetchHtmlForDeepScan(targetUrl: string): Promise<string | null> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 6500);
-  try {
-    const response = await fetch(targetUrl, { headers: SCRAPE_HEADERS, redirect: "follow", signal: controller.signal });
-    if (!response.ok) return null;
-    const ct = (response.headers.get("content-type") || "").toLowerCase();
-    if (!ct.includes("text/html") && !ct.includes("application/xhtml+xml") && !ct.includes("text/xml") && !ct.includes("application/xml")) return null;
-    return await response.text();
-  } catch { return null; }
-  finally { clearTimeout(timeout); }
-}
+async function fetchSitemapUrls(origins: string[], rootDomain: string): Promise<{ urls: string[]; sources: string[] }> {
+  const smPaths = ["/sitemap.xml", "/sitemap_index.xml", "/wp-sitemap.xml", "/sitemap1.xml", "/page-sitemap.xml"];
+  const queued = new Set<string>();
+  const queue: string[] = [];
+  const sources: string[] = [];
+  const urls = new Set<string>();
 
-async function fetchTextForDeepScanAsset(assetUrl: string): Promise<string> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 6000);
-  try {
-    const response = await fetch(assetUrl, { headers: SCRAPE_HEADERS, redirect: "follow", signal: controller.signal });
-    if (!response.ok) return "";
-    const ct = (response.headers.get("content-type") || "").toLowerCase();
-    if (["image/", "video/", "audio/", "font/", "application/octet-stream"].some(p => ct.startsWith(p))) return "";
-    return (await response.text()).slice(0, 250_000);
-  } catch { return ""; }
-  finally { clearTimeout(timeout); }
-}
-
-async function fetchSitemapUrls(candidateOrigins: string[], rootDomain: string): Promise<{ urls: string[]; sitemapSources: string[] }> {
-  const defaultSitemapPaths = [
-    "/sitemap.xml",
-    "/sitemap_index.xml",
-    "/sitemap-index.xml",
-    "/wp-sitemap.xml",
-    "/sitemap1.xml",
-    "/sitemap-pages.xml",
-    "/page-sitemap.xml",
-    "/post-sitemap.xml",
-    "/product-sitemap.xml",
-    "/sitemaps/sitemap.xml",
-  ];
-
-  const sitemapQueue: string[] = [];
-  const sitemapQueued = new Set<string>();
-  const sitemapSources = new Set<string>();
-  const discoveredUrls = new Set<string>();
-
-  const addSitemapCandidate = (candidate: string, fallbackOrigin?: string) => {
-    if (!candidate) return;
+  const addCandidate = (c: string, base?: string) => {
     try {
-      const parsed = fallbackOrigin ? new URL(candidate, fallbackOrigin) : new URL(candidate);
-      if (!["http:", "https:"].includes(parsed.protocol)) return;
-      if (!isSameSiteHost(rootDomain, parsed.hostname)) return;
-      if (sitemapQueued.has(parsed.href)) return;
-      sitemapQueued.add(parsed.href);
-      sitemapQueue.push(parsed.href);
-    } catch {
-      // ignore invalid URL
-    }
+      const u = base ? new URL(c, base) : new URL(c);
+      if (!queued.has(u.href) && isSameSite(rootDomain, u.hostname)) { queued.add(u.href); queue.push(u.href); }
+    } catch {}
   };
 
-  for (const origin of candidateOrigins) {
-    defaultSitemapPaths.forEach(path => addSitemapCandidate(path, origin));
-  }
+  for (const o of origins) smPaths.forEach(p => addCandidate(p, o));
 
-  await Promise.all(candidateOrigins.slice(0, 16).map(async (origin) => {
+  // robots.txt
+  await Promise.all(origins.slice(0, 8).map(async o => {
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 4500);
-      const robotsRes = await fetch(`${origin}/robots.txt`, { headers: SCRAPE_HEADERS, signal: controller.signal, redirect: "follow" });
-      clearTimeout(timeout);
-      if (!robotsRes.ok) return;
-      const robotsTxt = await robotsRes.text();
-      const sitemapLines = robotsTxt.match(/^Sitemap:\s*(.+)$/gmi) || [];
-      for (const line of sitemapLines) {
-        const value = line.replace(/^Sitemap:\s*/i, "").trim();
-        addSitemapCandidate(value, origin);
-      }
-    } catch {
-      // ignore
-    }
+      const txt = await safeFetchText(`${o}/robots.txt`, 4000, 50_000);
+      for (const line of txt.match(/^Sitemap:\s*(.+)$/gmi) || []) addCandidate(line.replace(/^Sitemap:\s*/i, "").trim(), o);
+    } catch {}
   }));
 
-  while (sitemapQueue.length > 0 && sitemapSources.size < 120) {
-    const batch = sitemapQueue.splice(0, 8);
-    const batchResults = await Promise.all(batch.map(async (sitemapUrl) => {
+  let processed = 0;
+  while (queue.length > 0 && processed < 60) {
+    const batch = queue.splice(0, 6);
+    processed += batch.length;
+    await Promise.all(batch.map(async smUrl => {
       try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 5500);
-        const res = await fetch(sitemapUrl, { headers: SCRAPE_HEADERS, signal: controller.signal, redirect: "follow" });
-        clearTimeout(timeout);
-        if (!res.ok) return;
-
-        const finalUrl = res.url || sitemapUrl;
-        if (!isSameSiteHost(rootDomain, new URL(finalUrl).hostname)) return;
-
-        const text = await res.text();
-        if (!text.includes("<loc")) return;
-        sitemapSources.add(finalUrl);
-
-        const locMatches = text.match(/<loc>\s*(.*?)\s*<\/loc>/gi) || [];
-        for (const loc of locMatches) {
-          const value = loc.replace(/<\/?loc>/gi, "").trim();
-          if (!value) continue;
-          if (value.endsWith(".xml") || value.endsWith(".xml.gz") || /sitemap/i.test(value)) {
-            addSitemapCandidate(value, finalUrl);
-          } else {
-            try {
-              const pageUrl = new URL(value, finalUrl);
-              if (["http:", "https:"].includes(pageUrl.protocol) && isSameSiteHost(rootDomain, pageUrl.hostname)) {
-                discoveredUrls.add(pageUrl.href);
-              }
-            } catch {
-              // ignore bad loc URL
-            }
-          }
+        const txt = await safeFetchText(smUrl, 5000, 200_000);
+        if (!txt.includes("<loc")) return;
+        sources.push(smUrl);
+        for (const loc of txt.match(/<loc>\s*(.*?)\s*<\/loc>/gi) || []) {
+          const v = loc.replace(/<\/?loc>/gi, "").trim();
+          if (!v) continue;
+          if (v.endsWith(".xml") || /sitemap/i.test(v)) addCandidate(v, smUrl);
+          else { try { const u = new URL(v, smUrl); if (isSameSite(rootDomain, u.hostname)) urls.add(u.href); } catch {} }
         }
-      } catch {
-        // ignore single sitemap failure
-      }
+      } catch {}
     }));
-
-    if (!batchResults) break;
   }
 
-  return {
-    urls: prioritizeLinks([...discoveredUrls]).slice(0, 500),
-    sitemapSources: [...sitemapSources],
-  };
+  return { urls: prioritize([...urls]).slice(0, 400), sources };
 }
 
-async function buildDeepScanCorpus(startUrl: string, seedHtml: string): Promise<DeepScanCorpus> {
-  const maxPages = 45;
-  const maxBatchSize = 6;
-  const rootUrl = new URL(startUrl);
-  const rootDomain = getRegistrableDomain(rootUrl.hostname);
-  const candidateOrigins = buildOriginCandidates(startUrl, rootDomain);
+interface DeepCorpus {
+  combined: string;
+  scripts: string[];
+  stylesheets: string[];
+  externalLinks: string[];
+  iframes: string[];
+  scannedUrls: string[];
+  pages: number;
+  sitemapUrls: string[];
+  subdomains: string[];
+}
 
-  const visited = new Set<string>([startUrl]);
-  const scannedUrls: string[] = [startUrl];
-  const pageHtmls: { url: string; html: string }[] = [{ url: startUrl, html: seedHtml }];
-  const subdomainsFound = new Set<string>();
+async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<DeepCorpus> {
+  const MAX_PAGES = 40;
+  const root = new URL(startUrl);
+  const rootDomain = getRegistrableDomain(root.hostname);
+  const origins = [...new Set([root.origin, `https://${normalizeHost(rootDomain)}`, `https://www.${normalizeHost(rootDomain)}`, ...SUB_SEEDS.map(s => `https://${s}.${normalizeHost(rootDomain)}`)])];
+
+  const visited = new Set([startUrl]);
+  const pages: { url: string; html: string }[] = [{ url: startUrl, html: seedHtml }];
+  const subdomains = new Set<string>();
   const iframeSet = new Set<string>();
 
-  for (const iframe of getAllMatches(seedHtml, /<iframe[^>]*src=["']([^"']+)["']/gi)) {
-    try {
-      iframeSet.add(new URL(iframe, startUrl).href);
-    } catch {
-      // ignore bad iframe URL
-    }
+  for (const src of safeMatch(seedHtml, /<iframe[^>]*src=["']([^"']+)["']/gi)) {
+    try { iframeSet.add(new URL(src, startUrl).href); } catch {}
   }
 
-  const [sitemapResult] = await Promise.all([
-    fetchSitemapUrls(candidateOrigins, rootDomain),
-  ]);
+  let smResult: { urls: string[]; sources: string[] };
+  try { smResult = await fetchSitemapUrls(origins, rootDomain); } catch { smResult = { urls: [], sources: [] }; }
 
-  console.log(`Sitemap discovery: ${sitemapResult.urls.length} URLs from ${sitemapResult.sitemapSources.length} sitemaps`);
+  console.log(`Sitemap: ${smResult.urls.length} URLs from ${smResult.sources.length} sitemaps`);
 
-  for (const u of sitemapResult.urls) {
-    try {
-      const host = new URL(u).hostname;
-      if (isSameSiteHost(rootDomain, host) && normalizeHost(host) !== normalizeHost(rootUrl.hostname)) {
-        subdomainsFound.add(host);
-      }
-    } catch {
-      // skip
-    }
+  for (const u of smResult.urls) {
+    try { const h = new URL(u).hostname; if (isSameSite(rootDomain, h) && normalizeHost(h) !== normalizeHost(root.hostname)) subdomains.add(h); } catch {}
   }
 
-  const pageLinks = extractInternalPageLinks(seedHtml, startUrl, rootDomain);
-  const probeUrls = buildProbeUrls(candidateOrigins);
-  const combinedQueue = [...new Set([...sitemapResult.urls, ...pageLinks, ...probeUrls])].filter(u => !visited.has(u));
-  let queue = prioritizeLinks(combinedQueue).slice(0, 700);
+  const seedLinks = extractLinks(seedHtml, startUrl, rootDomain);
+  const probes = origins.flatMap(o => INTENT_PATHS.map(p => `${o}${p}`));
+  let queue = prioritize([...new Set([...smResult.urls, ...seedLinks, ...probes])].filter(u => !visited.has(u))).slice(0, 500);
 
-  while (queue.length > 0 && pageHtmls.length < maxPages) {
-    const batch: string[] = [];
-    const remainingQueue: string[] = [];
+  while (queue.length > 0 && pages.length < MAX_PAGES) {
+    const batch = queue.splice(0, 6).filter(u => !visited.has(u));
+    if (!batch.length) continue;
 
-    for (const link of queue) {
-      if (visited.has(link)) continue;
-      if (batch.length < maxBatchSize) batch.push(link);
-      else remainingQueue.push(link);
-    }
-
-    if (batch.length === 0) break;
-
-    const fetched = await Promise.all(batch.map(async (link) => ({ link, html: await fetchHtmlForDeepScan(link) })));
-
-    for (const { link, html } of fetched) {
-      visited.add(link);
-      if (!html) continue;
-
-      pageHtmls.push({ url: link, html });
-      scannedUrls.push(link);
-
-      try {
-        const host = new URL(link).hostname;
-        if (isSameSiteHost(rootDomain, host) && normalizeHost(host) !== normalizeHost(rootUrl.hostname)) {
-          subdomainsFound.add(host);
-        }
-      } catch {
-        // ignore invalid URL
-      }
-
-      for (const iframe of getAllMatches(html, /<iframe[^>]*src=["']([^"']+)["']/gi)) {
-        try {
-          iframeSet.add(new URL(iframe, link).href);
-        } catch {
-          // ignore invalid iframe src
-        }
-      }
-
-      if (pageHtmls.length >= maxPages) break;
-
-      const discovered = extractInternalPageLinks(html, link, rootDomain).filter(next => !visited.has(next));
-      remainingQueue.push(...discovered);
-
-      const newSubdomainOrigins = new Set<string>();
-      for (const next of discovered) {
-        try {
-          const host = new URL(next).hostname;
-          if (isSameSiteHost(rootDomain, host) && normalizeHost(host) !== normalizeHost(rootUrl.hostname)) {
-            subdomainsFound.add(host);
-            newSubdomainOrigins.add(`https://${normalizeHost(host)}`);
-          }
-        } catch {
-          // ignore invalid URL
-        }
-      }
-
-      if (newSubdomainOrigins.size > 0) {
-        remainingQueue.push(...buildProbeUrls([...newSubdomainOrigins]));
-      }
-    }
-
-    queue = prioritizeLinks(remainingQueue).slice(0, 700);
-  }
-
-  const scriptUrlSet = new Set<string>();
-  const stylesheetUrlSet = new Set<string>();
-  const externalLinkSet = new Set<string>();
-
-  for (const page of pageHtmls) {
-    for (const src of getAllMatches(page.html, /<script[^>]*src=["']([^"']+)["']/gi)) {
-      try {
-        const resolved = new URL(src, page.url);
-        if (["http:", "https:"].includes(resolved.protocol)) scriptUrlSet.add(resolved.href);
-      } catch {
-        // skip
-      }
-    }
-
-    for (const href of getAllMatches(page.html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi)) {
-      try {
-        const resolved = new URL(href, page.url);
-        if (["http:", "https:"].includes(resolved.protocol)) stylesheetUrlSet.add(resolved.href);
-      } catch {
-        // skip
-      }
-    }
-
-    for (const href of getAllMatches(page.html, /<a[^>]*href=["']([^"'#]+)["']/gi)) {
-      try {
-        const resolved = new URL(href, page.url);
-        if (["http:", "https:"].includes(resolved.protocol) && !isSameSiteHost(rootDomain, resolved.hostname)) {
-          externalLinkSet.add(resolved.href);
-        }
-      } catch {
-        // skip
-      }
-    }
-  }
-
-  const combinedScripts = [...scriptUrlSet].slice(0, 260);
-  const combinedStylesheets = [...stylesheetUrlSet].slice(0, 150);
-
-  const sameSiteScriptUrls = combinedScripts
-    .filter(s => {
-      try {
-        return isSameSiteHost(rootDomain, new URL(s).hostname);
-      } catch {
-        return false;
-      }
-    })
-    .slice(0, 20);
-
-  const scriptBodies = (await Promise.all(sameSiteScriptUrls.map(s => fetchTextForDeepScanAsset(s))))
-    .filter(Boolean)
-    .map((body, i) => `\n/* deep-script-${i + 1} */\n${body}\n`);
-
-  const combinedHtml = [
-    pageHtmls.map(p => p.html).join("\n\n<!-- deep-scan-page -->\n\n"),
-    scriptBodies.join("\n"),
-  ].join("\n\n");
-
-  return {
-    combinedHtml,
-    combinedScripts,
-    combinedStylesheets,
-    combinedExternalLinks: [...externalLinkSet].slice(0, 500),
-    combinedIframes: [...iframeSet].slice(0, 120),
-    scannedUrls: [...new Set(scannedUrls)].slice(0, 120),
-    pagesScanned: pageHtmls.length,
-    sitemapUrls: sitemapResult.urls.slice(0, 250),
-    subdomainsFound: [...subdomainsFound].slice(0, 30),
-  };
-}
-
-async function probeSensitiveFileExposure(startUrl: string, rootDomain: string, knownSubdomains: string[]) {
-  const initialHost = normalizeHost(new URL(startUrl).hostname);
-  const candidateHosts = [
-    initialHost,
-    normalizeHost(rootDomain),
-    `www.${normalizeHost(rootDomain)}`,
-    ...knownSubdomains.map(normalizeHost),
-  ];
-
-  const sameSiteHosts = [...new Set(candidateHosts)]
-    .filter(Boolean)
-    .filter(host => isSameSiteHost(rootDomain, host))
-    .slice(0, 8);
-
-  const probeUrls = sameSiteHosts.flatMap(host => SENSITIVE_FILE_PATHS.map(path => `https://${host}${path}`));
-  const findings: { url: string; path: string; status: number; publiclyAccessible: boolean }[] = [];
-
-  for (let i = 0; i < probeUrls.length; i += 8) {
-    const batch = probeUrls.slice(i, i + 8);
-    const batchResults = await Promise.all(batch.map(async (probeUrl) => {
-      try {
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 4500);
-        const response = await fetch(probeUrl, { headers: SCRAPE_HEADERS, signal: controller.signal, redirect: "follow" });
-        clearTimeout(timeout);
-
-        const body = response.ok ? (await response.text()).slice(0, 4000) : "";
-        const bodyLc = body.toLowerCase();
-        const looksLikeHtmlError = bodyLc.includes("<html") || bodyLc.includes("access denied") || bodyLc.includes("forbidden");
-        const looksLikeConfig = /(^|\n)\s*[a-z0-9_]+\s*=\s*.+/i.test(body) || bodyLc.includes("rewriteengine") || bodyLc.includes("authname");
-        const publiclyAccessible = response.ok && !looksLikeHtmlError && looksLikeConfig;
-
-        findings.push({
-          url: response.url || probeUrl,
-          path: new URL(probeUrl).pathname,
-          status: response.status,
-          publiclyAccessible,
-        });
-      } catch {
-        // ignore probe failures
-      }
+    const results = await Promise.all(batch.map(async u => {
+      visited.add(u);
+      const html = await safeFetchHtml(u);
+      return { u, html };
     }));
 
-    if (!batchResults) break;
-  }
-
-  const exposed = findings.filter(item => item.publiclyAccessible);
-  return {
-    checksRun: findings.length,
-    exposedCount: exposed.length,
-    exposed,
-    checks: findings,
-  };
-}
-
-function detectPlatforms(html: string, scripts: string[], stylesheets: string[], externalLinks: string[], iframes?: string[]) {
-  const all = html + " " + scripts.join(" ") + " " + stylesheets.join(" ") + " " + externalLinks.join(" ") + " " + (iframes || []).join(" ");
-  const lc = all.toLowerCase();
-
-  // CRM Systems
-  const crm: { name: string; confidence: string }[] = [];
-  const crmChecks: [string, string[]][] = [
-    ["Salesforce", ["salesforce.com", "force.com", "pardot", "salesforce-"]],
-    ["HubSpot", ["hubspot.com", "hs-scripts.com", "hs-analytics", "hbspt", "hubspot"]],
-    ["Zoho CRM", ["zoho.com/crm", "zohocdn.com", "zsalesiq", "zoho"]],
-    ["Pipedrive", ["pipedrive.com", "pd-analytics"]],
-    ["Freshsales", ["freshsales.io", "freshworks.com", "freshchat"]],
-    ["Monday CRM", ["monday.com"]],
-    ["Copper CRM", ["copper.com", "prosperworks"]],
-    ["Insightly", ["insightly.com"]],
-    ["Keap/Infusionsoft", ["keap.com", "infusionsoft.com", "infusionsoft"]],
-    ["ActiveCampaign", ["activecampaign.com", "trackcmp.net"]],
-    ["Close CRM", ["close.com", "close.io"]],
-    ["Zendesk Sell", ["zendesk.com/sell", "getbase.com"]],
-    ["Bitrix24", ["bitrix24", "b24-"]],
-    ["SugarCRM", ["sugarcrm.com"]],
-    ["Microsoft Dynamics", ["dynamics.com", "dynamics365"]],
-    ["Vtiger", ["vtiger.com"]],
-    ["Nimble", ["nimble.com"]],
-    ["Agile CRM", ["agilecrm.com"]],
-    ["Capsule CRM", ["capsulecrm.com"]],
-    ["Less Annoying CRM", ["lessannoyingcrm.com"]],
-  ];
-  for (const [name, sigs] of crmChecks) {
-    const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) crm.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
-  }
-
-  // Payment Platforms (comprehensive as of March 2026)
-  const payments: { name: string; confidence: string }[] = [];
-  const payChecks: [string, string[]][] = [
-    ["Stripe", ["stripe.com", "js.stripe.com", "stripe-js", "stripe.js", "stripe_"]],
-    ["PayPal", ["paypal.com", "paypalobjects.com", "paypal-"]],
-    ["Square", ["squareup.com", "square.site", "squarecdn.com"]],
-    ["Braintree", ["braintreegateway.com", "braintree-web", "braintree"]],
-    ["Adyen", ["adyen.com", "adyencheckout"]],
-    ["Shopify Payments", ["shopify.com/payments", "shopifycdn.com"]],
-    ["Klarna", ["klarna.com", "klarna-"]],
-    ["Afterpay", ["afterpay.com", "afterpay"]],
-    ["Affirm", ["affirm.com", "affirm-"]],
-    ["Apple Pay", ["apple-pay", "applepay"]],
-    ["Google Pay", ["google-pay", "googlepay", "gpay"]],
-    ["Amazon Pay", ["amazonpay", "amazon-pay", "payments.amazon"]],
-    ["Razorpay", ["razorpay.com", "razorpay"]],
-    ["Mollie", ["mollie.com", "mollie-"]],
-    ["2Checkout/Verifone", ["2checkout.com", "2co.com", "verifone.com"]],
-    ["Authorize.net", ["authorize.net", "authorizenet"]],
-    ["Paddle", ["paddle.com", "paddle.js", "cdn.paddle.com", "vendors.paddle.com"]],
-    ["Lemon Squeezy", ["lemonsqueezy.com", "lmsqueezy", "lemon-squeezy", "store.lemonsqueezy.com"]],
-    ["Polar.sh", [
-      "polar.sh", "api.polar.sh", "sandbox-api.polar.sh", "checkout.polar.sh", "sandbox-checkout.polar.sh",
-      "@polar-sh", "polar-checkout", "polar_sh", "polar_customer", "polar_checkout", "polar_access_token",
-      "/v1/checkouts", "customer-sessions", "benefit_grant", "polar_webhook",
-    ]],
-    ["Gumroad", ["gumroad.com"]],
-    ["Chargebee", ["chargebee.com", "cbinstance"]],
-    ["Recurly", ["recurly.com", "recurly-"]],
-    ["FastSpring", ["fastspring.com"]],
-    ["Wise/TransferWise", ["wise.com", "transferwise.com"]],
-    ["Venmo", ["venmo.com"]],
-    ["Cash App", ["cash.app"]],
-    ["Sezzle", ["sezzle.com"]],
-    ["Zip (QuadPay)", ["zip.co", "quadpay.com"]],
-    ["Coinbase Commerce", ["commerce.coinbase.com", "coinbase.com/commerce"]],
-    ["BitPay", ["bitpay.com"]],
-    ["Crypto.com Pay", ["crypto.com/pay", "pay.crypto.com"]],
-    ["Cryptomus", ["cryptomus.com", "pay.cryptomus.com"]],
-    ["NOWPayments", ["nowpayments.io", "api.nowpayments.io"]],
-    ["CoinGate", ["coingate.com"]],
-    ["BTCPay Server", ["btcpayserver.org", "btcpay"]],
-    ["Plisio", ["plisio.net"]],
-    ["CoinPayments", ["coinpayments.net"]],
-    ["TripleA", ["triple-a.io"]],
-    ["Binance Pay", ["pay.binance.com", "binance.com/pay"]],
-    ["MoonPay", ["moonpay.com", "buy.moonpay.com"]],
-    ["Transak", ["transak.com"]],
-    ["Ramp Network", ["ramp.network"]],
-    ["Wyre", ["sendwyre.com"]],
-    ["Alchemy Pay", ["alchemypay.org"]],
-    ["SpicePay", ["spicepay.com"]],
-    ["Coinremitter", ["coinremitter.com"]],
-    ["PayKickstart", ["paykickstart.com"]],
-    ["GoURL", ["gourl.io"]],
-    ["Blockonomics", ["blockonomics.co"]],
-    ["OpenNode", ["opennode.com"]],
-    ["GoCoin", ["gocoin.com"]],
-    ["CoinsPaid", ["coinspaid.com"]],
-    ["Confirmo", ["confirmo.net"]],
-    ["Utrust", ["utrust.com"]],
-    ["Payeer", ["payeer.com"]],
-    ["Perfect Money", ["perfectmoney.com"]],
-    ["WebMoney", ["webmoney.com", "wmtransfer.com"]],
-    ["Patreon", ["patreon.com"]],
-    ["Buy Me a Coffee", ["buymeacoffee.com"]],
-    ["Ko-fi", ["ko-fi.com"]],
-    ["Flutterwave", ["flutterwave.com", "rave.flutterwave"]],
-    ["Paystack", ["paystack.com", "paystack.co"]],
-    ["Worldpay", ["worldpay.com"]],
-    ["Checkout.com", ["checkout.com/js"]],
-    ["GoCardless", ["gocardless.com"]],
-    ["Paysafe", ["paysafe.com", "paysafecard"]],
-    ["Skrill", ["skrill.com"]],
-    ["Neteller", ["neteller.com"]],
-    ["iDEAL", ["ideal.nl"]],
-    ["Bancontact", ["bancontact"]],
-    ["SEPA", ["sepa"]],
-    ["ACH", ["plaid.com"]],
-    ["Plaid", ["plaid.com", "cdn.plaid.com"]],
-    ["ThriveCart", ["thrivecart.com"]],
-    ["SamCart", ["samcart.com"]],
-    ["SendOwl", ["sendowl.com"]],
-    ["Payhip", ["payhip.com"]],
-    ["Sellfy", ["sellfy.com"]],
-    ["Podia Payments", ["podia.com"]],
-    ["Whop", ["whop.com"]],
-    ["Lemfi", ["lemfi.com"]],
-    ["Mercado Pago", ["mercadopago.com", "mercadolibre.com"]],
-    ["iZettle/Zettle", ["zettle.com", "izettle.com"]],
-    ["SumUp", ["sumup.com"]],
-    ["Bolt Payments", ["bolt.com/checkout"]],
-    ["RevenueCat", ["revenuecat.com"]],
-    ["Zuora", ["zuora.com"]],
-    ["Chargify/Maxio", ["chargify.com", "maxio.com"]],
-    ["Aria Systems", ["ariasystems.com"]],
-    ["Spring (Teespring)", ["spri.ng", "teespring.com"]],
-    ["Printful", ["printful.com"]],
-    ["Printify", ["printify.com"]],
-  ];
-  for (const [name, sigs] of payChecks) {
-    const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) payments.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
-  }
-
-  // Analytics & Tracking
-  const analytics: { name: string; confidence: string }[] = [];
-  const analyticsChecks: [string, string[]][] = [
-    ["Google Analytics (GA4)", ["gtag(", "googletagmanager.com", "google-analytics.com", "analytics.js"]],
-    ["Google Tag Manager", ["googletagmanager.com/gtm", "gtm.js", "GTM-"]],
-    ["Meta Pixel", ["fbq(", "facebook.net/en_US/fbevents", "connect.facebook.net"]],
-    ["TikTok Pixel", ["analytics.tiktok.com", "ttq.load"]],
-    ["Hotjar", ["hotjar.com", "hj(", "hjSiteSettings"]],
-    ["Mixpanel", ["mixpanel.com", "mixpanel.init"]],
-    ["Amplitude", ["amplitude.com", "amplitude.getInstance"]],
-    ["Segment", ["segment.com", "analytics.load", "cdn.segment.com"]],
-    ["Heap", ["heap-analytics", "heap.load"]],
-    ["FullStory", ["fullstory.com", "fs.identify"]],
-    ["Mouseflow", ["mouseflow.com"]],
-    ["Lucky Orange", ["luckyorange.com"]],
-    ["Clarity", ["clarity.ms", "microsoft clarity"]],
-    ["Pendo", ["pendo.io", "pendo-"]],
-    ["PostHog", ["posthog.com", "posthog.init"]],
-    ["Plausible", ["plausible.io"]],
-    ["Fathom", ["usefathom.com"]],
-    ["Matomo/Piwik", ["matomo", "piwik"]],
-    ["Kissmetrics", ["kissmetrics.com"]],
-    ["Crazy Egg", ["crazyegg.com"]],
-    ["VWO", ["visualwebsiteoptimizer.com", "vwo_"]],
-    ["Optimizely", ["optimizely.com", "optimizely"]],
-    ["AB Tasty", ["abtasty.com"]],
-    ["Snap Pixel", ["sc-static.net/scevent"]],
-    ["Pinterest Tag", ["pintrk", "pinimg.com/ct"]],
-    ["LinkedIn Insight", ["snap.licdn.com", "_linkedin_partner_id"]],
-    ["Twitter/X Pixel", ["static.ads-twitter.com", "twq("]],
-    ["Reddit Pixel", ["rdt(", "alb.reddit.com"]],
-  ];
-  for (const [name, sigs] of analyticsChecks) {
-    const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) analytics.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
-  }
-
-  // Marketing & Email
-  const marketing: { name: string; confidence: string }[] = [];
-  const marketingChecks: [string, string[]][] = [
-    ["Mailchimp", ["mailchimp.com", "chimpstatic.com", "mc.us"]],
-    ["Klaviyo", ["klaviyo.com", "klviyo"]],
-    ["SendGrid", ["sendgrid.net", "sendgrid.com"]],
-    ["Mailgun", ["mailgun.com"]],
-    ["ConvertKit", ["convertkit.com", "ck.page"]],
-    ["Drip", ["getdrip.com", "drip.com"]],
-    ["Constant Contact", ["constantcontact.com"]],
-    ["AWeber", ["aweber.com"]],
-    ["GetResponse", ["getresponse.com"]],
-    ["Omnisend", ["omnisend.com", "omnisrc"]],
-    ["Brevo/Sendinblue", ["brevo.com", "sendinblue.com", "sib-"]],
-    ["Campaign Monitor", ["createsend.com"]],
-    ["Beehiiv", ["beehiiv.com"]],
-    ["Substack", ["substack.com", "substackcdn.com"]],
-    ["MailerLite", ["mailerlite.com"]],
-    ["Moosend", ["moosend.com"]],
-    ["Customer.io", ["customer.io", "customerioforms"]],
-  ];
-  for (const [name, sigs] of marketingChecks) {
-    const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) marketing.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
-  }
-
-  // Customer Support & Chat
-  const support: { name: string; confidence: string }[] = [];
-  const supportChecks: [string, string[]][] = [
-    ["Intercom", ["intercom.com", "intercomcdn.com", "intercom-"]],
-    ["Zendesk", ["zendesk.com", "zdassets.com", "zopim"]],
-    ["Drift", ["drift.com", "js.driftt.com"]],
-    ["Crisp", ["crisp.chat", "crisp.im"]],
-    ["LiveChat", ["livechatinc.com", "livechat-"]],
-    ["Tawk.to", ["tawk.to", "embed.tawk"]],
-    ["Freshdesk", ["freshdesk.com", "freshworks.com"]],
-    ["Olark", ["olark.com"]],
-    ["HelpScout", ["helpscout.net", "beacon-v2"]],
-    ["Tidio", ["tidio.co", "tidiochat"]],
-    ["Gorgias", ["gorgias.chat", "gorgias.io"]],
-    ["Front", ["frontapp.com"]],
-    ["Chatwoot", ["chatwoot.com"]],
-    ["Re:amaze", ["reamaze.com"]],
-    ["Chatbot", ["chatbot.com"]],
-    ["Kommunicate", ["kommunicate.io"]],
-    ["LiveAgent", ["ladesk.com"]],
-  ];
-  for (const [name, sigs] of supportChecks) {
-    const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) support.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
-  }
-
-  // E-commerce Platforms (comprehensive — strict matching to avoid false positives)
-  const ecommerce: { name: string; confidence: string }[] = [];
-  const ecomChecks: [string, string[]][] = [
-    ["Shopify", ["cdn.shopify.com", "shopifycdn.com", "myshopify.com", "shopify-buy"]],
-    ["WooCommerce", ["woocommerce", "wc-ajax", "wp-content/plugins/woocommerce"]],
-    ["Magento", ["magento.com", "mage/cookies", "magento-", "/static/version", "mage/translate", "Magento_"]],
-    ["BigCommerce", ["bigcommerce.com", "mybigcommerce"]],
-    ["Squarespace Commerce", ["squarespace.com/commerce", "static1.squarespace.com"]],
-    ["Wix eCommerce", ["wix.com", "wixsite.com", "parastorage.com"]],
-    ["PrestaShop", ["prestashop.com", "prestashop"]],
-    ["OpenCart", ["opencart.com", "route=product"]],
-    ["Ecwid", ["ecwid.com", "app.ecwid.com"]],
-    ["Volusion", ["volusion.com"]],
-    ["Shift4Shop (3dcart)", ["3dcart.com", "shift4shop"]],
-    ["Sellfy", ["sellfy.com"]],
-    ["ThriveCart", ["thrivecart.com"]],
-    ["SamCart", ["samcart.com"]],
-    ["Kajabi", ["kajabi.com", "kajabi-"]],
-    ["Teachable", ["teachable.com"]],
-    ["Podia", ["podia.com"]],
-    ["Gumroad", ["gumroad.com"]],
-    ["Etsy Pattern", ["etsy.com", "etsystatic.com"]],
-    ["Snipcart", ["snipcart.com", "cdn.snipcart.com"]],
-    ["Medusa", ["medusajs.com"]],
-    ["Saleor", ["saleor.io"]],
-    ["Spree Commerce", ["spreecommerce.org"]],
-    ["nopCommerce", ["nopcommerce.com"]],
-    ["osCommerce", ["oscommerce.com"]],
-    ["CS-Cart", ["cs-cart.com"]],
-    ["X-Cart", ["x-cart.com"]],
-    ["Zen Cart", ["zen-cart.com"]],
-    ["Shopware", ["shopware.com", "shopware"]],
-    ["Lightspeed", ["lightspeedhq.com", "webshopapp.com"]],
-    ["Square Online", ["squareonline.com", "square.site"]],
-    ["Webflow Ecommerce", ["webflow.com/ecommerce"]],
-    ["Lemon Squeezy Store", ["lemonsqueezy.com"]],
-    ["Polar Store", ["polar.sh"]],
-    ["Whop", ["whop.com"]],
-    ["Payhip", ["payhip.com"]],
-    ["SendOwl", ["sendowl.com"]],
-    ["Spring (Teespring)", ["spri.ng", "teespring.com"]],
-    ["Printful", ["printful.com"]],
-    ["Printify", ["printify.com"]],
-    ["Redbubble", ["redbubble.com"]],
-    ["Teemill", ["teemill.com"]],
-    ["Fourthwall", ["fourthwall.com"]],
-    ["Pietra", ["pietrastudio.com"]],
-    ["CommerceJS", ["commercejs.com"]],
-    ["Crystallize", ["crystallize.com"]],
-    ["Swell", ["swell.is"]],
-    ["Elastic Path", ["elasticpath.com"]],
-    ["Fabric", ["fabric.inc"]],
-    ["Salesforce Commerce Cloud", ["demandware.net", "salesforce.com/commerce"]],
-    ["Oracle Commerce", ["oracle.com/commerce"]],
-    ["SAP Commerce", ["sap.com/commerce", "hybris"]],
-    ["Adobe Commerce", ["adobe.com/commerce", "magento.com"]],
-    ["Wix Stores", ["wixstores"]],
-    ["Amazon Storefront", ["amazon.com/stores"]],
-  ];
-  for (const [name, sigs] of ecomChecks) {
-    const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) ecommerce.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
-  }
-
-  // Hosting & CDN
-  const hosting: { name: string; confidence: string }[] = [];
-  const hostChecks: [string, string[]][] = [
-    ["Cloudflare", ["cloudflare.com", "cdnjs.cloudflare.com", "cf-ray", "__cfduid"]],
-    ["AWS CloudFront", ["cloudfront.net", "amazonaws.com"]],
-    ["Vercel", ["vercel.app", "vercel.com", "v0.dev"]],
-    ["Netlify", ["netlify.app", "netlify.com"]],
-    ["Fastly", ["fastly.net", "fastly.com"]],
-    ["Akamai", ["akamaized.net", "akamai.net"]],
-    ["Google Cloud CDN", ["storage.googleapis.com", "googleusercontent.com"]],
-    ["DigitalOcean", ["digitaloceanspaces.com"]],
-    ["Heroku", ["herokuapp.com"]],
-    ["Render", ["onrender.com"]],
-    ["Railway", ["railway.app"]],
-    ["Fly.io", ["fly.dev"]],
-    ["Firebase Hosting", ["firebaseapp.com", "web.app"]],
-    ["GitHub Pages", ["github.io"]],
-    ["Surge", ["surge.sh"]],
-    ["Bunny CDN", ["b-cdn.net"]],
-    ["KeyCDN", ["kxcdn.com"]],
-    ["StackPath", ["stackpathdns.com"]],
-    ["Sucuri", ["sucuri.net"]],
-  ];
-  for (const [name, sigs] of hostChecks) {
-    const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) hosting.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
-  }
-
-  // Frameworks & CMS
-  const frameworks: { name: string; confidence: string }[] = [];
-  const fwChecks: [string, string[]][] = [
-    ["React", ["react", "reactdom", "__REACT"]],
-    ["Vue.js", ["vue.js", "vuejs.org", "__VUE"]],
-    ["Angular", ["angular", "ng-version"]],
-    ["Next.js", ["__NEXT_DATA__", "_next/", "nextjs"]],
-    ["Nuxt", ["__NUXT__", "_nuxt/"]],
-    ["Svelte", ["svelte", "__svelte"]],
-    ["Gatsby", ["gatsby", "__gatsby"]],
-    ["Remix", ["remix.run", "__remix"]],
-    ["Astro", ["astro.build", "astro-"]],
-    ["WordPress", ["wordpress", "wp-content", "wp-includes", "wp-json"]],
-    ["Drupal", ["drupal", "sites/default/files"]],
-    ["Joomla", ["joomla", "/components/com_"]],
-    ["Ghost", ["ghost.org", "ghost-"]],
-    ["Webflow", ["webflow.com", "webflow.io", "wf-"]],
-    ["Framer", ["framer.com", "framerusercontent"]],
-    ["Bubble", ["bubble.io"]],
-    ["Carrd", ["carrd.co"]],
-    ["Typedream", ["typedream.com"]],
-    ["Duda", ["duda.co", "dudaone.com"]],
-    ["Weebly", ["weebly.com"]],
-    ["Strikingly", ["strikingly.com"]],
-    ["Unbounce", ["unbounce.com"]],
-    ["Instapage", ["instapage.com"]],
-    ["ClickFunnels", ["clickfunnels.com"]],
-    ["Leadpages", ["leadpages.com", "leadpages.net"]],
-    ["Tailwind CSS", ["tailwind", "tailwindcss"]],
-    ["Bootstrap", ["bootstrap.min", "getbootstrap.com"]],
-    ["Material UI", ["mui.com", "@mui/"]],
-    ["Chakra UI", ["chakra-ui.com"]],
-    ["Bulma", ["bulma.io", "bulma.min"]],
-    ["Foundation", ["foundation.zurb"]],
-    ["jQuery", ["jquery.min", "jquery.com", "jquery-"]],
-    ["Alpine.js", ["alpinejs", "x-data"]],
-    ["HTMX", ["htmx.org", "hx-"]],
-    ["Stimulus", ["stimulus"]],
-    ["Turbo", ["turbo.hotwired"]],
-    ["Lit", ["lit-element", "lit.dev"]],
-  ];
-  for (const [name, sigs] of fwChecks) {
-    const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) frameworks.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
-  }
-
-  // Ads & Monetization
-  const ads: { name: string; confidence: string }[] = [];
-  const adChecks: [string, string[]][] = [
-    ["Google Ads", ["googleads.g.doubleclick", "googlesyndication", "adservice.google"]],
-    ["Google AdSense", ["pagead2.googlesyndication", "adsbygoogle"]],
-    ["Amazon Ads", ["amazon-adsystem.com"]],
-    ["Taboola", ["taboola.com"]],
-    ["Outbrain", ["outbrain.com"]],
-    ["Criteo", ["criteo.com", "criteo.net"]],
-    ["AdRoll", ["adroll.com"]],
-    ["MediaVine", ["mediavine.com"]],
-    ["Ezoic", ["ezoic.net", "ezoic.com"]],
-    ["Raptive/AdThrive", ["adthrive.com", "raptive.com"]],
-    ["Carbon Ads", ["carbonads.com", "cdn.carbonads"]],
-    ["BuySellAds", ["buysellads.com"]],
-  ];
-  for (const [name, sigs] of adChecks) {
-    const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) ads.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
-  }
-
-  // Security & Auth
-  const security: { name: string; confidence: string }[] = [];
-  const secChecks: [string, string[]][] = [
-    ["reCAPTCHA", ["recaptcha", "google.com/recaptcha"]],
-    ["hCaptcha", ["hcaptcha.com"]],
-    ["Cloudflare Turnstile", ["turnstile", "challenges.cloudflare.com"]],
-    ["Auth0", ["auth0.com", "auth0-"]],
-    ["Firebase Auth", ["firebase.google.com/auth", "firebaseauth"]],
-    ["Supabase Auth", ["supabase.co/auth", "supabase"]],
-    ["Okta", ["okta.com"]],
-    ["OneLogin", ["onelogin.com"]],
-    ["Clerk", ["clerk.com", "clerk.dev"]],
-    ["Stytch", ["stytch.com"]],
-    ["AWS Cognito", ["cognito-idp", "cognito-identity"]],
-    ["Sentry", ["sentry.io", "sentry-"]],
-    ["Datadog", ["datadoghq.com", "dd-rum"]],
-    ["New Relic", ["newrelic.com", "nr-data"]],
-    ["LogRocket", ["logrocket.com", "lr-"]],
-    ["Bugsnag", ["bugsnag.com"]],
-    ["Rollbar", ["rollbar.com"]],
-  ];
-  for (const [name, sigs] of secChecks) {
-    const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) security.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
-  }
-
-  // Scheduling & Booking
-  const scheduling: { name: string; confidence: string }[] = [];
-  const schedChecks: [string, string[]][] = [
-    ["Calendly", ["calendly.com"]],
-    ["Cal.com", ["cal.com"]],
-    ["Acuity", ["acuityscheduling.com"]],
-    ["Booksy", ["booksy.com"]],
-    ["Square Appointments", ["squareup.com/appointments"]],
-    ["SimplyBook.me", ["simplybook.me"]],
-    ["HoneyBook", ["honeybook.com"]],
-    ["Dubsado", ["dubsado.com"]],
-  ];
-  for (const [name, sigs] of schedChecks) {
-    if (sigs.some(s => lc.includes(s))) scheduling.push({ name, confidence: "medium" });
-  }
-
-  // Forms & Surveys
-  const forms: { name: string; confidence: string }[] = [];
-  const formChecks: [string, string[]][] = [
-    ["Typeform", ["typeform.com"]],
-    ["JotForm", ["jotform.com"]],
-    ["Google Forms", ["docs.google.com/forms"]],
-    ["Tally", ["tally.so"]],
-    ["Formspree", ["formspree.io"]],
-    ["Netlify Forms", ["netlify"]],
-    ["Basin", ["usebasin.com"]],
-    ["SurveyMonkey", ["surveymonkey.com"]],
-    ["Paperform", ["paperform.co"]],
-  ];
-  for (const [name, sigs] of formChecks) {
-    if (sigs.some(s => lc.includes(s))) forms.push({ name, confidence: "medium" });
-  }
-
-  // Notifications & Engagement
-  const engagement: { name: string; confidence: string }[] = [];
-  const engChecks: [string, string[]][] = [
-    ["OneSignal", ["onesignal.com"]],
-    ["Pusher", ["pusher.com", "js.pusher.com"]],
-    ["Firebase Cloud Messaging", ["firebase-messaging"]],
-    ["Beamer", ["getbeamer.com"]],
-    ["Appcues", ["appcues.com"]],
-    ["UserPilot", ["userpilot.com"]],
-    ["WalkMe", ["walkme.com"]],
-    ["Chameleon", ["chameleon.io"]],
-    ["Product Fruits", ["productfruits.com"]],
-    ["Loom", ["loom.com"]],
-    ["Wistia", ["wistia.com", "wistia.net"]],
-    ["Vimeo", ["vimeo.com", "player.vimeo"]],
-    ["YouTube Embed", ["youtube.com/embed", "youtube-nocookie.com"]],
-    ["Calendly Embed", ["assets.calendly.com"]],
-  ];
-  for (const [name, sigs] of engChecks) {
-    if (sigs.some(s => lc.includes(s))) engagement.push({ name, confidence: "medium" });
-  }
-
-  // Social proof & Reviews
-  const socialProof: { name: string; confidence: string }[] = [];
-  const proofChecks: [string, string[]][] = [
-    ["Trustpilot", ["trustpilot.com"]],
-    ["G2", ["g2.com"]],
-    ["Capterra", ["capterra.com"]],
-    ["Yotpo", ["yotpo.com"]],
-    ["Judge.me", ["judge.me"]],
-    ["Loox", ["loox.io"]],
-    ["Stamped.io", ["stamped.io"]],
-    ["Bazaarvoice", ["bazaarvoice.com"]],
-    ["Feefo", ["feefo.com"]],
-    ["Reviews.io", ["reviews.io"]],
-    ["ProveSource", ["provesrc.com"]],
-    ["FOMO", ["fomo.com"]],
-    ["Proof", ["useproof.com"]],
-    ["TrustSwiftly", ["trustswiftly.com"]],
-  ];
-  for (const [name, sigs] of proofChecks) {
-    if (sigs.some(s => lc.includes(s))) socialProof.push({ name, confidence: "medium" });
-  }
-
-  // SEO & Content tools
-  const seoTools: { name: string; confidence: string }[] = [];
-  const seoChecks: [string, string[]][] = [
-    ["Yoast SEO", ["yoast", "yoast-schema"]],
-    ["Rank Math", ["rankmath"]],
-    ["All in One SEO", ["aioseo"]],
-    ["SEMrush", ["semrush.com"]],
-    ["Ahrefs", ["ahrefs.com"]],
-    ["Schema Pro", ["schema-pro"]],
-    ["Elementor", ["elementor"]],
-    ["Divi", ["divi", "et-boc"]],
-    ["Gutenberg", ["wp-block-"]],
-    ["ContentSquare", ["contentsquare.com"]],
-    ["Cookiebot", ["cookiebot.com"]],
-    ["OneTrust", ["onetrust.com", "optanon"]],
-    ["CookieYes", ["cookieyes.com"]],
-    ["Iubenda", ["iubenda.com"]],
-    ["Termly", ["termly.io"]],
-  ];
-  for (const [name, sigs] of seoChecks) {
-    if (sigs.some(s => lc.includes(s))) seoTools.push({ name, confidence: "medium" });
-  }
-
-  // Project Management / Productivity (embedded links)
-  const productivity: { name: string; confidence: string }[] = [];
-  const prodChecks: [string, string[]][] = [
-    ["Notion", ["notion.so", "notion.com"]],
-    ["Airtable", ["airtable.com"]],
-    ["Slack", ["slack.com"]],
-    ["Discord", ["discord.com", "discord.gg"]],
-    ["Trello", ["trello.com"]],
-    ["Asana", ["asana.com"]],
-    ["Linear", ["linear.app"]],
-    ["ClickUp", ["clickup.com"]],
-    ["Miro", ["miro.com"]],
-    ["Figma", ["figma.com"]],
-    ["Canva", ["canva.com"]],
-  ];
-  for (const [name, sigs] of prodChecks) {
-    if (sigs.some(s => lc.includes(s))) productivity.push({ name, confidence: "medium" });
-  }
-
-  // Social Media Integrations (SDKs, embeds, share buttons, login)
-  const socialMedia: { name: string; confidence: string }[] = [];
-  const socialChecks: [string, string[]][] = [
-    ["Facebook SDK", ["connect.facebook.net", "fb-root", "facebook-jssdk", "fb.init"]],
-    ["Facebook Login", ["facebook.com/dialog/oauth", "fb-login", "login/facebook"]],
-    ["Facebook Share", ["facebook.com/sharer", "fb-share"]],
-    ["Instagram Embed", ["instagram.com/embed", "instgrm.Embeds"]],
-    ["Instagram API", ["graph.instagram.com", "instagram-api"]],
-    ["Twitter/X Embed", ["platform.twitter.com/widgets", "twitter-timeline", "twitter-tweet"]],
-    ["Twitter/X Share", ["twitter.com/intent/tweet", "twitter.com/share"]],
-    ["TikTok Embed", ["tiktok.com/embed", "tiktok-embed"]],
-    ["TikTok SDK", ["analytics.tiktok.com"]],
-    ["YouTube Embed", ["youtube.com/embed", "youtube-nocookie.com"]],
-    ["YouTube API", ["youtube.googleapis.com"]],
-    ["LinkedIn Share", ["linkedin.com/shareArticle", "in/share"]],
-    ["LinkedIn SDK", ["platform.linkedin.com"]],
-    ["Pinterest Widget", ["assets.pinterest.com/js/pinit", "pinterest.com/pin/create"]],
-    ["Reddit Embed", ["embed.reddit.com"]],
-    ["Discord Widget", ["discord.com/widget", "discordapp.com/widget"]],
-    ["Telegram Widget", ["telegram.org/js/telegram-widget"]],
-    ["WhatsApp Share", ["api.whatsapp.com", "wa.me"]],
-    ["Snapchat Embed", ["snapkit.com", "snap-connected"]],
-    ["Threads Share", ["threads.net"]],
-    ["Bluesky", ["bsky.app", "atproto"]],
-    ["Tumblr Share", ["tumblr.com/share", "tumblr.com/widgets"]],
-    ["Twitch Embed", ["player.twitch.tv", "embed.twitch.tv"]],
-    ["Spotify Embed", ["open.spotify.com/embed"]],
-    ["SoundCloud Embed", ["w.soundcloud.com/player"]],
-    ["ShareThis", ["sharethis.com", "platform-api.sharethis.com"]],
-    ["AddThis", ["addthis.com", "addthiscdn.com"]],
-    ["Google Sign-In", ["accounts.google.com/gsi", "google-signin", "g_id_onload"]],
-    ["Apple Sign-In", ["appleid.apple.com"]],
-    ["GitHub Login", ["github.com/login/oauth"]],
-  ];
-  for (const [name, sigs] of socialChecks) {
-    const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) socialMedia.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
-  }
-
-  // Backend Providers (BaaS, Databases, Serverless, Auth, Infra)
-  const backendProviders: { name: string; confidence: string }[] = [];
-  const backendChecks: [string, string[]][] = [
-    ["Supabase", ["supabase.co", "supabase.com", "supabase-js", "supabase/functions"]],
-    ["Firebase", ["firebase.google.com", "firebaseio.com", "firebaseapp.com", "gstatic.com/firebasejs"]],
-    ["Google Cloud", ["cloudfunctions.net", "run.app", "gcp", "storage.googleapis.com"]],
-    ["AWS", ["amazonaws.com", "execute-api", "lambda-url", "aws-amplify", "amplifyapp.com"]],
-    ["Azure", ["azurewebsites.net", "azure-api.net", "azureedge.net"]],
-    ["Cloudflare Workers", ["workers.dev", "cloudflareworkers.com", "cloudflare"]],
-    ["Vercel Functions", ["vercel.app", "vercel.com", "x-vercel-id"]],
-    ["Netlify Functions", ["netlify.app", "netlify.com", "/.netlify/functions/"]],
-    ["Render", ["onrender.com", "render.com"]],
-    ["Railway", ["railway.app", "railway"]],
-    ["Fly.io", ["fly.dev", "fly.io"]],
-    ["Heroku", ["herokuapp.com", "heroku"]],
-    ["Appwrite", ["appwrite.io", "appwrite"]],
-    ["Nhost", ["nhost.io", "nhost.run"]],
-    ["PocketBase", ["pocketbase", "pb_public", "pb.collection"]],
-    ["Parse Server", ["parse-server", "parseplatform"]],
-    ["Hasura", ["hasura.io", "hasura.app", "x-hasura"]],
-    ["Convex", ["convex.dev", "convex.cloud", "convex.site"]],
-    ["Neon", ["neon.tech", "neon.database"]],
-    ["PlanetScale", ["planetscale.com", "psdb.cloud"]],
-    ["Upstash", ["upstash.com", "upstash.io"]],
-    ["Turso", ["turso.io", "libsql"]],
-    ["Xata", ["xata.io"]],
-    ["MongoDB Atlas", ["mongodb.net", "atlas.mongodb.com", "realm.mongodb.com"]],
-    ["Prisma", ["prisma.io", "prismagraphql", "@prisma/client"]],
-    ["Redis Cloud", ["redis.com", "redislabs.com"]],
-    ["Sanity", ["sanity.io", "cdn.sanity.io"]],
-    ["Contentful", ["contentful.com", "ctfassets.net"]],
-    ["Strapi", ["strapi.io", "strapi"]],
-    ["Storyblok", ["storyblok.com"]],
-    ["Builder.io", ["builder.io", "cdn.builder.io"]],
-    ["Algolia", ["algolia.com", "algolianet.com", "algoliasearch"]],
-    ["Clerk", ["clerk.com", "clerk.dev"]],
-    ["Auth0", ["auth0.com", "auth0-"]],
-    ["Okta", ["okta.com"]],
-    ["Stytch", ["stytch.com"]],
-  ];
-  for (const [name, sigs] of backendChecks) {
-    const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) backendProviders.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
-  }
-
-  const database = backendProviders;
-
-  // AI & ML Tools
-  const aiTools: { name: string; confidence: string }[] = [];
-  const aiChecks: [string, string[]][] = [
-    ["OpenAI/ChatGPT", ["openai.com", "api.openai.com"]],
-    ["Anthropic/Claude", ["anthropic.com"]],
-    ["Google AI/Gemini", ["generativelanguage.googleapis.com"]],
-    ["Replicate", ["replicate.com", "replicate.delivery"]],
-    ["Hugging Face", ["huggingface.co"]],
-    ["ElevenLabs", ["elevenlabs.io"]],
-    ["Deepgram", ["deepgram.com"]],
-    ["Jasper AI", ["jasper.ai"]],
-    ["Synthesia", ["synthesia.io"]],
-    ["Algolia AI", ["algolia.com"]],
-    ["Pinecone", ["pinecone.io"]],
-  ];
-  for (const [name, sigs] of aiChecks) {
-    const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) aiTools.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
-  }
-
-  // Affiliate & Referral
-  const affiliate: { name: string; confidence: string }[] = [];
-  const affChecks: [string, string[]][] = [
-    ["ReferralCandy", ["referralcandy.com"]],
-    ["PartnerStack", ["partnerstack.com"]],
-    ["Impact", ["impact.com", "impactradius.com"]],
-    ["CJ Affiliate", ["cj.com"]],
-    ["ShareASale", ["shareasale.com"]],
-    ["Awin", ["awin.com", "awin1.com"]],
-    ["Refersion", ["refersion.com"]],
-    ["Tapfiliate", ["tapfiliate.com"]],
-    ["FirstPromoter", ["firstpromoter.com"]],
-    ["Rewardful", ["rewardful.com"]],
-  ];
-  for (const [name, sigs] of affChecks) {
-    if (sigs.some(s => lc.includes(s))) affiliate.push({ name, confidence: "medium" });
-  }
-
-  // Personalization & A/B Testing
-  const personalization: { name: string; confidence: string }[] = [];
-  const persChecks: [string, string[]][] = [
-    ["Optimizely", ["optimizely.com"]],
-    ["VWO", ["visualwebsiteoptimizer.com", "vwo_"]],
-    ["AB Tasty", ["abtasty.com"]],
-    ["LaunchDarkly", ["launchdarkly.com"]],
-    ["Statsig", ["statsig.com"]],
-    ["GrowthBook", ["growthbook.io"]],
-    ["Dynamic Yield", ["dynamicyield.com"]],
-    ["Nosto", ["nosto.com"]],
-  ];
-  for (const [name, sigs] of persChecks) {
-    if (sigs.some(s => lc.includes(s))) personalization.push({ name, confidence: "medium" });
-  }
-
-  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity, socialMedia, backendProviders, database, aiTools, affiliate, personalization };
-}
-
-function extractMetadata(html: string, url: string, securityHeaders: Record<string, string>, deepScan?: DeepScanCorpus) {
-  const lc = html.toLowerCase();
-  const title = getTag(html, "title");
-  const description = getMeta(html, "name", "description") || getMeta(html, "property", "og:description");
-  const keywords = getMeta(html, "name", "keywords");
-  const author = getMeta(html, "name", "author");
-  const robots = getMeta(html, "name", "robots");
-  const canonical = html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']*)["']/i)?.[1] || "";
-  const language = html.match(/<html[^>]*lang=["']([^"']*)["']/i)?.[1] || "";
-  const charset = html.match(/<meta[^>]*charset=["']?([^"'\s>]+)/i)?.[1] || "";
-  const viewport = getMeta(html, "name", "viewport");
-  const generator = getMeta(html, "name", "generator");
-  const themeColor = getMeta(html, "name", "theme-color");
-
-  const og = {
-    title: getMeta(html, "property", "og:title"),
-    description: getMeta(html, "property", "og:description"),
-    image: getMeta(html, "property", "og:image"),
-    url: getMeta(html, "property", "og:url"),
-    type: getMeta(html, "property", "og:type"),
-    siteName: getMeta(html, "property", "og:site_name"),
-    locale: getMeta(html, "property", "og:locale"),
-  };
-
-  const twitter = {
-    card: getMeta(html, "name", "twitter:card") || getMeta(html, "property", "twitter:card"),
-    site: getMeta(html, "name", "twitter:site") || getMeta(html, "property", "twitter:site"),
-    creator: getMeta(html, "name", "twitter:creator") || getMeta(html, "property", "twitter:creator"),
-    title: getMeta(html, "name", "twitter:title") || getMeta(html, "property", "twitter:title"),
-    description: getMeta(html, "name", "twitter:description") || getMeta(html, "property", "twitter:description"),
-    image: getMeta(html, "name", "twitter:image") || getMeta(html, "property", "twitter:image"),
-  };
-
-  const h1s = getAllMatches(html, /<h1[^>]*>([\s\S]*?)<\/h1>/gi).map(h => h.replace(/<[^>]*>/g, "").trim()).filter(Boolean);
-  const h2s = getAllMatches(html, /<h2[^>]*>([\s\S]*?)<\/h2>/gi).map(h => h.replace(/<[^>]*>/g, "").trim()).filter(Boolean);
-  const h3s = getAllMatches(html, /<h3[^>]*>([\s\S]*?)<\/h3>/gi).map(h => h.replace(/<[^>]*>/g, "").trim()).filter(Boolean);
-
-  const internalLinks: string[] = [];
-  const externalLinks: string[] = [];
-  const allAnchors = getAllMatches(html, /<a[^>]*href=["']([^"'#]+)["']/gi);
-  const domain = new URL(url).hostname;
-  for (const href of allAnchors) {
-    try {
-      const linkUrl = new URL(href, url);
-      if (linkUrl.hostname === domain || linkUrl.hostname.endsWith("." + domain)) {
-        if (!internalLinks.includes(linkUrl.href)) internalLinks.push(linkUrl.href);
-      } else {
-        if (!externalLinks.includes(linkUrl.href)) externalLinks.push(linkUrl.href);
+    for (const { u, html } of results) {
+      if (!html) continue;
+      pages.push({ url: u, html });
+      try { const h = new URL(u).hostname; if (isSameSite(rootDomain, h) && normalizeHost(h) !== normalizeHost(root.hostname)) subdomains.add(h); } catch {}
+      for (const src of safeMatch(html, /<iframe[^>]*src=["']([^"']+)["']/gi)) {
+        try { iframeSet.add(new URL(src, u).href); } catch {}
       }
-    } catch { /* skip */ }
+      if (pages.length >= MAX_PAGES) break;
+      const newLinks = extractLinks(html, u, rootDomain).filter(l => !visited.has(l));
+      queue.push(...newLinks);
+    }
+    queue = prioritize([...new Set(queue)]).slice(0, 500);
   }
 
-  const imagesWithAlt: { src: string; alt: string; hasAlt: boolean }[] = [];
-  const imgRegex = /<img[^>]*>/gi;
-  let imgMatch;
-  while ((imgMatch = imgRegex.exec(html)) !== null) {
-    const tag = imgMatch[0];
-    const src = tag.match(/src=["']([^"']+)["']/i)?.[1] || "";
-    const alt = tag.match(/alt=["']([^"']*)["']/i)?.[1] || "";
-    const hasAlt = /alt=["']/i.test(tag);
-    if (src) imagesWithAlt.push({ src, alt, hasAlt });
+  const scriptSet = new Set<string>();
+  const styleSet = new Set<string>();
+  const extLinkSet = new Set<string>();
+
+  for (const p of pages) {
+    for (const s of safeMatch(p.html, /<script[^>]*src=["']([^"']+)["']/gi)) {
+      try { const u = new URL(s, p.url); scriptSet.add(u.href); } catch {}
+    }
+    for (const h of safeMatch(p.html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi)) {
+      try { const u = new URL(h, p.url); styleSet.add(u.href); } catch {}
+    }
+    for (const h of safeMatch(p.html, /<a[^>]*href=["']([^"'#]+)["']/gi)) {
+      try { const u = new URL(h, p.url); if (!isSameSite(rootDomain, u.hostname)) extLinkSet.add(u.href); } catch {}
+    }
   }
 
-  const scripts = getAllMatches(html, /<script[^>]*src=["']([^"']+)["']/gi).slice(0, 50);
-  const stylesheets = getAllMatches(html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi).slice(0, 30);
-  const inlineScriptCount = (html.match(/<script[^>]*>[\s\S]*?<\/script>/gi) || []).length;
-  const inlineStyleCount = (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).length;
+  // Fetch same-site JS bundles for deeper signature detection
+  const sameScripts = [...scriptSet].filter(s => { try { return isSameSite(rootDomain, new URL(s).hostname); } catch { return false; } }).slice(0, 15);
+  const jsBodies = (await Promise.all(sameScripts.map(s => safeFetchText(s, 5000, 200_000)))).filter(Boolean);
 
-  const hasServiceWorker = html.includes("serviceWorker") || html.includes("service-worker");
-  const hasManifest = /<link[^>]*rel=["']manifest["']/i.test(html);
-  const hasPreconnect = /<link[^>]*rel=["']preconnect["']/i.test(html);
-  const hasPreload = /<link[^>]*rel=["']preload["']/i.test(html);
-  const hasDeferScripts = /<script[^>]*defer/i.test(html);
-  const hasAsyncScripts = /<script[^>]*async/i.test(html);
-  const hasLazyImages = /loading=["']lazy["']/i.test(html);
-  const hasResponsiveImages = /srcset=["']/i.test(html);
-  const hasWebP = /\.webp/i.test(html);
-  const hasAVIF = /\.avif/i.test(html);
-
-  const jsonLdBlocks = getAllMatches(html, /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
-  const structuredData = jsonLdBlocks.map(b => { try { return JSON.parse(b); } catch { return null; } }).filter(Boolean);
-
-  const socialPatterns: Record<string, RegExp> = {
-    facebook: /facebook\.com\/[^"'\s)]+/gi,
-    twitter: /(?:twitter|x)\.com\/[^"'\s)]+/gi,
-    instagram: /instagram\.com\/[^"'\s)]+/gi,
-    linkedin: /linkedin\.com\/[^"'\s)]+/gi,
-    youtube: /youtube\.com\/[^"'\s)]+/gi,
-    tiktok: /tiktok\.com\/@[^"'\s)]+/gi,
-    pinterest: /pinterest\.com\/[^"'\s)]+/gi,
-    github: /github\.com\/[^"'\s)]+/gi,
-    reddit: /reddit\.com\/[^"'\s)]+/gi,
-    discord: /discord\.gg\/[^"'\s)]+/gi,
-    telegram: /t\.me\/[^"'\s)]+/gi,
-    whatsapp: /wa\.me\/[^"'\s)]+/gi,
-    snapchat: /snapchat\.com\/add\/[^"'\s)]+/gi,
-    threads: /threads\.net\/@[^"'\s)]+/gi,
-    mastodon: /mastodon\.[^"'\s)]+\/@[^"'\s)]+/gi,
-  };
-  const socialLinks: Record<string, string[]> = {};
-  for (const [platform, regex] of Object.entries(socialPatterns)) {
-    const matches = [...new Set(html.match(regex) || [])].map(m => m.startsWith("http") ? m : `https://${m}`);
-    if (matches.length) socialLinks[platform] = matches.slice(0, 5);
-  }
-
-  // iFrames
-  const iframes = getAllMatches(html, /<iframe[^>]*src=["']([^"']+)["']/gi).slice(0, 30);
-
-  // Detect platforms using deep multi-page corpus when available
-  const detectionHtml = deepScan?.combinedHtml || html;
-  const detectionScripts = deepScan?.combinedScripts?.length ? deepScan.combinedScripts : scripts;
-  const detectionStylesheets = deepScan?.combinedStylesheets?.length ? deepScan.combinedStylesheets : stylesheets;
-  const detectionExternalLinks = deepScan?.combinedExternalLinks?.length ? deepScan.combinedExternalLinks : externalLinks;
-  const detectionIframes = deepScan?.combinedIframes?.length ? deepScan.combinedIframes : iframes;
-  const detectedPlatforms = detectPlatforms(detectionHtml, detectionScripts, detectionStylesheets, detectionExternalLinks, detectionIframes);
-
-  // Accessibility checks
-  const formCount = (html.match(/<form/gi) || []).length;
-  const inputsWithLabels = (html.match(/<label/gi) || []).length;
-  const ariaCount = (html.match(/aria-/gi) || []).length;
-  const roleCount = (html.match(/role=["']/gi) || []).length;
-  const tabIndexCount = (html.match(/tabindex/gi) || []).length;
-  const hasSkipNav = /skip.*(nav|content|main)/i.test(html);
-  const hasFocusStyles = /focus/i.test(html);
-
-  // Font detection
-  const googleFonts = [...new Set(getAllMatches(html, /fonts\.googleapis\.com\/css2?\?family=([^"'&]+)/gi))];
-  const customFonts = [...new Set(getAllMatches(html, /font-family:\s*['"]?([^;'"]+)/gi))].slice(0, 10);
-  const adobeFonts = html.includes("use.typekit.net") || html.includes("adobe");
-
-  // Text content
-  const textContent = html
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-  const wordCount = textContent.split(/\s+/).filter(Boolean).length;
-
-  // Phone numbers & emails on page
-  const phoneNumbers = [...new Set(textContent.match(/(?:\+?\d{1,4}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,4}/g) || [])].slice(0, 5);
-  const emailAddresses = [...new Set(html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [])].slice(0, 10);
-
-  // SEO score
-  let seoScore = 0;
-  if (title) seoScore += 10;
-  if (title.length >= 30 && title.length <= 60) seoScore += 5;
-  if (description) seoScore += 10;
-  if (description.length >= 120 && description.length <= 160) seoScore += 5;
-  if (h1s.length === 1) seoScore += 10; else if (h1s.length > 1) seoScore += 3;
-  if (canonical) seoScore += 5;
-  if (og.title && og.description && og.image) seoScore += 10;
-  if (twitter.card) seoScore += 5;
-  if (structuredData.length > 0) seoScore += 10;
-  if (viewport) seoScore += 5;
-  if (hasLazyImages) seoScore += 5;
-  if (language) seoScore += 5;
-  if (robots && !robots.includes("noindex")) seoScore += 5;
-  if (hasResponsiveImages) seoScore += 3;
-  if (hasWebP || hasAVIF) seoScore += 2;
-  if (imagesWithAlt.length > 0) {
-    const altRatio = imagesWithAlt.filter(i => i.hasAlt && i.alt).length / imagesWithAlt.length;
-    seoScore += Math.round(altRatio * 10);
-  }
-
-  const pageSizeKB = Math.round(new TextEncoder().encode(html).length / 1024);
-  const round2 = (n: number) => Math.round(n * 100) / 100;
-
-  const anchorTags = html.match(/<a\b[^>]*>/gi) || [];
-  const metaTags = html.match(/<meta\b[^>]*>/gi) || [];
-  const tagMatches = [...html.matchAll(/<([a-zA-Z][a-zA-Z0-9-]*)(\s|>|\/)/g)].map(m => m[1].toLowerCase());
-  const uniqueTagCount = new Set(tagMatches).size;
-  const totalTagCount = tagMatches.length;
-  const scriptTags = html.match(/<script\b[^>]*>/gi) || [];
-  const inlineScriptTags = scriptTags.filter(t => !/\ssrc\s*=|^<script[^>]*src=/i.test(t));
-  const externalScriptTags = scriptTags.filter(t => /\ssrc\s*=|^<script[^>]*src=/i.test(t));
-  const styleTags = html.match(/<style\b[^>]*>/gi) || [];
-  const deferScriptCount = scriptTags.filter(t => /\sdefer(\s|>|=)/i.test(t)).length;
-  const asyncScriptCount = scriptTags.filter(t => /\sasync(\s|>|=)/i.test(t)).length;
-  const moduleScriptCount = scriptTags.filter(t => /type=["']module["']/i.test(t)).length;
-
-  const imageTags = html.match(/<img\b[^>]*>/gi) || [];
-  const lazyImageCount = imageTags.filter(t => /loading=["']lazy["']/i.test(t)).length;
-  const responsiveImageCount = imageTags.filter(t => /srcset=["']/i.test(t)).length;
-  const imageWithWidthHeightCount = imageTags.filter(t => /\swidth=["']/i.test(t) && /\sheight=["']/i.test(t)).length;
-  const pictureTagCount = (html.match(/<picture\b/gi) || []).length;
-  const sourceTagCount = (html.match(/<source\b/gi) || []).length;
-  const videoTagCount = (html.match(/<video\b/gi) || []).length;
-  const audioTagCount = (html.match(/<audio\b/gi) || []).length;
-  const embedTagCount = (html.match(/<embed\b/gi) || []).length;
-  const svgTagCount = (html.match(/<svg\b/gi) || []).length;
-
-  const headingCount = h1s.length + h2s.length + h3s.length;
-  const headingDepthScore = round2((h1s.length * 3) + (h2s.length * 2) + h3s.length);
-
-  const keywordList = keywords
-    ? keywords.split(",").map(k => k.trim()).filter(Boolean)
-    : [];
-
-  const keywordWordCount = keywordList.reduce((acc, item) => acc + item.split(/\s+/).filter(Boolean).length, 0);
-  const sentenceCount = textContent.split(/[.!?]+/).map(s => s.trim()).filter(Boolean).length;
-  const words = textContent.split(/\s+/).filter(Boolean);
-  const uniqueWords = new Set(words.map(w => w.toLowerCase()));
-  const longWordCount = words.filter(w => w.replace(/[^a-zA-Z]/g, "").length >= 8).length;
-  const paragraphCount = (html.match(/<p\b/gi) || []).length;
-  const listItemCount = (html.match(/<li\b/gi) || []).length;
-  const tableCount = (html.match(/<table\b/gi) || []).length;
-  const blockquoteCount = (html.match(/<blockquote\b/gi) || []).length;
-
-  const mailtoLinkCount = allAnchors.filter(h => /^mailto:/i.test(h)).length;
-  const telLinkCount = allAnchors.filter(h => /^tel:/i.test(h)).length;
-  const javascriptLinkCount = allAnchors.filter(h => /^javascript:/i.test(h)).length;
-  const fragmentLinkCount = (html.match(/<a[^>]*href=["']#[^"']*["']/gi) || []).length;
-  const nofollowLinkCount = anchorTags.filter(t => /rel=["'][^"']*nofollow/i.test(t)).length;
-  const noopenerLinkCount = anchorTags.filter(t => /rel=["'][^"']*noopener/i.test(t)).length;
-  const noreferrerLinkCount = anchorTags.filter(t => /rel=["'][^"']*noreferrer/i.test(t)).length;
-  const targetBlankCount = anchorTags.filter(t => /target=["']_blank["']/i.test(t)).length;
-
-  const externalDomains = new Set(
-    externalLinks
-      .map(link => {
-        try { return new URL(link).hostname; } catch { return ""; }
-      })
-      .filter(Boolean)
-  );
-
-  const ogMetaCount = (html.match(/<meta[^>]*(property|name)=["']og:/gi) || []).length;
-  const twitterMetaCount = (html.match(/<meta[^>]*(property|name)=["']twitter:/gi) || []).length;
-  const canonicalCount = (html.match(/<link[^>]*rel=["']canonical["']/gi) || []).length;
-  const hreflangCount = (html.match(/<link[^>]*hreflang=["']/gi) || []).length;
-  const alternateLinkCount = (html.match(/<link[^>]*rel=["']alternate["']/gi) || []).length;
-  const faviconCount = (html.match(/<link[^>]*rel=["'][^"']*icon[^"']*["']/gi) || []).length;
-  const rssFeedCount = (html.match(/<link[^>]*type=["']application\/(rss|atom)\+xml["']/gi) || []).length;
-  const ampLinkCount = (html.match(/<link[^>]*rel=["']amphtml["']/gi) || []).length;
-  const sitemapMentionCount = ((html.match(/sitemap\.xml/gi) || []).length + (robots.match(/sitemap/i) ? 1 : 0));
-
-  const mainCount = (html.match(/<main\b/gi) || []).length;
-  const navCount = (html.match(/<nav\b/gi) || []).length;
-  const headerCount = (html.match(/<header\b/gi) || []).length;
-  const footerCount = (html.match(/<footer\b/gi) || []).length;
-  const asideCount = (html.match(/<aside\b/gi) || []).length;
-  const buttonCount = (html.match(/<button\b/gi) || []).length;
-  const inputCount = (html.match(/<input\b/gi) || []).length;
-  const selectCount = (html.match(/<select\b/gi) || []).length;
-  const textareaCount = (html.match(/<textarea\b/gi) || []).length;
-  const ariaLabelCount = (html.match(/aria-label=["']/gi) || []).length;
-  const ariaDescribedByCount = (html.match(/aria-describedby=["']/gi) || []).length;
-  const altAttributeCount = (html.match(/\salt=["']/gi) || []).length;
-  const headingHierarchyIssues = (h1s.length === 0 ? 1 : 0) + (h1s.length > 1 ? 1 : 0);
-
-  const platformCategoryCount = Object.values(detectedPlatforms).filter(v => Array.isArray(v) && v.length > 0).length;
-  const totalPlatformDetections = Object.values(detectedPlatforms).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
-
-  const boolToNumber = (value: boolean) => (value ? 1 : 0);
-  const secureHeadersPresent = [
-    securityHeaders?.strictTransportSecurity && securityHeaders.strictTransportSecurity !== "",
-    securityHeaders?.contentSecurityPolicy === "Present",
-    (securityHeaders?.xFrameOptions || "") !== "Missing",
-    (securityHeaders?.xContentTypeOptions || "") !== "Missing",
-    (securityHeaders?.referrerPolicy || "") !== "Missing",
-    securityHeaders?.permissionsPolicy === "Present",
-  ].filter(Boolean).length;
-
-
-  // Build screenshot URL using free public screenshot API
-  const screenshotUrl = `https://image.thum.io/get/width/1280/crop/720/noanimate/${encodeURIComponent(url)}`;
-
-  // Curated advanced metrics - only the most important visual ones grouped by category
-  const curatedMetrics = {
-    contentQuality: {
-      label: "Content Quality",
-      items: {
-        "Word Count": wordCount,
-        "Reading Time": `${round2(wordCount / 200)} min`,
-        "Sentences": sentenceCount,
-        "Paragraphs": paragraphCount,
-        "Unique Word Ratio": `${round2(wordCount ? (uniqueWords.size / wordCount) * 100 : 0)}%`,
-        "Text/HTML Ratio": `${round2(html.length ? (textContent.length / html.length) * 100 : 0)}%`,
-        "Content Density": `${round2(pageSizeKB ? wordCount / pageSizeKB : 0)} words/KB`,
-      },
-    },
-    seoSignals: {
-      label: "SEO Signals",
-      items: {
-        "Title Length": `${title.length}/60`,
-        "Description Length": `${description.length}/160`,
-        "H1 Tags": h1s.length,
-        "H2 Tags": h2s.length,
-        "Canonical": canonicalCount > 0 ? "✓" : "✗",
-        "Hreflang Tags": hreflangCount,
-        "JSON-LD Blocks": structuredData.length,
-        "RSS/Atom Feeds": rssFeedCount,
-        "Sitemap Reference": sitemapMentionCount > 0 ? "✓" : "✗",
-      },
-    },
-    mediaAssets: {
-      label: "Media & Assets",
-      items: {
-        "Total Images": imageTags.length,
-        "Alt Coverage": `${round2(imageTags.length ? (imagesWithAlt.filter(i => i.hasAlt && i.alt).length / imageTags.length) * 100 : 0)}%`,
-        "Lazy Loaded": `${lazyImageCount}/${imageTags.length}`,
-        "Responsive (srcset)": responsiveImageCount,
-        "WebP Used": hasWebP ? "✓" : "✗",
-        "AVIF Used": hasAVIF ? "✓" : "✗",
-        "Videos": videoTagCount,
-        "SVG Elements": svgTagCount,
-        "iFrames": iframes.length,
-      },
-    },
-    techStack: {
-      label: "Tech Stack",
-      items: {
-        "External Scripts": externalScriptTags.length,
-        "Inline Scripts": inlineScriptTags.length,
-        "Stylesheets": stylesheets.length,
-        "Module Scripts": moduleScriptCount,
-        "Page Size": `${pageSizeKB} KB`,
-        "SPA Framework": (lc.includes("__next") || lc.includes("__nuxt") || lc.includes("__gatsby") || lc.includes("__react") || lc.includes("__vue")) ? "✓" : "✗",
-        "PWA Ready": (hasServiceWorker && hasManifest) ? "✓" : "✗",
-        "GraphQL": lc.includes("graphql") ? "✓" : "✗",
-        "WebSocket": (lc.includes("websocket") || lc.includes("wss://")) ? "✓" : "✗",
-      },
-    },
-    monetization: {
-      label: "Monetization & Commerce",
-      items: {
-        "Payment Providers": detectedPlatforms.payments.length,
-        "E-commerce Platforms": detectedPlatforms.ecommerce.length,
-        "Checkout Flow": (lc.includes("checkout") || lc.includes("cart") || lc.includes("add-to-cart")) ? "✓" : "✗",
-        "Subscription UI": (lc.includes("subscription") || lc.includes("recurring") || lc.includes("monthly")) ? "✓" : "✗",
-        "Free Trial": (lc.includes("free trial") || lc.includes("free-trial") || lc.includes("start free")) ? "✓" : "✗",
-        "Price Points Found": (html.match(/[\$€£]\s?\d+[\.,]?\d{0,2}/g) || []).length,
-        "Pricing Page": (lc.includes("pricing") || lc.includes("plans")) ? "✓" : "✗",
-        "Ad Networks": detectedPlatforms.ads.length,
-        "Affiliate Tools": detectedPlatforms.affiliate.length,
-      },
-    },
-    uxFeatures: {
-      label: "UX & Features",
-      items: {
-        "Dark Mode": (lc.includes("dark-mode") || lc.includes("theme-toggle") || lc.includes("color-scheme")) ? "✓" : "✗",
-        "Search Bar": (lc.includes("search") && (lc.includes('type="search"') || lc.includes("search-input"))) ? "✓" : "✗",
-        "Live Chat": detectedPlatforms.support.length > 0 ? "✓" : "✗",
-        "Newsletter Signup": (lc.includes("newsletter") || lc.includes("subscribe") || lc.includes("mailing-list")) ? "✓" : "✗",
-        "Cookie Consent": (lc.includes("cookie") && (lc.includes("consent") || lc.includes("gdpr"))) ? "✓" : "✗",
-        "FAQ Section": (lc.includes("faq") || lc.includes("frequently-asked")) ? "✓" : "✗",
-        "Testimonials": (lc.includes("testimonial") || lc.includes("review") || lc.includes("client-says")) ? "✓" : "✗",
-        "Blog": (lc.includes("/blog") || lc.includes("blog-post")) ? "✓" : "✗",
-        "i18n Support": (hreflangCount > 0 || lc.includes("i18n") || lc.includes("intl")) ? "✓" : "✗",
-      },
-    },
-    linkProfile: {
-      label: "Link Profile",
-      items: {
-        "Internal Links": internalLinks.length,
-        "External Links": externalLinks.length,
-        "External Domains": externalDomains.size,
-        "Nofollow Links": nofollowLinkCount,
-        "Target Blank": targetBlankCount,
-        "Mailto Links": mailtoLinkCount,
-        "Tel Links": telLinkCount,
-        "Social Platforms Linked": Object.keys(socialLinks).length,
-      },
-    },
-    securityScore: {
-      label: "Security & Privacy",
-      items: {
-        "HTTPS": url.startsWith("https://") ? "✓" : "✗",
-        "HSTS": (securityHeaders?.strictTransportSecurity && securityHeaders.strictTransportSecurity !== "") ? "✓" : "✗",
-        "CSP": securityHeaders?.contentSecurityPolicy === "Present" ? "✓" : "✗",
-        "X-Frame-Options": (securityHeaders?.xFrameOptions || "") !== "Missing" ? "✓" : "✗",
-        "Referrer Policy": (securityHeaders?.referrerPolicy || "") !== "Missing" ? "✓" : "✗",
-        "Permissions Policy": securityHeaders?.permissionsPolicy === "Present" ? "✓" : "✗",
-        "Security Headers": `${secureHeadersPresent}/6`,
-      },
-    },
-  };
+  const combined = pages.map(p => p.html).join("\n<!-- page -->\n") + "\n" + jsBodies.join("\n");
 
   return {
-    basic: { title, description, keywords, author, robots, canonical, language, charset, viewport, generator, themeColor },
-    openGraph: og,
-    twitterCard: twitter,
-    headings: { h1: h1s, h2: h2s, h3: h3s },
-    links: { internal: internalLinks.slice(0, 50), external: externalLinks.slice(0, 50), totalInternal: internalLinks.length, totalExternal: externalLinks.length },
-    images: { total: imagesWithAlt.length, withAlt: imagesWithAlt.filter(i => i.hasAlt && i.alt).length, withoutAlt: imagesWithAlt.filter(i => !i.hasAlt || !i.alt).length, samples: imagesWithAlt.slice(0, 15) },
-    scripts: { external: scripts, inlineCount: inlineScriptCount, stylesheets, inlineStyleCount },
-    performance: { hasServiceWorker, hasManifest, hasPreconnect, hasPreload, hasDeferScripts, hasAsyncScripts, hasLazyImages, hasResponsiveImages, hasWebP, hasAVIF, pageSizeKB },
-    structuredData,
-    socialLinks,
-    detectedPlatforms,
-    screenshotUrl,
-    scanCoverage: {
-      pagesScanned: deepScan?.pagesScanned || 1,
-      scannedUrls: (deepScan?.scannedUrls || [url]).slice(0, 30),
-      sitemapUrlsFound: deepScan?.sitemapUrls?.length || 0,
-      sitemapSample: (deepScan?.sitemapUrls || []).slice(0, 20),
-      subdomainsFound: deepScan?.subdomainsFound || [],
-    },
-    accessibility: { formCount, inputsWithLabels, ariaCount, roleCount, tabIndexCount, hasSkipNav, hasFocusStyles },
-    fonts: { googleFonts, customFonts, adobeFonts },
-    iframes,
-    contactInfo: { phoneNumbers, emailAddresses },
-    content: { wordCount, textPreview: textContent.slice(0, 500) },
-    curatedMetrics,
-    seoScore: Math.min(seoScore, 100),
+    combined,
+    scripts: [...scriptSet].slice(0, 200),
+    stylesheets: [...styleSet].slice(0, 100),
+    externalLinks: [...extLinkSet].slice(0, 400),
+    iframes: [...iframeSet].slice(0, 100),
+    scannedUrls: pages.map(p => p.url).slice(0, 80),
+    pages: pages.length,
+    sitemapUrls: smResult.urls.slice(0, 200),
+    subdomains: [...subdomains].slice(0, 25),
   };
 }
 
+// ─── Sensitive file exposure probing ──────────────
+async function probeSensitiveFiles(startUrl: string, rootDomain: string, knownSubs: string[]) {
+  const hosts = [...new Set([normalizeHost(new URL(startUrl).hostname), normalizeHost(rootDomain), `www.${normalizeHost(rootDomain)}`, ...knownSubs.map(normalizeHost)])].filter(h => isSameSite(rootDomain, h)).slice(0, 6);
+  const probes = hosts.flatMap(h => SENSITIVE_PATHS.map(p => ({ url: `https://${h}${p}`, path: p, host: h })));
+
+  const findings: { url: string; path: string; host: string; status: number; exposed: boolean; snippet: string }[] = [];
+
+  for (let i = 0; i < probes.length; i += 8) {
+    const batch = probes.slice(i, i + 8);
+    await Promise.all(batch.map(async probe => {
+      try {
+        const r = await safeFetch(probe.url, 4000);
+        if (!r) return;
+        const body = r.ok ? (await r.text()).slice(0, 3000) : "";
+        const lc = body.toLowerCase();
+
+        // Determine if actually exposed vs error page
+        const isHtmlError = lc.includes("<html") || lc.includes("access denied") || lc.includes("forbidden") || lc.includes("not found") || lc.includes("404");
+        const looksReal = !isHtmlError && body.length > 5 && (
+          /^[A-Z_]+=.*/m.test(body) ||  // .env pattern
+          /rewriteengine|authname|deny from|allow from/i.test(body) || // .htaccess
+          /\[core\]|\[remote/i.test(body) || // .git/config
+          /ref:/i.test(body) // .git/HEAD
+        );
+
+        findings.push({
+          url: r.url || probe.url,
+          path: probe.path,
+          host: probe.host,
+          status: r.status,
+          exposed: r.ok && looksReal,
+          snippet: looksReal ? body.slice(0, 500).replace(/[^\x20-\x7E\n\r]/g, "") : "",
+        });
+      } catch {}
+    }));
+  }
+
+  return {
+    totalChecked: findings.length,
+    exposedFiles: findings.filter(f => f.exposed),
+    allChecks: findings.map(f => ({ path: f.path, host: f.host, status: f.status, exposed: f.exposed })),
+  };
+}
+
+// ─── Enhanced header-based tech detection ─────────
+function detectFromHeaders(headers: Headers): { name: string; source: string }[] {
+  const detected: { name: string; source: string }[] = [];
+  const h = (name: string) => (headers.get(name) || "").toLowerCase();
+
+  // Server header
+  const server = h("server");
+  if (server.includes("cloudflare")) detected.push({ name: "Cloudflare", source: "server" });
+  if (server.includes("nginx")) detected.push({ name: "Nginx", source: "server" });
+  if (server.includes("apache")) detected.push({ name: "Apache", source: "server" });
+  if (server.includes("vercel")) detected.push({ name: "Vercel", source: "server" });
+  if (server.includes("netlify")) detected.push({ name: "Netlify", source: "server" });
+  if (server.includes("github.com")) detected.push({ name: "GitHub Pages", source: "server" });
+  if (server.includes("deno")) detected.push({ name: "Deno Deploy", source: "server" });
+
+  // X-Powered-By
+  const xpb = h("x-powered-by");
+  if (xpb.includes("express")) detected.push({ name: "Express.js", source: "x-powered-by" });
+  if (xpb.includes("next")) detected.push({ name: "Next.js", source: "x-powered-by" });
+  if (xpb.includes("php")) detected.push({ name: "PHP", source: "x-powered-by" });
+  if (xpb.includes("asp.net")) detected.push({ name: "ASP.NET", source: "x-powered-by" });
+  if (xpb.includes("wp engine")) detected.push({ name: "WP Engine", source: "x-powered-by" });
+
+  // Specific headers
+  if (h("x-vercel-id")) detected.push({ name: "Vercel", source: "x-vercel-id" });
+  if (h("x-amz-cf-id") || h("x-amz-request-id")) detected.push({ name: "AWS", source: "header" });
+  if (h("cf-ray")) detected.push({ name: "Cloudflare", source: "cf-ray" });
+  if (h("x-shopify-stage")) detected.push({ name: "Shopify", source: "header" });
+  if (h("x-wix-request-id")) detected.push({ name: "Wix", source: "header" });
+  if (h("x-bubble-perf")) detected.push({ name: "Bubble", source: "header" });
+  if (h("x-squarespace-version")) detected.push({ name: "Squarespace", source: "header" });
+  if (h("x-github-request-id")) detected.push({ name: "GitHub", source: "header" });
+  if (h("fly-request-id")) detected.push({ name: "Fly.io", source: "header" });
+  if (h("x-railway-request-id")) detected.push({ name: "Railway", source: "header" });
+  if (h("x-render-origin-server")) detected.push({ name: "Render", source: "header" });
+
+  // Cookies / Set-Cookie for payment platforms
+  const setCookie = (headers.get("set-cookie") || "").toLowerCase();
+  if (setCookie.includes("__stripe")) detected.push({ name: "Stripe", source: "cookie" });
+  if (setCookie.includes("_shopify")) detected.push({ name: "Shopify", source: "cookie" });
+  if (setCookie.includes("wordpress") || setCookie.includes("wp-")) detected.push({ name: "WordPress", source: "cookie" });
+
+  return detected;
+}
+
+// ─── Platform detection (signature-based) ─────────
+function detectPlatforms(corpus: string, scripts: string[], stylesheets: string[], extLinks: string[], iframes: string[]) {
+  const all = (corpus + " " + scripts.join(" ") + " " + stylesheets.join(" ") + " " + extLinks.join(" ") + " " + iframes.join(" ")).toLowerCase();
+
+  type Category = { name: string; confidence: string }[];
+  const detect = (checks: [string, string[]][]): Category => {
+    const results: Category = [];
+    for (const [name, sigs] of checks) {
+      try {
+        const matched = sigs.filter(s => all.includes(s));
+        if (matched.length > 0) results.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+      } catch {}
+    }
+    return results;
+  };
+
+  const crm = detect([
+    ["Salesforce", ["salesforce.com", "force.com", "pardot"]], ["HubSpot", ["hubspot.com", "hs-scripts.com", "hbspt"]],
+    ["Zoho CRM", ["zoho.com/crm", "zsalesiq"]], ["Pipedrive", ["pipedrive.com"]], ["Freshsales", ["freshsales.io", "freshworks.com"]],
+    ["Monday CRM", ["monday.com"]], ["Copper CRM", ["copper.com"]], ["ActiveCampaign", ["activecampaign.com", "trackcmp.net"]],
+    ["Close CRM", ["close.com"]], ["Zendesk Sell", ["zendesk.com/sell"]], ["Bitrix24", ["bitrix24"]],
+    ["Microsoft Dynamics", ["dynamics.com", "dynamics365"]], ["Keap/Infusionsoft", ["keap.com", "infusionsoft"]],
+    ["Agile CRM", ["agilecrm.com"]], ["Capsule CRM", ["capsulecrm.com"]], ["Insightly", ["insightly.com"]],
+  ]);
+
+  const payments = detect([
+    ["Stripe", ["stripe.com", "js.stripe.com", "stripe-js", "stripe.js", "stripe_", "__stripe"]],
+    ["PayPal", ["paypal.com", "paypalobjects.com", "paypal-"]], ["Square", ["squareup.com", "square.site"]],
+    ["Braintree", ["braintreegateway.com", "braintree-web"]], ["Adyen", ["adyen.com", "adyencheckout"]],
+    ["Klarna", ["klarna.com", "klarna-"]], ["Afterpay", ["afterpay.com"]], ["Affirm", ["affirm.com"]],
+    ["Apple Pay", ["apple-pay", "applepay"]], ["Google Pay", ["google-pay", "googlepay", "gpay"]],
+    ["Amazon Pay", ["amazonpay", "payments.amazon"]], ["Razorpay", ["razorpay.com", "razorpay"]],
+    ["Mollie", ["mollie.com"]], ["2Checkout/Verifone", ["2checkout.com", "verifone.com"]],
+    ["Authorize.net", ["authorize.net"]], ["Paddle", ["paddle.com", "paddle.js", "cdn.paddle.com", "vendors.paddle.com"]],
+    ["Lemon Squeezy", ["lemonsqueezy.com", "lmsqueezy", "lemon-squeezy", "store.lemonsqueezy.com", "lemonsqueezy"]],
+    ["Polar.sh", ["polar.sh", "api.polar.sh", "sandbox-api.polar.sh", "checkout.polar.sh", "sandbox-checkout.polar.sh", "@polar-sh", "polar-checkout", "polar_sh", "polar_customer", "polar_checkout", "polar_access_token", "/v1/checkouts", "customer-sessions", "benefit_grant", "polar_webhook", "polar.sh/", "polar-", "polarsource"]],
+    ["Gumroad", ["gumroad.com"]], ["Chargebee", ["chargebee.com"]], ["Recurly", ["recurly.com"]],
+    ["FastSpring", ["fastspring.com"]], ["Wise", ["wise.com"]], ["Venmo", ["venmo.com"]], ["Cash App", ["cash.app"]],
+    ["Sezzle", ["sezzle.com"]], ["Zip/QuadPay", ["zip.co", "quadpay.com"]],
+    ["Coinbase Commerce", ["commerce.coinbase.com"]], ["BitPay", ["bitpay.com"]],
+    ["Crypto.com Pay", ["pay.crypto.com"]], ["Cryptomus", ["cryptomus.com"]], ["NOWPayments", ["nowpayments.io"]],
+    ["CoinGate", ["coingate.com"]], ["BTCPay Server", ["btcpayserver"]], ["Plisio", ["plisio.net"]],
+    ["CoinPayments", ["coinpayments.net"]], ["Binance Pay", ["pay.binance.com"]],
+    ["MoonPay", ["moonpay.com"]], ["Transak", ["transak.com"]], ["OpenNode", ["opennode.com"]],
+    ["Patreon", ["patreon.com"]], ["Buy Me a Coffee", ["buymeacoffee.com"]], ["Ko-fi", ["ko-fi.com"]],
+    ["Flutterwave", ["flutterwave.com"]], ["Paystack", ["paystack.com"]], ["Worldpay", ["worldpay.com"]],
+    ["Checkout.com", ["checkout.com/js"]], ["GoCardless", ["gocardless.com"]], ["Skrill", ["skrill.com"]],
+    ["ThriveCart", ["thrivecart.com"]], ["SamCart", ["samcart.com"]], ["SendOwl", ["sendowl.com"]],
+    ["Payhip", ["payhip.com"]], ["Whop", ["whop.com"]], ["RevenueCat", ["revenuecat.com"]],
+    ["Zuora", ["zuora.com"]], ["Chargify/Maxio", ["chargify.com", "maxio.com"]],
+    ["Plaid", ["plaid.com", "cdn.plaid.com"]], ["Bolt", ["bolt.com/checkout"]],
+    ["Shopify Payments", ["shopify.com/payments"]], ["Printful", ["printful.com"]], ["Printify", ["printify.com"]],
+  ]);
+
+  const analytics = detect([
+    ["Google Analytics", ["gtag(", "googletagmanager.com", "google-analytics.com"]], ["Google Tag Manager", ["googletagmanager.com/gtm", "GTM-"]],
+    ["Meta Pixel", ["fbq(", "facebook.net/en_US/fbevents"]], ["TikTok Pixel", ["analytics.tiktok.com", "ttq.load"]],
+    ["Hotjar", ["hotjar.com"]], ["Mixpanel", ["mixpanel.com"]], ["Amplitude", ["amplitude.com"]],
+    ["Segment", ["segment.com", "cdn.segment.com"]], ["Heap", ["heap-analytics"]], ["FullStory", ["fullstory.com"]],
+    ["Clarity", ["clarity.ms"]], ["PostHog", ["posthog.com"]], ["Plausible", ["plausible.io"]],
+    ["Fathom", ["usefathom.com"]], ["Matomo", ["matomo"]], ["Snap Pixel", ["sc-static.net/scevent"]],
+    ["Pinterest Tag", ["pintrk"]], ["LinkedIn Insight", ["snap.licdn.com"]], ["Twitter Pixel", ["static.ads-twitter.com"]],
+    ["Reddit Pixel", ["alb.reddit.com"]], ["Pendo", ["pendo.io"]], ["Mouseflow", ["mouseflow.com"]],
+    ["Lucky Orange", ["luckyorange.com"]], ["Crazy Egg", ["crazyegg.com"]], ["VWO", ["visualwebsiteoptimizer.com"]],
+  ]);
+
+  const marketing = detect([
+    ["Mailchimp", ["mailchimp.com", "chimpstatic.com"]], ["Klaviyo", ["klaviyo.com"]], ["SendGrid", ["sendgrid.net"]],
+    ["ConvertKit", ["convertkit.com"]], ["Drip", ["getdrip.com"]], ["Omnisend", ["omnisend.com"]],
+    ["Brevo/Sendinblue", ["brevo.com", "sendinblue.com"]], ["Beehiiv", ["beehiiv.com"]],
+    ["Substack", ["substack.com"]], ["MailerLite", ["mailerlite.com"]], ["Customer.io", ["customer.io"]],
+    ["AWeber", ["aweber.com"]], ["GetResponse", ["getresponse.com"]], ["Campaign Monitor", ["createsend.com"]],
+    ["Moosend", ["moosend.com"]], ["Constant Contact", ["constantcontact.com"]], ["Mailgun", ["mailgun.com"]],
+  ]);
+
+  const support = detect([
+    ["Intercom", ["intercom.com", "intercomcdn.com"]], ["Zendesk", ["zendesk.com", "zdassets.com"]],
+    ["Drift", ["drift.com"]], ["Crisp", ["crisp.chat"]], ["LiveChat", ["livechatinc.com"]],
+    ["Tawk.to", ["tawk.to"]], ["Freshdesk", ["freshdesk.com"]], ["HelpScout", ["helpscout.net"]],
+    ["Tidio", ["tidio.co"]], ["Gorgias", ["gorgias.chat"]], ["Chatwoot", ["chatwoot.com"]],
+    ["Olark", ["olark.com"]], ["Front", ["frontapp.com"]], ["Kommunicate", ["kommunicate.io"]],
+  ]);
+
+  const ecommerce = detect([
+    ["Shopify", ["cdn.shopify.com", "myshopify.com", "shopify-buy"]], ["WooCommerce", ["woocommerce", "wc-ajax"]],
+    ["Magento", ["magento.com", "mage/cookies", "Magento_"]], ["BigCommerce", ["bigcommerce.com"]],
+    ["Squarespace", ["static1.squarespace.com"]], ["Wix", ["wix.com", "parastorage.com"]],
+    ["PrestaShop", ["prestashop"]], ["Ecwid", ["ecwid.com"]], ["Snipcart", ["snipcart.com"]],
+    ["Medusa", ["medusajs.com"]], ["Saleor", ["saleor.io"]], ["Shopware", ["shopware.com"]],
+    ["Kajabi", ["kajabi.com"]], ["Teachable", ["teachable.com"]], ["Podia", ["podia.com"]],
+    ["Gumroad", ["gumroad.com"]], ["Lemon Squeezy Store", ["lemonsqueezy.com"]],
+    ["Polar Store", ["polar.sh"]], ["Whop", ["whop.com"]], ["Fourthwall", ["fourthwall.com"]],
+    ["Spring", ["spri.ng", "teespring.com"]], ["Sellfy", ["sellfy.com"]],
+    ["Lightspeed", ["lightspeedhq.com"]], ["Square Online", ["square.site"]],
+    ["Webflow Ecommerce", ["webflow.com/ecommerce"]], ["Etsy", ["etsy.com"]],
+  ]);
+
+  const hosting = detect([
+    ["Cloudflare", ["cloudflare.com", "cdnjs.cloudflare.com", "cf-ray"]], ["AWS CloudFront", ["cloudfront.net", "amazonaws.com"]],
+    ["Vercel", ["vercel.app"]], ["Netlify", ["netlify.app"]], ["Fastly", ["fastly.net"]],
+    ["Akamai", ["akamaized.net"]], ["Google Cloud CDN", ["storage.googleapis.com"]],
+    ["DigitalOcean", ["digitaloceanspaces.com"]], ["Heroku", ["herokuapp.com"]],
+    ["Render", ["onrender.com"]], ["Railway", ["railway.app"]], ["Fly.io", ["fly.dev"]],
+    ["Firebase Hosting", ["firebaseapp.com", "web.app"]], ["GitHub Pages", ["github.io"]],
+    ["Bunny CDN", ["b-cdn.net"]], ["Deno Deploy", ["deno.dev"]],
+    ["Surge", ["surge.sh"]], ["StackPath", ["stackpathdns.com"]],
+  ]);
+
+  const frameworks = detect([
+    ["React", ["react", "reactdom", "__REACT"]], ["Vue.js", ["vue.js", "__VUE"]], ["Angular", ["angular", "ng-version"]],
+    ["Next.js", ["__NEXT_DATA__", "_next/"]], ["Nuxt", ["__NUXT__", "_nuxt/"]], ["Svelte", ["svelte"]],
+    ["Gatsby", ["gatsby", "__gatsby"]], ["Remix", ["remix.run"]], ["Astro", ["astro.build"]],
+    ["WordPress", ["wp-content", "wp-includes"]], ["Drupal", ["drupal"]], ["Ghost", ["ghost.org"]],
+    ["Webflow", ["webflow.com", "wf-"]], ["Framer", ["framer.com", "framerusercontent"]],
+    ["Bubble", ["bubble.io"]], ["Carrd", ["carrd.co"]], ["Tailwind CSS", ["tailwind", "tailwindcss"]],
+    ["Bootstrap", ["bootstrap.min"]], ["Material UI", ["mui.com"]], ["jQuery", ["jquery.min"]],
+    ["Alpine.js", ["alpinejs", "x-data"]], ["HTMX", ["htmx.org", "hx-"]],
+    ["ClickFunnels", ["clickfunnels.com"]], ["Leadpages", ["leadpages.com"]],
+    ["Unbounce", ["unbounce.com"]], ["Instapage", ["instapage.com"]],
+  ]);
+
+  const ads = detect([
+    ["Google Ads", ["googleads.g.doubleclick", "googlesyndication"]], ["Google AdSense", ["pagead2.googlesyndication", "adsbygoogle"]],
+    ["Amazon Ads", ["amazon-adsystem.com"]], ["Taboola", ["taboola.com"]], ["Outbrain", ["outbrain.com"]],
+    ["Criteo", ["criteo.com"]], ["AdRoll", ["adroll.com"]], ["MediaVine", ["mediavine.com"]],
+    ["Carbon Ads", ["carbonads.com"]], ["BuySellAds", ["buysellads.com"]],
+  ]);
+
+  const security = detect([
+    ["reCAPTCHA", ["recaptcha"]], ["hCaptcha", ["hcaptcha.com"]], ["Cloudflare Turnstile", ["challenges.cloudflare.com"]],
+    ["Auth0", ["auth0.com"]], ["Firebase Auth", ["firebaseauth"]], ["Supabase Auth", ["supabase.co/auth"]],
+    ["Okta", ["okta.com"]], ["Clerk", ["clerk.com"]], ["Stytch", ["stytch.com"]],
+    ["Sentry", ["sentry.io"]], ["Datadog", ["datadoghq.com"]], ["New Relic", ["newrelic.com"]],
+    ["LogRocket", ["logrocket.com"]], ["Bugsnag", ["bugsnag.com"]], ["Rollbar", ["rollbar.com"]],
+    ["AWS Cognito", ["cognito-idp"]],
+  ]);
+
+  const scheduling = detect([
+    ["Calendly", ["calendly.com"]], ["Cal.com", ["cal.com"]], ["Acuity", ["acuityscheduling.com"]],
+    ["HoneyBook", ["honeybook.com"]], ["Dubsado", ["dubsado.com"]],
+  ]);
+
+  const forms = detect([
+    ["Typeform", ["typeform.com"]], ["JotForm", ["jotform.com"]], ["Google Forms", ["docs.google.com/forms"]],
+    ["Tally", ["tally.so"]], ["Formspree", ["formspree.io"]], ["SurveyMonkey", ["surveymonkey.com"]],
+  ]);
+
+  const engagement = detect([
+    ["OneSignal", ["onesignal.com"]], ["Pusher", ["pusher.com"]], ["Beamer", ["getbeamer.com"]],
+    ["Appcues", ["appcues.com"]], ["UserPilot", ["userpilot.com"]], ["WalkMe", ["walkme.com"]],
+    ["Loom", ["loom.com"]], ["Wistia", ["wistia.com"]], ["Vimeo", ["vimeo.com"]],
+  ]);
+
+  const socialProof = detect([
+    ["Trustpilot", ["trustpilot.com"]], ["G2", ["g2.com"]], ["Capterra", ["capterra.com"]],
+    ["Yotpo", ["yotpo.com"]], ["Judge.me", ["judge.me"]], ["Loox", ["loox.io"]],
+    ["ProveSource", ["provesrc.com"]], ["FOMO", ["fomo.com"]], ["Reviews.io", ["reviews.io"]],
+  ]);
+
+  const seoTools = detect([
+    ["Yoast SEO", ["yoast"]], ["Rank Math", ["rankmath"]], ["Elementor", ["elementor"]],
+    ["Cookiebot", ["cookiebot.com"]], ["OneTrust", ["onetrust.com"]], ["CookieYes", ["cookieyes.com"]],
+    ["Iubenda", ["iubenda.com"]], ["Termly", ["termly.io"]],
+  ]);
+
+  const productivity = detect([
+    ["Notion", ["notion.so"]], ["Airtable", ["airtable.com"]], ["Slack", ["slack.com"]],
+    ["Discord", ["discord.com"]], ["Linear", ["linear.app"]], ["Figma", ["figma.com"]], ["Canva", ["canva.com"]],
+  ]);
+
+  const socialMedia = detect([
+    ["Facebook SDK", ["connect.facebook.net", "fb-root"]], ["Instagram Embed", ["instagram.com/embed"]],
+    ["Twitter/X Embed", ["platform.twitter.com"]], ["TikTok Embed", ["tiktok.com/embed"]],
+    ["YouTube Embed", ["youtube.com/embed"]], ["LinkedIn SDK", ["platform.linkedin.com"]],
+    ["Pinterest Widget", ["assets.pinterest.com"]], ["Discord Widget", ["discord.com/widget"]],
+    ["Telegram Widget", ["telegram.org/js"]], ["WhatsApp Share", ["api.whatsapp.com", "wa.me"]],
+    ["Threads", ["threads.net"]], ["Bluesky", ["bsky.app"]], ["Twitch Embed", ["player.twitch.tv"]],
+    ["Spotify Embed", ["open.spotify.com/embed"]], ["Google Sign-In", ["accounts.google.com/gsi"]],
+    ["Apple Sign-In", ["appleid.apple.com"]], ["GitHub Login", ["github.com/login/oauth"]],
+    ["ShareThis", ["sharethis.com"]], ["AddThis", ["addthis.com"]],
+  ]);
+
+  const backendProviders = detect([
+    ["Supabase", ["supabase.co", "supabase.com", "supabase-js"]], ["Firebase", ["firebaseio.com", "firebaseapp.com", "gstatic.com/firebasejs"]],
+    ["Google Cloud", ["cloudfunctions.net", "run.app", "storage.googleapis.com"]], ["AWS", ["amazonaws.com", "execute-api", "amplifyapp.com"]],
+    ["Azure", ["azurewebsites.net", "azure-api.net"]], ["Cloudflare Workers", ["workers.dev"]],
+    ["Vercel Functions", ["vercel.app"]], ["Netlify Functions", ["/.netlify/functions/"]],
+    ["Render", ["onrender.com"]], ["Railway", ["railway.app"]], ["Fly.io", ["fly.dev"]],
+    ["Heroku", ["herokuapp.com"]], ["Appwrite", ["appwrite.io"]], ["Nhost", ["nhost.io"]],
+    ["PocketBase", ["pocketbase"]], ["Hasura", ["hasura.io", "x-hasura"]], ["Convex", ["convex.dev"]],
+    ["Neon", ["neon.tech"]], ["PlanetScale", ["planetscale.com"]], ["Upstash", ["upstash.com"]],
+    ["Turso", ["turso.io"]], ["MongoDB Atlas", ["mongodb.net"]], ["Redis Cloud", ["redis.com"]],
+    ["Sanity", ["sanity.io", "cdn.sanity.io"]], ["Contentful", ["contentful.com", "ctfassets.net"]],
+    ["Strapi", ["strapi.io"]], ["Storyblok", ["storyblok.com"]], ["Builder.io", ["builder.io"]],
+    ["Algolia", ["algolia.com", "algoliasearch"]], ["Clerk", ["clerk.com"]], ["Auth0", ["auth0.com"]],
+    ["Prisma", ["prisma.io"]], ["Xata", ["xata.io"]], ["Deno Deploy", ["deno.dev"]],
+  ]);
+
+  const aiTools = detect([
+    ["OpenAI/ChatGPT", ["openai.com", "api.openai.com"]], ["Anthropic/Claude", ["anthropic.com"]],
+    ["Google AI/Gemini", ["generativelanguage.googleapis.com"]], ["Replicate", ["replicate.com"]],
+    ["Hugging Face", ["huggingface.co"]], ["ElevenLabs", ["elevenlabs.io"]],
+    ["Deepgram", ["deepgram.com"]], ["Pinecone", ["pinecone.io"]], ["Cohere", ["cohere.ai"]],
+    ["Stability AI", ["stability.ai"]], ["Midjourney", ["midjourney.com"]],
+  ]);
+
+  const affiliate = detect([
+    ["PartnerStack", ["partnerstack.com"]], ["Impact", ["impact.com"]], ["ShareASale", ["shareasale.com"]],
+    ["Awin", ["awin.com"]], ["Refersion", ["refersion.com"]], ["Tapfiliate", ["tapfiliate.com"]],
+    ["FirstPromoter", ["firstpromoter.com"]], ["Rewardful", ["rewardful.com"]],
+  ]);
+
+  const personalization = detect([
+    ["Optimizely", ["optimizely.com"]], ["LaunchDarkly", ["launchdarkly.com"]],
+    ["Statsig", ["statsig.com"]], ["GrowthBook", ["growthbook.io"]], ["AB Tasty", ["abtasty.com"]],
+  ]);
+
+  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity, socialMedia, backendProviders, database: backendProviders, aiTools, affiliate, personalization };
+}
+
+// ─── Metadata extraction ──────────────────────────
+function extractMetadata(html: string, url: string, secHeaders: Record<string, string>, headerTech: { name: string; source: string }[], deep?: DeepCorpus) {
+  try {
+    const title = getTag(html, "title");
+    const description = getMeta(html, "name", "description") || getMeta(html, "property", "og:description");
+    const keywords = getMeta(html, "name", "keywords");
+    const author = getMeta(html, "name", "author");
+    const robots = getMeta(html, "name", "robots");
+    const canonical = html.match(/<link[^>]*rel=["']canonical["'][^>]*href=["']([^"']*)["']/i)?.[1] || "";
+    const language = html.match(/<html[^>]*lang=["']([^"']*)["']/i)?.[1] || "";
+    const viewport = getMeta(html, "name", "viewport");
+    const generator = getMeta(html, "name", "generator");
+    const themeColor = getMeta(html, "name", "theme-color");
+    const charset = html.match(/<meta[^>]*charset=["']?([^"'\s>]+)/i)?.[1] || "";
+
+    const og = {
+      title: getMeta(html, "property", "og:title"), description: getMeta(html, "property", "og:description"),
+      image: getMeta(html, "property", "og:image"), url: getMeta(html, "property", "og:url"),
+      type: getMeta(html, "property", "og:type"), siteName: getMeta(html, "property", "og:site_name"),
+      locale: getMeta(html, "property", "og:locale"),
+    };
+
+    const twitter = {
+      card: getMeta(html, "name", "twitter:card") || getMeta(html, "property", "twitter:card"),
+      site: getMeta(html, "name", "twitter:site") || getMeta(html, "property", "twitter:site"),
+      creator: getMeta(html, "name", "twitter:creator") || getMeta(html, "property", "twitter:creator"),
+      title: getMeta(html, "name", "twitter:title") || getMeta(html, "property", "twitter:title"),
+      description: getMeta(html, "name", "twitter:description") || getMeta(html, "property", "twitter:description"),
+      image: getMeta(html, "name", "twitter:image") || getMeta(html, "property", "twitter:image"),
+    };
+
+    const h1s = safeMatch(html, /<h1[^>]*>([\s\S]*?)<\/h1>/gi).map(h => h.replace(/<[^>]*>/g, "").trim()).filter(Boolean);
+    const h2s = safeMatch(html, /<h2[^>]*>([\s\S]*?)<\/h2>/gi).map(h => h.replace(/<[^>]*>/g, "").trim()).filter(Boolean);
+    const h3s = safeMatch(html, /<h3[^>]*>([\s\S]*?)<\/h3>/gi).map(h => h.replace(/<[^>]*>/g, "").trim()).filter(Boolean);
+
+    const domain = new URL(url).hostname;
+    const allAnchors = safeMatch(html, /<a[^>]*href=["']([^"'#]+)["']/gi);
+    const internalLinks: string[] = [];
+    const externalLinks: string[] = [];
+    for (const href of allAnchors) {
+      try {
+        const u = new URL(href, url);
+        if (u.hostname === domain || u.hostname.endsWith("." + domain)) { if (!internalLinks.includes(u.href)) internalLinks.push(u.href); }
+        else { if (!externalLinks.includes(u.href)) externalLinks.push(u.href); }
+      } catch {}
+    }
+
+    const imagesWithAlt: { src: string; alt: string; hasAlt: boolean }[] = [];
+    for (const tag of safeMatch(html, /<img[^>]*>/gi)) {
+      const src = tag.match(/src=["']([^"']+)["']/i)?.[1] || "";
+      const alt = tag.match(/alt=["']([^"']*)["']/i)?.[1] || "";
+      const hasAlt = /alt=["']/i.test(tag);
+      if (src) imagesWithAlt.push({ src, alt, hasAlt });
+    }
+
+    const scripts = safeMatch(html, /<script[^>]*src=["']([^"']+)["']/gi).slice(0, 50);
+    const stylesheets = safeMatch(html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi).slice(0, 30);
+    const iframes = safeMatch(html, /<iframe[^>]*src=["']([^"']+)["']/gi).slice(0, 30);
+
+    const lc = html.toLowerCase();
+    const hasServiceWorker = lc.includes("serviceworker");
+    const hasManifest = /<link[^>]*rel=["']manifest["']/i.test(html);
+    const hasPreconnect = /<link[^>]*rel=["']preconnect["']/i.test(html);
+    const hasPreload = /<link[^>]*rel=["']preload["']/i.test(html);
+    const hasDeferScripts = /<script[^>]*defer/i.test(html);
+    const hasAsyncScripts = /<script[^>]*async/i.test(html);
+    const hasLazyImages = /loading=["']lazy["']/i.test(html);
+    const hasResponsiveImages = /srcset=["']/i.test(html);
+    const hasWebP = /\.webp/i.test(html);
+    const hasAVIF = /\.avif/i.test(html);
+
+    const jsonLdBlocks = safeMatch(html, /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    const structuredData = jsonLdBlocks.map(b => { try { return JSON.parse(b); } catch { return null; } }).filter(Boolean);
+
+    const socialPatterns: Record<string, RegExp> = {
+      facebook: /facebook\.com\/[^"'\s)]+/gi, twitter: /(?:twitter|x)\.com\/[^"'\s)]+/gi,
+      instagram: /instagram\.com\/[^"'\s)]+/gi, linkedin: /linkedin\.com\/[^"'\s)]+/gi,
+      youtube: /youtube\.com\/[^"'\s)]+/gi, tiktok: /tiktok\.com\/@[^"'\s)]+/gi,
+      pinterest: /pinterest\.com\/[^"'\s)]+/gi, github: /github\.com\/[^"'\s)]+/gi,
+      reddit: /reddit\.com\/[^"'\s)]+/gi, discord: /discord\.gg\/[^"'\s)]+/gi,
+      telegram: /t\.me\/[^"'\s)]+/gi, whatsapp: /wa\.me\/[^"'\s)]+/gi,
+      threads: /threads\.net\/@[^"'\s)]+/gi, mastodon: /mastodon\.[^"'\s)]+\/@[^"'\s)]+/gi,
+      bluesky: /bsky\.app\/profile\/[^"'\s)]+/gi,
+    };
+    const socialLinks: Record<string, string[]> = {};
+    for (const [platform, regex] of Object.entries(socialPatterns)) {
+      try {
+        const matches = [...new Set(html.match(regex) || [])].map(m => m.startsWith("http") ? m : `https://${m}`);
+        if (matches.length) socialLinks[platform] = matches.slice(0, 5);
+      } catch {}
+    }
+
+    // Detection using deep corpus
+    const dHtml = deep?.combined || html;
+    const dScripts = deep?.scripts?.length ? deep.scripts : scripts;
+    const dStyles = deep?.stylesheets?.length ? deep.stylesheets : stylesheets;
+    const dExtLinks = deep?.externalLinks?.length ? deep.externalLinks : externalLinks;
+    const dIframes = deep?.iframes?.length ? deep.iframes : iframes;
+    const detectedPlatforms = detectPlatforms(dHtml, dScripts, dStyles, dExtLinks, dIframes);
+
+    // Merge header-based detections
+    if (headerTech.length > 0) {
+      for (const ht of headerTech) {
+        // Add to hosting if not already
+        const allNames = [...detectedPlatforms.hosting, ...detectedPlatforms.frameworks, ...detectedPlatforms.backendProviders].map(p => p.name.toLowerCase());
+        if (!allNames.includes(ht.name.toLowerCase())) {
+          detectedPlatforms.hosting.push({ name: `${ht.name} (via ${ht.source})`, confidence: "high" });
+        }
+      }
+    }
+
+    // Accessibility
+    const formCount = (html.match(/<form/gi) || []).length;
+    const inputsWithLabels = (html.match(/<label/gi) || []).length;
+    const ariaCount = (html.match(/aria-/gi) || []).length;
+    const roleCount = (html.match(/role=["']/gi) || []).length;
+    const tabIndexCount = (html.match(/tabindex/gi) || []).length;
+    const hasSkipNav = /skip.*(nav|content|main)/i.test(html);
+    const hasFocusStyles = /focus/i.test(html);
+
+    // Fonts
+    const googleFonts = [...new Set(safeMatch(html, /fonts\.googleapis\.com\/css2?\?family=([^"'&]+)/gi))];
+    const customFonts = [...new Set(safeMatch(html, /font-family:\s*['"]?([^;'"]+)/gi))].slice(0, 10);
+    const adobeFonts = lc.includes("use.typekit.net");
+
+    // Text
+    const textContent = html.replace(/<script[\s\S]*?<\/script>/gi, "").replace(/<style[\s\S]*?<\/style>/gi, "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    const wordCount = textContent.split(/\s+/).filter(Boolean).length;
+    const phoneNumbers = [...new Set(textContent.match(/(?:\+?\d{1,4}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,4}/g) || [])].slice(0, 5);
+    const emailAddresses = [...new Set(html.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) || [])].slice(0, 10);
+
+    // SEO score
+    let seoScore = 0;
+    if (title) seoScore += 10;
+    if (title.length >= 30 && title.length <= 60) seoScore += 5;
+    if (description) seoScore += 10;
+    if (description.length >= 120 && description.length <= 160) seoScore += 5;
+    if (h1s.length === 1) seoScore += 10; else if (h1s.length > 1) seoScore += 3;
+    if (canonical) seoScore += 5;
+    if (og.title && og.description && og.image) seoScore += 10;
+    if (twitter.card) seoScore += 5;
+    if (structuredData.length > 0) seoScore += 10;
+    if (viewport) seoScore += 5;
+    if (hasLazyImages) seoScore += 5;
+    if (language) seoScore += 5;
+    if (robots && !robots.includes("noindex")) seoScore += 5;
+    if (hasResponsiveImages) seoScore += 3;
+    if (hasWebP || hasAVIF) seoScore += 2;
+    if (imagesWithAlt.length > 0) {
+      const altRatio = imagesWithAlt.filter(i => i.hasAlt && i.alt).length / imagesWithAlt.length;
+      seoScore += Math.round(altRatio * 10);
+    }
+
+    const pageSizeKB = Math.round(new TextEncoder().encode(html).length / 1024);
+    const r2 = (n: number) => Math.round(n * 100) / 100;
+
+    const imageTags = html.match(/<img\b[^>]*>/gi) || [];
+    const lazyImageCount = imageTags.filter(t => /loading=["']lazy["']/i.test(t)).length;
+    const responsiveImageCount = imageTags.filter(t => /srcset=["']/i.test(t)).length;
+    const videoTagCount = (html.match(/<video\b/gi) || []).length;
+    const svgTagCount = (html.match(/<svg\b/gi) || []).length;
+    const scriptTags = html.match(/<script\b[^>]*>/gi) || [];
+    const inlineScriptTags = scriptTags.filter(t => !/\ssrc\s*=/i.test(t));
+    const externalScriptTags = scriptTags.filter(t => /\ssrc\s*=/i.test(t));
+    const moduleScriptCount = scriptTags.filter(t => /type=["']module["']/i.test(t)).length;
+    const sentenceCount = textContent.split(/[.!?]+/).filter(s => s.trim()).length;
+    const uniqueWords = new Set(textContent.split(/\s+/).map(w => w.toLowerCase()));
+    const canonicalCount = (html.match(/<link[^>]*rel=["']canonical["']/gi) || []).length;
+    const hreflangCount = (html.match(/<link[^>]*hreflang=["']/gi) || []).length;
+    const rssFeedCount = (html.match(/<link[^>]*type=["']application\/(rss|atom)\+xml["']/gi) || []).length;
+
+    const secureHeadersPresent = [
+      secHeaders?.strictTransportSecurity !== "", secHeaders?.contentSecurityPolicy === "Present",
+      (secHeaders?.xFrameOptions || "") !== "Missing", (secHeaders?.xContentTypeOptions || "") !== "Missing",
+      (secHeaders?.referrerPolicy || "") !== "Missing", secHeaders?.permissionsPolicy === "Present",
+    ].filter(Boolean).length;
+
+    const screenshotUrl = `https://image.thum.io/get/width/1280/crop/720/noanimate/${encodeURIComponent(url)}`;
+
+    const curatedMetrics = {
+      contentQuality: {
+        label: "Content Quality",
+        items: {
+          "Word Count": wordCount, "Reading Time": `${r2(wordCount / 200)} min`, "Sentences": sentenceCount,
+          "Unique Word Ratio": `${r2(wordCount ? (uniqueWords.size / wordCount) * 100 : 0)}%`,
+          "Text/HTML Ratio": `${r2(html.length ? (textContent.length / html.length) * 100 : 0)}%`,
+        },
+      },
+      seoSignals: {
+        label: "SEO Signals",
+        items: {
+          "Title Length": `${title.length}/60`, "Description Length": `${description.length}/160`,
+          "H1 Tags": h1s.length, "H2 Tags": h2s.length, "Canonical": canonicalCount > 0 ? "✓" : "✗",
+          "Hreflang Tags": hreflangCount, "JSON-LD Blocks": structuredData.length, "RSS/Atom Feeds": rssFeedCount,
+        },
+      },
+      mediaAssets: {
+        label: "Media & Assets",
+        items: {
+          "Total Images": imageTags.length, "Alt Coverage": `${r2(imageTags.length ? (imagesWithAlt.filter(i => i.hasAlt && i.alt).length / imageTags.length) * 100 : 0)}%`,
+          "Lazy Loaded": `${lazyImageCount}/${imageTags.length}`, "Responsive": responsiveImageCount,
+          "WebP": hasWebP ? "✓" : "✗", "AVIF": hasAVIF ? "✓" : "✗", "Videos": videoTagCount, "SVGs": svgTagCount,
+        },
+      },
+      techStack: {
+        label: "Tech Stack",
+        items: {
+          "External Scripts": externalScriptTags.length, "Inline Scripts": inlineScriptTags.length,
+          "Stylesheets": stylesheets.length, "Module Scripts": moduleScriptCount, "Page Size": `${pageSizeKB} KB`,
+          "PWA Ready": (hasServiceWorker && hasManifest) ? "✓" : "✗",
+          "GraphQL": lc.includes("graphql") ? "✓" : "✗", "WebSocket": lc.includes("wss://") ? "✓" : "✗",
+        },
+      },
+      monetization: {
+        label: "Monetization & Commerce",
+        items: {
+          "Payment Providers": detectedPlatforms.payments.length, "E-commerce Platforms": detectedPlatforms.ecommerce.length,
+          "Checkout Flow": (lc.includes("checkout") || lc.includes("cart")) ? "✓" : "✗",
+          "Subscription UI": (lc.includes("subscription") || lc.includes("recurring")) ? "✓" : "✗",
+          "Price Points": (html.match(/[\$€£]\s?\d+[\.,]?\d{0,2}/g) || []).length,
+          "Ad Networks": detectedPlatforms.ads.length, "Affiliate Tools": detectedPlatforms.affiliate.length,
+        },
+      },
+      uxFeatures: {
+        label: "UX & Features",
+        items: {
+          "Dark Mode": (lc.includes("dark-mode") || lc.includes("theme-toggle")) ? "✓" : "✗",
+          "Live Chat": detectedPlatforms.support.length > 0 ? "✓" : "✗",
+          "Newsletter": (lc.includes("newsletter") || lc.includes("subscribe")) ? "✓" : "✗",
+          "Cookie Consent": (lc.includes("cookie") && lc.includes("consent")) ? "✓" : "✗",
+          "Blog": lc.includes("/blog") ? "✓" : "✗", "i18n": hreflangCount > 0 ? "✓" : "✗",
+        },
+      },
+      linkProfile: {
+        label: "Link Profile",
+        items: {
+          "Internal Links": internalLinks.length, "External Links": externalLinks.length,
+          "Social Platforms": Object.keys(socialLinks).length,
+        },
+      },
+      securityScore: {
+        label: "Security & Privacy",
+        items: {
+          "HTTPS": url.startsWith("https://") ? "✓" : "✗",
+          "HSTS": secHeaders?.strictTransportSecurity ? "✓" : "✗",
+          "CSP": secHeaders?.contentSecurityPolicy === "Present" ? "✓" : "✗",
+          "X-Frame-Options": (secHeaders?.xFrameOptions || "") !== "Missing" ? "✓" : "✗",
+          "Referrer Policy": (secHeaders?.referrerPolicy || "") !== "Missing" ? "✓" : "✗",
+          "Security Headers": `${secureHeadersPresent}/6`,
+        },
+      },
+    };
+
+    return {
+      basic: { title, description, keywords, author, robots, canonical, language, charset, viewport, generator, themeColor },
+      openGraph: og, twitterCard: twitter,
+      headings: { h1: h1s, h2: h2s, h3: h3s },
+      links: { internal: internalLinks.slice(0, 50), external: externalLinks.slice(0, 50), totalInternal: internalLinks.length, totalExternal: externalLinks.length },
+      images: { total: imagesWithAlt.length, withAlt: imagesWithAlt.filter(i => i.hasAlt && i.alt).length, withoutAlt: imagesWithAlt.filter(i => !i.hasAlt || !i.alt).length, samples: imagesWithAlt.slice(0, 15) },
+      scripts: { external: scripts, inlineCount: (html.match(/<script[^>]*>[\s\S]*?<\/script>/gi) || []).length, stylesheets, inlineStyleCount: (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).length },
+      performance: { hasServiceWorker, hasManifest, hasPreconnect, hasPreload, hasDeferScripts, hasAsyncScripts, hasLazyImages, hasResponsiveImages, hasWebP, hasAVIF, pageSizeKB },
+      structuredData, socialLinks, detectedPlatforms, headerTechDetections: headerTech, screenshotUrl,
+      scanCoverage: {
+        pagesScanned: deep?.pages || 1, scannedUrls: (deep?.scannedUrls || [url]).slice(0, 30),
+        sitemapUrlsFound: deep?.sitemapUrls?.length || 0, sitemapSample: (deep?.sitemapUrls || []).slice(0, 20),
+        subdomainsFound: deep?.subdomains || [],
+      },
+      accessibility: { formCount, inputsWithLabels, ariaCount, roleCount, tabIndexCount, hasSkipNav, hasFocusStyles },
+      fonts: { googleFonts, customFonts, adobeFonts }, iframes,
+      contactInfo: { phoneNumbers, emailAddresses },
+      content: { wordCount, textPreview: textContent.slice(0, 500) },
+      curatedMetrics, seoScore: Math.min(seoScore, 100),
+    };
+  } catch (e) {
+    console.error("extractMetadata error:", e);
+    return {
+      basic: {}, openGraph: {}, twitterCard: {}, headings: { h1: [], h2: [], h3: [] },
+      links: { internal: [], external: [], totalInternal: 0, totalExternal: 0 },
+      images: { total: 0, withAlt: 0, withoutAlt: 0, samples: [] },
+      scripts: { external: [], inlineCount: 0, stylesheets: [], inlineStyleCount: 0 },
+      performance: {}, structuredData: [], socialLinks: {}, detectedPlatforms: {},
+      headerTechDetections: headerTech, screenshotUrl: "", scanCoverage: {},
+      accessibility: {}, fonts: {}, iframes: [], contactInfo: {},
+      content: { wordCount: 0, textPreview: "" }, curatedMetrics: {}, seoScore: 0,
+    };
+  }
+}
+
+// ─── Main handler ─────────────────────────────────
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { url } = await req.json();
-    if (!url) throw new Error("URL is required");
+    let body: any;
+    try { body = await req.json(); } catch { return new Response(JSON.stringify({ success: false, error: "Invalid JSON body" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
+
+    const { url } = body || {};
+    if (!url || typeof url !== "string") return new Response(JSON.stringify({ success: false, error: "URL is required" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     let formattedUrl = url.trim();
-    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) {
-      formattedUrl = `https://${formattedUrl}`;
-    }
+    if (!formattedUrl.startsWith("http://") && !formattedUrl.startsWith("https://")) formattedUrl = `https://${formattedUrl}`;
 
     let parsedUrl: URL;
-    try { parsedUrl = new URL(formattedUrl); } catch { throw new Error("Invalid URL format"); }
+    try { parsedUrl = new URL(formattedUrl); } catch { return new Response(JSON.stringify({ success: false, error: "Invalid URL format" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }); }
 
     const hostname = parsedUrl.hostname;
-    if (hostname === "localhost" || hostname.startsWith("127.") || hostname.startsWith("192.168.") || hostname.startsWith("10.") || hostname === "0.0.0.0") {
-      throw new Error("Cannot scrape internal/private addresses");
+    if (["localhost", "0.0.0.0"].includes(hostname) || hostname.startsWith("127.") || hostname.startsWith("192.168.") || hostname.startsWith("10.")) {
+      return new Response(JSON.stringify({ success: false, error: "Cannot scrape internal addresses" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     console.log("Scraping:", formattedUrl);
 
-    const response = await fetch(formattedUrl, {
-      headers: SCRAPE_HEADERS,
-      redirect: "follow",
-    });
+    const response = await safeFetch(formattedUrl, 12000);
+    if (!response) return new Response(JSON.stringify({ success: false, error: "Could not reach the website (timeout or DNS failure)" }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    if (!response.ok) return new Response(JSON.stringify({ success: false, error: `Site returned HTTP ${response.status}` }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    if (!response.ok) throw new Error(`Site returned HTTP ${response.status} ${response.statusText}`);
-
-    const html = await response.text();
-    const finalUrl = response.url;
+    const html = (await response.text()).slice(0, 600_000);
+    const finalUrl = response.url || formattedUrl;
     const server = response.headers.get("server") || "";
     const xPoweredBy = response.headers.get("x-powered-by") || "";
 
@@ -1628,25 +903,41 @@ serve(async (req) => {
       permissionsPolicy: response.headers.get("permissions-policy") ? "Present" : "Missing",
     };
 
-    const deepScan = await buildDeepScanCorpus(finalUrl, html);
-    console.log(`Deep scan: ${deepScan.pagesScanned} pages, ${deepScan.sitemapUrls.length} sitemap URLs, ${deepScan.subdomainsFound.length} subdomains`);
-    const metadata = extractMetadata(html, finalUrl, securityHeaders, deepScan);
+    // Header-based tech detection
+    const headerTech = detectFromHeaders(response.headers);
+
+    // Deep scan - wrapped in try-catch for crash safety
+    let deepScan: DeepCorpus | undefined;
+    try {
+      deepScan = await buildDeepCorpus(finalUrl, html);
+      console.log(`Deep scan: ${deepScan.pages} pages, ${deepScan.sitemapUrls.length} sitemap URLs, ${deepScan.subdomains.length} subdomains`);
+    } catch (e) {
+      console.error("Deep scan failed (continuing with single page):", e);
+    }
+
+    // Sensitive file probing - wrapped in try-catch
+    let sensitiveFiles: any = { totalChecked: 0, exposedFiles: [], allChecks: [] };
+    try {
+      const rootDomain = getRegistrableDomain(new URL(finalUrl).hostname);
+      sensitiveFiles = await probeSensitiveFiles(finalUrl, rootDomain, deepScan?.subdomains || []);
+    } catch (e) {
+      console.error("Sensitive file probe failed:", e);
+    }
+
+    const metadata = extractMetadata(html, finalUrl, securityHeaders, headerTech, deepScan);
     const isHttps = finalUrl.startsWith("https://");
 
     return new Response(JSON.stringify({
-      success: true,
-      url: formattedUrl,
-      finalUrl,
+      success: true, url: formattedUrl, finalUrl,
       contentType: response.headers.get("content-type") || "",
       server: server || xPoweredBy || "Unknown",
-      isHttps,
-      securityHeaders,
+      isHttps, securityHeaders, sensitiveFiles,
       ...metadata,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e) {
     console.error("site-scraper error:", e);
     return new Response(
-      JSON.stringify({ success: false, error: e instanceof Error ? e.message : "Unknown error" }),
+      JSON.stringify({ success: false, error: e instanceof Error ? e.message : "Unknown scraper error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
