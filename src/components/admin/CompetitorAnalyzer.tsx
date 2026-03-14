@@ -588,8 +588,8 @@ Return ONLY valid JSON:
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-foreground font-heading">Competitor Analyzer</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">AI-powered competitive intelligence — track, benchmark, and outperform</p>
+          <h1 className="text-lg font-semibold text-white font-heading">Competitor Analyzer</h1>
+          <p className="text-sm text-white/50 mt-0.5">AI-powered competitive intelligence · track, benchmark, and outperform</p>
         </div>
         <CreditCostBadge cost="5-15" variant="header" label="per action" />
       </div>
