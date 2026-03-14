@@ -1878,12 +1878,13 @@ RULES:
                             const colors = categoryColors[cat.key] || categoryColors.crm;
                             const icon = categoryIcons[cat.key] || "📦";
 
-                            // Collect all URL sources
+                            // Collect all URL sources (safely coerce to arrays)
+                            const toArr = (v: unknown): string[] => Array.isArray(v) ? v : [];
                             const allUrls = [
-                              ...(scrapeResult.scripts || []),
-                              ...(scrapeResult.stylesheets || []),
-                              ...(scrapeResult.externalLinks || []),
-                              ...(scrapeResult.iframes || []),
+                              ...toArr(scrapeResult?.scripts),
+                              ...toArr(scrapeResult?.stylesheets),
+                              ...toArr(scrapeResult?.externalLinks),
+                              ...toArr(scrapeResult?.iframes),
                             ];
 
                             // Build signatures from provider names (lowercase domain-like fragments)
