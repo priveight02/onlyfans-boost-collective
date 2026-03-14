@@ -1123,11 +1123,11 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     metric_has_print_stylesheet: boolToNumber(lc.includes('media="print"')),
     metric_has_minified_assets: boolToNumber(lc.includes(".min.js") || lc.includes(".min.css")),
     metric_has_cdn_assets: boolToNumber(lc.includes("cdn.") || lc.includes("cloudfront.net") || lc.includes("cloudflare")),
-    metric_third_party_script_count: externalScriptTags.filter(t => { try { const u = new URL(t.match(/src=["']([^"']+)/i)?.[1] || "", url); return u.hostname !== domain; } catch { return false; } }).length,
-    metric_data_attribute_count: (html.match(/data-[a-z]/gi) || []).length,
-    metric_css_custom_property_count: (html.match(/--[a-z]/gi) || []).length,
+    metric_third_party_script_count: scripts.filter(s => { try { return new URL(s, url).hostname !== domain; } catch { return false; } }).length,
+    metric_data_attribute_count: (html.match(/\sdata-[a-z]/gi) || []).length,
+    metric_css_custom_property_count: (html.match(/--[a-z][a-z0-9-]*/gi) || []).length,
     metric_total_external_domains: externalDomains.size,
-    metric_dom_nesting_depth_estimate: Math.max(...html.split("\n").map(l => (l.match(/^\s*/)?.[0]?.length || 0) / 2)).toString() === "Infinity" ? 0 : Math.min(50, Math.max(...html.split("\n").slice(0, 500).map(l => (l.match(/^\s*/)?.[0]?.length || 0) / 2))),
+    metric_dom_nesting_depth_estimate: (() => { const depths = html.split("\n").slice(0, 500).map(l => (l.match(/^\s*/)?.[0]?.length || 0) / 2); return depths.length ? Math.min(50, Math.max(...depths)) : 0; })(),
   };
 
   return {
