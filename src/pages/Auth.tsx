@@ -175,7 +175,7 @@ const Auth = () => {
   return (
     <div className="flex min-h-screen">
       {/* Left Side - Full bleed image, straight edge */}
-      <div className="hidden lg:block lg:w-[38%] relative overflow-hidden">
+      <div className="hidden lg:block lg:w-[42%] relative overflow-hidden">
         <img
           src={authHeroFull}
           alt="Uplyze AI Platform"
