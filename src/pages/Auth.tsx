@@ -424,7 +424,7 @@ const Auth = () => {
                 </div>
                 <p className="text-white/25 text-xs">We'll send a one-time login link that expires after 24 hours.</p>
                 <Button type="submit" disabled={isSubmitting}
-                  className="w-full h-[52px] rounded-2xl text-sm font-semibold transition-all duration-300 hover:scale-[1.015] active:scale-[0.99]"
+                  className="w-full h-[52px] rounded-2xl text-sm font-semibold transition-all duration-300 hover:ring-2 hover:ring-purple-400/50 hover:ring-offset-2 hover:ring-offset-transparent"
                   style={{ background: "linear-gradient(135deg, hsl(262, 83%, 58%) 0%, hsl(280, 70%, 50%) 50%, hsl(262, 70%, 48%) 100%)", color: "white", boxShadow: "0 6px 24px hsla(262, 83%, 58%, 0.3), 0 1px 0 hsla(0,0%,100%,0.12) inset" }}
                 >
                   <Sparkles className="mr-2 h-4 w-4" />
