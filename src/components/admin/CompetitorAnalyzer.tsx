@@ -569,6 +569,7 @@ Return ONLY valid JSON:
     await performAction("site_scrape", async () => {
       setScrapeLoading(true);
       setScrapeResult(null);
+      setFinancialData(null);
       try {
         const { data, error } = await supabase.functions.invoke("site-scraper", {
           body: { url: scrapeUrl.trim() },
@@ -583,6 +584,116 @@ Return ONLY valid JSON:
         throw err;
       } finally {
         setScrapeLoading(false);
+      }
+    });
+  };
+
+  // ─── Financial Intelligence (AI-powered) ─────────
+  const runFinancialAnalysis = async () => {
+    if (!scrapeResult) return;
+    await performAction("competitor_insight", async () => {
+      setFinancialLoading(true);
+      try {
+        const pd = scrapeResult.pricingData || {};
+        const dp = scrapeResult.detectedPlatforms || {};
+        const socialCount = Object.keys(scrapeResult.socialLinks || {}).length;
+        const seo = scrapeResult.seoScore || 0;
+        const scanInfo = scrapeResult.scanCoverage || {};
+
+        const prompt = `You are an elite competitive intelligence and financial analyst. Analyze this website's business model and estimate financial metrics.
+
+SCRAPED DATA:
+- URL: ${scrapeResult.finalUrl || scrapeResult.url}
+- Title: ${scrapeResult.basic?.title || "Unknown"}
+- Description: ${scrapeResult.basic?.description || ""}
+- SEO Score: ${seo}/100
+- Pages Scanned: ${scanInfo.pagesScanned || 1}
+- Sitemap URLs: ${scanInfo.sitemapUrlsFound || 0}
+- Word Count: ${scrapeResult.content?.wordCount || 0}
+- Page Size: ${scrapeResult.performance?.pageSizeKB || 0}KB
+- Social Platforms: ${socialCount}
+- Payment Providers: ${JSON.stringify((dp.payments || []).map((p: any) => p.name))}
+- E-commerce: ${JSON.stringify((dp.ecommerce || []).map((p: any) => p.name))}
+- Analytics: ${JSON.stringify((dp.analytics || []).map((p: any) => p.name))}
+- Backend: ${JSON.stringify((dp.backendProviders || []).map((p: any) => p.name))}
+- CRM: ${JSON.stringify((dp.crm || []).map((p: any) => p.name))}
+- Price Points Found: ${JSON.stringify(pd.pricePoints || [])}
+- Plan Names: ${JSON.stringify(pd.planNames || [])}
+- Billing: Monthly=${pd.billingTerms?.hasMonthly}, Yearly=${pd.billingTerms?.hasYearly}, Lifetime=${pd.billingTerms?.hasLifetime}, FreeTier=${pd.billingTerms?.hasFreeTier}, Trial=${pd.billingTerms?.hasTrial}, Credits=${pd.billingTerms?.hasCredits}
+- Checkout: ${JSON.stringify(pd.checkoutSignals || {})}
+- Ads: ${JSON.stringify((dp.ads || []).map((p: any) => p.name))}
+- Affiliate: ${JSON.stringify((dp.affiliate || []).map((p: any) => p.name))}
+
+Based on this data and your knowledge of similar businesses, provide comprehensive financial intelligence.
+
+Return ONLY valid JSON:
+{
+  "trafficEstimates": {
+    "daily": "<number with suffix like 500 or 2.5K>",
+    "weekly": "<number>",
+    "monthly": "<number>",
+    "yearly": "<number>",
+    "trend": "growing/stable/declining",
+    "sources": ["organic", "paid", "social", "direct", "referral"],
+    "topSourcePct": "<e.g. 45% organic>"
+  },
+  "revenueEstimates": {
+    "daily": "<dollar amount like $150 or $2.5K>",
+    "weekly": "<dollar amount>",
+    "monthly": "<dollar amount>",
+    "yearly": "<dollar amount>",
+    "confidence": "low/medium/high",
+    "methodology": "<brief explanation of how you estimated>"
+  },
+  "businessModel": {
+    "type": "<SaaS/E-commerce/Marketplace/Freemium/Ad-supported/etc>",
+    "primaryRevenue": "<main revenue source>",
+    "secondaryRevenue": ["<other sources>"],
+    "monetizationScore": <1-100>
+  },
+  "pricingAnalysis": {
+    "plans": [{"name": "<plan>", "price": "<price>", "billing": "<monthly/yearly>", "features": ["<key feature>"]}],
+    "avgRevenuePerUser": "<ARPU estimate>",
+    "conversionFunnel": "<assessment of their funnel>",
+    "pricingStrategy": "<penetration/premium/freemium/value-based/etc>"
+  },
+  "incomeStreams": [
+    {"source": "<stream name>", "estimatedPct": "<% of total>", "type": "recurring/one-time/usage-based", "details": "<brief>"}
+  ],
+  "commerceSignals": {
+    "hasUpsell": <boolean>,
+    "hasCrossSell": <boolean>,
+    "hasDownsell": <boolean>,
+    "hasBulkPricing": <boolean>,
+    "hasAffiliateProgram": <boolean>,
+    "hasReferralProgram": <boolean>,
+    "loyaltyProgram": <boolean>
+  },
+  "competitivePosition": {
+    "marketSegment": "<segment>",
+    "estimatedMarketShare": "<rough %>",
+    "competitiveAdvantages": ["<advantage>"],
+    "vulnerabilities": ["<vulnerability>"]
+  },
+  "growthIndicators": {
+    "score": <1-100>,
+    "signals": ["<positive signal>"],
+    "risks": ["<risk>"]
+  }
+}
+
+Be as accurate as possible. Use real industry benchmarks. If uncertain, provide ranges.`;
+
+        const aiReply = await callAI(prompt);
+        const parsed = parseJSON(aiReply);
+        setFinancialData(parsed);
+        toast.success("Financial analysis complete");
+        return true;
+      } catch (err: any) {
+        toast.error("Financial analysis failed");
+        throw err;
+      } finally {
+        setFinancialLoading(false);
       }
     });
   };
