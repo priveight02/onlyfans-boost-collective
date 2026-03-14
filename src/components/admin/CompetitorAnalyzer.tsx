@@ -1477,20 +1477,35 @@ Return ONLY valid JSON:
                 <Card className="crm-card">
                   <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(217,91%,60%)] flex items-center gap-2"><Hash className="h-4 w-4" /> Twitter Card</CardTitle></CardHeader>
                   <CardContent className="space-y-2">
-                    {Object.entries(scrapeResult.twitterCard || {}).filter(([_, v]) => v).map(([k, v]) => (
-                      <div key={k} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02]">
-                        <span className="text-[10px] text-white/40 w-16 flex-shrink-0">{k}</span>
-                        {k === "image" ? (
-                          <div className="flex-1">
-                            <img src={v as string} alt="Twitter Card" className="max-h-20 rounded border border-white/10" onError={e => (e.currentTarget.style.display = "none")} />
-                            <p className="text-[10px] text-white/40 mt-1 break-all">{v as string}</p>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-white/70 flex-1 break-all">{v as string}</span>
-                        )}
-                      </div>
-                    ))}
-                    {!Object.values(scrapeResult.twitterCard || {}).some(Boolean) && <p className="text-xs text-white/30 text-center py-4">No Twitter Card tags found</p>}
+                    {(() => {
+                      const og = scrapeResult.openGraph || {};
+                      const twitterEntries = Object.entries(scrapeResult.twitterCard || {}).filter(([k, v]) => {
+                        if (!v) return false;
+                        if (["title", "description", "image"].includes(k)) {
+                          const ogValue = (og as Record<string, string>)[k];
+                          return (ogValue || "").trim().toLowerCase() !== String(v).trim().toLowerCase();
+                        }
+                        return true;
+                      });
+
+                      if (twitterEntries.length === 0) {
+                        return <p className="text-xs text-white/30 text-center py-4">No unique Twitter Card tags found</p>;
+                      }
+
+                      return twitterEntries.map(([k, v]) => (
+                        <div key={k} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02]">
+                          <span className="text-[10px] text-white/40 w-16 flex-shrink-0">{k}</span>
+                          {k === "image" ? (
+                            <div className="flex-1">
+                              <img src={v as string} alt="Twitter Card" className="max-h-20 rounded border border-white/10" onError={e => (e.currentTarget.style.display = "none")} />
+                              <p className="text-[10px] text-white/40 mt-1 break-all">{v as string}</p>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-white/70 flex-1 break-all">{v as string}</span>
+                          )}
+                        </div>
+                      ));
+                    })()}
                   </CardContent>
                 </Card>
 
