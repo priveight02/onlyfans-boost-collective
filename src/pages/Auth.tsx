@@ -306,23 +306,22 @@ const Auth = () => {
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <Checkbox
-                      id="remember" checked={rememberMe}
-                      onCheckedChange={(c) => setRememberMe(!!c)}
-                      className="border-white/15 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-500 h-4 w-4"
-                    />
-                    <label htmlFor="remember" className="text-[13px] text-white/40 cursor-pointer">Remember me (30 days)</label>
+                  <div className="flex items-center gap-2.5 group cursor-pointer" onClick={() => setRememberMe(!rememberMe)}>
+                    <div className={`relative w-9 h-5 rounded-full transition-all duration-300 ${rememberMe ? 'bg-purple-600 shadow-[0_0_12px_hsla(262,83%,58%,0.4)]' : 'bg-white/[0.08]'}`}>
+                      <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-all duration-300 ${rememberMe ? 'left-[18px] bg-white' : 'left-0.5 bg-white/40'}`} />
+                    </div>
+                    <label className="text-[13px] text-white/40 cursor-pointer select-none group-hover:text-white/55 transition-colors">Remember me</label>
                   </div>
-                  <button type="button" onClick={() => setMode("forgot")} className="text-[13px] text-purple-400/70 hover:text-purple-400 transition-colors">
+                  <button type="button" onClick={() => setMode("forgot")} className="text-[13px] text-purple-400/60 hover:text-purple-400 transition-colors font-medium">
                     Forgot?
                   </button>
                 </div>
                 <Button type="submit" disabled={isSubmitting}
-                  className="w-full h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.01]"
+                  className="w-full h-[52px] rounded-2xl text-sm font-semibold transition-all duration-300 hover:scale-[1.015] active:scale-[0.99] hover:bg-white/[0.12]"
                   style={{
-                    background: "hsla(0, 0%, 100%, 0.08)",
-                    border: "1px solid hsla(0, 0%, 100%, 0.1)",
+                    background: "hsla(0, 0%, 100%, 0.06)",
+                    border: "1px solid hsla(0, 0%, 100%, 0.08)",
+                    boxShadow: "0 1px 0 hsla(0,0%,100%,0.04) inset",
                     color: "white",
                   }}
                 >
