@@ -1506,6 +1506,11 @@ Return ONLY valid JSON:
                     { key: "socialProof", label: "Reviews & Social Proof", color: "text-amber-300", icon: Star },
                     { key: "seoTools", label: "SEO & Compliance Tools", color: "text-green-400", icon: Search },
                     { key: "productivity", label: "Productivity & Collaboration", color: "text-violet-400", icon: Crown },
+                    { key: "socialMedia", label: "Social Media Integrations", color: "text-pink-500", icon: Globe },
+                    { key: "database", label: "Database & Backend", color: "text-cyan-300", icon: Code },
+                    { key: "aiTools", label: "AI & ML Tools", color: "text-fuchsia-400", icon: Sparkles },
+                    { key: "affiliate", label: "Affiliate & Referral", color: "text-rose-400", icon: TrendingUp },
+                    { key: "personalization", label: "Personalization & A/B Testing", color: "text-sky-300", icon: Eye },
                   ];
                   const activeCats = categories.filter(c => (dp[c.key] || []).length > 0);
                   if (activeCats.length === 0) return (
