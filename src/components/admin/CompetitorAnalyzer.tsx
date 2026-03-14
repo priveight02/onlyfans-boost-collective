@@ -1562,7 +1562,7 @@ Return ONLY valid JSON:
                     { key: "affiliate", label: "Affiliate & Referral", color: "text-rose-400", icon: TrendingUp },
                     { key: "personalization", label: "Personalization & A/B Testing", color: "text-sky-300", icon: Eye },
                   ];
-                  const activeCats = categories.filter(c => (dp[c.key] || []).length > 0);
+                  const activeCats = categories.filter(c => c.key === "backendProviders" || (dp[c.key] || []).length > 0);
                   if (activeCats.length === 0) return (
                     <Card className="crm-card md:col-span-2">
                       <CardContent className="p-6 text-center">
@@ -1571,28 +1571,35 @@ Return ONLY valid JSON:
                       </CardContent>
                     </Card>
                   );
-                  return activeCats.map(cat => (
-                    <Card key={cat.key} className="crm-card">
-                      <CardHeader className="pb-2">
-                        <CardTitle className={`text-sm font-medium flex items-center gap-2 ${cat.color}`}>
-                          <cat.icon className="h-4 w-4" /> {cat.label}
-                          <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{(dp[cat.key] || []).length}</Badge>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="space-y-1.5">
-                          {(dp[cat.key] as { name: string; confidence: string }[]).map((p: any) => (
-                            <div key={p.name} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                              <span className="text-xs text-white/80">{p.name}</span>
-                              <Badge variant="outline" className={`text-[9px] ${p.confidence === "high" ? "border-emerald-400/30 text-emerald-400" : "border-white/10 text-white/40"}`}>
-                                {p.confidence}
-                              </Badge>
+                  return activeCats.map(cat => {
+                    const providers = (dp[cat.key] as { name: string; confidence: string }[]) || [];
+                    return (
+                      <Card key={cat.key} className="crm-card">
+                        <CardHeader className="pb-2">
+                          <CardTitle className={`text-sm font-medium flex items-center gap-2 ${cat.color}`}>
+                            <cat.icon className="h-4 w-4" /> {cat.label}
+                            <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{providers.length}</Badge>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {providers.length > 0 ? (
+                            <div className="space-y-1.5">
+                              {providers.map((p: any) => (
+                                <div key={p.name} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                                  <span className="text-xs text-white/80">{p.name}</span>
+                                  <Badge variant="outline" className={`text-[9px] ${p.confidence === "high" ? "border-emerald-400/30 text-emerald-400" : "border-white/10 text-white/40"}`}>
+                                    {p.confidence}
+                                  </Badge>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ));
+                          ) : (
+                            <p className="text-xs text-white/35">No backend/server providers detected yet</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  });
                 })()}
 
                 {/* Social Presence - Enhanced */}
