@@ -98,8 +98,8 @@ If unknown, provide clearly labeled conservative estimates.`
         },
         body: JSON.stringify({
           model,
-          temperature: isFinancial ? 0.15 : 0.3,
-          max_tokens: isFinancial ? 1800 : 1400,
+          temperature: isFinancial ? 0.1 : 0.3,
+          max_tokens: isFinancial ? 3000 : 1400,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: prompt },
@@ -144,7 +144,49 @@ If unknown, provide clearly labeled conservative estimates.`
     }
 
     const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || "";
+    let reply = data.choices?.[0]?.message?.content || "";
+
+    // Server-side JSON sanitization for financial responses
+    if (isFinancial && reply) {
+      try {
+        // Strip markdown fences
+        reply = reply.replace(/```(?:json)?\s*/gi, "").replace(/```\s*/g, "").trim();
+        // Find balanced JSON
+        const start = reply.search(/[\[{]/);
+        if (start !== -1) {
+          let depth = 0;
+          let inStr = false;
+          let esc = false;
+          let end = -1;
+          for (let i = start; i < reply.length; i++) {
+            const c = reply[i];
+            if (inStr) {
+              if (esc) { esc = false; continue; }
+              if (c === "\\") { esc = true; continue; }
+              if (c === '"') inStr = false;
+              continue;
+            }
+            if (c === '"') { inStr = true; continue; }
+            if (c === "{" || c === "[") depth++;
+            if (c === "}" || c === "]") { depth--; if (depth === 0) { end = i; break; } }
+          }
+          if (end !== -1) {
+            let jsonStr = reply.slice(start, end + 1);
+            // Sanitize control chars
+            jsonStr = jsonStr.replace(/[\x00-\x1F\x7F]/g, (ch) =>
+              ch === "\n" ? "\\n" : ch === "\r" ? "\\r" : ch === "\t" ? "\\t" : ""
+            );
+            // Repair trailing commas
+            jsonStr = jsonStr.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+            const parsed = JSON.parse(jsonStr);
+            reply = JSON.stringify(parsed);
+          }
+        }
+      } catch (parseErr) {
+        console.error("Server-side JSON repair failed, returning raw:", parseErr);
+        // Fall through with raw reply - client will attempt its own parse
+      }
+    }
 
     const newCount = currentCount + 1;
 
