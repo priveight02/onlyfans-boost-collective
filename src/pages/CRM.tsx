@@ -405,6 +405,7 @@ const CRM = () => {
       case "content": return <ContentCommandCenter />;
       case "social": return <SocialMediaHub subTab={activeSubTab} onSubTabChange={handleSubTabChange} urlPlatform={activeSocialPlatform} onPlatformChange={handleSocialPlatformChange} />;
       case "ad-creatives": return <AdCreativeEngine subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
+      case "competitors": return <CompetitorAnalyzer subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
       case "emotional": return <EmotionalHeatmap />;
       case "copilot": return <AICoPilot onNavigate={(tab: string) => handleTabChange(tab)} subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
       case "lookup": return <ProfileLookup subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
