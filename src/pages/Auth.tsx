@@ -259,21 +259,23 @@ const Auth = () => {
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
-                  className="w-full flex items-center justify-center gap-3 h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.01]"
+                  className="group w-full flex items-center justify-center gap-3 h-[52px] rounded-2xl text-sm font-semibold transition-all duration-300 hover:scale-[1.015] active:scale-[0.99]"
                   style={{
-                    background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(262, 70%, 48%))",
-                    boxShadow: "0 4px 20px hsla(262, 83%, 58%, 0.25), 0 0 0 1px hsla(262, 83%, 58%, 0.1) inset",
+                    background: "linear-gradient(135deg, hsl(262, 83%, 58%) 0%, hsl(280, 70%, 50%) 50%, hsl(262, 70%, 48%) 100%)",
+                    boxShadow: "0 6px 24px hsla(262, 83%, 58%, 0.3), 0 2px 8px hsla(262, 83%, 58%, 0.15), 0 0 0 1px hsla(262, 83%, 68%, 0.15) inset, 0 1px 0 hsla(0,0%,100%,0.12) inset",
                     color: "white",
                   }}
                 >
-                  <Chrome className="h-[18px] w-[18px]" />
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/15 backdrop-blur-sm">
+                    <GoogleIcon />
+                  </div>
                   Continue with Google
                 </button>
 
                 <div className="flex items-center gap-4 my-6">
-                  <div className="flex-1 h-px bg-white/[0.06]" />
-                  <span className="text-white/25 text-[11px] uppercase tracking-[0.2em] font-medium">or</span>
-                  <div className="flex-1 h-px bg-white/[0.06]" />
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+                  <span className="text-white/20 text-[11px] uppercase tracking-[0.2em] font-medium">or</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
                 </div>
               </div>
             )}
