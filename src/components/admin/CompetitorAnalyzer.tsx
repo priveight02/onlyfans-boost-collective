@@ -1424,24 +1424,52 @@ Return ONLY valid JSON:
               </Card>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Open Graph */}
-                <Card className="crm-card">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(217,91%,60%)] flex items-center gap-2"><ExternalLink className="h-4 w-4" /> Open Graph</CardTitle></CardHeader>
-                  <CardContent className="space-y-2">
-                    {Object.entries(scrapeResult.openGraph || {}).filter(([_, v]) => v).map(([k, v]) => (
-                      <div key={k} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02]">
-                        <span className="text-[10px] text-white/40 w-16 flex-shrink-0">{k}</span>
-                        {k === "image" ? (
-                          <div className="flex-1">
-                            <img src={v as string} alt="OG" className="max-h-20 rounded border border-white/10" onError={e => (e.currentTarget.style.display = "none")} />
-                            <p className="text-[10px] text-white/40 mt-1 break-all">{v as string}</p>
+                {/* Open Graph + Screenshot */}
+                <Card className="crm-card md:col-span-2">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(217,91%,60%)] flex items-center gap-2"><ExternalLink className="h-4 w-4" /> Open Graph Preview</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* OG Data */}
+                      <div className="space-y-2">
+                        {Object.entries(scrapeResult.openGraph || {}).filter(([_, v]) => v).map(([k, v]) => (
+                          <div key={k} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02]">
+                            <span className="text-[10px] text-white/40 w-16 flex-shrink-0">{k}</span>
+                            {k === "image" ? (
+                              <div className="flex-1">
+                                <img src={v as string} alt="OG" className="max-h-20 rounded border border-white/10" onError={e => (e.currentTarget.style.display = "none")} />
+                                <p className="text-[10px] text-white/40 mt-1 break-all">{v as string}</p>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-white/70 flex-1 break-all">{v as string}</span>
+                            )}
+                          </div>
+                        ))}
+                        {!Object.values(scrapeResult.openGraph || {}).some(Boolean) && <p className="text-xs text-white/30 text-center py-4">No Open Graph tags found</p>}
+                      </div>
+                      {/* Live Screenshot */}
+                      <div className="space-y-2">
+                        <p className="text-[10px] text-white/40 mb-1">Live Site Screenshot</p>
+                        {scrapeResult.screenshotUrl ? (
+                          <div className="rounded-lg overflow-hidden border border-white/10 bg-black/20">
+                            <img
+                              src={scrapeResult.screenshotUrl}
+                              alt="Site screenshot"
+                              className="w-full h-auto rounded-lg"
+                              loading="lazy"
+                              onError={e => {
+                                (e.currentTarget as HTMLImageElement).style.display = "none";
+                                const parent = (e.currentTarget as HTMLImageElement).parentElement;
+                                if (parent) { const p = document.createElement("p"); p.className = "text-xs text-white/30 text-center py-8"; p.textContent = "Screenshot unavailable"; parent.appendChild(p); }
+                              }}
+                            />
                           </div>
                         ) : (
-                          <span className="text-xs text-white/70 flex-1 break-all">{v as string}</span>
+                          <div className="rounded-lg border border-white/10 bg-black/20 flex items-center justify-center py-12">
+                            <p className="text-xs text-white/30">No screenshot available</p>
+                          </div>
                         )}
                       </div>
-                    ))}
-                    {!Object.values(scrapeResult.openGraph || {}).some(Boolean) && <p className="text-xs text-white/30 text-center py-4">No Open Graph tags found</p>}
+                    </div>
                   </CardContent>
                 </Card>
 
@@ -1452,7 +1480,14 @@ Return ONLY valid JSON:
                     {Object.entries(scrapeResult.twitterCard || {}).filter(([_, v]) => v).map(([k, v]) => (
                       <div key={k} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02]">
                         <span className="text-[10px] text-white/40 w-16 flex-shrink-0">{k}</span>
-                        <span className="text-xs text-white/70 flex-1 break-all">{v as string}</span>
+                        {k === "image" ? (
+                          <div className="flex-1">
+                            <img src={v as string} alt="Twitter Card" className="max-h-20 rounded border border-white/10" onError={e => (e.currentTarget.style.display = "none")} />
+                            <p className="text-[10px] text-white/40 mt-1 break-all">{v as string}</p>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-white/70 flex-1 break-all">{v as string}</span>
+                        )}
                       </div>
                     ))}
                     {!Object.values(scrapeResult.twitterCard || {}).some(Boolean) && <p className="text-xs text-white/30 text-center py-4">No Twitter Card tags found</p>}
@@ -1526,6 +1561,7 @@ Return ONLY valid JSON:
                       <CardHeader className="pb-2">
                         <CardTitle className={`text-sm font-medium flex items-center gap-2 ${cat.color}`}>
                           <cat.icon className="h-4 w-4" /> {cat.label}
+                          <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{(dp[cat.key] || []).length}</Badge>
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -1544,21 +1580,37 @@ Return ONLY valid JSON:
                   ));
                 })()}
 
-                {/* Social Links */}
-                <Card className="crm-card">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2"><Link className="h-4 w-4" /> Social Presence</CardTitle></CardHeader>
-                  <CardContent className="space-y-2">
-                    {Object.entries(scrapeResult.socialLinks || {}).map(([platform, links]) => (
-                      <div key={platform} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02]">
-                        <Badge variant="outline" className="text-[10px] border-white/10 text-white/60 capitalize">{platform}</Badge>
-                        <div className="flex-1 space-y-1">
-                          {(links as string[]).map((link, i) => (
-                            <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[hsl(217,91%,60%)]/70 hover:text-[hsl(217,91%,60%)] block break-all overflow-hidden text-ellipsis">{link}</a>
-                          ))}
-                        </div>
+                {/* Social Presence - Enhanced */}
+                <Card className="crm-card md:col-span-2">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2"><Link className="h-4 w-4" /> Social Presence <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{Object.keys(scrapeResult.socialLinks || {}).length} platforms</Badge></CardTitle></CardHeader>
+                  <CardContent>
+                    {Object.keys(scrapeResult.socialLinks || {}).length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {Object.entries(scrapeResult.socialLinks || {}).map(([platform, links]) => {
+                          const platformIcons: Record<string, string> = {
+                            facebook: "🔵", twitter: "🐦", instagram: "📸", linkedin: "💼", youtube: "🎬",
+                            tiktok: "🎵", pinterest: "📌", github: "🐙", reddit: "🔴", discord: "💬",
+                            telegram: "✈️", whatsapp: "💬", snapchat: "👻", threads: "🧵", mastodon: "🐘",
+                          };
+                          return (
+                            <div key={platform} className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-lg">{platformIcons[platform] || "🌐"}</span>
+                                <span className="text-xs font-medium text-white/80 capitalize">{platform}</span>
+                                <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{(links as string[]).length}</Badge>
+                              </div>
+                              <div className="space-y-1">
+                                {(links as string[]).map((link, i) => (
+                                  <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[hsl(217,91%,60%)]/70 hover:text-[hsl(217,91%,60%)] block break-all overflow-hidden text-ellipsis">{link}</a>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    ))}
-                    {Object.keys(scrapeResult.socialLinks || {}).length === 0 && <p className="text-xs text-white/30 text-center py-4">No social links found</p>}
+                    ) : (
+                      <p className="text-xs text-white/30 text-center py-4">No social links found</p>
+                    )}
                   </CardContent>
                 </Card>
 
@@ -1580,7 +1632,83 @@ Return ONLY valid JSON:
                     ))}
                   </CardContent>
                 </Card>
+
+                {/* Performance Signals */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Activity className="h-4 w-4" /> Performance Signals</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { label: "Service Worker", value: scrapeResult.performance?.hasServiceWorker },
+                        { label: "Web Manifest", value: scrapeResult.performance?.hasManifest },
+                        { label: "Preconnect", value: scrapeResult.performance?.hasPreconnect },
+                        { label: "Preload", value: scrapeResult.performance?.hasPreload },
+                        { label: "Defer Scripts", value: scrapeResult.performance?.hasDeferScripts },
+                        { label: "Async Scripts", value: scrapeResult.performance?.hasAsyncScripts },
+                        { label: "Lazy Images", value: scrapeResult.performance?.hasLazyImages },
+                      ].map((p, i) => (
+                        <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                          {p.value ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <XCircle className="h-3.5 w-3.5 text-white/20" />}
+                          <span className={`text-xs ${p.value ? "text-white/70" : "text-white/30"}`}>{p.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
+
+              {/* ═══ CURATED METRICS ═══ */}
+              {scrapeResult.curatedMetrics && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium text-white/50 flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" /> Deep Analysis
+                    <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{Object.keys(scrapeResult.curatedMetrics).length} categories</Badge>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {Object.entries(scrapeResult.curatedMetrics as Record<string, { label: string; items: Record<string, any> }>).map(([key, category]) => {
+                      const catColors: Record<string, string> = {
+                        contentQuality: "text-cyan-400", seoSignals: "text-emerald-400", mediaAssets: "text-amber-400",
+                        techStack: "text-purple-400", monetization: "text-green-400", uxFeatures: "text-pink-400",
+                        linkProfile: "text-[hsl(217,91%,60%)]", securityScore: "text-red-400",
+                      };
+                      const catIcons: Record<string, any> = {
+                        contentQuality: FileText, seoSignals: Target, mediaAssets: ImageIcon,
+                        techStack: Code, monetization: Zap, uxFeatures: Eye,
+                        linkProfile: Link, securityScore: Shield,
+                      };
+                      const IconComp = catIcons[key] || BarChart3;
+                      const color = catColors[key] || "text-white/60";
+                      return (
+                        <Card key={key} className="crm-card">
+                          <CardHeader className="pb-2">
+                            <CardTitle className={`text-sm font-medium flex items-center gap-2 ${color}`}>
+                              <IconComp className="h-4 w-4" /> {category.label}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-1.5">
+                            {Object.entries(category.items).map(([label, value]) => {
+                              const isCheck = value === "✓";
+                              const isCross = value === "✗";
+                              return (
+                                <div key={label} className="flex items-center justify-between p-1.5 rounded bg-white/[0.02]">
+                                  <span className="text-[10px] text-white/50">{label}</span>
+                                  {isCheck ? (
+                                    <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+                                  ) : isCross ? (
+                                    <XCircle className="h-3.5 w-3.5 text-white/20" />
+                                  ) : (
+                                    <span className="text-xs font-medium text-white/80">{String(value)}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Links & Images stats */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -1599,70 +1727,6 @@ Return ONLY valid JSON:
                   </Card>
                 ))}
               </div>
-
-              {/* Performance */}
-              <Card className="crm-card">
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Activity className="h-4 w-4" /> Performance Signals</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {[
-                      { label: "Service Worker", value: scrapeResult.performance?.hasServiceWorker },
-                      { label: "Web Manifest", value: scrapeResult.performance?.hasManifest },
-                      { label: "Preconnect", value: scrapeResult.performance?.hasPreconnect },
-                      { label: "Preload", value: scrapeResult.performance?.hasPreload },
-                      { label: "Defer Scripts", value: scrapeResult.performance?.hasDeferScripts },
-                      { label: "Async Scripts", value: scrapeResult.performance?.hasAsyncScripts },
-                      { label: "Lazy Images", value: scrapeResult.performance?.hasLazyImages },
-                    ].map((p, i) => (
-                      <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
-                        {p.value ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <XCircle className="h-3.5 w-3.5 text-white/20" />}
-                        <span className={`text-xs ${p.value ? "text-white/70" : "text-white/30"}`}>{p.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Advanced Metrics */}
-              {scrapeResult.advancedMetrics && (
-                <Card className="crm-card">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4" /> Advanced Metrics ({Object.keys(scrapeResult.advancedMetrics || {}).length})
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                      {Object.entries(scrapeResult.advancedMetrics || {})
-                        .sort(([a], [b]) => a.localeCompare(b))
-                        .map(([key, value]) => {
-                          const formattedLabel = key
-                            .replace(/^metric_/, "")
-                            .replace(/_/g, " ")
-                            .replace(/\b\w/g, c => c.toUpperCase());
-
-                          const displayValue =
-                            typeof value === "number"
-                              ? Number.isInteger(value)
-                                ? value.toString()
-                                : value.toFixed(2)
-                              : typeof value === "boolean"
-                              ? value
-                                ? "Yes"
-                                : "No"
-                              : String(value);
-
-                          return (
-                            <div key={key} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] min-w-0">
-                              <p className="text-[10px] text-white/40 break-words">{formattedLabel}</p>
-                              <p className="text-sm text-white font-medium break-words mt-1">{displayValue}</p>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
 
               {/* Contact Info */}
               {((scrapeResult.contactInfo?.emailAddresses?.length || 0) > 0 || (scrapeResult.contactInfo?.phoneNumbers?.length || 0) > 0) && (
