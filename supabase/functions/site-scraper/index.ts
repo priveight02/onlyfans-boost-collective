@@ -98,11 +98,11 @@ async function safeFetchTextForDetection(url: string, timeoutMs = 4000, maxLen =
 
 async function safeFetchHtml(url: string): Promise<string | null> {
   try {
-    const r = await safeFetch(url, 7000);
+    const r = await safeFetch(url, 5000);
     if (!r?.ok) return null;
     const ct = (r.headers.get("content-type") || "").toLowerCase();
     if (!ct.includes("text/html") && !ct.includes("xhtml") && !ct.includes("xml")) return null;
-    return (await r.text()).slice(0, 500_000);
+    return (await r.text()).slice(0, 200_000);
   } catch { return null; }
 }
 
