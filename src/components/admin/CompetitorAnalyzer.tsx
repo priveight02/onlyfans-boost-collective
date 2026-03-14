@@ -624,8 +624,8 @@ Return ONLY valid JSON:
                   </div>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground">Platform</label>
-                  <select value={newPlatform} onChange={e => setNewPlatform(e.target.value)} className="h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-foreground text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
+                  <label className="text-xs font-medium text-white/50">Platform</label>
+                  <select value={newPlatform} onChange={e => setNewPlatform(e.target.value)} className="h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
                     <option value="instagram">Instagram</option>
                     <option value="tiktok">TikTok</option>
                     <option value="twitter">Twitter/X</option>
