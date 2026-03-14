@@ -1725,7 +1725,7 @@ Return ONLY valid JSON:
                   <CardTitle className="text-sm font-medium text-cyan-400 flex items-center gap-2">
                     <Code className="h-4 w-4" /> Detected Platforms & Tech Stack
                     <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">
-                      {Object.values(scrapeResult.detectedPlatforms || {}).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0)} total
+                      {(Object.values(scrapeResult.detectedPlatforms || {}) as any[]).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0)} total
                     </Badge>
                     {expandedSections.platforms ? <ChevronUp className="h-3.5 w-3.5 text-white/30" /> : <ChevronDown className="h-3.5 w-3.5 text-white/30" />}
                   </CardTitle>
