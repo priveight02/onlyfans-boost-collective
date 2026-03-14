@@ -42,7 +42,7 @@ import {
   FileText, MessageSquare, CheckSquare, MessageCircle, Award,
   TrendingUp, Activity, Zap, Download, Brain, Calendar, Heart,
   Bot, Globe, Code2, Settings, ChevronLeft, ChevronRight,
-  Bell, HelpCircle, Megaphone, LogOut, Plus, X,
+  Bell, HelpCircle, Megaphone, LogOut, Plus, X, Crosshair,
 } from "lucide-react";
 
 const navSections = [
