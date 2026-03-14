@@ -44,21 +44,69 @@ type DeepScanCorpus = {
   combinedScripts: string[];
   combinedStylesheets: string[];
   combinedExternalLinks: string[];
+  combinedIframes: string[];
   scannedUrls: string[];
   pagesScanned: number;
   sitemapUrls: string[];
   subdomainsFound: string[];
 };
 
-function isSameSiteHost(rootHost: string, testHost: string): boolean {
-  // Strip www for comparison
-  const stripWww = (h: string) => h.replace(/^www\./, "");
-  const a = stripWww(rootHost);
-  const b = stripWww(testHost);
-  return b === a || b.endsWith(`.${a}`) || a.endsWith(`.${b}`);
+const SUBDOMAIN_SEEDS = ["www", "app", "api", "checkout", "pay", "billing", "portal", "shop", "store", "m", "help", "docs"];
+const HIGH_INTENT_PATH_PROBES = [
+  "/pricing", "/plans", "/checkout", "/cart", "/billing", "/pay", "/subscribe", "/subscription", "/store", "/shop",
+  "/products", "/product", "/api", "/developers", "/docs", "/integrations", "/partners", "/about", "/contact",
+];
+const SENSITIVE_FILE_PATHS = ["/.env", "/.env.local", "/.env.production", "/.env.backup", "/.htaccess", "/.git/config", "/.git/HEAD"];
+
+function normalizeHost(host: string): string {
+  return host.trim().toLowerCase().replace(/^www\./, "");
 }
 
-function extractInternalPageLinks(html: string, baseUrl: string, rootHost: string): string[] {
+function getRegistrableDomain(host: string): string {
+  const normalized = normalizeHost(host);
+  const parts = normalized.split(".").filter(Boolean);
+  if (parts.length <= 2) return normalized;
+
+  const tld = parts[parts.length - 1];
+  const sld = parts[parts.length - 2];
+  const commonSecondLevel = new Set(["co", "com", "org", "net", "gov", "edu", "ac"]);
+
+  if (tld.length === 2 && commonSecondLevel.has(sld) && parts.length >= 3) {
+    return parts.slice(-3).join(".");
+  }
+  return parts.slice(-2).join(".");
+}
+
+function isSameSiteHost(rootDomain: string, testHost: string): boolean {
+  return getRegistrableDomain(testHost) === getRegistrableDomain(rootDomain);
+}
+
+function buildOriginCandidates(startUrl: string, rootDomain: string): string[] {
+  const start = new URL(startUrl);
+  const candidates = new Set<string>([start.origin]);
+  const normalizedRoot = normalizeHost(rootDomain);
+
+  candidates.add(`https://${normalizedRoot}`);
+  candidates.add(`https://www.${normalizedRoot}`);
+
+  for (const sub of SUBDOMAIN_SEEDS) {
+    candidates.add(`https://${sub}.${normalizedRoot}`);
+  }
+
+  return [...candidates];
+}
+
+function buildProbeUrls(origins: string[]): string[] {
+  const urls = new Set<string>();
+  for (const origin of origins) {
+    for (const path of HIGH_INTENT_PATH_PROBES) {
+      urls.add(`${origin}${path}`);
+    }
+  }
+  return [...urls];
+}
+
+function extractInternalPageLinks(html: string, baseUrl: string, rootDomain: string): string[] {
   const hrefs = getAllMatches(html, /<a[^>]*href=["']([^"'#]+)["']/gi);
   const links = new Set<string>();
   const excludedFileExt = /\.(jpg|jpeg|png|gif|svg|webp|avif|mp4|mp3|pdf|zip|rar|css|js|ico|woff2?|ttf|eot)(\?|#|$)/i;
@@ -67,7 +115,7 @@ function extractInternalPageLinks(html: string, baseUrl: string, rootHost: strin
     try {
       const parsed = new URL(href, baseUrl);
       if (!["http:", "https:"].includes(parsed.protocol)) continue;
-      if (!isSameSiteHost(rootHost, parsed.hostname)) continue;
+      if (!isSameSiteHost(rootDomain, parsed.hostname)) continue;
       if (excludedFileExt.test(parsed.pathname)) continue;
       links.add(parsed.href);
     } catch {
@@ -96,7 +144,7 @@ function prioritizeLinks(links: string[]): string[] {
 
 async function fetchHtmlForDeepScan(targetUrl: string): Promise<string | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 6500);
   try {
     const response = await fetch(targetUrl, { headers: SCRAPE_HEADERS, redirect: "follow", signal: controller.signal });
     if (!response.ok) return null;
@@ -109,7 +157,7 @@ async function fetchHtmlForDeepScan(targetUrl: string): Promise<string | null> {
 
 async function fetchTextForDeepScanAsset(assetUrl: string): Promise<string> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 7000);
+  const timeout = setTimeout(() => controller.abort(), 6000);
   try {
     const response = await fetch(assetUrl, { headers: SCRAPE_HEADERS, redirect: "follow", signal: controller.signal });
     if (!response.ok) return "";
@@ -120,102 +168,107 @@ async function fetchTextForDeepScanAsset(assetUrl: string): Promise<string> {
   finally { clearTimeout(timeout); }
 }
 
-async function fetchSitemapUrls(baseOrigin: string, rootHost: string): Promise<{ urls: string[]; sitemapSources: string[] }> {
-  const sitemapCandidates = [
-    `${baseOrigin}/sitemap.xml`,
-    `${baseOrigin}/sitemap_index.xml`,
-    `${baseOrigin}/sitemap-index.xml`,
-    `${baseOrigin}/wp-sitemap.xml`,
-    `${baseOrigin}/sitemap1.xml`,
-    `${baseOrigin}/sitemap-pages.xml`,
-    `${baseOrigin}/page-sitemap.xml`,
-    `${baseOrigin}/post-sitemap.xml`,
-    `${baseOrigin}/product-sitemap.xml`,
-    `${baseOrigin}/sitemaps/sitemap.xml`,
+async function fetchSitemapUrls(candidateOrigins: string[], rootDomain: string): Promise<{ urls: string[]; sitemapSources: string[] }> {
+  const defaultSitemapPaths = [
+    "/sitemap.xml",
+    "/sitemap_index.xml",
+    "/sitemap-index.xml",
+    "/wp-sitemap.xml",
+    "/sitemap1.xml",
+    "/sitemap-pages.xml",
+    "/page-sitemap.xml",
+    "/post-sitemap.xml",
+    "/product-sitemap.xml",
+    "/sitemaps/sitemap.xml",
   ];
 
-  // Also check robots.txt for Sitemap directives
-  let robotsSitemaps: string[] = [];
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    const robotsRes = await fetch(`${baseOrigin}/robots.txt`, { headers: SCRAPE_HEADERS, signal: controller.signal });
-    clearTimeout(timeout);
-    if (robotsRes.ok) {
-      const robotsTxt = await robotsRes.text();
-      const sitemapMatches = robotsTxt.match(/^Sitemap:\s*(.+)$/gmi);
-      if (sitemapMatches) {
-        robotsSitemaps = sitemapMatches.map(line => line.replace(/^Sitemap:\s*/i, "").trim()).filter(Boolean);
-      }
+  const sitemapQueue: string[] = [];
+  const sitemapQueued = new Set<string>();
+  const sitemapSources = new Set<string>();
+  const discoveredUrls = new Set<string>();
+
+  const addSitemapCandidate = (candidate: string, fallbackOrigin?: string) => {
+    if (!candidate) return;
+    try {
+      const parsed = fallbackOrigin ? new URL(candidate, fallbackOrigin) : new URL(candidate);
+      if (!["http:", "https:"].includes(parsed.protocol)) return;
+      if (!isSameSiteHost(rootDomain, parsed.hostname)) return;
+      if (sitemapQueued.has(parsed.href)) return;
+      sitemapQueued.add(parsed.href);
+      sitemapQueue.push(parsed.href);
+    } catch {
+      // ignore invalid URL
     }
-  } catch { /* ignore */ }
+  };
 
-  const allCandidates = [...new Set([...robotsSitemaps, ...sitemapCandidates])];
-  const allUrls = new Set<string>();
-  const foundSitemaps: string[] = [];
+  for (const origin of candidateOrigins) {
+    defaultSitemapPaths.forEach(path => addSitemapCandidate(path, origin));
+  }
 
-  // Fetch sitemaps in parallel (max 6 at a time)
-  const batch1 = allCandidates.slice(0, 6);
-  const batch2 = allCandidates.slice(6);
-
-  async function parseSitemap(sitemapUrl: string): Promise<string[]> {
+  await Promise.all(candidateOrigins.slice(0, 16).map(async (origin) => {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 6000);
-      const res = await fetch(sitemapUrl, { headers: SCRAPE_HEADERS, redirect: "follow", signal: controller.signal });
+      const timeout = setTimeout(() => controller.abort(), 4500);
+      const robotsRes = await fetch(`${origin}/robots.txt`, { headers: SCRAPE_HEADERS, signal: controller.signal, redirect: "follow" });
       clearTimeout(timeout);
-      if (!res.ok) return [];
-      const text = await res.text();
-      if (!text.includes("<url") && !text.includes("<sitemap")) return [];
-      foundSitemaps.push(sitemapUrl);
+      if (!robotsRes.ok) return;
+      const robotsTxt = await robotsRes.text();
+      const sitemapLines = robotsTxt.match(/^Sitemap:\s*(.+)$/gmi) || [];
+      for (const line of sitemapLines) {
+        const value = line.replace(/^Sitemap:\s*/i, "").trim();
+        addSitemapCandidate(value, origin);
+      }
+    } catch {
+      // ignore
+    }
+  }));
 
-      const urls: string[] = [];
-      // Extract <loc> tags
-      const locMatches = text.match(/<loc>\s*(.*?)\s*<\/loc>/gi) || [];
-      for (const loc of locMatches) {
-        const url = loc.replace(/<\/?loc>/gi, "").trim();
-        if (url.endsWith(".xml") || url.endsWith(".xml.gz")) {
-          // It's a sub-sitemap - we'll recurse one level
-          urls.push(`__SUBSITEMAP__${url}`);
-        } else {
-          urls.push(url);
+  while (sitemapQueue.length > 0 && sitemapSources.size < 120) {
+    const batch = sitemapQueue.splice(0, 8);
+    const batchResults = await Promise.all(batch.map(async (sitemapUrl) => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5500);
+        const res = await fetch(sitemapUrl, { headers: SCRAPE_HEADERS, signal: controller.signal, redirect: "follow" });
+        clearTimeout(timeout);
+        if (!res.ok) return;
+
+        const finalUrl = res.url || sitemapUrl;
+        if (!isSameSiteHost(rootDomain, new URL(finalUrl).hostname)) return;
+
+        const text = await res.text();
+        if (!text.includes("<loc")) return;
+        sitemapSources.add(finalUrl);
+
+        const locMatches = text.match(/<loc>\s*(.*?)\s*<\/loc>/gi) || [];
+        for (const loc of locMatches) {
+          const value = loc.replace(/<\/?loc>/gi, "").trim();
+          if (!value) continue;
+          if (value.endsWith(".xml") || value.endsWith(".xml.gz") || /sitemap/i.test(value)) {
+            addSitemapCandidate(value, finalUrl);
+          } else {
+            try {
+              const pageUrl = new URL(value, finalUrl);
+              if (["http:", "https:"].includes(pageUrl.protocol) && isSameSiteHost(rootDomain, pageUrl.hostname)) {
+                discoveredUrls.add(pageUrl.href);
+              }
+            } catch {
+              // ignore bad loc URL
+            }
+          }
         }
+      } catch {
+        // ignore single sitemap failure
       }
-      return urls;
-    } catch { return []; }
+    }));
+
+    if (!batchResults) break;
   }
 
-  const results1 = await Promise.all(batch1.map(parseSitemap));
-  const results2 = batch2.length > 0 ? await Promise.all(batch2.map(parseSitemap)) : [];
-
-  const subSitemaps: string[] = [];
-  for (const urls of [...results1, ...results2]) {
-    for (const u of urls) {
-      if (u.startsWith("__SUBSITEMAP__")) {
-        subSitemaps.push(u.replace("__SUBSITEMAP__", ""));
-      } else {
-        allUrls.add(u);
-      }
-    }
-  }
-
-  // Fetch up to 8 sub-sitemaps
-  if (subSitemaps.length > 0) {
-    const subBatch = subSitemaps.slice(0, 8);
-    const subResults = await Promise.all(subBatch.map(parseSitemap));
-    for (const urls of subResults) {
-      for (const u of urls) {
-        if (!u.startsWith("__SUBSITEMAP__")) allUrls.add(u);
-      }
-    }
-  }
-
-  // Filter to same-site only
-  const filtered = [...allUrls].filter(u => {
-    try { return isSameSiteHost(rootHost, new URL(u).hostname); } catch { return false; }
-  });
-
-  return { urls: filtered, sitemapSources: foundSitemaps };
+  return {
+    urls: prioritizeLinks([...discoveredUrls]).slice(0, 500),
+    sitemapSources: [...sitemapSources],
+  };
 }
 
 async function buildDeepScanCorpus(startUrl: string, seedHtml: string): Promise<DeepScanCorpus> {
