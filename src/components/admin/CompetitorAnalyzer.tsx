@@ -11,7 +11,6 @@ import {
   Loader2, Clock, AlertTriangle, Calendar, Search, Eye, Globe, Sparkles,
   Shield, Flame, Crown, Download, Copy, ChevronDown, ChevronUp, Star,
   Link, Lock, FileText, Image as ImageIcon, Code, Activity, CheckCircle, XCircle, ExternalLink,
-  DollarSign, TrendingUp as TrendUp,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -201,16 +200,6 @@ const CompetitorAnalyzer = ({
   const [scrapeUrl, setScrapeUrl] = useState("");
   const [scrapeResult, setScrapeResult] = useState<any>(null);
   const [scrapeLoading, setScrapeLoading] = useState(false);
-
-  // Financial intelligence state
-  const [financialData, setFinancialData] = useState<any>(null);
-  const [financialLoading, setFinancialLoading] = useState(false);
-
-  // Deep analysis section expansion
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    social: true, platforms: true, deepMetrics: false, security: false, performance: false, sensitive: false, financial: true,
-  });
-  const toggleSection = (key: string) => setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
 
   const { performAction } = useCreditAction();
 
@@ -593,129 +582,6 @@ Return ONLY valid JSON:
         throw err;
       } finally {
         setScrapeLoading(false);
-      }
-    });
-  };
-
-  // ─── Financial Intelligence Analysis ────────────────
-  const runFinancialAnalysis = async () => {
-    if (!scrapeResult) return;
-    await performAction("site_scrape", async () => {
-      setFinancialLoading(true);
-      try {
-        const dp = scrapeResult.detectedPlatforms || {};
-        const cm = scrapeResult.curatedMetrics || {};
-        const monetization = cm.monetization?.items || {};
-        const socialCount = Object.keys(scrapeResult.socialLinks || {}).length;
-        const platformCount = Object.values(dp).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0);
-
-        const prompt = `You are a world-class competitive intelligence and financial analyst. Analyze this website and provide EXTREMELY DETAILED financial intelligence.
-
-WEBSITE: ${scrapeResult.finalUrl || scrapeResult.url}
-TITLE: ${scrapeResult.basic?.title || "Unknown"}
-DESCRIPTION: ${scrapeResult.basic?.description || "Unknown"}
-
-DETECTED TECH STACK:
-- Payment Platforms: ${(dp.payments || []).map((p: any) => p.name).join(", ") || "None"}
-- E-commerce: ${(dp.ecommerce || []).map((p: any) => p.name).join(", ") || "None"}
-- Analytics: ${(dp.analytics || []).map((p: any) => p.name).join(", ") || "None"}
-- Ad Networks: ${(dp.ads || []).map((p: any) => p.name).join(", ") || "None"}
-- Backend: ${(dp.backendProviders || []).map((p: any) => p.name).join(", ") || "None"}
-- CRM: ${(dp.crm || []).map((p: any) => p.name).join(", ") || "None"}
-- Support: ${(dp.support || []).map((p: any) => p.name).join(", ") || "None"}
-
-MONETIZATION SIGNALS:
-- Checkout Flow Detected: ${monetization["Checkout Flow"] || "N/A"}
-- Subscription UI: ${monetization["Subscription UI"] || "N/A"}
-- Price Points Found: ${monetization["Price Points"] || 0}
-- Payment Providers: ${monetization["Payment Providers"] || 0}
-- Ad Networks: ${monetization["Ad Networks"] || 0}
-- Affiliate Tools: ${monetization["Affiliate Tools"] || 0}
-
-SITE METRICS:
-- SEO Score: ${scrapeResult.seoScore}/100
-- Word Count: ${scrapeResult.content?.wordCount || 0}
-- Social Platforms: ${socialCount}
-- Total Platforms Detected: ${platformCount}
-- Page Size: ${scrapeResult.performance?.pageSizeKB || 0} KB
-- PWA Ready: ${(scrapeResult.performance?.hasServiceWorker && scrapeResult.performance?.hasManifest) ? "Yes" : "No"}
-
-CONTENT PREVIEW: ${(scrapeResult.content?.textPreview || "").slice(0, 800)}
-
-Based on ALL of this data, cross-referenced with publicly available information and industry benchmarks, provide a comprehensive financial analysis. Be as ACCURATE as possible using real industry data and growth patterns.
-
-Return ONLY valid JSON:
-{
-  "companyOverview": {
-    "estimatedEmployees": "<range like 5-15>",
-    "foundedYear": "<year or estimate>",
-    "businessModel": "<SaaS/E-commerce/Marketplace/etc>",
-    "stage": "<Bootstrap/Seed/Series A/Growth/Mature>",
-    "industry": "<specific industry>"
-  },
-  "trafficEstimates": {
-    "dailyVisitors": "<range like 500-2000>",
-    "weeklyVisitors": "<range>",
-    "monthlyVisitors": "<range like 15K-60K>",
-    "yearlyVisitors": "<range>",
-    "bounceRate": "<estimated %>",
-    "avgSessionDuration": "<estimated time>",
-    "topTrafficSources": [{"source": "Organic Search", "percentage": "45%"}, {"source": "Direct", "percentage": "30%"}, {"source": "Social", "percentage": "15%"}, {"source": "Referral", "percentage": "10%"}],
-    "topCountries": [{"country": "US", "percentage": "40%"}, {"country": "UK", "percentage": "15%"}],
-    "growthTrend": "<growing/stable/declining>"
-  },
-  "revenueEstimates": {
-    "dailyRevenue": "<range like $200-$800>",
-    "weeklyRevenue": "<range>",
-    "monthlyRevenue": "<range like $5K-$25K>",
-    "yearlyRevenue": "<range like $60K-$300K>",
-    "revenueModel": "<subscription/one-time/freemium/ads/hybrid>",
-    "averageOrderValue": "<estimated $>",
-    "estimatedConversionRate": "<estimated %>",
-    "mrr": "<Monthly Recurring Revenue estimate if SaaS>",
-    "arr": "<Annual Recurring Revenue estimate if SaaS>",
-    "ltv": "<Customer Lifetime Value estimate>",
-    "cac": "<Customer Acquisition Cost estimate>",
-    "churnRate": "<estimated monthly churn %>"
-  },
-  "incomeSources": [
-    {"source": "<source name>", "estimatedShare": "<percentage>", "type": "<recurring/one-time/ads>", "details": "<brief description>"}
-  ],
-  "pricingAnalysis": {
-    "plans": [{"name": "<plan name>", "price": "<price>", "billing": "<monthly/yearly>", "features": "<key features>"}],
-    "creditPackages": [{"name": "<package>", "credits": "<amount>", "price": "<price>"}],
-    "hasFreeTrialOrTier": "<yes/no with details>",
-    "upsells": "<description of upsell strategies>",
-    "crossSells": "<description of cross-sell strategies>",
-    "downsells": "<description of downsell strategies>"
-  },
-  "competitivePosition": {
-    "marketShare": "<estimated in niche>",
-    "mainCompetitors": ["<competitor 1>", "<competitor 2>", "<competitor 3>"],
-    "competitiveAdvantage": "<main differentiator>",
-    "vulnerabilities": ["<vulnerability 1>", "<vulnerability 2>"]
-  },
-  "growthIndicators": {
-    "techMaturity": "<1-10 score>",
-    "marketingEfficiency": "<1-10 score>",
-    "productMarketFit": "<1-10 score>",
-    "scalabilityScore": "<1-10 score>",
-    "overallHealthScore": "<1-100>"
-  },
-  "confidenceLevel": "<low/medium/high - how confident you are in these estimates>",
-  "methodology": "<brief explanation of how you derived these numbers>"
-}`;
-
-        const aiReply = await callAI(prompt);
-        const parsed = parseJSON(aiReply);
-        setFinancialData(parsed);
-        toast.success("Financial intelligence generated");
-        return true;
-      } catch (err: any) {
-        toast.error("Financial analysis failed");
-        throw err;
-      } finally {
-        setFinancialLoading(false);
       }
     });
   };
@@ -1514,7 +1380,7 @@ Return ONLY valid JSON:
                   { label: "Page Size", value: `${scrapeResult.performance?.pageSizeKB || 0} KB`, icon: FileText, color: "text-white" },
                   { label: "Word Count", value: `${scrapeResult.content?.wordCount?.toLocaleString() || 0}`, icon: FileText, color: "text-white" },
                   { label: "HTTPS", value: scrapeResult.isHttps ? "Secure" : "Not Secure", icon: scrapeResult.isHttps ? Lock : Shield, color: scrapeResult.isHttps ? "text-emerald-400" : "text-red-400" },
-                  { label: "Platforms Found", value: String((Object.values(scrapeResult.detectedPlatforms || {}) as any[]).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0)), icon: Globe, color: "text-[hsl(217,91%,60%)]" },
+                  { label: "Platforms Found", value: String(Object.values(scrapeResult.detectedPlatforms || {}).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0)), icon: Globe, color: "text-[hsl(217,91%,60%)]" },
                   { label: "Social Profiles", value: String(Object.keys(scrapeResult.socialLinks || {}).length), icon: Users, color: "text-purple-400" },
                 ].map((s, i) => (
                   <Card key={i} className="crm-card">
@@ -1529,7 +1395,7 @@ Return ONLY valid JSON:
                 ))}
               </div>
 
-              {/* SEO & Meta */}
+              {/* Basic Meta */}
               <Card className="crm-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><FileText className="h-4 w-4" /> SEO & Meta Data</CardTitle></CardHeader>
                 <CardContent className="space-y-2">
@@ -1539,6 +1405,7 @@ Return ONLY valid JSON:
                     { label: "Keywords", value: scrapeResult.basic?.keywords },
                     { label: "Canonical", value: scrapeResult.basic?.canonical },
                     { label: "Language", value: scrapeResult.basic?.language },
+                    { label: "Robots", value: scrapeResult.basic?.robots },
                     { label: "Generator", value: scrapeResult.basic?.generator },
                     { label: "Final URL", value: scrapeResult.finalUrl },
                     { label: "Server", value: scrapeResult.server },
@@ -1556,107 +1423,198 @@ Return ONLY valid JSON:
                 </CardContent>
               </Card>
 
-              {/* OG Preview */}
-              <Card className="crm-card">
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(217,91%,60%)] flex items-center gap-2"><ExternalLink className="h-4 w-4" /> Open Graph Preview</CardTitle></CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      {Object.entries(scrapeResult.openGraph || {}).filter(([_, v]) => v).map(([k, v]) => (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Open Graph + Screenshot */}
+                <Card className="crm-card md:col-span-2">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(217,91%,60%)] flex items-center gap-2"><ExternalLink className="h-4 w-4" /> Open Graph Preview</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* OG Data */}
+                      <div className="space-y-2">
+                        {Object.entries(scrapeResult.openGraph || {}).filter(([_, v]) => v).map(([k, v]) => (
+                          <div key={k} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02]">
+                            <span className="text-[10px] text-white/40 w-16 flex-shrink-0">{k}</span>
+                            {k === "image" ? (
+                              <div className="flex-1">
+                                <img src={v as string} alt="OG" className="max-h-20 rounded border border-white/10" onError={e => (e.currentTarget.style.display = "none")} />
+                                <p className="text-[10px] text-white/40 mt-1 break-all">{v as string}</p>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-white/70 flex-1 break-all">{v as string}</span>
+                            )}
+                          </div>
+                        ))}
+                        {!Object.values(scrapeResult.openGraph || {}).some(Boolean) && <p className="text-xs text-white/30 text-center py-4">No Open Graph tags found</p>}
+                      </div>
+                      {/* Live Screenshot */}
+                      <div className="space-y-2">
+                        <p className="text-[10px] text-white/40 mb-1">Live Site Screenshot</p>
+                        {scrapeResult.screenshotUrl ? (
+                          <div className="rounded-lg overflow-hidden border border-white/10 bg-black/20">
+                            <img
+                              src={scrapeResult.screenshotUrl}
+                              alt="Site screenshot"
+                              className="w-full h-auto rounded-lg"
+                              loading="lazy"
+                              onError={e => {
+                                (e.currentTarget as HTMLImageElement).style.display = "none";
+                                const parent = (e.currentTarget as HTMLImageElement).parentElement;
+                                if (parent) { const p = document.createElement("p"); p.className = "text-xs text-white/30 text-center py-8"; p.textContent = "Screenshot unavailable"; parent.appendChild(p); }
+                              }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="rounded-lg border border-white/10 bg-black/20 flex items-center justify-center py-12">
+                            <p className="text-xs text-white/30">No screenshot available</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Twitter Card */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(217,91%,60%)] flex items-center gap-2"><Hash className="h-4 w-4" /> Twitter Card</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {(() => {
+                      const og = scrapeResult.openGraph || {};
+                      const twitterEntries = Object.entries(scrapeResult.twitterCard || {}).filter(([k, v]) => {
+                        if (!v) return false;
+                        if (["title", "description", "image"].includes(k)) {
+                          const ogValue = (og as Record<string, string>)[k];
+                          return (ogValue || "").trim().toLowerCase() !== String(v).trim().toLowerCase();
+                        }
+                        return true;
+                      });
+
+                      if (twitterEntries.length === 0) {
+                        return <p className="text-xs text-white/30 text-center py-4">No unique Twitter Card tags found</p>;
+                      }
+
+                      return twitterEntries.map(([k, v]) => (
                         <div key={k} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02]">
                           <span className="text-[10px] text-white/40 w-16 flex-shrink-0">{k}</span>
                           {k === "image" ? (
                             <div className="flex-1">
-                              <img src={v as string} alt="OG" className="max-h-20 rounded border border-white/10" onError={e => (e.currentTarget.style.display = "none")} />
+                              <img src={v as string} alt="Twitter Card" className="max-h-20 rounded border border-white/10" onError={e => (e.currentTarget.style.display = "none")} />
                               <p className="text-[10px] text-white/40 mt-1 break-all">{v as string}</p>
                             </div>
                           ) : (
                             <span className="text-xs text-white/70 flex-1 break-all">{v as string}</span>
                           )}
                         </div>
-                      ))}
-                      {/* Twitter card entries inline */}
-                      {(() => {
-                        const og = scrapeResult.openGraph || {};
-                        const twitterEntries = Object.entries(scrapeResult.twitterCard || {}).filter(([k, v]) => {
-                          if (!v) return false;
-                          if (["title", "description", "image"].includes(k)) {
-                            return (og[k as keyof typeof og] || "").toString().trim().toLowerCase() !== String(v).trim().toLowerCase();
-                          }
-                          return true;
-                        });
-                        return twitterEntries.map(([k, v]) => (
-                          <div key={`tw-${k}`} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02]">
-                            <span className="text-[10px] text-white/40 w-16 flex-shrink-0">tw:{k}</span>
-                            <span className="text-xs text-white/70 flex-1 break-all">{v as string}</span>
-                          </div>
-                        ));
-                      })()}
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-[10px] text-white/40 mb-1">Live Site Screenshot</p>
-                      {scrapeResult.screenshotUrl ? (
-                        <div className="rounded-lg overflow-hidden border border-white/10 bg-black/20">
-                          <img src={scrapeResult.screenshotUrl} alt="Site screenshot" className="w-full h-auto rounded-lg" loading="lazy" onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
-                        </div>
-                      ) : (
-                        <div className="rounded-lg border border-white/10 bg-black/20 flex items-center justify-center py-12">
-                          <p className="text-xs text-white/30">No screenshot available</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                      ));
+                    })()}
+                  </CardContent>
+                </Card>
 
-              {/* Headings */}
-              <Card className="crm-card">
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-400 flex items-center gap-2"><FileText className="h-4 w-4" /> Heading Structure</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
-                  {(scrapeResult.headings?.h1 || []).map((h: string, i: number) => (
-                    <div key={`h1-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
-                      <Badge className="bg-emerald-400/15 text-emerald-400 text-[9px]">H1</Badge>
-                      <span className="text-xs text-white/70">{h}</span>
-                    </div>
-                  ))}
-                  {(scrapeResult.headings?.h2 || []).slice(0, 10).map((h: string, i: number) => (
-                    <div key={`h2-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
-                      <Badge className="bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)] text-[9px]">H2</Badge>
-                      <span className="text-xs text-white/70">{h}</span>
-                    </div>
-                  ))}
-                  {(scrapeResult.headings?.h3 || []).slice(0, 5).map((h: string, i: number) => (
-                    <div key={`h3-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
-                      <Badge className="bg-white/10 text-white/50 text-[9px]">H3</Badge>
-                      <span className="text-xs text-white/70">{h}</span>
-                    </div>
-                  ))}
-                  {scrapeResult.headings?.h1?.length === 0 && <p className="text-xs text-red-400/70 text-center py-2">⚠ No H1 tag found — bad for SEO</p>}
-                </CardContent>
-              </Card>
+                {/* Headings */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-400 flex items-center gap-2"><FileText className="h-4 w-4" /> Heading Structure</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {(scrapeResult.headings?.h1 || []).map((h: string, i: number) => (
+                      <div key={`h1-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-emerald-400/15 text-emerald-400 text-[9px]">H1</Badge>
+                        <span className="text-xs text-white/70">{h}</span>
+                      </div>
+                    ))}
+                    {(scrapeResult.headings?.h2 || []).slice(0, 10).map((h: string, i: number) => (
+                      <div key={`h2-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)] text-[9px]">H2</Badge>
+                        <span className="text-xs text-white/70">{h}</span>
+                      </div>
+                    ))}
+                    {(scrapeResult.headings?.h3 || []).slice(0, 5).map((h: string, i: number) => (
+                      <div key={`h3-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-white/10 text-white/50 text-[9px]">H3</Badge>
+                        <span className="text-xs text-white/70">{h}</span>
+                      </div>
+                    ))}
+                    {scrapeResult.headings?.h1?.length === 0 && <p className="text-xs text-red-400/70 text-center py-2">⚠ No H1 tag found — bad for SEO</p>}
+                    {(scrapeResult.headings?.h1?.length || 0) > 1 && <p className="text-xs text-amber-400/70 text-center py-2">⚠ Multiple H1 tags — consider using only one</p>}
+                  </CardContent>
+                </Card>
 
-              {/* ═══ UNIFIED SOCIAL MEDIA INTELLIGENCE CARD ═══ */}
-              <Card className="crm-card">
-                <CardHeader className="pb-2 cursor-pointer" onClick={() => toggleSection("social")}>
-                  <CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2">
-                    <Globe className="h-4 w-4" /> Social Media Intelligence
-                    <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">
-                      {Object.keys(scrapeResult.socialLinks || {}).length} platforms · {(Object.values(scrapeResult.socialLinks || {}) as any[]).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0)} links
-                    </Badge>
-                    {expandedSections.social ? <ChevronUp className="h-3.5 w-3.5 text-white/30" /> : <ChevronDown className="h-3.5 w-3.5 text-white/30" />}
-                  </CardTitle>
-                </CardHeader>
-                {expandedSections.social && (
+              {/* Detected Platforms - categorized */}
+                {(() => {
+                  const dp = scrapeResult.detectedPlatforms || {};
+                  const categories: { key: string; label: string; color: string; icon: any }[] = [
+                    { key: "crm", label: "CRM Systems", color: "text-purple-400", icon: Users },
+                    { key: "payments", label: "Payment Platforms", color: "text-emerald-400", icon: Zap },
+                    { key: "analytics", label: "Analytics & Tracking", color: "text-[hsl(217,91%,60%)]", icon: BarChart3 },
+                    { key: "marketing", label: "Email & Marketing", color: "text-pink-400", icon: Sparkles },
+                    { key: "support", label: "Customer Support & Chat", color: "text-cyan-400", icon: Activity },
+                    { key: "ecommerce", label: "E-commerce Platform", color: "text-orange-400", icon: Globe },
+                    { key: "hosting", label: "Hosting & Infrastructure", color: "text-teal-400", icon: Globe },
+                    { key: "cdn", label: "CDN Providers", color: "text-sky-400", icon: Globe },
+                    { key: "fileStorage", label: "File Storage & Media CDN", color: "text-violet-400", icon: ImageIcon },
+                    { key: "frameworks", label: "Frameworks & CMS", color: "text-amber-400", icon: Code },
+                    { key: "ads", label: "Ads & Monetization", color: "text-yellow-400", icon: TrendingUp },
+                    { key: "security", label: "Security, Auth & Monitoring", color: "text-red-400", icon: Shield },
+                    { key: "scheduling", label: "Scheduling & Booking", color: "text-indigo-400", icon: Calendar },
+                    { key: "forms", label: "Forms & Surveys", color: "text-lime-400", icon: FileText },
+                    { key: "engagement", label: "Engagement & Media", color: "text-sky-400", icon: Eye },
+                    { key: "socialProof", label: "Reviews & Social Proof", color: "text-amber-300", icon: Star },
+                    { key: "seoTools", label: "SEO & Compliance Tools", color: "text-green-400", icon: Search },
+                    { key: "productivity", label: "Productivity & Collaboration", color: "text-violet-400", icon: Crown },
+                    { key: "socialMedia", label: "Social Media Integrations", color: "text-pink-500", icon: Globe },
+                    { key: "backendProviders", label: "Backend Providers", color: "text-cyan-300", icon: Code },
+                    { key: "aiTools", label: "AI & ML Tools", color: "text-fuchsia-400", icon: Sparkles },
+                    { key: "affiliate", label: "Affiliate & Referral", color: "text-rose-400", icon: TrendingUp },
+                    { key: "personalization", label: "Personalization & A/B Testing", color: "text-sky-300", icon: Eye },
+                  ];
+                  const activeCats = categories.filter(c => ["backendProviders", "cdn", "fileStorage"].includes(c.key) || (dp[c.key] || []).length > 0);
+                  if (activeCats.length === 0) return (
+                    <Card className="crm-card md:col-span-2">
+                      <CardContent className="p-6 text-center">
+                        <Code className="h-6 w-6 text-white/20 mx-auto mb-2" />
+                        <p className="text-xs text-white/30">No external platforms detected</p>
+                      </CardContent>
+                    </Card>
+                  );
+                  return activeCats.map(cat => {
+                    const providers = (dp[cat.key] as { name: string; confidence: string }[]) || [];
+                    return (
+                      <Card key={cat.key} className="crm-card">
+                        <CardHeader className="pb-2">
+                          <CardTitle className={`text-sm font-medium flex items-center gap-2 ${cat.color}`}>
+                            <cat.icon className="h-4 w-4" /> {cat.label}
+                            <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{providers.length}</Badge>
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          {providers.length > 0 ? (
+                            <div className="space-y-1.5 max-h-64 overflow-auto">
+                              {providers.map((p: any) => (
+                                <div key={p.name} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                                  <span className="text-xs text-white/80">{p.name}</span>
+                                  <Badge variant="outline" className={`text-[9px] ${p.confidence === "high" ? "border-emerald-400/30 text-emerald-400" : "border-white/10 text-white/40"}`}>
+                                    {p.confidence}
+                                  </Badge>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p className="text-xs text-white/35">None detected</p>
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  });
+                })()}
+
+                {/* Social Presence - Enhanced */}
+                <Card className="crm-card md:col-span-2">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2"><Link className="h-4 w-4" /> Social Presence <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{Object.keys(scrapeResult.socialLinks || {}).length} platforms</Badge></CardTitle></CardHeader>
                   <CardContent>
                     {Object.keys(scrapeResult.socialLinks || {}).length > 0 ? (
-                      <div className="space-y-3">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                         {Object.entries(scrapeResult.socialLinks || {}).map(([platform, links]) => {
                           const platformIcons: Record<string, string> = {
                             facebook: "🔵", twitter: "🐦", instagram: "📸", linkedin: "💼", youtube: "🎬",
                             tiktok: "🎵", pinterest: "📌", github: "🐙", reddit: "🔴", discord: "💬",
                             telegram: "✈️", whatsapp: "💬", snapchat: "👻", threads: "🧵", mastodon: "🐘",
-                            bluesky: "🦋", twitch: "🟣", medium: "📝", dribbble: "🏀", behance: "🎨",
-                            spotify: "🎧", soundcloud: "🔊", vimeo: "🎥", tumblr: "📓", flickr: "📷",
                           };
                           return (
                             <div key={platform} className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
@@ -1666,592 +1624,349 @@ Return ONLY valid JSON:
                                 <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{(links as string[]).length}</Badge>
                               </div>
                               <div className="space-y-1">
-                                {(links as string[]).map((link, i) => {
-                                  // Extract handle/username from URL
-                                  let handle = "";
-                                  try {
-                                    const u = new URL(link.startsWith("http") ? link : `https://${link}`);
-                                    handle = u.pathname.replace(/^\//, "").split("/")[0] || "";
-                                    if (handle.startsWith("@")) handle = handle;
-                                    else if (handle) handle = `@${handle}`;
-                                  } catch {}
-                                  return (
-                                    <div key={i} className="flex items-center justify-between">
-                                      <a href={link.startsWith("http") ? link : `https://${link}`} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[hsl(217,91%,60%)]/70 hover:text-[hsl(217,91%,60%)] break-all overflow-hidden text-ellipsis flex-1">
-                                        {link}
-                                      </a>
-                                      {handle && <Badge variant="outline" className="text-[9px] border-white/10 text-white/50 ml-2 flex-shrink-0">{handle}</Badge>}
-                                    </div>
-                                  );
-                                })}
+                                {(links as string[]).map((link, i) => (
+                                  <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[hsl(217,91%,60%)]/70 hover:text-[hsl(217,91%,60%)] block break-all overflow-hidden text-ellipsis">{link}</a>
+                                ))}
                               </div>
                             </div>
                           );
                         })}
-                        {/* Contact info inline */}
-                        {((scrapeResult.contactInfo?.emailAddresses?.length || 0) > 0 || (scrapeResult.contactInfo?.phoneNumbers?.length || 0) > 0) && (
-                          <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-lg">📧</span>
-                              <span className="text-xs font-medium text-white/80">Contact Info</span>
-                            </div>
-                            <div className="space-y-1">
-                              {(scrapeResult.contactInfo?.emailAddresses || []).map((email: string, i: number) => (
-                                <div key={`e-${i}`} className="flex items-center gap-2">
-                                  <Badge className="bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)] text-[9px]">Email</Badge>
-                                  <span className="text-xs text-white/70">{email}</span>
-                                </div>
-                              ))}
-                              {(scrapeResult.contactInfo?.phoneNumbers || []).map((phone: string, i: number) => (
-                                <div key={`p-${i}`} className="flex items-center gap-2">
-                                  <Badge className="bg-emerald-400/15 text-emerald-400 text-[9px]">Phone</Badge>
-                                  <span className="text-xs text-white/70">{phone}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
                       </div>
                     ) : (
                       <p className="text-xs text-white/30 text-center py-4">No social links found</p>
                     )}
                   </CardContent>
-                )}
-              </Card>
+                </Card>
 
-              {/* ═══ DETECTED PLATFORMS - All in one card ═══ */}
-              <Card className="crm-card">
-                <CardHeader className="pb-2 cursor-pointer" onClick={() => toggleSection("platforms")}>
-                  <CardTitle className="text-sm font-medium text-cyan-400 flex items-center gap-2">
-                    <Code className="h-4 w-4" /> Detected Platforms & Tech Stack
-                    <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">
-                      {(Object.values(scrapeResult.detectedPlatforms || {}) as any[]).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0)} total
-                    </Badge>
-                    {expandedSections.platforms ? <ChevronUp className="h-3.5 w-3.5 text-white/30" /> : <ChevronDown className="h-3.5 w-3.5 text-white/30" />}
-                  </CardTitle>
-                </CardHeader>
-                {expandedSections.platforms && (
-                  <CardContent>
-                    {(() => {
-                      const dp = scrapeResult.detectedPlatforms || {};
-                      const categories: { key: string; label: string; color: string }[] = [
-                        { key: "crm", label: "CRM", color: "text-purple-400" },
-                        { key: "payments", label: "Payments", color: "text-emerald-400" },
-                        { key: "analytics", label: "Analytics", color: "text-[hsl(217,91%,60%)]" },
-                        { key: "marketing", label: "Marketing", color: "text-pink-400" },
-                        { key: "support", label: "Support", color: "text-cyan-400" },
-                        { key: "ecommerce", label: "E-commerce", color: "text-orange-400" },
-                        { key: "hosting", label: "Hosting", color: "text-teal-400" },
-                        { key: "cdn", label: "CDN", color: "text-sky-400" },
-                        { key: "fileStorage", label: "Storage", color: "text-violet-400" },
-                        { key: "frameworks", label: "Frameworks", color: "text-amber-400" },
-                        { key: "ads", label: "Ads", color: "text-yellow-400" },
-                        { key: "security", label: "Security", color: "text-red-400" },
-                        { key: "identityAuth", label: "Auth", color: "text-rose-300" },
-                        { key: "databaseInfra", label: "Database", color: "text-emerald-300" },
-                        { key: "observability", label: "Observability", color: "text-orange-300" },
-                        { key: "backendProviders", label: "Backend", color: "text-cyan-300" },
-                        { key: "aiTools", label: "AI/ML", color: "text-fuchsia-400" },
-                        { key: "socialMedia", label: "Social APIs", color: "text-pink-500" },
-                        { key: "scheduling", label: "Scheduling", color: "text-indigo-400" },
-                        { key: "forms", label: "Forms", color: "text-lime-400" },
-                        { key: "engagement", label: "Engagement", color: "text-sky-400" },
-                        { key: "socialProof", label: "Social Proof", color: "text-amber-300" },
-                        { key: "seoTools", label: "SEO Tools", color: "text-green-400" },
-                        { key: "productivity", label: "Productivity", color: "text-violet-400" },
-                        { key: "affiliate", label: "Affiliate", color: "text-rose-400" },
-                        { key: "personalization", label: "Personalization", color: "text-sky-300" },
-                      ];
-                      const activeCats = categories.filter(c => (dp[c.key] || []).length > 0);
-                      if (activeCats.length === 0) return <p className="text-xs text-white/30 text-center py-4">No external platforms detected</p>;
-                      return (
-                        <div className="space-y-3">
-                          {activeCats.map(cat => {
-                            const providers = (dp[cat.key] as { name: string; confidence: string }[]) || [];
-                            return (
-                              <div key={cat.key} className="space-y-1.5">
-                                <div className="flex items-center gap-2">
-                                  <span className={`text-xs font-medium ${cat.color}`}>{cat.label}</span>
-                                  <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{providers.length}</Badge>
-                                </div>
-                                <div className="flex flex-wrap gap-1.5">
-                                  {providers.map((p: any) => (
-                                    <Badge key={p.name} variant="outline" className={`text-[10px] ${p.confidence === "high" ? "border-emerald-400/30 text-emerald-400" : "border-white/10 text-white/50"}`}>
-                                      {p.name}
-                                    </Badge>
-                                  ))}
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      );
-                    })()}
-                    {/* Header-based tech inline */}
-                    {(scrapeResult.headerTechDetections || []).length > 0 && (
-                      <div className="mt-4 pt-3 border-t border-white/[0.04]">
-                        <span className="text-xs font-medium text-cyan-400">Header-based Detections</span>
-                        <div className="flex flex-wrap gap-1.5 mt-2">
-                          {(scrapeResult.headerTechDetections as { name: string; source: string }[]).map((t: any, i: number) => (
-                            <Badge key={i} variant="outline" className="text-[10px] border-cyan-400/20 text-cyan-400">{t.name} ({t.source})</Badge>
-                          ))}
-                        </div>
+                {/* Security Headers */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-red-400 flex items-center gap-2"><Shield className="h-4 w-4" /> Security Headers</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {Object.entries(scrapeResult.securityHeaders || {}).map(([header, value]) => (
+                      <div key={header} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02]">
+                        <span className="text-[10px] text-white/50">{header.replace(/([A-Z])/g, " $1").trim()}</span>
+                        {value === "Missing" ? (
+                          <Badge className="bg-red-400/10 text-red-400 text-[9px]"><XCircle className="h-3 w-3 mr-1" /> Missing</Badge>
+                        ) : value === "Present" ? (
+                          <Badge className="bg-emerald-400/10 text-emerald-400 text-[9px]"><CheckCircle className="h-3 w-3 mr-1" /> Present</Badge>
+                        ) : (
+                          <span className="text-[10px] text-emerald-400/70 max-w-[200px] truncate">{value as string}</span>
+                        )}
                       </div>
-                    )}
+                    ))}
                   </CardContent>
-                )}
-              </Card>
+                </Card>
 
-              {/* ═══ FINANCIAL INTELLIGENCE CARD ═══ */}
-              <Card className="crm-card">
-                <CardHeader className="pb-2 cursor-pointer" onClick={() => toggleSection("financial")}>
-                  <CardTitle className="text-sm font-medium text-green-400 flex items-center gap-2">
-                    <DollarSign className="h-4 w-4" /> Financial Intelligence
-                    {financialData && <Badge variant="outline" className="text-[9px] border-emerald-400/20 text-emerald-400">Ready</Badge>}
-                    {!financialData && (
-                      <Button size="sm" variant="outline" className="ml-auto text-xs gap-1 border-green-400/20 text-green-400 hover:bg-green-400/10 h-7"
-                        onClick={e => { e.stopPropagation(); runFinancialAnalysis(); }} disabled={financialLoading}>
-                        {financialLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                        {financialLoading ? "Analyzing..." : "Generate"}
-                      </Button>
-                    )}
-                    {expandedSections.financial ? <ChevronUp className="h-3.5 w-3.5 text-white/30 ml-auto" /> : <ChevronDown className="h-3.5 w-3.5 text-white/30 ml-auto" />}
-                  </CardTitle>
-                </CardHeader>
-                {expandedSections.financial && (
+                {/* Performance Signals */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Activity className="h-4 w-4" /> Performance Signals</CardTitle></CardHeader>
                   <CardContent>
-                    {financialLoading ? (
-                      <div className="text-center py-8">
-                        <Loader2 className="h-8 w-8 text-green-400 mx-auto mb-3 animate-spin" />
-                        <p className="text-xs text-white/50">Analyzing checkout flow, pricing, traffic & revenue...</p>
-                      </div>
-                    ) : financialData ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { label: "Service Worker", value: scrapeResult.performance?.hasServiceWorker },
+                        { label: "Web Manifest", value: scrapeResult.performance?.hasManifest },
+                        { label: "Preconnect", value: scrapeResult.performance?.hasPreconnect },
+                        { label: "Preload", value: scrapeResult.performance?.hasPreload },
+                        { label: "Defer Scripts", value: scrapeResult.performance?.hasDeferScripts },
+                        { label: "Async Scripts", value: scrapeResult.performance?.hasAsyncScripts },
+                        { label: "Lazy Images", value: scrapeResult.performance?.hasLazyImages },
+                      ].map((p, i) => (
+                        <div key={i} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                          {p.value ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <XCircle className="h-3.5 w-3.5 text-white/20" />}
+                          <span className={`text-xs ${p.value ? "text-white/70" : "text-white/30"}`}>{p.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Header-based Tech Detections */}
+                {(scrapeResult.headerTechDetections || []).length > 0 && (
+                  <Card className="crm-card">
+                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-cyan-400 flex items-center gap-2"><Zap className="h-4 w-4" /> Header-based Detections</CardTitle></CardHeader>
+                    <CardContent className="space-y-1.5">
+                      {(scrapeResult.headerTechDetections as { name: string; source: string }[]).map((t: any, i: number) => (
+                        <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                          <span className="text-xs text-white/80">{t.name}</span>
+                          <Badge variant="outline" className="text-[9px] border-cyan-400/20 text-cyan-400">{t.source}</Badge>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Sensitive File Exposure - Full Content */}
+                <Card className="crm-card md:col-span-2">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-red-400 flex items-center gap-2">
+                      <Lock className="h-4 w-4" /> .env / .htaccess / Config Exposure
+                      <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">
+                        {scrapeResult.sensitiveFiles?.totalChecked || 0} probed
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {(scrapeResult.sensitiveFiles?.exposedFiles || []).length > 0 ? (
                       <div className="space-y-4">
-                        {/* Company overview */}
-                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                          {[
-                            { label: "Business Model", value: financialData.companyOverview?.businessModel },
-                            { label: "Stage", value: financialData.companyOverview?.stage },
-                            { label: "Industry", value: financialData.companyOverview?.industry },
-                            { label: "Employees", value: financialData.companyOverview?.estimatedEmployees },
-                            { label: "Founded", value: financialData.companyOverview?.foundedYear },
-                          ].map((item, i) => (
-                            <div key={i} className="p-2 rounded-lg bg-white/[0.02] text-center">
-                              <p className="text-[10px] text-white/40">{item.label}</p>
-                              <p className="text-xs font-medium text-white/80">{item.value || "N/A"}</p>
+                        <div className="flex items-center gap-2 p-2 rounded-lg bg-red-400/10 border border-red-400/20">
+                          <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />
+                          <span className="text-xs text-red-400 font-medium">🚨 {scrapeResult.sensitiveFiles.exposedFiles.length} exposed file(s) found — CRITICAL SECURITY ISSUE</span>
+                        </div>
+                        {(scrapeResult.sensitiveFiles.exposedFiles as { url: string; path: string; snippet: string; fullContent: string; contentType: string }[]).map((f: any, i: number) => (
+                          <div key={i} className="p-3 rounded-lg bg-white/[0.02] border border-red-400/15 space-y-3">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <Badge className={`text-[9px] ${f.path.includes(".env") ? "bg-red-500/20 text-red-400" : f.path.includes(".htaccess") ? "bg-amber-500/20 text-amber-400" : "bg-purple-500/20 text-purple-400"}`}>
+                                  {f.path.includes(".env") ? "ENV" : f.path.includes(".htaccess") ? "HTACCESS" : f.path.includes(".git") ? "GIT" : "CONFIG"}
+                                </Badge>
+                                <span className="text-xs text-red-400 font-mono">{f.path}</span>
+                              </div>
+                              <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[hsl(217,91%,60%)] hover:underline flex items-center gap-1">
+                                <ExternalLink className="h-3 w-3" /> Open
+                              </a>
                             </div>
-                          ))}
-                        </div>
-
-                        {/* Revenue estimates */}
-                        <div className="p-3 rounded-lg bg-green-400/5 border border-green-400/10">
-                          <p className="text-xs font-medium text-green-400 mb-2 flex items-center gap-1"><DollarSign className="h-3.5 w-3.5" /> Revenue Estimates</p>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {[
-                              { label: "Daily", value: financialData.revenueEstimates?.dailyRevenue },
-                              { label: "Weekly", value: financialData.revenueEstimates?.weeklyRevenue },
-                              { label: "Monthly", value: financialData.revenueEstimates?.monthlyRevenue },
-                              { label: "Yearly", value: financialData.revenueEstimates?.yearlyRevenue },
-                            ].map((r, i) => (
-                              <div key={i} className="p-2 rounded-lg bg-white/[0.03] text-center">
-                                <p className="text-[10px] text-white/40">{r.label}</p>
-                                <p className="text-sm font-bold text-green-400">{r.value || "N/A"}</p>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-2">
-                            {[
-                              { label: "MRR", value: financialData.revenueEstimates?.mrr },
-                              { label: "ARR", value: financialData.revenueEstimates?.arr },
-                              { label: "LTV", value: financialData.revenueEstimates?.ltv },
-                              { label: "CAC", value: financialData.revenueEstimates?.cac },
-                            ].map((r, i) => (
-                              <div key={i} className="p-2 rounded-lg bg-white/[0.03] text-center">
-                                <p className="text-[10px] text-white/40">{r.label}</p>
-                                <p className="text-xs font-medium text-white/80">{r.value || "N/A"}</p>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="grid grid-cols-3 gap-2 mt-2">
-                            {[
-                              { label: "Revenue Model", value: financialData.revenueEstimates?.revenueModel },
-                              { label: "Avg Order Value", value: financialData.revenueEstimates?.averageOrderValue },
-                              { label: "Churn Rate", value: financialData.revenueEstimates?.churnRate },
-                            ].map((r, i) => (
-                              <div key={i} className="p-2 rounded-lg bg-white/[0.03] text-center">
-                                <p className="text-[10px] text-white/40">{r.label}</p>
-                                <p className="text-xs font-medium text-white/80">{r.value || "N/A"}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Traffic estimates */}
-                        <div className="p-3 rounded-lg bg-[hsl(217,91%,60%)]/5 border border-[hsl(217,91%,60%)]/10">
-                          <p className="text-xs font-medium text-[hsl(217,91%,60%)] mb-2 flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" /> Traffic Estimates</p>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {[
-                              { label: "Daily", value: financialData.trafficEstimates?.dailyVisitors },
-                              { label: "Weekly", value: financialData.trafficEstimates?.weeklyVisitors },
-                              { label: "Monthly", value: financialData.trafficEstimates?.monthlyVisitors },
-                              { label: "Yearly", value: financialData.trafficEstimates?.yearlyVisitors },
-                            ].map((t, i) => (
-                              <div key={i} className="p-2 rounded-lg bg-white/[0.03] text-center">
-                                <p className="text-[10px] text-white/40">{t.label}</p>
-                                <p className="text-sm font-bold text-[hsl(217,91%,60%)]">{t.value || "N/A"}</p>
-                              </div>
-                            ))}
-                          </div>
-                          <div className="grid grid-cols-3 gap-2 mt-2">
-                            {[
-                              { label: "Bounce Rate", value: financialData.trafficEstimates?.bounceRate },
-                              { label: "Avg Session", value: financialData.trafficEstimates?.avgSessionDuration },
-                              { label: "Trend", value: financialData.trafficEstimates?.growthTrend },
-                            ].map((t, i) => (
-                              <div key={i} className="p-2 rounded-lg bg-white/[0.03] text-center">
-                                <p className="text-[10px] text-white/40">{t.label}</p>
-                                <p className="text-xs font-medium text-white/80">{t.value || "N/A"}</p>
-                              </div>
-                            ))}
-                          </div>
-                          {(financialData.trafficEstimates?.topTrafficSources || []).length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-1.5">
-                              {financialData.trafficEstimates.topTrafficSources.map((s: any, i: number) => (
-                                <Badge key={i} variant="outline" className="text-[9px] border-white/10 text-white/50">{s.source}: {s.percentage}</Badge>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Income sources */}
-                        {(financialData.incomeSources || []).length > 0 && (
-                          <div className="space-y-2">
-                            <p className="text-xs font-medium text-white/50">Income Sources</p>
-                            {financialData.incomeSources.map((s: any, i: number) => (
-                              <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-xs text-white/80">{s.source}</span>
-                                  <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{s.type}</Badge>
-                                </div>
-                                <span className="text-xs font-medium text-emerald-400">{s.estimatedShare}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Pricing analysis */}
-                        {financialData.pricingAnalysis && (
-                          <div className="space-y-2">
-                            <p className="text-xs font-medium text-white/50">Pricing Analysis</p>
-                            {(financialData.pricingAnalysis.plans || []).map((p: any, i: number) => (
-                              <div key={i} className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                            {f.contentType && (
+                              <div className="text-[10px] text-white/30">Content-Type: {f.contentType}</div>
+                            )}
+                            {/* Full content display */}
+                            {(f.fullContent || f.snippet) && (
+                              <div className="space-y-1">
                                 <div className="flex items-center justify-between">
-                                  <span className="text-xs text-white/80 font-medium">{p.name}</span>
-                                  <span className="text-xs text-green-400 font-bold">{p.price} / {p.billing}</span>
+                                  <span className="text-[10px] text-white/40 font-medium">Full File Content</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 px-2 text-[9px] text-white/40 hover:text-white"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(f.fullContent || f.snippet);
+                                      toast.success("Content copied to clipboard");
+                                    }}
+                                  >
+                                    <Copy className="h-3 w-3 mr-1" /> Copy
+                                  </Button>
                                 </div>
-                                {p.features && <p className="text-[10px] text-white/40 mt-1">{p.features}</p>}
-                              </div>
-                            ))}
-                            {financialData.pricingAnalysis.upsells && (
-                              <div className="p-2 rounded-lg bg-amber-400/5 border border-amber-400/10">
-                                <span className="text-[10px] text-amber-400">Upsells: </span>
-                                <span className="text-[10px] text-white/60">{financialData.pricingAnalysis.upsells}</span>
-                              </div>
-                            )}
-                            {financialData.pricingAnalysis.crossSells && financialData.pricingAnalysis.crossSells !== "None" && (
-                              <div className="p-2 rounded-lg bg-[hsl(217,91%,60%)]/5 border border-[hsl(217,91%,60%)]/10">
-                                <span className="text-[10px] text-[hsl(217,91%,60%)]">Cross-sells: </span>
-                                <span className="text-[10px] text-white/60">{financialData.pricingAnalysis.crossSells}</span>
+                                <pre className="text-[10px] text-white/60 bg-black/40 p-3 rounded-lg overflow-auto max-h-64 font-mono border border-red-400/10 whitespace-pre-wrap break-all">
+                                  {f.fullContent || f.snippet}
+                                </pre>
                               </div>
                             )}
                           </div>
-                        )}
-
-                        {/* Growth indicators */}
-                        {financialData.growthIndicators && (
-                          <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                            {[
-                              { label: "Tech Maturity", value: financialData.growthIndicators.techMaturity, max: 10 },
-                              { label: "Marketing Efficiency", value: financialData.growthIndicators.marketingEfficiency, max: 10 },
-                              { label: "Product-Market Fit", value: financialData.growthIndicators.productMarketFit, max: 10 },
-                              { label: "Scalability", value: financialData.growthIndicators.scalabilityScore, max: 10 },
-                              { label: "Overall Health", value: financialData.growthIndicators.overallHealthScore, max: 100 },
-                            ].map((g, i) => (
-                              <div key={i} className="p-2 rounded-lg bg-white/[0.02] text-center">
-                                <p className="text-[10px] text-white/40">{g.label}</p>
-                                <p className="text-sm font-bold text-white">{g.value || "?"}<span className="text-[10px] text-white/30">/{g.max}</span></p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-
-                        {/* Competitive position */}
-                        {financialData.competitivePosition && (
-                          <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-2">
-                            <p className="text-xs font-medium text-white/50">Competitive Position</p>
-                            <p className="text-[10px] text-white/60">Market Share: {financialData.competitivePosition.marketShare || "N/A"}</p>
-                            <p className="text-[10px] text-white/60">Advantage: {financialData.competitivePosition.competitiveAdvantage || "N/A"}</p>
-                            {(financialData.competitivePosition.mainCompetitors || []).length > 0 && (
-                              <div className="flex flex-wrap gap-1.5">
-                                <span className="text-[10px] text-white/40">Competitors:</span>
-                                {financialData.competitivePosition.mainCompetitors.map((c: string, i: number) => (
-                                  <Badge key={i} variant="outline" className="text-[9px] border-white/10 text-white/50">{c}</Badge>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {/* Confidence + methodology */}
-                        <div className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02]">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-white/40">Confidence:</span>
-                            <Badge variant="outline" className={`text-[9px] ${financialData.confidenceLevel === "high" ? "border-emerald-400/20 text-emerald-400" : financialData.confidenceLevel === "medium" ? "border-amber-400/20 text-amber-400" : "border-red-400/20 text-red-400"}`}>
-                              {financialData.confidenceLevel || "N/A"}
-                            </Badge>
-                          </div>
-                          <Button size="sm" variant="ghost" className="h-6 text-[10px] text-green-400/60 hover:text-green-400" onClick={() => { setFinancialData(null); runFinancialAnalysis(); }}>
-                            <RefreshCw className="h-3 w-3 mr-1" /> Re-analyze
-                          </Button>
-                        </div>
-                        {financialData.methodology && (
-                          <p className="text-[10px] text-white/30 italic">{financialData.methodology}</p>
-                        )}
+                        ))}
                       </div>
                     ) : (
-                      <div className="text-center py-6">
-                        <DollarSign className="h-8 w-8 text-white/15 mx-auto mb-2" />
-                        <p className="text-xs text-white/40 mb-2">AI-powered revenue, traffic & financial analysis</p>
-                        <Button size="sm" className="bg-green-500/20 text-green-400 hover:bg-green-500/30 gap-1.5" onClick={runFinancialAnalysis} disabled={financialLoading}>
-                          <Sparkles className="h-3.5 w-3.5" /> Generate Financial Intelligence
-                        </Button>
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                        <CheckCircle className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                        <span className="text-xs text-emerald-400/80">No publicly exposed .env / .htaccess / config files detected ({scrapeResult.sensitiveFiles?.totalChecked || 0} probes)</span>
                       </div>
                     )}
+                    {(scrapeResult.sensitiveFiles?.allChecks || []).length > 0 && (
+                      <details className="mt-3">
+                        <summary className="text-[10px] text-white/30 cursor-pointer hover:text-white/50">Show all {scrapeResult.sensitiveFiles?.allChecks?.length || 0} probe results</summary>
+                        <div className="mt-2 space-y-1 max-h-36 overflow-auto">
+                          {(scrapeResult.sensitiveFiles.allChecks as { path: string; host: string; status: number; exposed: boolean }[]).map((c: any, i: number) => (
+                            <div key={i} className="flex items-center justify-between p-1.5 rounded bg-white/[0.02] text-[10px]">
+                              <span className="text-white/40 font-mono">{c.host}{c.path}</span>
+                              <span className={c.exposed ? "text-red-400 font-bold" : c.status === 200 ? "text-amber-400" : "text-white/20"}>{c.status} {c.exposed ? "⚠ EXPOSED" : ""}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
                   </CardContent>
-                )}
-              </Card>
+                </Card>
+              </div>
 
-              {/* ═══ DEEP ANALYSIS - SINGLE MAIN CARD ═══ */}
-              <Card className="crm-card">
-                <CardHeader className="pb-2 cursor-pointer" onClick={() => toggleSection("deepMetrics")}>
-                  <CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2">
+              {/* ═══ CURATED METRICS ═══ */}
+              {scrapeResult.curatedMetrics && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-medium text-white/50 flex items-center gap-2">
                     <BarChart3 className="h-4 w-4" /> Deep Analysis
-                    <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{Object.keys(scrapeResult.curatedMetrics || {}).length} categories</Badge>
-                    {expandedSections.deepMetrics ? <ChevronUp className="h-3.5 w-3.5 text-white/30 ml-auto" /> : <ChevronDown className="h-3.5 w-3.5 text-white/30 ml-auto" />}
-                  </CardTitle>
-                </CardHeader>
-                {expandedSections.deepMetrics && scrapeResult.curatedMetrics && (
-                  <CardContent className="space-y-4">
+                    <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{Object.keys(scrapeResult.curatedMetrics).length} categories</Badge>
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                     {Object.entries(scrapeResult.curatedMetrics as Record<string, { label: string; items: Record<string, any> }>).map(([key, category]) => {
                       const catColors: Record<string, string> = {
                         contentQuality: "text-cyan-400", seoSignals: "text-emerald-400", mediaAssets: "text-amber-400",
                         techStack: "text-purple-400", monetization: "text-green-400", uxFeatures: "text-pink-400",
                         linkProfile: "text-[hsl(217,91%,60%)]", securityScore: "text-red-400",
                       };
+                      const catIcons: Record<string, any> = {
+                        contentQuality: FileText, seoSignals: Target, mediaAssets: ImageIcon,
+                        techStack: Code, monetization: Zap, uxFeatures: Eye,
+                        linkProfile: Link, securityScore: Shield,
+                      };
+                      const IconComp = catIcons[key] || BarChart3;
                       const color = catColors[key] || "text-white/60";
                       return (
-                        <div key={key} className="space-y-1.5">
-                          <p className={`text-xs font-medium ${color}`}>{category.label}</p>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
-                            {Object.entries(category.items).map(([label, value]) => (
-                              <div key={label} className="flex items-center justify-between p-1.5 rounded bg-white/[0.02]">
-                                <span className="text-[10px] text-white/50">{label}</span>
-                                {value === "✓" ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> :
-                                 value === "✗" ? <XCircle className="h-3.5 w-3.5 text-white/20" /> :
-                                 <span className="text-xs font-medium text-white/80">{String(value)}</span>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                        <Card key={key} className="crm-card">
+                          <CardHeader className="pb-2">
+                            <CardTitle className={`text-sm font-medium flex items-center gap-2 ${color}`}>
+                              <IconComp className="h-4 w-4" /> {category.label}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent className="space-y-1.5">
+                            {Object.entries(category.items).map(([label, value]) => {
+                              const isCheck = value === "✓";
+                              const isCross = value === "✗";
+                              return (
+                                <div key={label} className="flex items-center justify-between p-1.5 rounded bg-white/[0.02]">
+                                  <span className="text-[10px] text-white/50">{label}</span>
+                                  {isCheck ? (
+                                    <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+                                  ) : isCross ? (
+                                    <XCircle className="h-3.5 w-3.5 text-white/20" />
+                                  ) : (
+                                    <span className="text-xs font-medium text-white/80">{String(value)}</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </CardContent>
+                        </Card>
                       );
                     })}
+                  </div>
+                </div>
+              )}
 
-                    {/* Accessibility inline */}
-                    <div className="space-y-1.5 pt-2 border-t border-white/[0.04]">
-                      <p className="text-xs font-medium text-white/50">Accessibility</p>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
-                        {[
-                          { label: "Forms", value: scrapeResult.accessibility?.formCount || 0 },
-                          { label: "ARIA attrs", value: scrapeResult.accessibility?.ariaCount || 0 },
-                          { label: "Skip Nav", value: scrapeResult.accessibility?.hasSkipNav ? "✓" : "✗" },
-                          { label: "Focus Styles", value: scrapeResult.accessibility?.hasFocusStyles ? "✓" : "✗" },
-                        ].map((a, i) => (
-                          <div key={i} className="flex items-center justify-between p-1.5 rounded bg-white/[0.02]">
-                            <span className="text-[10px] text-white/50">{a.label}</span>
-                            {a.value === "✓" ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> :
-                             a.value === "✗" ? <XCircle className="h-3.5 w-3.5 text-white/20" /> :
-                             <span className="text-xs font-medium text-white/80">{a.value}</span>}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+              {/* Links & Images stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  { label: "Internal Links", value: scrapeResult.links?.totalInternal || 0, icon: Link },
+                  { label: "External Links", value: scrapeResult.links?.totalExternal || 0, icon: ExternalLink },
+                  { label: "Images", value: scrapeResult.images?.total || 0, icon: ImageIcon },
+                  { label: "Images w/ Alt", value: `${scrapeResult.images?.withAlt || 0}/${scrapeResult.images?.total || 0}`, icon: CheckCircle },
+                ].map((s, i) => (
+                  <Card key={i} className="crm-card">
+                    <CardContent className="p-3 text-center">
+                      <s.icon className="h-4 w-4 text-white/30 mx-auto mb-1" />
+                      <p className="text-sm font-semibold text-white">{s.value}</p>
+                      <p className="text-[10px] text-white/40">{s.label}</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
 
-                    {/* Typography inline */}
-                    {((scrapeResult.fonts?.googleFonts?.length || 0) > 0 || (scrapeResult.fonts?.customFonts?.length || 0) > 0) && (
-                      <div className="space-y-1.5 pt-2 border-t border-white/[0.04]">
-                        <p className="text-xs font-medium text-white/50">Typography</p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {(scrapeResult.fonts?.googleFonts || []).map((f: string, i: number) => (
-                            <Badge key={`gf-${i}`} variant="outline" className="text-[10px] border-amber-400/20 text-amber-400">G: {decodeURIComponent(f).replace(/\+/g, " ")}</Badge>
-                          ))}
-                          {(scrapeResult.fonts?.customFonts || []).slice(0, 6).map((f: string, i: number) => (
-                            <Badge key={`cf-${i}`} variant="outline" className="text-[10px] border-white/10 text-white/40">{f.trim()}</Badge>
-                          ))}
-                        </div>
+              {/* Contact Info */}
+              {((scrapeResult.contactInfo?.emailAddresses?.length || 0) > 0 || (scrapeResult.contactInfo?.phoneNumbers?.length || 0) > 0) && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Users className="h-4 w-4" /> Contact Information Found</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {(scrapeResult.contactInfo?.emailAddresses || []).map((email: string, i: number) => (
+                      <div key={`e-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)] text-[9px]">Email</Badge>
+                        <span className="text-xs text-white/70">{email}</span>
                       </div>
+                    ))}
+                    {(scrapeResult.contactInfo?.phoneNumbers || []).map((phone: string, i: number) => (
+                      <div key={`p-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-emerald-400/15 text-emerald-400 text-[9px]">Phone</Badge>
+                        <span className="text-xs text-white/70">{phone}</span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Fonts */}
+              {((scrapeResult.fonts?.googleFonts?.length || 0) > 0 || (scrapeResult.fonts?.customFonts?.length || 0) > 0) && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><FileText className="h-4 w-4" /> Typography & Fonts</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {scrapeResult.fonts?.adobeFonts && (
+                      <Badge variant="outline" className="text-[10px] border-white/10 text-white/50 mb-2">Adobe Fonts detected</Badge>
                     )}
+                    {(scrapeResult.fonts?.googleFonts || []).map((f: string, i: number) => (
+                      <div key={`gf-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-amber-400/15 text-amber-400 text-[9px]">Google</Badge>
+                        <span className="text-xs text-white/70">{decodeURIComponent(f).replace(/\+/g, " ")}</span>
+                      </div>
+                    ))}
+                    {(scrapeResult.fonts?.customFonts || []).slice(0, 8).map((f: string, i: number) => (
+                      <div key={`cf-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-white/10 text-white/40 text-[9px]">CSS</Badge>
+                        <span className="text-xs text-white/70">{f.trim()}</span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
 
-                    {/* Links stats inline */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 pt-2 border-t border-white/[0.04]">
-                      {[
-                        { label: "Internal Links", value: scrapeResult.links?.totalInternal || 0 },
-                        { label: "External Links", value: scrapeResult.links?.totalExternal || 0 },
-                        { label: "Images", value: scrapeResult.images?.total || 0 },
-                        { label: "Images w/ Alt", value: `${scrapeResult.images?.withAlt || 0}/${scrapeResult.images?.total || 0}` },
-                      ].map((s, i) => (
-                        <div key={i} className="p-2 rounded-lg bg-white/[0.02] text-center">
-                          <p className="text-sm font-semibold text-white">{s.value}</p>
-                          <p className="text-[10px] text-white/40">{s.label}</p>
-                        </div>
+              {/* Accessibility */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Eye className="h-4 w-4" /> Accessibility Signals</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {[
+                      { label: "Forms", value: scrapeResult.accessibility?.formCount || 0 },
+                      { label: "Labels", value: scrapeResult.accessibility?.inputsWithLabels || 0 },
+                      { label: "ARIA attrs", value: scrapeResult.accessibility?.ariaCount || 0 },
+                      { label: "Role attrs", value: scrapeResult.accessibility?.roleCount || 0 },
+                      { label: "TabIndex", value: scrapeResult.accessibility?.tabIndexCount || 0 },
+                    ].map((a, i) => (
+                      <div key={i} className="p-2 rounded-lg bg-white/[0.02] text-center">
+                        <p className="text-sm font-semibold text-white">{a.value}</p>
+                        <p className="text-[10px] text-white/40">{a.label}</p>
+                      </div>
+                    ))}
+                    <div className="p-2 rounded-lg bg-white/[0.02] flex items-center justify-center gap-1.5">
+                      {scrapeResult.accessibility?.hasSkipNav ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <XCircle className="h-3.5 w-3.5 text-white/20" />}
+                      <span className="text-xs text-white/60">Skip Nav</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-white/[0.02] flex items-center justify-center gap-1.5">
+                      {scrapeResult.accessibility?.hasFocusStyles ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <XCircle className="h-3.5 w-3.5 text-white/20" />}
+                      <span className="text-xs text-white/60">Focus Styles</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* iFrames */}
+              {(scrapeResult.iframes || []).length > 0 && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><ExternalLink className="h-4 w-4" /> Embedded iFrames ({scrapeResult.iframes.length})</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="space-y-1 max-h-36 overflow-auto">
+                      {scrapeResult.iframes.map((src: string, i: number) => (
+                        <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-[hsl(217,91%,60%)]/60 hover:text-[hsl(217,91%,60%)] break-all p-1 rounded hover:bg-white/[0.02]">{src}</a>
                       ))}
                     </div>
-
-                    {/* Structured Data */}
-                    {(scrapeResult.structuredData || []).length > 0 && (
-                      <details className="pt-2 border-t border-white/[0.04]">
-                        <summary className="text-xs font-medium text-white/50 cursor-pointer hover:text-white/70">Structured Data (JSON-LD) — {scrapeResult.structuredData.length} blocks</summary>
-                        <pre className="text-[10px] text-white/50 bg-white/[0.02] p-3 rounded-lg overflow-auto max-h-48 border border-white/[0.04] mt-2">
-                          {JSON.stringify(scrapeResult.structuredData, null, 2)}
-                        </pre>
-                      </details>
-                    )}
-
-                    {/* External links */}
-                    {(scrapeResult.links?.external || []).length > 0 && (
-                      <details className="pt-2 border-t border-white/[0.04]">
-                        <summary className="text-xs font-medium text-white/50 cursor-pointer hover:text-white/70">External Links ({scrapeResult.links.totalExternal})</summary>
-                        <div className="space-y-1 max-h-36 overflow-auto mt-2">
-                          {scrapeResult.links.external.slice(0, 20).map((link: string, i: number) => (
-                            <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-[hsl(217,91%,60%)]/60 hover:text-[hsl(217,91%,60%)] break-all p-1 rounded hover:bg-white/[0.02]">{link}</a>
-                          ))}
-                        </div>
-                      </details>
-                    )}
-
-                    {/* iFrames */}
-                    {(scrapeResult.iframes || []).length > 0 && (
-                      <details className="pt-2 border-t border-white/[0.04]">
-                        <summary className="text-xs font-medium text-white/50 cursor-pointer hover:text-white/70">Embedded iFrames ({scrapeResult.iframes.length})</summary>
-                        <div className="space-y-1 max-h-36 overflow-auto mt-2">
-                          {scrapeResult.iframes.map((src: string, i: number) => (
-                            <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-[hsl(217,91%,60%)]/60 hover:text-[hsl(217,91%,60%)] break-all p-1 rounded hover:bg-white/[0.02]">{src}</a>
-                          ))}
-                        </div>
-                      </details>
-                    )}
                   </CardContent>
-                )}
-              </Card>
+                </Card>
+              )}
 
-              {/* ═══ SECURITY & SENSITIVE FILES - SINGLE CARD ═══ */}
-              <Card className="crm-card">
-                <CardHeader className="pb-2 cursor-pointer" onClick={() => toggleSection("security")}>
-                  <CardTitle className="text-sm font-medium text-red-400 flex items-center gap-2">
-                    <Shield className="h-4 w-4" /> Security & Sensitive Files
-                    {(scrapeResult.sensitiveFiles?.exposedFiles || []).length > 0 && (
-                      <Badge className="bg-red-400/15 text-red-400 text-[9px] ml-1">{scrapeResult.sensitiveFiles.exposedFiles.length} exposed</Badge>
-                    )}
-                    {expandedSections.security ? <ChevronUp className="h-3.5 w-3.5 text-white/30 ml-auto" /> : <ChevronDown className="h-3.5 w-3.5 text-white/30 ml-auto" />}
-                  </CardTitle>
-                </CardHeader>
-                {expandedSections.security && (
-                  <CardContent className="space-y-3">
-                    {/* Security headers */}
-                    <div className="space-y-1.5">
-                      <p className="text-xs font-medium text-white/50">Security Headers</p>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
-                        {Object.entries(scrapeResult.securityHeaders || {}).map(([header, value]) => (
-                          <div key={header} className="flex items-center justify-between p-1.5 rounded bg-white/[0.02]">
-                            <span className="text-[10px] text-white/50">{header.replace(/([A-Z])/g, " $1").trim()}</span>
-                            {value === "Missing" ? <XCircle className="h-3 w-3 text-red-400" /> :
-                             value === "Present" ? <CheckCircle className="h-3 w-3 text-emerald-400" /> :
-                             <CheckCircle className="h-3 w-3 text-emerald-400" />}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+              {/* Structured Data */}
+              {(scrapeResult.structuredData || []).length > 0 && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Code className="h-4 w-4" /> Structured Data (JSON-LD)</CardTitle></CardHeader>
+                  <CardContent>
+                    <pre className="text-[10px] text-white/50 bg-white/[0.02] p-3 rounded-lg overflow-auto max-h-48 border border-white/[0.04]">
+                      {JSON.stringify(scrapeResult.structuredData, null, 2)}
+                    </pre>
+                  </CardContent>
+                </Card>
+              )}
 
-                    {/* Performance signals */}
-                    <div className="space-y-1.5 pt-2 border-t border-white/[0.04]">
-                      <p className="text-xs font-medium text-white/50">Performance Signals</p>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-1.5">
-                        {[
-                          { label: "Service Worker", value: scrapeResult.performance?.hasServiceWorker },
-                          { label: "Web Manifest", value: scrapeResult.performance?.hasManifest },
-                          { label: "Preconnect", value: scrapeResult.performance?.hasPreconnect },
-                          { label: "Lazy Images", value: scrapeResult.performance?.hasLazyImages },
-                        ].map((p, i) => (
-                          <div key={i} className="flex items-center gap-1.5 p-1.5 rounded bg-white/[0.02]">
-                            {p.value ? <CheckCircle className="h-3 w-3 text-emerald-400" /> : <XCircle className="h-3 w-3 text-white/20" />}
-                            <span className={`text-[10px] ${p.value ? "text-white/70" : "text-white/30"}`}>{p.label}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Sensitive files */}
-                    <div className="pt-2 border-t border-white/[0.04]">
-                      <p className="text-xs font-medium text-white/50 mb-2">Sensitive File Exposure</p>
-                      {(scrapeResult.sensitiveFiles?.exposedFiles || []).length > 0 ? (
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2 p-2 rounded-lg bg-red-400/10 border border-red-400/20">
-                            <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />
-                            <span className="text-xs text-red-400 font-medium">🚨 {scrapeResult.sensitiveFiles.exposedFiles.length} exposed file(s) — CRITICAL</span>
-                          </div>
-                          {(scrapeResult.sensitiveFiles.exposedFiles as any[]).map((f: any, i: number) => (
-                            <div key={i} className="p-3 rounded-lg bg-white/[0.02] border border-red-400/15 space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Badge className={`text-[9px] ${f.path.includes(".env") ? "bg-red-500/20 text-red-400" : "bg-amber-500/20 text-amber-400"}`}>
-                                    {f.path.includes(".env") ? "ENV" : f.path.includes(".htaccess") ? "HTACCESS" : "CONFIG"}
-                                  </Badge>
-                                  <span className="text-xs text-red-400 font-mono">{f.path}</span>
-                                </div>
-                                <a href={f.url} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[hsl(217,91%,60%)] hover:underline flex items-center gap-1">
-                                  <ExternalLink className="h-3 w-3" /> Open
-                                </a>
-                              </div>
-                              {(f.fullContent || f.snippet) && (
-                                <div className="space-y-1">
-                                  <div className="flex items-center justify-between">
-                                    <span className="text-[10px] text-white/40">Content</span>
-                                    <Button variant="ghost" size="sm" className="h-5 px-2 text-[9px] text-white/40 hover:text-white" onClick={() => { navigator.clipboard.writeText(f.fullContent || f.snippet); toast.success("Copied"); }}>
-                                      <Copy className="h-3 w-3 mr-1" /> Copy
-                                    </Button>
-                                  </div>
-                                  <pre className="text-[10px] text-white/60 bg-black/40 p-2 rounded overflow-auto max-h-48 font-mono border border-red-400/10 whitespace-pre-wrap break-all">{f.fullContent || f.snippet}</pre>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-2 p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
-                          <CheckCircle className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                          <span className="text-xs text-emerald-400/80">No exposed files ({scrapeResult.sensitiveFiles?.totalChecked || 0} probes)</span>
-                        </div>
-                      )}
+              {/* External links sample */}
+              {(scrapeResult.links?.external || []).length > 0 && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><ExternalLink className="h-4 w-4" /> External Links ({scrapeResult.links.totalExternal})</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="space-y-1 max-h-48 overflow-auto">
+                      {scrapeResult.links.external.slice(0, 30).map((link: string, i: number) => (
+                        <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-[hsl(217,91%,60%)]/60 hover:text-[hsl(217,91%,60%)] break-all p-1 rounded hover:bg-white/[0.02]">{link}</a>
+                      ))}
                     </div>
                   </CardContent>
-                )}
-              </Card>
+                </Card>
+              )}
             </div>
           ) : (
             <Card className="crm-card">
               <CardContent className="p-12 text-center">
                 <Globe className="h-10 w-10 text-white/20 mx-auto mb-3" />
                 <h3 className="text-white/50 font-medium mb-1">Deep Site Scraper</h3>
-                <p className="text-white/30 text-sm max-w-md mx-auto">Enter any website URL to extract SEO, tech stack, social profiles, financial intelligence, and security analysis</p>
+                <p className="text-white/30 text-sm max-w-md mx-auto">Enter any website URL to extract detailed SEO metadata, technologies, social links, security headers, structured data, performance signals, and more — all using free, legal methods</p>
               </CardContent>
             </Card>
           )}
