@@ -1365,6 +1365,10 @@ function extractMetadata(html: string, url: string, securityHeaders: Record<stri
     structuredData,
     socialLinks,
     detectedPlatforms,
+    scanCoverage: {
+      pagesScanned: deepScan?.pagesScanned || 1,
+      scannedUrls: (deepScan?.scannedUrls || [url]).slice(0, 15),
+    },
     accessibility: { formCount, inputsWithLabels, ariaCount, roleCount, tabIndexCount, hasSkipNav, hasFocusStyles },
     fonts: { googleFonts, customFonts, adobeFonts },
     iframes,
