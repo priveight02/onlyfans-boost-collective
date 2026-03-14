@@ -486,9 +486,14 @@ const AdminCustomers = () => {
                 onClick={async () => {
                   if (!detail) return;
                   try {
-                    const { error } = await supabase.from("profiles").update({
-                      metadata: { ...(detail.metadata || {}), competitor_ai_reset_at: new Date().toISOString() }
-                    } as any).eq("user_id", detail.user_id);
+                    const today = new Date().toISOString().slice(0, 10);
+                    const { error } = await supabase.from("competitor_ai_usage" as any).upsert({
+                      user_id: detail.user_id,
+                      usage_date: today,
+                      call_count: 0,
+                      reset_by_admin: true,
+                      updated_at: new Date().toISOString(),
+                    }, { onConflict: "user_id,usage_date" });
                     if (error) throw error;
                     toast.success(`AI rate limit reset for ${detail.display_name || detail.email}`);
                   } catch (e: any) { toast.error(e.message || "Reset failed"); }
