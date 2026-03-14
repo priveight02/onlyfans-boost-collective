@@ -200,7 +200,8 @@ const CompetitorAnalyzer = ({
   const [scrapeUrl, setScrapeUrl] = useState("");
   const [scrapeResult, setScrapeResult] = useState<any>(null);
   const [scrapeLoading, setScrapeLoading] = useState(false);
-
+  const [financialData, setFinancialData] = useState<any>(null);
+  const [financialLoading, setFinancialLoading] = useState(false);
   const { performAction } = useCreditAction();
 
   // Load competitors on mount
