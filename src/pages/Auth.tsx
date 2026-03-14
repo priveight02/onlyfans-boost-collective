@@ -219,7 +219,7 @@ const Auth = () => {
                 transition={{ duration: 0.2 }}
                 className="mb-8 text-center"
               >
-                <div className="flex justify-center mb-6">
+                <div className="flex justify-center mb-3">
                   <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze" className="h-12 w-auto" />
                 </div>
                 <h1 className="text-[30px] font-bold text-white tracking-tight leading-tight">
