@@ -597,6 +597,129 @@ Return ONLY valid JSON:
     });
   };
 
+  // ─── Financial Intelligence Analysis ────────────────
+  const runFinancialAnalysis = async () => {
+    if (!scrapeResult) return;
+    await performAction("site_scrape", async () => {
+      setFinancialLoading(true);
+      try {
+        const dp = scrapeResult.detectedPlatforms || {};
+        const cm = scrapeResult.curatedMetrics || {};
+        const monetization = cm.monetization?.items || {};
+        const socialCount = Object.keys(scrapeResult.socialLinks || {}).length;
+        const platformCount = Object.values(dp).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0);
+
+        const prompt = `You are a world-class competitive intelligence and financial analyst. Analyze this website and provide EXTREMELY DETAILED financial intelligence.
+
+WEBSITE: ${scrapeResult.finalUrl || scrapeResult.url}
+TITLE: ${scrapeResult.basic?.title || "Unknown"}
+DESCRIPTION: ${scrapeResult.basic?.description || "Unknown"}
+
+DETECTED TECH STACK:
+- Payment Platforms: ${(dp.payments || []).map((p: any) => p.name).join(", ") || "None"}
+- E-commerce: ${(dp.ecommerce || []).map((p: any) => p.name).join(", ") || "None"}
+- Analytics: ${(dp.analytics || []).map((p: any) => p.name).join(", ") || "None"}
+- Ad Networks: ${(dp.ads || []).map((p: any) => p.name).join(", ") || "None"}
+- Backend: ${(dp.backendProviders || []).map((p: any) => p.name).join(", ") || "None"}
+- CRM: ${(dp.crm || []).map((p: any) => p.name).join(", ") || "None"}
+- Support: ${(dp.support || []).map((p: any) => p.name).join(", ") || "None"}
+
+MONETIZATION SIGNALS:
+- Checkout Flow Detected: ${monetization["Checkout Flow"] || "N/A"}
+- Subscription UI: ${monetization["Subscription UI"] || "N/A"}
+- Price Points Found: ${monetization["Price Points"] || 0}
+- Payment Providers: ${monetization["Payment Providers"] || 0}
+- Ad Networks: ${monetization["Ad Networks"] || 0}
+- Affiliate Tools: ${monetization["Affiliate Tools"] || 0}
+
+SITE METRICS:
+- SEO Score: ${scrapeResult.seoScore}/100
+- Word Count: ${scrapeResult.content?.wordCount || 0}
+- Social Platforms: ${socialCount}
+- Total Platforms Detected: ${platformCount}
+- Page Size: ${scrapeResult.performance?.pageSizeKB || 0} KB
+- PWA Ready: ${(scrapeResult.performance?.hasServiceWorker && scrapeResult.performance?.hasManifest) ? "Yes" : "No"}
+
+CONTENT PREVIEW: ${(scrapeResult.content?.textPreview || "").slice(0, 800)}
+
+Based on ALL of this data, cross-referenced with publicly available information and industry benchmarks, provide a comprehensive financial analysis. Be as ACCURATE as possible using real industry data and growth patterns.
+
+Return ONLY valid JSON:
+{
+  "companyOverview": {
+    "estimatedEmployees": "<range like 5-15>",
+    "foundedYear": "<year or estimate>",
+    "businessModel": "<SaaS/E-commerce/Marketplace/etc>",
+    "stage": "<Bootstrap/Seed/Series A/Growth/Mature>",
+    "industry": "<specific industry>"
+  },
+  "trafficEstimates": {
+    "dailyVisitors": "<range like 500-2000>",
+    "weeklyVisitors": "<range>",
+    "monthlyVisitors": "<range like 15K-60K>",
+    "yearlyVisitors": "<range>",
+    "bounceRate": "<estimated %>",
+    "avgSessionDuration": "<estimated time>",
+    "topTrafficSources": [{"source": "Organic Search", "percentage": "45%"}, {"source": "Direct", "percentage": "30%"}, {"source": "Social", "percentage": "15%"}, {"source": "Referral", "percentage": "10%"}],
+    "topCountries": [{"country": "US", "percentage": "40%"}, {"country": "UK", "percentage": "15%"}],
+    "growthTrend": "<growing/stable/declining>"
+  },
+  "revenueEstimates": {
+    "dailyRevenue": "<range like $200-$800>",
+    "weeklyRevenue": "<range>",
+    "monthlyRevenue": "<range like $5K-$25K>",
+    "yearlyRevenue": "<range like $60K-$300K>",
+    "revenueModel": "<subscription/one-time/freemium/ads/hybrid>",
+    "averageOrderValue": "<estimated $>",
+    "estimatedConversionRate": "<estimated %>",
+    "mrr": "<Monthly Recurring Revenue estimate if SaaS>",
+    "arr": "<Annual Recurring Revenue estimate if SaaS>",
+    "ltv": "<Customer Lifetime Value estimate>",
+    "cac": "<Customer Acquisition Cost estimate>",
+    "churnRate": "<estimated monthly churn %>"
+  },
+  "incomeSources": [
+    {"source": "<source name>", "estimatedShare": "<percentage>", "type": "<recurring/one-time/ads>", "details": "<brief description>"}
+  ],
+  "pricingAnalysis": {
+    "plans": [{"name": "<plan name>", "price": "<price>", "billing": "<monthly/yearly>", "features": "<key features>"}],
+    "creditPackages": [{"name": "<package>", "credits": "<amount>", "price": "<price>"}],
+    "hasFreeTrialOrTier": "<yes/no with details>",
+    "upsells": "<description of upsell strategies>",
+    "crossSells": "<description of cross-sell strategies>",
+    "downsells": "<description of downsell strategies>"
+  },
+  "competitivePosition": {
+    "marketShare": "<estimated in niche>",
+    "mainCompetitors": ["<competitor 1>", "<competitor 2>", "<competitor 3>"],
+    "competitiveAdvantage": "<main differentiator>",
+    "vulnerabilities": ["<vulnerability 1>", "<vulnerability 2>"]
+  },
+  "growthIndicators": {
+    "techMaturity": "<1-10 score>",
+    "marketingEfficiency": "<1-10 score>",
+    "productMarketFit": "<1-10 score>",
+    "scalabilityScore": "<1-10 score>",
+    "overallHealthScore": "<1-100>"
+  },
+  "confidenceLevel": "<low/medium/high - how confident you are in these estimates>",
+  "methodology": "<brief explanation of how you derived these numbers>"
+}`;
+
+        const aiReply = await callAI(prompt);
+        const parsed = parseJSON(aiReply);
+        setFinancialData(parsed);
+        toast.success("Financial intelligence generated");
+        return true;
+      } catch (err: any) {
+        toast.error("Financial analysis failed");
+        throw err;
+      } finally {
+        setFinancialLoading(false);
+      }
+    });
+  };
+
   const selected = competitors.find(c => c.id === selectedCompetitor) || competitors[0] || null;
   const getThreatColor = (score: number) => score >= 70 ? "text-red-400" : score >= 40 ? "text-amber-400" : "text-emerald-400";
   const getThreatBg = (score: number) => score >= 70 ? "bg-red-400/10 border-red-400/20" : score >= 40 ? "bg-amber-400/10 border-amber-400/20" : "bg-emerald-400/10 border-emerald-400/20";
