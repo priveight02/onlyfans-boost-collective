@@ -169,7 +169,7 @@ async function fetchSitemapUrls(origins: string[], rootDomain: string): Promise<
   }));
 
   let processed = 0;
-  while (queue.length > 0 && processed < 60) {
+  while (queue.length > 0 && processed < 10) {
     const batch = queue.splice(0, 6);
     processed += batch.length;
     await Promise.all(batch.map(async smUrl => {
