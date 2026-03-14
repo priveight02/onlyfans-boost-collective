@@ -79,6 +79,37 @@ async function safeFetchText(url: string, timeoutMs = 6000, maxLen = 300_000): P
   } catch { return ""; }
 }
 
+function compressForDetection(input: string, maxLen = 450_000): string {
+  if (!input || input.length <= maxLen) return input;
+
+  const segments = 4;
+  const chunkLen = Math.max(1, Math.floor(maxLen / segments));
+  const lastStart = Math.max(0, input.length - chunkLen);
+  const starts = [
+    0,
+    Math.max(0, Math.floor(input.length * 0.33) - Math.floor(chunkLen / 2)),
+    Math.max(0, Math.floor(input.length * 0.66) - Math.floor(chunkLen / 2)),
+    lastStart,
+  ];
+
+  const sampled = [...new Set(starts)]
+    .map((start) => input.slice(start, start + chunkLen))
+    .filter(Boolean);
+
+  return sampled.join("\n/* sampled-js-segment */\n");
+}
+
+async function safeFetchTextForDetection(url: string, timeoutMs = 6000, maxLen = 450_000): Promise<string> {
+  try {
+    const r = await safeFetch(url, timeoutMs);
+    if (!r?.ok) return "";
+    const ct = (r.headers.get("content-type") || "").toLowerCase();
+    if (["image/", "video/", "audio/", "font/"].some(p => ct.startsWith(p))) return "";
+    const text = await r.text();
+    return compressForDetection(text, maxLen);
+  } catch { return ""; }
+}
+
 async function safeFetchHtml(url: string): Promise<string | null> {
   try {
     const r = await safeFetch(url, 7000);
@@ -276,7 +307,7 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
     .slice(0, 6);
 
   const jsFetches = await Promise.all(sameScripts.map(async (s) => {
-    const body = await safeFetchText(s, 5000, 500_000);
+    const body = await safeFetchTextForDetection(s, 5000, 700_000);
     return { url: s, body };
   }));
 
@@ -291,8 +322,8 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
     }
   }
 
-  const chunkScripts = [...chunkCandidates].slice(0, 8);
-  const chunkBodies = (await Promise.all(chunkScripts.map(c => safeFetchText(c, 4000, 300_000)))).filter(Boolean);
+  const chunkScripts = [...chunkCandidates].slice(0, 10);
+  const chunkBodies = (await Promise.all(chunkScripts.map(c => safeFetchTextForDetection(c, 4000, 450_000)))).filter(Boolean);
 
   const combined = pages.map(p => p.html).join("\n<!-- page -->\n") + "\n" + [...jsBodies, ...chunkBodies].join("\n");
 
@@ -422,6 +453,20 @@ function detectPlatforms(corpus: string, scripts: string[], stylesheets: string[
       } catch {}
     }
     return results;
+  };
+
+  const mergeDetections = (bucket: Category, checks: [string, string[]][]) => {
+    for (const [name, sigs] of checks) {
+      const matchedCount = sigs.filter((s) => all.includes(s)).length;
+      if (matchedCount === 0) continue;
+      const confidence: "high" | "medium" = matchedCount >= 2 ? "high" : "medium";
+      const existing = bucket.find((item) => item.name.toLowerCase() === name.toLowerCase());
+      if (!existing) {
+        bucket.push({ name, confidence });
+      } else if (existing.confidence !== "high" && confidence === "high") {
+        existing.confidence = "high";
+      }
+    }
   };
 
   const crm = detect([
@@ -887,7 +932,159 @@ function detectPlatforms(corpus: string, scripts: string[], stylesheets: string[
     ["Statsig", ["statsig.com"]], ["GrowthBook", ["growthbook.io"]], ["AB Tasty", ["abtasty.com"]],
   ]);
 
-  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity, socialMedia, backendProviders, database: backendProviders, aiTools, affiliate, personalization, cdn, fileStorage };
+  const identityAuth = detect([
+    ["Supabase Auth", ["supabase.co/auth", "/auth/v1/"]], ["Clerk", ["clerk.com", "clerk-js"]],
+    ["Auth0", ["auth0.com"]], ["Okta", ["okta.com"]], ["Firebase Auth", ["firebaseauth", "identitytoolkit.googleapis.com"]],
+    ["Stytch", ["stytch.com"]], ["Amazon Cognito", ["cognito-idp", "amazoncognito.com"]],
+    ["Magic.link", ["magic.link", "@magic-sdk"]], ["WorkOS", ["workos.com"]], ["Keycloak", ["keycloak"]],
+    ["Descope", ["descope.com"]], ["FusionAuth", ["fusionauth.io"]],
+  ]);
+
+  const databaseInfra = detect([
+    ["Supabase Postgres", [".supabase.co/rest/v1", "supabase.co/rest/v1", "postgrest"]],
+    ["PostgreSQL", ["postgres://", "postgresql", "postgrest"]], ["MySQL", ["mysql", "mysql2"]],
+    ["MongoDB", ["mongodb.net", "mongodb.com"]], ["Redis", ["redis.io", "ioredis", "upstash"]],
+    ["Elasticsearch", ["elasticsearch", "elastic.co"]], ["Meilisearch", ["meilisearch"]],
+    ["Typesense", ["typesense"]], ["ClickHouse", ["clickhouse"]], ["Snowflake", ["snowflakecomputing.com"]],
+    ["BigQuery", ["bigquery.googleapis.com"]], ["Neon", ["neon.tech"]], ["PlanetScale", ["planetscale.com"]],
+    ["Turso", ["turso.io"]], ["Xata", ["xata.io"]], ["Fauna", ["fauna.com"]],
+  ]);
+
+  const observability = detect([
+    ["Sentry", ["sentry.io", "sentry-cdn"]], ["Datadog", ["datadoghq.com", "datadog-browser-agent.com"]],
+    ["New Relic", ["newrelic.com", "js-agent.newrelic.com"]], ["LogRocket", ["logrocket.com", "cdn.logrocket.io"]],
+    ["Bugsnag", ["bugsnag.com"]], ["Rollbar", ["rollbar.com"]], ["Grafana", ["grafana.com"]],
+    ["Prometheus", ["prometheus.io"]], ["OpenTelemetry", ["opentelemetry"]], ["Honeycomb", ["honeycomb.io"]],
+    ["Raygun", ["raygun.com"]], ["PostHog", ["posthog.com"]],
+  ]);
+
+  mergeDetections(crm, [
+    ["Nimble CRM", ["nimble.com"]], ["SugarCRM", ["sugarcrm.com"]], ["Pipeline CRM", ["pipelinecrm.com"]],
+    ["NoCRM", ["nocrm.io"]], ["Apollo", ["apollo.io"]], ["Salesloft", ["salesloft.com"]],
+  ]);
+  mergeDetections(payments, [
+    ["Mercado Pago", ["mercadopago.com", "mpago"]], ["Payoneer", ["payoneer.com"]], ["PayU", ["payu.com"]],
+    ["BlueSnap", ["bluesnap.com"]], ["NMI", ["nmi.com", "networkmerchants"]], ["Airwallex", ["airwallex.com"]],
+    ["Xendit", ["xendit.co"]], ["Midtrans", ["midtrans.com"]], ["Moneris", ["moneris.com"]],
+    ["Revolut Pay", ["revolut.com/pay"]], ["Polar.sh", ["polar_mode", "polar_access_token_sandbox", "polar_access_token", "polar-setup-discounts", "polar-setup-first-order"]],
+  ]);
+  mergeDetections(analytics, [
+    ["RudderStack", ["rudderstack.com"]], ["Piwik PRO", ["piwik.pro"]], ["Kissmetrics", ["kissmetrics.com"]],
+    ["Splitbee", ["splitbee.io"]], ["Umami", ["umami.is"]], ["Countly", ["count.ly"]],
+  ]);
+  mergeDetections(marketing, [
+    ["Resend", ["resend.com"]], ["Postmark", ["postmarkapp.com"]], ["SendPulse", ["sendpulse.com"]],
+    ["Iterable", ["iterable.com"]], ["Braze", ["braze.com"]], ["Marketo", ["marketo.com"]],
+  ]);
+  mergeDetections(support, [
+    ["Re:amaze", ["reamaze.com"]], ["Kustomer", ["kustomer.com"]], ["Ada", ["ada.support"]],
+    ["LivePerson", ["liveperson.net"]], ["Botpress", ["botpress.cloud"]], ["Manychat", ["manychat.com"]],
+  ]);
+  mergeDetections(ecommerce, [
+    ["OpenCart", ["opencart"]], ["CS-Cart", ["cs-cart"]], ["VTEX", ["vtex"]],
+    ["Shift4Shop", ["3dcart", "shift4shop"]], ["Volusion", ["volusion.com"]],
+  ]);
+  mergeDetections(hosting, [
+    ["Cloudflare Pages", ["pages.dev"]], ["AWS Amplify", ["amplifyapp.com"]], ["Koyeb", ["koyeb.app"]],
+    ["Zeabur", ["zeabur.app"]], ["Hetzner", ["hetzner.cloud"]], ["Oracle Cloud", ["oraclecloud.com"]],
+  ]);
+  mergeDetections(frameworks, [
+    ["SolidJS", ["solidjs"]], ["Qwik", ["qwik"]], ["Ember.js", ["ember"]], ["Backbone.js", ["backbone"]],
+    ["Lit", ["lit.dev"]], ["Stencil", ["stenciljs"]], ["Vite", ["vite"]],
+  ]);
+  mergeDetections(ads, [
+    ["LinkedIn Ads", ["ads.linkedin.com", "snap.licdn.com"]], ["TikTok Ads", ["ads.tiktok.com"]],
+    ["Microsoft Ads", ["bat.bing.com", "bingads"]], ["Snap Ads", ["sc-static.net", "tr.snapchat.com"]],
+    ["Reddit Ads", ["ads.reddit.com", "alb.reddit.com"]],
+  ]);
+  mergeDetections(security, [
+    ["Cloudflare WAF", ["cf-ray", "cdn-cgi"]], ["Imperva", ["imperva", "incapsula"]],
+    ["AWS WAF", ["x-amzn-waf"]], ["CrowdSec", ["crowdsec"]], ["Permit.io", ["permit.io"]],
+    ["Axiom", ["axiom.co"]], ["Arcjet", ["arcjet.com"]],
+  ]);
+  mergeDetections(scheduling, [
+    ["SavvyCal", ["savvycal.com"]], ["YouCanBookMe", ["youcanbook.me"]], ["When2Meet", ["when2meet.com"]],
+  ]);
+  mergeDetections(forms, [
+    ["Paperform", ["paperform.co"]], ["Formstack", ["formstack.com"]], ["Cognito Forms", ["cognitoforms.com"]],
+    ["Wufoo", ["wufoo.com"]], ["Gravity Forms", ["gravityforms"]],
+  ]);
+  mergeDetections(engagement, [
+    ["Braze In-App", ["braze"]], ["Iterable In-App", ["iterable"]], ["Airship", ["airship.com"]],
+    ["MoEngage", ["moengage.com"]], ["WebEngage", ["webengage.com"]],
+  ]);
+  mergeDetections(socialProof, [
+    ["Trustindex", ["trustindex.io"]], ["Okendo", ["okendo.io"]], ["Stamped", ["stamped.io"]],
+    ["Feefo", ["feefo.com"]], ["Bazaarvoice", ["bazaarvoice.com"]],
+  ]);
+  mergeDetections(seoTools, [
+    ["Ahrefs", ["ahrefs.com"]], ["SEMrush", ["semrush.com"]], ["Screaming Frog", ["screamingfrog.co.uk"]],
+    ["NitroPack", ["nitropack.io"]], ["Cloudflare Zaraz", ["zaraz"]], ["Nitro CDN", ["nitrocdn.com"]],
+  ]);
+  mergeDetections(productivity, [
+    ["Miro", ["miro.com"]], ["Asana", ["asana.com"]], ["Trello", ["trello.com"]], ["ClickUp", ["clickup.com"]],
+    ["Jira", ["atlassian.net", "jira"]], ["Monday.com", ["monday.com"]], ["Loom", ["loom.com"]],
+  ]);
+  mergeDetections(socialMedia, [
+    ["Meta Conversions API", ["graph.facebook.com"]], ["YouTube Data API", ["youtube.googleapis.com"]],
+    ["TikTok API", ["open-api.tiktok.com", "business-api.tiktok.com"]], ["X API", ["api.x.com", "api.twitter.com"]],
+    ["Discord API", ["discord.com/api"]], ["Telegram Bot API", ["api.telegram.org"]],
+  ]);
+  mergeDetections(backendProviders, [
+    ["Supabase", ["supabase.functions.invoke", "supabase.auth", ".supabase.co", "iss\":\"supabase"]],
+    ["Cloud Run", ["run.app"]], ["Google App Engine", ["appspot.com"]], ["Oracle Functions", ["functions.oci.oraclecloud.com"]],
+    ["Aiven", ["aivencloud.com"]], ["Edge Functions", ["/functions/v1/"]], ["Cloudflare Durable Objects", ["durable object"]],
+    ["Neon", ["neon.tech"]], ["Planetscale", ["planetscale.com"]], ["AppSync", ["appsync-api"]],
+  ]);
+  mergeDetections(aiTools, [
+    ["Mistral", ["mistral.ai"]], ["Groq", ["groq.com"]], ["Together AI", ["together.ai"]],
+    ["Perplexity", ["perplexity.ai"]], ["Runway", ["runwayml.com"]], ["Luma", ["lumalabs.ai"]],
+    ["Pika", ["pika.art"]], ["OpenRouter", ["openrouter.ai"]], ["Venice", ["venice.ai"]],
+  ]);
+  mergeDetections(affiliate, [
+    ["Everflow", ["everflow.io"]], ["Post Affiliate Pro", ["postaffiliatepro.com"]],
+    ["Tolt", ["tolt.io"]], ["Affise", ["affise.com"]], ["LeadDyno", ["leaddyno.com"]],
+  ]);
+  mergeDetections(personalization, [
+    ["VWO", ["visualwebsiteoptimizer.com"]], ["Dynamic Yield", ["dynamicyield.com"]],
+    ["Monetate", ["monetate.net"]], ["Kameleoon", ["kameleoon.com"]], ["Convert", ["convert.com"]],
+  ]);
+  mergeDetections(fileStorage, [
+    ["Cloudflare R2", ["r2.cloudflarestorage.com", "r2.dev"]], ["Bunny Storage", ["storage.bunnycdn.com"]],
+    ["Aliyun OSS", ["aliyuncs.com", "oss-cn-"]], ["Qiniu", ["qiniucdn.com", "qiniu.com"]],
+    ["Tencent COS", ["cos.ap-", "myqcloud.com"]], ["Supabase Storage", ["/storage/v1/object/public", ".supabase.co/storage/v1"]],
+    ["Git LFS", ["git-lfs", "media.githubusercontent.com"]], ["CloudConvert Storage", ["cloudconvert.com"]],
+  ]);
+
+  return {
+    crm,
+    payments,
+    analytics,
+    marketing,
+    support,
+    ecommerce,
+    hosting,
+    frameworks,
+    ads,
+    security,
+    scheduling,
+    forms,
+    engagement,
+    socialProof,
+    seoTools,
+    productivity,
+    socialMedia,
+    backendProviders,
+    database: backendProviders,
+    aiTools,
+    affiliate,
+    personalization,
+    cdn,
+    fileStorage,
+    identityAuth,
+    databaseInfra,
+    observability,
+  };
 }
 
 // ─── Metadata extraction ──────────────────────────
@@ -1003,16 +1200,62 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
     const deepLc = dHtml.toLowerCase();
 
     // Heuristics for hidden backend/payment providers in route chunks
-    const supabaseStrong = /https?:\/\/[a-z0-9-]{10,}\.supabase\.co/i.test(dHtml) || deepLc.includes("@supabase/supabase-js") || deepLc.includes("x-client-info=supabase-js");
-    const supabaseMedium = deepLc.includes("supabase-js") || (deepLc.includes("/rest/v1/") && deepLc.includes("/auth/v1/"));
-    if (supabaseStrong) upsertDetection(detectedPlatforms.backendProviders, "Supabase", "high");
-    else if (supabaseMedium) upsertDetection(detectedPlatforms.backendProviders, "Supabase", "medium");
+    const supabaseSignals = {
+      domain: /https?:\/\/[a-z0-9-]{8,}\.supabase\.co/i.test(dHtml),
+      sdkImport: deepLc.includes("@supabase/supabase-js") || deepLc.includes("supabase-js"),
+      runtimeClient: deepLc.includes("supabase.functions.invoke") || deepLc.includes("supabase.auth") || deepLc.includes("createclient("),
+      authApi: deepLc.includes("/auth/v1/"),
+      restApi: deepLc.includes("/rest/v1/"),
+      storageApi: deepLc.includes("/storage/v1/"),
+      functionsApi: deepLc.includes("/functions/v1/"),
+      jwtIssuer: deepLc.includes("\"iss\":\"supabase\"") || deepLc.includes("'iss':'supabase'"),
+      xClientInfo: deepLc.includes("x-client-info=supabase-js"),
+    };
+    const supabaseScore = Object.values(supabaseSignals).filter(Boolean).length;
 
-    const polarStrong = /(?:api|sandbox-api|checkout|sandbox-checkout)\.polar\.sh/i.test(dHtml) || deepLc.includes("polar_access_token") || deepLc.includes("polar_webhook");
-    const polarFlowSignals = ["create-checkout", "customer-portal", "verify-credit-purchase", "purchase-credits", "billing-info"].filter((k) => deepLc.includes(k)).length;
-    const polarMedium = deepLc.includes("@polar-sh") || deepLc.includes("polar-setup") || deepLc.includes("/v1/checkouts") || (deepLc.includes("customer-sessions") && deepLc.includes("polar")) || polarFlowSignals >= 3;
-    if (polarStrong) upsertDetection(detectedPlatforms.payments, "Polar.sh", "high");
-    else if (polarMedium) upsertDetection(detectedPlatforms.payments, "Polar.sh", polarFlowSignals >= 4 ? "high" : "medium");
+    if (supabaseSignals.domain || supabaseScore >= 4) {
+      upsertDetection(detectedPlatforms.backendProviders, "Supabase", "high");
+      upsertDetection(detectedPlatforms.databaseInfra, "Supabase Postgres", "high");
+      upsertDetection(detectedPlatforms.identityAuth, "Supabase Auth", supabaseScore >= 5 ? "high" : "medium");
+    } else if (supabaseScore >= 2 || (supabaseSignals.restApi && supabaseSignals.authApi)) {
+      upsertDetection(detectedPlatforms.backendProviders, "Supabase", "medium");
+      upsertDetection(detectedPlatforms.databaseInfra, "Supabase Postgres", "medium");
+      if (supabaseSignals.authApi) upsertDetection(detectedPlatforms.identityAuth, "Supabase Auth", "medium");
+    }
+
+    const polarKeywordSignals = [
+      /(?:api|sandbox-api|checkout|sandbox-checkout|portal)\.polar\.sh/i.test(dHtml),
+      deepLc.includes("@polar-sh"),
+      deepLc.includes("polar_mode"),
+      deepLc.includes("polar_access_token"),
+      deepLc.includes("polar_access_token_sandbox"),
+      deepLc.includes("polar_webhook"),
+      deepLc.includes("polar_discount"),
+      deepLc.includes("polar-setup"),
+      deepLc.includes("polar-setup-discounts"),
+      deepLc.includes("polar-setup-first-order"),
+      deepLc.includes("customer-sessions") && deepLc.includes("polar"),
+      deepLc.includes("/v1/checkouts") && deepLc.includes("polar"),
+    ].filter(Boolean).length;
+
+    const polarFlowSignals = [
+      "create-checkout",
+      "customer-portal",
+      "verify-credit-purchase",
+      "purchase-credits",
+      "billing-info",
+      "polar-setup-discounts",
+      "polar-setup-first-order",
+      "discount_id",
+      "customer-sessions",
+      "/v1/checkouts",
+    ].filter((k) => deepLc.includes(k)).length;
+
+    if (polarKeywordSignals >= 2 || (polarKeywordSignals >= 1 && polarFlowSignals >= 2)) {
+      upsertDetection(detectedPlatforms.payments, "Polar.sh", "high");
+    } else if (polarKeywordSignals >= 1 || polarFlowSignals >= 3) {
+      upsertDetection(detectedPlatforms.payments, "Polar.sh", "medium");
+    }
 
     // Merge header-based detections
     if (headerTech.length > 0) {
