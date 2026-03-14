@@ -113,6 +113,12 @@ export const CRM_ACTION_COSTS: Record<string, number> = {
   ai_generate_ideas: 10,
   ai_analysis: 8,
 
+  // ── Competitor Analyzer ──
+  competitor_add: 8,
+  competitor_refresh: 5,
+  competitor_swot: 15,
+  competitor_insight: 10,
+
   // ── Fallback ──
   default_write: 3,
 };

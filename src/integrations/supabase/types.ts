@@ -1407,6 +1407,78 @@ export type Database = {
         }
         Relationships: []
       }
+      competitor_profiles: {
+        Row: {
+          avatar_url: string | null
+          avg_comments: number | null
+          avg_likes: number | null
+          content_types: Json | null
+          created_at: string
+          display_name: string | null
+          engagement_rate: number | null
+          followers: number | null
+          following: number | null
+          growth_rate: number | null
+          id: string
+          last_analyzed_at: string | null
+          metadata: Json | null
+          platform: string
+          post_frequency: number | null
+          posts: number | null
+          threat_score: number | null
+          top_hashtags: string[] | null
+          updated_at: string
+          user_id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          avg_comments?: number | null
+          avg_likes?: number | null
+          content_types?: Json | null
+          created_at?: string
+          display_name?: string | null
+          engagement_rate?: number | null
+          followers?: number | null
+          following?: number | null
+          growth_rate?: number | null
+          id?: string
+          last_analyzed_at?: string | null
+          metadata?: Json | null
+          platform?: string
+          post_frequency?: number | null
+          posts?: number | null
+          threat_score?: number | null
+          top_hashtags?: string[] | null
+          updated_at?: string
+          user_id: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          avg_comments?: number | null
+          avg_likes?: number | null
+          content_types?: Json | null
+          created_at?: string
+          display_name?: string | null
+          engagement_rate?: number | null
+          followers?: number | null
+          following?: number | null
+          growth_rate?: number | null
+          id?: string
+          last_analyzed_at?: string | null
+          metadata?: Json | null
+          platform?: string
+          post_frequency?: number | null
+          posts?: number | null
+          threat_score?: number | null
+          top_hashtags?: string[] | null
+          updated_at?: string
+          user_id?: string
+          username?: string
+        }
+        Relationships: []
+      }
       content_calendar: {
         Row: {
           account_id: string | null

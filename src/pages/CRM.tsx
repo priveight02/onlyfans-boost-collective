@@ -25,6 +25,7 @@ import SocialMediaHub from "@/components/admin/SocialMediaHub";
 import AdminAPI from "@/components/admin/AdminAPI";
 import EnhancedDashboard from "@/components/admin/EnhancedDashboard";
 import AdCreativeEngine from "@/components/admin/AdCreativeEngine";
+import CompetitorAnalyzer from "@/components/admin/CompetitorAnalyzer";
 import CRMHelpWidget from "@/components/crm/CRMHelpWidget";
 import CreditsDisplay from "@/components/CreditsDisplay";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,7 +42,7 @@ import {
   FileText, MessageSquare, CheckSquare, MessageCircle, Award,
   TrendingUp, Activity, Zap, Download, Brain, Calendar, Heart,
   Bot, Globe, Code2, Settings, ChevronLeft, ChevronRight,
-  Bell, HelpCircle, Megaphone, LogOut, Plus, X,
+  Bell, HelpCircle, Megaphone, LogOut, Plus, X, Crosshair,
 } from "lucide-react";
 
 const navSections = [
@@ -60,6 +61,7 @@ const navSections = [
       { id: "copilot", label: "Uplyze AI Copilot", icon: Bot },
       { id: "ad-creatives", label: "Creative Maker", icon: Megaphone },
       { id: "content", label: "Content", icon: Calendar },
+      { id: "competitors", label: "Competitor Analyzer", icon: Crosshair },
     ],
   },
   {
@@ -118,6 +120,7 @@ const TAB_SLUGS: Record<string, string> = {
   tasks: "tasks", contracts: "contracts", team: "team", "team-perf": "performance",
   automation: "storyline", persona: "persona-dna", copilot: "uplyze-assistant", emotional: "emotional",
   content: "content", social: "social-media", "ad-creatives": "ad-creatives",
+  competitors: "competitor-analyzer",
   lookup: "lookup", audience: "audience", reports: "reports",
   settings: "settings", api: "api",
 };
@@ -131,6 +134,7 @@ const SUB_TAB_SLUGS: Record<string, Record<string, string>> = {
   "ad-creatives": { creatives: "creatives", generate: "ai-image-gen", copy: "copy-cta", analytics: "analytics", settings: "targeting", integrations: "integrations", campaigns: "campaigns", store: "store-manager" },
   api: { keys: "api-keys", docs: "documentation", playground: "playground", quickstart: "quick-start", history: "key-history" },
   lookup: { overview: "overview", revenue: "revenue", audience: "audience", fans: "fans", content: "content", engagement: "engagement", traffic: "traffic", messaging: "messaging", links: "links", chargebacks: "chargebacks", highlights: "highlights", bio: "bio-strategy", ai: "ai-analysis", raw: "raw-data" },
+  competitors: { tracker: "tracker", benchmarks: "benchmarks", content: "content-intel", swot: "swot-analysis", strategy: "ai-strategy" },
 };
 
 // Social platform slugs (instagram, tiktok, etc.)
@@ -219,6 +223,7 @@ const CRM = () => {
       "ad-creatives": { creatives: "Creatives", generate: "AI Image Gen", copy: "Copy & CTA", analytics: "Ad Analytics", settings: "Targeting", integrations: "Integrations", campaigns: "Campaigns", store: "Store Manager" },
       api: { keys: "API Keys", docs: "Documentation", playground: "Playground", quickstart: "Quick Start", history: "Key History" },
       lookup: { overview: "Overview", revenue: "Revenue", audience: "Audience", fans: "Fans", content: "Content", engagement: "Engagement", traffic: "Traffic", messaging: "Messaging", links: "Links", chargebacks: "Chargebacks", highlights: "Highlights", bio: "Bio Strategy", ai: "AI Analysis", raw: "Raw Data" },
+      competitors: { tracker: "Tracker", benchmarks: "Benchmarks", content: "Content Intel", swot: "SWOT Analysis", strategy: "AI Strategy" },
     };
     for (const [mainTab, subs] of Object.entries(subTabLabels)) {
       const mainLabel = navSections.flatMap(s => s.items).find(i => i.id === mainTab)?.label || mainTab;
@@ -401,6 +406,7 @@ const CRM = () => {
       case "content": return <ContentCommandCenter />;
       case "social": return <SocialMediaHub subTab={activeSubTab} onSubTabChange={handleSubTabChange} urlPlatform={activeSocialPlatform} onPlatformChange={handleSocialPlatformChange} />;
       case "ad-creatives": return <AdCreativeEngine subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
+      case "competitors": return <CompetitorAnalyzer subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
       case "emotional": return <EmotionalHeatmap />;
       case "copilot": return <AICoPilot onNavigate={(tab: string) => handleTabChange(tab)} subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
       case "lookup": return <ProfileLookup subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
