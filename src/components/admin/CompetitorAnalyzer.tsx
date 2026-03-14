@@ -235,11 +235,12 @@ const CompetitorAnalyzer = ({
 
   const { performAction } = useCreditAction();
 
-  // Load competitors on mount
+  // Load competitors on mount & track AI usage
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setAiUsageCount(getAIUsageCount(user.id));
       const rows = await competitorRest.select(user.id);
       if (Array.isArray(rows) && rows.length) {
         setCompetitors(rows.map(mapRow));
