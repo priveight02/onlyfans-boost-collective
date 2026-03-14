@@ -1525,8 +1525,8 @@ Return ONLY valid JSON:
             </Card>
           )}
         </TabsContent>
-        {/* ═══ SITE SCRAPER TAB ═══ */}
-        <TabsContent value="scraper" className="space-y-5 w-full overflow-x-hidden overflow-y-auto" style={{ maxWidth: 'calc(100vw - 340px)' }}>
+        {/* ═══ SITE ANALYSIS TAB ═══ */}
+        <TabsContent value="analysis" className="space-y-5 w-full overflow-x-hidden overflow-y-auto" style={{ maxWidth: 'calc(100vw - 340px)' }}>
           <Card className="crm-card">
             <CardContent className="p-4">
               <div className="flex gap-3 items-end">
@@ -1537,12 +1537,22 @@ Return ONLY valid JSON:
                     <Input value={scrapeUrl} onChange={e => setScrapeUrl(e.target.value)} placeholder="example.com or https://example.com" className="crm-input pl-9" onKeyDown={e => e.key === "Enter" && !scrapeLoading && scrapeSite()} />
                   </div>
                 </div>
+                <div className="flex-1 space-y-1.5">
+                  <label className="text-xs font-medium text-white/50">Business Keywords <span className="text-white/25">(optional — adds AI context)</span></label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                    <Input value={analysisKeywords} onChange={e => setAnalysisKeywords(e.target.value)} placeholder="e.g. SaaS, AI marketing, subscription" className="crm-input pl-9" onKeyDown={e => e.key === "Enter" && !scrapeLoading && scrapeSite()} />
+                  </div>
+                </div>
                 <Button onClick={scrapeSite} disabled={scrapeLoading || !scrapeUrl.trim()} className="bg-gradient-to-r from-[hsl(217,91%,60%)] to-[hsl(262,83%,58%)] hover:opacity-90 text-white gap-1.5 h-10">
                   {scrapeLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                  {scrapeLoading ? "Scraping..." : "Deep Scrape"}
+                  {scrapeLoading ? "Analyzing..." : "Deep Analysis"}
                 </Button>
               </div>
-              <p className="text-[10px] text-white/30 mt-2">Extracts SEO metadata, technologies, social links, security headers, structured data, and more · no API key needed</p>
+              <div className="flex items-center justify-between mt-2">
+                <p className="text-[10px] text-white/30">Extracts SEO metadata, technologies, social links, security headers, structured data, and more · no API key needed</p>
+                <span className="text-[10px] text-white/25">AI calls: {aiUsageCount}/{RATE_LIMIT_MAX} today</span>
+              </div>
             </CardContent>
           </Card>
 
