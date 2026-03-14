@@ -777,108 +777,24 @@ Return ONLY valid JSON:
 
         const keywordsContext = scrapeResult.analysisKeywords ? `\n\nBUSINESS KEYWORDS PROVIDED BY USER: ${scrapeResult.analysisKeywords}\nUse these keywords only for entity matching and niche context.\n` : "";
 
-        const prompt = `You are a world-class financial analyst. Today's date is ${new Date().toISOString().slice(0, 10)}. Return accurate financial intelligence quickly and concisely.
+        const prompt = `Analyze this website/company financially. Today: ${new Date().toISOString().slice(0, 10)}.
 ${keywordsContext}
 WEBSITE: ${scrapeResult.finalUrl || scrapeResult.url}
 TITLE: ${scrapeResult.basic?.title || "Unknown"}
 DESCRIPTION: ${scrapeResult.basic?.description || "Unknown"}
 
-DETECTED TECH STACK:
-- Payment Platforms: ${(dp.payments || []).map((p: any) => p.name).join(", ") || "None"}
-- E-commerce: ${(dp.ecommerce || []).map((p: any) => p.name).join(", ") || "None"}
-- Analytics: ${(dp.analytics || []).map((p: any) => p.name).join(", ") || "None"}
-- Ad Networks: ${(dp.ads || []).map((p: any) => p.name).join(", ") || "None"}
-- Backend: ${(dp.backendProviders || []).map((p: any) => p.name).join(", ") || "None"}
-- CRM: ${(dp.crm || []).map((p: any) => p.name).join(", ") || "None"}
-- Support: ${(dp.support || []).map((p: any) => p.name).join(", ") || "None"}
+TECH: Payments: ${(dp.payments || []).map((p: any) => p.name).join(", ") || "None"} | E-commerce: ${(dp.ecommerce || []).map((p: any) => p.name).join(", ") || "None"} | Analytics: ${(dp.analytics || []).map((p: any) => p.name).join(", ") || "None"} | Ads: ${(dp.ads || []).map((p: any) => p.name).join(", ") || "None"}
 
-MONETIZATION SIGNALS:
-- Checkout Flow Detected: ${monetization["Checkout Flow"] || "N/A"}
-- Subscription UI: ${monetization["Subscription UI"] || "N/A"}
-- Price Points Found: ${monetization["Price Points"] || 0}
-- Payment Providers: ${monetization["Payment Providers"] || 0}
-- Ad Networks: ${monetization["Ad Networks"] || 0}
-- Affiliate Tools: ${monetization["Affiliate Tools"] || 0}
+MONETIZATION: Checkout: ${monetization["Checkout Flow"] || "N/A"} | Subscriptions: ${monetization["Subscription UI"] || "N/A"} | Prices: ${monetization["Price Points"] || 0} | Payments: ${monetization["Payment Providers"] || 0}
 
-SITE METRICS:
-- SEO Score: ${scrapeResult.seoScore}/100
-- Word Count: ${scrapeResult.content?.wordCount || 0}
-- Social Platforms: ${socialCount}
-- Total Platforms Detected: ${platformCount}
-- Page Size: ${scrapeResult.performance?.pageSizeKB || 0} KB
-- PWA Ready: ${(scrapeResult.performance?.hasServiceWorker && scrapeResult.performance?.hasManifest) ? "Yes" : "No"}
+METRICS: SEO ${scrapeResult.seoScore}/100 | Words: ${scrapeResult.content?.wordCount || 0} | Social: ${socialCount} | Platforms: ${platformCount}
 
-CONTENT PREVIEW: ${(scrapeResult.content?.textPreview || "").slice(0, 350)}
-
-CRITICAL ACCURACY RULES:
-1. If no monetization signals exist, set all revenue fields to "$0" or "None".
-2. If monetization exists, do not output placeholders like "N/A", "Unknown", "No current data available".
-3. For known/public companies (e.g. Nike, Adidas), use latest known reported figures from official filings/earnings instead of rough ranges.
-4. For unknown companies, provide clearly labeled conservative estimates.
-5. For non-subscription businesses, set mrr/arr/churn to "Not subscription-based".
-6. Return ONLY valid JSON matching the schema below.
-
-Return ONLY valid JSON:
-{
-  "companyOverview": {
-    "estimatedEmployees": "<range like 5-15>",
-    "foundedYear": "<year or estimate>",
-    "businessModel": "<SaaS/E-commerce/Marketplace/etc>",
-    "stage": "<Bootstrap/Seed/Series A/Growth/Mature>",
-    "industry": "<specific industry>"
-  },
-  "trafficEstimates": {
-    "dailyVisitors": "<range like 500-2000>",
-    "weeklyVisitors": "<range>",
-    "monthlyVisitors": "<range like 15K-60K>",
-    "yearlyVisitors": "<range>",
-    "bounceRate": "<estimated %>",
-    "avgSessionDuration": "<estimated time>",
-    "topTrafficSources": [{"source": "Organic Search", "percentage": "45%"}, {"source": "Direct", "percentage": "30%"}, {"source": "Social", "percentage": "15%"}, {"source": "Referral", "percentage": "10%"}],
-    "topCountries": [{"country": "US", "percentage": "40%"}, {"country": "UK", "percentage": "15%"}],
-    "growthTrend": "<growing/stable/declining>"
-  },
-  "revenueEstimates": {
-    "dailyRevenue": "<range like $200-$800>",
-    "weeklyRevenue": "<range>",
-    "monthlyRevenue": "<range like $5K-$25K>",
-    "yearlyRevenue": "<range like $60K-$300K>",
-    "revenueModel": "<subscription/one-time/freemium/ads/hybrid>",
-    "averageOrderValue": "<estimated $>",
-    "estimatedConversionRate": "<estimated %>",
-    "mrr": "<Monthly Recurring Revenue estimate if SaaS>",
-    "arr": "<Annual Recurring Revenue estimate if SaaS>",
-    "ltv": "<Customer Lifetime Value estimate>",
-    "cac": "<Customer Acquisition Cost estimate>",
-    "churnRate": "<estimated monthly churn %>"
-  },
-  "incomeSources": [
-    {"source": "<source name>", "estimatedShare": "<percentage>", "type": "<recurring/one-time/ads>", "details": "<brief description>"}
-  ],
-  "pricingAnalysis": {
-    "plans": [{"name": "<plan name>", "price": "<price>", "billing": "<monthly/yearly>", "features": "<key features>"}],
-    "creditPackages": [{"name": "<package>", "credits": "<amount>", "price": "<price>"}],
-    "hasFreeTrialOrTier": "<yes/no with details>",
-    "upsells": "<description of upsell strategies>",
-    "crossSells": "<description of cross-sell strategies>",
-    "downsells": "<description of downsell strategies>"
-  },
-  "competitivePosition": {
-    "marketShare": "<estimated in niche>",
-    "mainCompetitors": ["<competitor 1>", "<competitor 2>", "<competitor 3>"],
-    "competitiveAdvantage": "<main differentiator>",
-    "vulnerabilities": ["<vulnerability 1>", "<vulnerability 2>"]
-  },
-  "growthIndicators": {
-    "techMaturity": "<1-10 score>",
-    "marketingEfficiency": "<1-10 score>",
-    "productMarketFit": "<1-10 score>",
-    "scalabilityScore": "<1-10 score>",
-    "overallHealthScore": "<1-100>"
-  },
-  "confidenceLevel": "<low/medium/high - how confident you are in these estimates>",
-  "methodology": "<brief explanation of how you derived these numbers>"
-}`;
+RULES:
+- For known/public companies use REAL reported figures from earnings/filings
+- For unknown companies provide conservative estimate ranges
+- Never use "N/A", "Unknown" or "No data" - always estimate
+- Non-subscription businesses: set mrr/arr/churn to "Not subscription-based"
+- Provide specific dollar ranges, not vague descriptions`;
 
         const aiReply = await callAI(prompt, "financial");
         const parsed = normalizeFinancialData(parseJSON(aiReply), monetization);
