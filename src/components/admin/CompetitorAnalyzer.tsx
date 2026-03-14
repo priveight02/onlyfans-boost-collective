@@ -274,47 +274,29 @@ const isFinancialPlaceholder = (value: any): boolean => {
     v === "unknown" ||
     v.includes("no current data") ||
     v.includes("not available") ||
-    v.includes("unverified");
+    v.includes("unverified") ||
+    v.includes("no verified data") ||
+    v.includes("not publicly disclosed");
 };
 
-const normalizeFinancialData = (data: any, monetization: Record<string, any>) => {
-  const checkoutDetected = /^(true|yes|✓|detected|1)$/i.test(String(monetization?.["Checkout Flow Detected"] ?? "").trim());
-  const subscriptionDetected = /^(true|yes|✓|detected|1)$/i.test(String(monetization?.["Subscription UI"] ?? "").trim());
-  const pricePoints = Number(String(monetization?.["Price Points"] ?? 0).replace(/[^\d.]/g, "")) || 0;
-  const paymentProviders = Number(String(monetization?.["Payment Providers"] ?? 0).replace(/[^\d.]/g, "")) || 0;
-  const monetized = checkoutDetected || subscriptionDetected || pricePoints > 0 || paymentProviders > 0;
+const ESTIMATE_WORD_PATTERN = /\b(estimate|estimated|approx|approximately|around|about|projected|forecast|modeled|assumed|inferred)\b/i;
 
-  const normalized = {
-    ...data,
-    revenueEstimates: {
-      ...(data?.revenueEstimates || {}),
-    },
+const normalizeFinancialData = (data: any) => {
+  const sanitize = (value: any): any => {
+    if (Array.isArray(value)) return value.map(sanitize);
+    if (value && typeof value === "object") {
+      return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, sanitize(v)]));
+    }
+
+    if (typeof value !== "string") return value;
+
+    const trimmed = value.trim();
+    if (isFinancialPlaceholder(trimmed)) return "Not publicly disclosed";
+    if (ESTIMATE_WORD_PATTERN.test(trimmed)) return "Not publicly disclosed";
+    return trimmed;
   };
 
-  if (!monetized) return normalized;
-
-  const rev = normalized.revenueEstimates;
-  if (isFinancialPlaceholder(rev.dailyRevenue)) rev.dailyRevenue = "Estimated $1K-$25K";
-  if (isFinancialPlaceholder(rev.weeklyRevenue)) rev.weeklyRevenue = "Estimated $7K-$175K";
-  if (isFinancialPlaceholder(rev.monthlyRevenue)) rev.monthlyRevenue = "Estimated $30K-$750K";
-  if (isFinancialPlaceholder(rev.yearlyRevenue)) rev.yearlyRevenue = "Estimated $360K-$9M";
-  if (isFinancialPlaceholder(rev.averageOrderValue)) rev.averageOrderValue = "Estimated $40-$180";
-  if (isFinancialPlaceholder(rev.ltv)) rev.ltv = "Estimated $120-$1200";
-  if (isFinancialPlaceholder(rev.cac)) rev.cac = "Estimated $15-$180";
-  if (isFinancialPlaceholder(rev.revenueModel)) rev.revenueModel = subscriptionDetected ? "Subscription + one-time" : "One-time sales";
-  if (isFinancialPlaceholder(rev.estimatedConversionRate)) rev.estimatedConversionRate = "Estimated 1.2%-4.5%";
-
-  if (subscriptionDetected) {
-    if (isFinancialPlaceholder(rev.mrr)) rev.mrr = "Estimated $20K-$500K";
-    if (isFinancialPlaceholder(rev.arr)) rev.arr = "Estimated $240K-$6M";
-    if (isFinancialPlaceholder(rev.churnRate)) rev.churnRate = "Estimated 2%-8% monthly";
-  } else {
-    if (isFinancialPlaceholder(rev.mrr)) rev.mrr = "Not subscription-based";
-    if (isFinancialPlaceholder(rev.arr)) rev.arr = "Not subscription-based";
-    if (isFinancialPlaceholder(rev.churnRate)) rev.churnRate = "Not subscription-based";
-  }
-
-  return normalized;
+  return sanitize(data);
 };
 
 // ─── Main Component ─────────────────────────────────
@@ -790,14 +772,15 @@ MONETIZATION: Checkout: ${monetization["Checkout Flow"] || "N/A"} | Subscription
 METRICS: SEO ${scrapeResult.seoScore}/100 | Words: ${scrapeResult.content?.wordCount || 0} | Social: ${socialCount} | Platforms: ${platformCount}
 
 RULES:
-- For known/public companies use REAL reported figures from earnings/filings
-- For unknown companies provide conservative estimate ranges
-- Never use "N/A", "Unknown" or "No data" - always estimate
-- Non-subscription businesses: set mrr/arr/churn to "Not subscription-based"
-- Provide specific dollar ranges, not vague descriptions`;
+- Use only latest verifiable facts as of today from trusted sources.
+- Never estimate, infer, project, or provide guessed ranges.
+- Prioritize official filings/reports, company registers/tax records, and trusted traffic datasets.
+- Every numeric value must include source + period/date in the value text.
+- If unavailable, return "Not publicly disclosed".
+- Non-subscription businesses: set mrr/arr/churn to "Not subscription-based"`;
 
         const aiReply = await callAI(prompt, "financial");
-        const parsed = normalizeFinancialData(parseJSON(aiReply), monetization);
+        const parsed = normalizeFinancialData(parseJSON(aiReply));
         setFinancialData(parsed);
         await refreshAIUsage();
         toast.success("Financial intelligence generated");
@@ -1977,9 +1960,9 @@ RULES:
                           ))}
                         </div>
 
-                        {/* Revenue estimates */}
+                        {/* Revenue */}
                         <div className="p-3 rounded-lg bg-green-400/5 border border-green-400/10">
-                          <p className="text-xs font-medium text-green-400 mb-2 flex items-center gap-1"><DollarSign className="h-3.5 w-3.5" /> Revenue Estimates</p>
+                          <p className="text-xs font-medium text-green-400 mb-2 flex items-center gap-1"><DollarSign className="h-3.5 w-3.5" /> Revenue</p>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                             {[
                               { label: "Daily", value: financialData.revenueEstimates?.dailyRevenue },
@@ -2020,9 +2003,9 @@ RULES:
                           </div>
                         </div>
 
-                        {/* Traffic estimates */}
+                        {/* Traffic */}
                         <div className="p-3 rounded-lg bg-[hsl(217,91%,60%)]/5 border border-[hsl(217,91%,60%)]/10">
-                          <p className="text-xs font-medium text-[hsl(217,91%,60%)] mb-2 flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" /> Traffic Estimates</p>
+                          <p className="text-xs font-medium text-[hsl(217,91%,60%)] mb-2 flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" /> Traffic</p>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                             {[
                               { label: "Daily", value: financialData.trafficEstimates?.dailyVisitors },
@@ -2067,7 +2050,7 @@ RULES:
                                   <span className="text-xs text-white/80">{s.source}</span>
                                   <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{s.type}</Badge>
                                 </div>
-                                <span className="text-xs font-medium text-emerald-400">{s.estimatedShare}</span>
+                                <span className="text-xs font-medium text-emerald-400">{s.share || s.estimatedShare || "Not publicly disclosed"}</span>
                               </div>
                             ))}
                           </div>
