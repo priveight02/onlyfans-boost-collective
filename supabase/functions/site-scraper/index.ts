@@ -316,8 +316,8 @@ async function probeSensitiveFiles(startUrl: string, rootDomain: string, knownSu
 
   const findings: { url: string; path: string; host: string; status: number; exposed: boolean; snippet: string; fullContent: string; contentType: string }[] = [];
 
-  for (let i = 0; i < probes.length; i += 8) {
-    const batch = probes.slice(i, i + 8);
+  for (let i = 0; i < probes.length; i += 4) {
+    const batch = probes.slice(i, i + 4);
     await Promise.all(batch.map(async probe => {
       try {
         const r = await safeFetch(probe.url, 4000);
