@@ -142,32 +142,30 @@ const mapRow = (d: any): Competitor => ({
   metadata: d.metadata || {},
 });
 
-// AI helper - calls dedicated competitor-analyze edge function with rate limiting
+// AI helper - calls dedicated competitor-analyze edge function with server-side rate limiting
 const RATE_LIMIT_MAX = 20;
-const getRateLimitKey = (userId: string) => `competitor_ai_${userId}_${new Date().toISOString().slice(0, 10)}`;
-const getAIUsageCount = (userId: string): number => {
-  try { return parseInt(localStorage.getItem(getRateLimitKey(userId)) || "0", 10); } catch { return 0; }
+
+const checkAIUsage = async (): Promise<{ count: number; limited: boolean }> => {
+  try {
+    const { data, error } = await supabase.functions.invoke("competitor-analyze", {
+      body: { action: "check_usage" },
+    });
+    if (error) return { count: 0, limited: false };
+    return { count: data?.count || 0, limited: data?.limited || false };
+  } catch { return { count: 0, limited: false }; }
 };
-const incrementAIUsage = (userId: string) => {
-  const key = getRateLimitKey(userId);
-  const current = getAIUsageCount(userId);
-  localStorage.setItem(key, String(current + 1));
-};
-const isAIRateLimited = (userId: string): boolean => getAIUsageCount(userId) >= RATE_LIMIT_MAX;
 
 const callAI = async (prompt: string): Promise<any> => {
-  // Check rate limit
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user && isAIRateLimited(user.id)) {
-    throw new Error("Daily AI analysis limit reached (20/day). AI-powered fields will be left blank until reset.");
-  }
   const { data, error } = await supabase.functions.invoke("competitor-analyze", {
     body: { prompt },
   });
-  if (error) throw new Error(error.message || "AI request failed");
+  if (error) {
+    // Check if it's a rate limit error from the edge function
+    if (error.message?.includes("limit")) throw new Error("Daily AI analysis limit reached (20/day). AI-powered fields will be left blank until reset.");
+    throw new Error(error.message || "AI request failed");
+  }
+  if (data?.limited) throw new Error("Daily AI analysis limit reached (20/day). AI-powered fields will be left blank until reset.");
   if (!data?.reply) throw new Error("No AI response received");
-  // Increment usage on success
-  if (user) incrementAIUsage(user.id);
   return data.reply;
 };
 
@@ -241,20 +239,10 @@ const CompetitorAnalyzer = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Check for admin-triggered rate limit reset
-      const { data: profileData } = await supabase.from("profiles").select("metadata").eq("user_id", user.id).single() as any;
-      const resetAt = profileData?.metadata?.competitor_ai_reset_at;
-      if (resetAt) {
-        const resetDate = new Date(resetAt).toISOString().slice(0, 10);
-        const today = new Date().toISOString().slice(0, 10);
-        const key = getRateLimitKey(user.id);
-        const storedCount = getAIUsageCount(user.id);
-        if (resetDate === today && storedCount > 0) {
-          localStorage.setItem(key, "0");
-        }
-      }
+      // Check server-side AI usage
+      const usage = await checkAIUsage();
+      setAiUsageCount(usage.count);
 
-      setAiUsageCount(getAIUsageCount(user.id));
       const rows = await competitorRest.select(user.id);
       if (Array.isArray(rows) && rows.length) {
         setCompetitors(rows.map(mapRow));
@@ -633,10 +621,10 @@ Return ONLY valid JSON:
     });
   };
 
-  // Refresh AI usage count after any AI call
+  // Refresh AI usage count after any AI call (read-only server call)
   const refreshAIUsage = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) setAiUsageCount(getAIUsageCount(user.id));
+    const usage = await checkAIUsage();
+    setAiUsageCount(usage.count);
   };
 
   // ─── Financial Intelligence Analysis ────────────────

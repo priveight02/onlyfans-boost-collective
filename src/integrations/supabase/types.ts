@@ -1407,6 +1407,33 @@ export type Database = {
         }
         Relationships: []
       }
+      competitor_ai_usage: {
+        Row: {
+          call_count: number
+          id: string
+          reset_by_admin: boolean
+          updated_at: string
+          usage_date: string
+          user_id: string
+        }
+        Insert: {
+          call_count?: number
+          id?: string
+          reset_by_admin?: boolean
+          updated_at?: string
+          usage_date?: string
+          user_id: string
+        }
+        Update: {
+          call_count?: number
+          id?: string
+          reset_by_admin?: boolean
+          updated_at?: string
+          usage_date?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       competitor_profiles: {
         Row: {
           avatar_url: string | null
