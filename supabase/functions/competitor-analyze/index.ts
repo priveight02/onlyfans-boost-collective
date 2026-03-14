@@ -278,28 +278,42 @@ serve(async (req) => {
     try {
       if (isFinancial) {
         // === TWO-PASS FINANCIAL RESEARCH ===
-        // Pass 1: Deep research with gemini-2.5-pro (best reasoning + knowledge)
-        const researchPrompt = `You are a financial research analyst with deep knowledge of public company financials from SEC filings (10-K, 10-Q), annual reports, earnings calls, SimilarWeb/Semrush traffic data, Crunchbase funding data, LinkedIn employee counts, and industry benchmarks.
+        const currentDate = new Date().toISOString().slice(0, 10);
+        const currentYear = new Date().getUTCFullYear();
 
-Research this company/website thoroughly. Return ONLY factual data with specific sources cited.
+        // Pass 1: Source-first factual research with strongest reasoning model
+        const researchPrompt = `You are a forensic financial intelligence researcher.
 
-COMPANY/WEBSITE TO RESEARCH: ${prompt}
+TASK DATE: ${currentDate}
+TARGET: ${prompt}
 
-Provide a detailed factual brief:
-1. COMPANY IDENTITY: Legal name, ticker (if public), founding year, HQ, employee count (source: LinkedIn/filing)
-2. REVENUE & FINANCIALS: Latest annual revenue (exact figure from most recent 10-K or annual report), quarterly revenue trend, net income, gross margin, operating margin. For private companies, cite known funding rounds or revenue estimates from Bloomberg/Forbes/TechCrunch.
-3. TRAFFIC: Monthly unique visitors (SimilarWeb/Semrush data), daily visitors, bounce rate, avg session, top sources, top countries with percentages
-4. BUSINESS MODEL: Revenue streams with % breakdown, pricing tiers, AOV
-5. MARKET: Market share estimate with reasoning, top 3-5 competitors, moat/advantages
-6. GROWTH: YoY revenue growth %, traffic trend, employee growth rate
-7. UNIT ECONOMICS: LTV, CAC estimates if available from industry benchmarks
+Your goal is to collect ONLY latest verifiable facts from trusted internet sources.
 
-RULES:
-- Use EXACT figures (e.g. "$51.2 billion" not "$50B+")
-- Always cite the source and date (e.g. "FY2024 10-K", "SimilarWeb Jan 2025", "Crunchbase Series C")
-- If a number is your estimate, label it clearly as "Estimated" with reasoning
-- DO NOT fabricate. If unknown, say "No verified data" for that metric`;
+TRUSTED SOURCE PRIORITY (highest to lowest):
+1) Official filings/reports: SEC 10-K/10-Q/8-K, annual/interim reports, investor relations releases
+2) Official registers/tax/government databases: company registers, tax disclosures, regulator databases
+3) Trusted analytics datasets for traffic: SimilarWeb, Semrush, Cloudflare Radar
+4) Reputable financial publications/databases: Bloomberg, Reuters, Financial Times, WSJ
 
+MANDATORY RULES:
+- Never estimate, infer, project, or use synthetic ranges.
+- If a metric has no verifiable source, return "Not publicly disclosed".
+- Use the newest available period (prefer ${currentYear}, then ${currentYear - 1}).
+- Do not use old periods when a newer reported period exists.
+- Every numeric metric must include source + publication/report date.
+- Cross-check key metrics (revenue, monthly traffic, employees) against at least 2 trusted sources when available.
+
+RESEARCH OUTPUT FORMAT:
+A structured factual brief with sections:
+1. Company identity (legal entity, ticker if any, founding, HQ, employee count)
+2. Financials (latest reported annual/TTM revenue, latest quarter, net income/margins if disclosed)
+3. Traffic (latest month, bounce rate/session, sources/countries)
+4. Revenue model and pricing facts
+5. Competition and market position
+6. Growth indicators
+7. Source ledger (metric, value, source name, source URL, publication date)
+
+Strictly avoid any estimate language.`;
         const researchRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
