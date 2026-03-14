@@ -216,10 +216,12 @@ const CompetitorAnalyzer = ({
   const [gapAnalysis, setGapAnalysis] = useState<any>(null);
   const [gapLoading, setGapLoading] = useState(false);
 
-  // Site scraper state
+  // Site analysis state
   const [scrapeUrl, setScrapeUrl] = useState("");
+  const [analysisKeywords, setAnalysisKeywords] = useState("");
   const [scrapeResult, setScrapeResult] = useState<any>(null);
   const [scrapeLoading, setScrapeLoading] = useState(false);
+  const [aiUsageCount, setAiUsageCount] = useState(0);
 
   // Financial intelligence state
   const [financialData, setFinancialData] = useState<any>(null);
