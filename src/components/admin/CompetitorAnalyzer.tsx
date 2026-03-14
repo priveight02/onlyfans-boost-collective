@@ -155,9 +155,9 @@ const checkAIUsage = async (): Promise<{ count: number; limited: boolean }> => {
   } catch { return { count: 0, limited: false }; }
 };
 
-const callAI = async (prompt: string): Promise<any> => {
+const callAI = async (prompt: string, analysisType?: string): Promise<any> => {
   const { data, error } = await supabase.functions.invoke("competitor-analyze", {
-    body: { prompt },
+    body: { prompt, analysisType },
   });
   if (error) {
     // Check if it's a rate limit error from the edge function
