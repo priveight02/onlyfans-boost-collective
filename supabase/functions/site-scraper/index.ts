@@ -431,9 +431,15 @@ function detectPlatforms(corpus: string, scripts: string[], stylesheets: string[
     ["Apple Pay", ["apple-pay", "applepay"]], ["Google Pay", ["google-pay", "googlepay", "gpay"]],
     ["Amazon Pay", ["amazonpay", "payments.amazon"]], ["Razorpay", ["razorpay.com", "razorpay"]],
     ["Mollie", ["mollie.com"]], ["2Checkout/Verifone", ["2checkout.com", "verifone.com"]],
-    ["Authorize.net", ["authorize.net"]], ["Paddle", ["paddle.com", "paddle.js", "cdn.paddle.com", "vendors.paddle.com"]],
-    ["Lemon Squeezy", ["lemonsqueezy.com", "lmsqueezy", "lemon-squeezy", "store.lemonsqueezy.com", "lemonsqueezy"]],
-    ["Polar.sh", ["polar.sh", "api.polar.sh", "sandbox-api.polar.sh", "checkout.polar.sh", "sandbox-checkout.polar.sh", "@polar-sh", "polar-checkout", "polar_sh", "polar_customer", "polar_checkout", "polar_access_token", "/v1/checkouts", "customer-sessions", "benefit_grant", "polar_webhook", "polar.sh/", "polar-", "polarsource"]],
+    ["Authorize.net", ["authorize.net"]], ["Paddle", ["paddle.com", "paddle.js", "cdn.paddle.com", "vendors.paddle.com", "paddle_checkout", "paddle billing"]],
+    ["Lemon Squeezy", ["lemonsqueezy.com", "lmsqueezy", "lemon-squeezy", "store.lemonsqueezy.com", "lemonsqueezy", "app.lemonsqueezy.com/js/lemon.js"]],
+    ["Polar.sh", [
+      "polar.sh", "api.polar.sh", "sandbox-api.polar.sh", "checkout.polar.sh", "sandbox-checkout.polar.sh",
+      "@polar-sh", "@polar_sh", "polar-checkout", "polar_sh", "polar_customer", "polar_checkout", "polar_access_token",
+      "polar_access_token_sandbox", "polar_webhook", "polar_webhook_secret", "polar_mode", "polar-setup",
+      "polar-setup-discounts", "polar-setup-first-order", "customer-sessions", "/customer-sessions", "/v1/checkouts",
+      "benefit_grant", "polar.sh/", "polar source", "portal.polar.sh"
+    ]],
     ["Gumroad", ["gumroad.com"]], ["Chargebee", ["chargebee.com"]], ["Recurly", ["recurly.com"]],
     ["FastSpring", ["fastspring.com"]], ["Wise", ["wise.com"]], ["Venmo", ["venmo.com"]], ["Cash App", ["cash.app"]],
     ["Sezzle", ["sezzle.com"]], ["Zip/QuadPay", ["zip.co", "quadpay.com"]],
