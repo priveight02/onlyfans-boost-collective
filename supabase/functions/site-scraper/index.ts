@@ -729,6 +729,29 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
     const dIframes = deep?.iframes?.length ? deep.iframes : iframes;
     const detectedPlatforms = detectPlatforms(dHtml, dScripts, dStyles, dExtLinks, dIframes);
 
+    const upsertDetection = (
+      bucket: { name: string; confidence: string }[],
+      name: string,
+      confidence: "high" | "medium" = "medium",
+    ) => {
+      const i = bucket.findIndex((x) => x.name.toLowerCase() === name.toLowerCase());
+      if (i === -1) bucket.push({ name, confidence });
+      else if (bucket[i].confidence !== "high" && confidence === "high") bucket[i].confidence = "high";
+    };
+
+    const deepLc = dHtml.toLowerCase();
+
+    // Heuristics for hidden backend/payment providers in route chunks
+    const supabaseStrong = /https?:\/\/[a-z0-9-]{10,}\.supabase\.co/i.test(dHtml) || deepLc.includes("@supabase/supabase-js") || deepLc.includes("x-client-info=supabase-js");
+    const supabaseMedium = deepLc.includes("supabase-js") || (deepLc.includes("/rest/v1/") && deepLc.includes("/auth/v1/"));
+    if (supabaseStrong) upsertDetection(detectedPlatforms.backendProviders, "Supabase", "high");
+    else if (supabaseMedium) upsertDetection(detectedPlatforms.backendProviders, "Supabase", "medium");
+
+    const polarStrong = /(?:api|sandbox-api|checkout|sandbox-checkout)\.polar\.sh/i.test(dHtml) || deepLc.includes("polar_access_token") || deepLc.includes("polar_webhook");
+    const polarMedium = deepLc.includes("@polar-sh") || deepLc.includes("polar-setup") || deepLc.includes("/v1/checkouts") || (deepLc.includes("customer-sessions") && deepLc.includes("polar"));
+    if (polarStrong) upsertDetection(detectedPlatforms.payments, "Polar.sh", "high");
+    else if (polarMedium) upsertDetection(detectedPlatforms.payments, "Polar.sh", "medium");
+
     // Merge header-based detections
     if (headerTech.length > 0) {
       for (const ht of headerTech) {
