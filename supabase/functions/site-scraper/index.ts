@@ -587,10 +587,15 @@ function detectPlatforms(corpus: string, scripts: string[], stylesheets: string[
   ]);
 
   const backendProviders = detect([
-    ["Supabase", ["supabase.co", "supabase.com", "supabase-js"]], ["Firebase", ["firebaseio.com", "firebaseapp.com", "gstatic.com/firebasejs"]],
-    ["Google Cloud", ["cloudfunctions.net", "run.app", "storage.googleapis.com"]], ["AWS", ["amazonaws.com", "execute-api", "amplifyapp.com"]],
-    ["Azure", ["azurewebsites.net", "azure-api.net"]], ["Cloudflare Workers", ["workers.dev"]],
-    ["Vercel Functions", ["vercel.app"]], ["Netlify Functions", ["/.netlify/functions/"]],
+    ["Supabase", [
+      "supabase.co", "supabase.com", "supabase-js", "x-client-info=supabase-js", "@supabase/supabase-js",
+      "/rest/v1/", "/auth/v1/", "/storage/v1/", "/functions/v1/", ".supabase.co/functions/v1"
+    ]],
+    ["Firebase", ["firebaseio.com", "firebaseapp.com", "gstatic.com/firebasejs", "firebasestorage.googleapis.com"]],
+    ["Google Cloud", ["cloudfunctions.net", "run.app", "storage.googleapis.com", "googleapis.com"]],
+    ["AWS", ["amazonaws.com", "execute-api", "amplifyapp.com", "aws-sdk"]],
+    ["Azure", ["azurewebsites.net", "azure-api.net", "azure.com"]], ["Cloudflare Workers", ["workers.dev"]],
+    ["Vercel Functions", ["vercel.app", "x-vercel-id"]], ["Netlify Functions", ["/.netlify/functions/", "netlify.app"]],
     ["Render", ["onrender.com"]], ["Railway", ["railway.app"]], ["Fly.io", ["fly.dev"]],
     ["Heroku", ["herokuapp.com"]], ["Appwrite", ["appwrite.io"]], ["Nhost", ["nhost.io"]],
     ["PocketBase", ["pocketbase"]], ["Hasura", ["hasura.io", "x-hasura"]], ["Convex", ["convex.dev"]],
