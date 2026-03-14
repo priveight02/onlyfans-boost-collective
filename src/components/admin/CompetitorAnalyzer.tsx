@@ -1641,7 +1641,7 @@ Return ONLY valid JSON:
                   <CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2">
                     <Globe className="h-4 w-4" /> Social Media Intelligence
                     <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">
-                      {Object.keys(scrapeResult.socialLinks || {}).length} platforms · {Object.values(scrapeResult.socialLinks || {}).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0)} links
+                      {Object.keys(scrapeResult.socialLinks || {}).length} platforms · {(Object.values(scrapeResult.socialLinks || {}) as any[]).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0)} links
                     </Badge>
                     {expandedSections.social ? <ChevronUp className="h-3.5 w-3.5 text-white/30" /> : <ChevronDown className="h-3.5 w-3.5 text-white/30" />}
                   </CardTitle>
