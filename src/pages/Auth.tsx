@@ -259,16 +259,14 @@ const Auth = () => {
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
-                  className="group w-full flex items-center justify-center gap-3 h-[52px] rounded-2xl text-sm font-semibold transition-all duration-300 hover:scale-[1.015] active:scale-[0.99]"
+                  className="group w-full flex items-center justify-center gap-3 h-[52px] rounded-2xl text-sm font-semibold transition-all duration-300 hover:ring-2 hover:ring-purple-400/50 hover:ring-offset-2 hover:ring-offset-transparent"
                   style={{
                     background: "linear-gradient(135deg, hsl(262, 83%, 58%) 0%, hsl(280, 70%, 50%) 50%, hsl(262, 70%, 48%) 100%)",
                     boxShadow: "0 6px 24px hsla(262, 83%, 58%, 0.3), 0 2px 8px hsla(262, 83%, 58%, 0.15), 0 0 0 1px hsla(262, 83%, 68%, 0.15) inset, 0 1px 0 hsla(0,0%,100%,0.12) inset",
                     color: "white",
                   }}
                 >
-                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/15 backdrop-blur-sm">
-                    <GoogleIcon />
-                  </div>
+                  <GoogleIcon />
                   Continue with Google
                 </button>
 
