@@ -119,6 +119,31 @@ function prioritize(links: string[]): string[] {
   });
 }
 
+function extractJsChunkUrls(jsBody: string, baseScriptUrl: string, rootDomain: string): string[] {
+  const found = new Set<string>();
+  const patterns = [
+    /["'`](\/assets\/[^"'`\s]+?\.js(?:\?[^"'`\s]*)?)["'`]/gi,
+    /["'`]((?:https?:)?\/\/[^"'`\s]+?\.js(?:\?[^"'`\s]*)?)["'`]/gi,
+    /import\(["'`]([^"'`\s]+?\.js(?:\?[^"'`\s]*)?)["'`]\)/gi,
+  ];
+
+  const add = (rawUrl: string) => {
+    try {
+      const resolved = rawUrl.startsWith("//") ? `https:${rawUrl}` : rawUrl;
+      const u = new URL(resolved, baseScriptUrl);
+      if (["http:", "https:"].includes(u.protocol) && isSameSite(rootDomain, u.hostname)) {
+        found.add(u.href);
+      }
+    } catch {}
+  };
+
+  for (const p of patterns) {
+    for (const match of safeMatch(jsBody, p)) add(match);
+  }
+
+  return [...found];
+}
+
 async function fetchSitemapUrls(origins: string[], rootDomain: string): Promise<{ urls: string[]; sources: string[] }> {
   const smPaths = ["/sitemap.xml", "/sitemap_index.xml", "/wp-sitemap.xml", "/sitemap1.xml", "/page-sitemap.xml"];
   const queued = new Set<string>();
