@@ -1200,16 +1200,62 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
     const deepLc = dHtml.toLowerCase();
 
     // Heuristics for hidden backend/payment providers in route chunks
-    const supabaseStrong = /https?:\/\/[a-z0-9-]{10,}\.supabase\.co/i.test(dHtml) || deepLc.includes("@supabase/supabase-js") || deepLc.includes("x-client-info=supabase-js");
-    const supabaseMedium = deepLc.includes("supabase-js") || (deepLc.includes("/rest/v1/") && deepLc.includes("/auth/v1/"));
-    if (supabaseStrong) upsertDetection(detectedPlatforms.backendProviders, "Supabase", "high");
-    else if (supabaseMedium) upsertDetection(detectedPlatforms.backendProviders, "Supabase", "medium");
+    const supabaseSignals = {
+      domain: /https?:\/\/[a-z0-9-]{8,}\.supabase\.co/i.test(dHtml),
+      sdkImport: deepLc.includes("@supabase/supabase-js") || deepLc.includes("supabase-js"),
+      runtimeClient: deepLc.includes("supabase.functions.invoke") || deepLc.includes("supabase.auth") || deepLc.includes("createclient("),
+      authApi: deepLc.includes("/auth/v1/"),
+      restApi: deepLc.includes("/rest/v1/"),
+      storageApi: deepLc.includes("/storage/v1/"),
+      functionsApi: deepLc.includes("/functions/v1/"),
+      jwtIssuer: deepLc.includes("\"iss\":\"supabase\"") || deepLc.includes("'iss':'supabase'"),
+      xClientInfo: deepLc.includes("x-client-info=supabase-js"),
+    };
+    const supabaseScore = Object.values(supabaseSignals).filter(Boolean).length;
 
-    const polarStrong = /(?:api|sandbox-api|checkout|sandbox-checkout)\.polar\.sh/i.test(dHtml) || deepLc.includes("polar_access_token") || deepLc.includes("polar_webhook");
-    const polarFlowSignals = ["create-checkout", "customer-portal", "verify-credit-purchase", "purchase-credits", "billing-info"].filter((k) => deepLc.includes(k)).length;
-    const polarMedium = deepLc.includes("@polar-sh") || deepLc.includes("polar-setup") || deepLc.includes("/v1/checkouts") || (deepLc.includes("customer-sessions") && deepLc.includes("polar")) || polarFlowSignals >= 3;
-    if (polarStrong) upsertDetection(detectedPlatforms.payments, "Polar.sh", "high");
-    else if (polarMedium) upsertDetection(detectedPlatforms.payments, "Polar.sh", polarFlowSignals >= 4 ? "high" : "medium");
+    if (supabaseSignals.domain || supabaseScore >= 4) {
+      upsertDetection(detectedPlatforms.backendProviders, "Supabase", "high");
+      upsertDetection(detectedPlatforms.databaseInfra, "Supabase Postgres", "high");
+      upsertDetection(detectedPlatforms.identityAuth, "Supabase Auth", supabaseScore >= 5 ? "high" : "medium");
+    } else if (supabaseScore >= 2 || (supabaseSignals.restApi && supabaseSignals.authApi)) {
+      upsertDetection(detectedPlatforms.backendProviders, "Supabase", "medium");
+      upsertDetection(detectedPlatforms.databaseInfra, "Supabase Postgres", "medium");
+      if (supabaseSignals.authApi) upsertDetection(detectedPlatforms.identityAuth, "Supabase Auth", "medium");
+    }
+
+    const polarKeywordSignals = [
+      /(?:api|sandbox-api|checkout|sandbox-checkout|portal)\.polar\.sh/i.test(dHtml),
+      deepLc.includes("@polar-sh"),
+      deepLc.includes("polar_mode"),
+      deepLc.includes("polar_access_token"),
+      deepLc.includes("polar_access_token_sandbox"),
+      deepLc.includes("polar_webhook"),
+      deepLc.includes("polar_discount"),
+      deepLc.includes("polar-setup"),
+      deepLc.includes("polar-setup-discounts"),
+      deepLc.includes("polar-setup-first-order"),
+      deepLc.includes("customer-sessions") && deepLc.includes("polar"),
+      deepLc.includes("/v1/checkouts") && deepLc.includes("polar"),
+    ].filter(Boolean).length;
+
+    const polarFlowSignals = [
+      "create-checkout",
+      "customer-portal",
+      "verify-credit-purchase",
+      "purchase-credits",
+      "billing-info",
+      "polar-setup-discounts",
+      "polar-setup-first-order",
+      "discount_id",
+      "customer-sessions",
+      "/v1/checkouts",
+    ].filter((k) => deepLc.includes(k)).length;
+
+    if (polarKeywordSignals >= 2 || (polarKeywordSignals >= 1 && polarFlowSignals >= 2)) {
+      upsertDetection(detectedPlatforms.payments, "Polar.sh", "high");
+    } else if (polarKeywordSignals >= 1 || polarFlowSignals >= 4) {
+      upsertDetection(detectedPlatforms.payments, "Polar.sh", "medium");
+    }
 
     // Merge header-based detections
     if (headerTech.length > 0) {
