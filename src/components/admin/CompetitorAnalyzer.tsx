@@ -1351,7 +1351,7 @@ Return ONLY valid JSON:
           )}
         </TabsContent>
         {/* ═══ SITE SCRAPER TAB ═══ */}
-        <TabsContent value="scraper" className="space-y-5 w-full max-w-[1200px] mx-auto overflow-x-hidden">
+        <TabsContent value="scraper" className="space-y-5 w-full overflow-x-hidden overflow-y-auto" style={{ maxWidth: 'calc(100vw - 340px)' }}>
           <Card className="crm-card">
             <CardContent className="p-4">
               <div className="flex gap-3 items-end">
@@ -1372,7 +1372,7 @@ Return ONLY valid JSON:
           </Card>
 
           {scrapeResult ? (
-            <div className="space-y-4 w-full max-w-full overflow-x-hidden">
+            <div className="space-y-4 w-full overflow-hidden">
               {/* Top summary */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {[
@@ -1410,9 +1410,9 @@ Return ONLY valid JSON:
                     { label: "Final URL", value: scrapeResult.finalUrl },
                     { label: "Server", value: scrapeResult.server },
                   ].filter(r => r.value).map((r, i) => (
-                    <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] overflow-hidden">
+                    <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] overflow-hidden min-w-0">
                       <span className="text-[10px] text-white/40 w-20 flex-shrink-0 pt-0.5">{r.label}</span>
-                      <span className="text-xs text-white/70 flex-1 min-w-0 break-words whitespace-normal">{r.value}</span>
+                      <span className="text-xs text-white/70 flex-1 min-w-0 break-words whitespace-normal overflow-hidden">{r.value}</span>
                       {r.max && r.value && (
                         <Badge variant="outline" className={`text-[9px] flex-shrink-0 ${r.value.length <= r.max ? "border-emerald-400/20 text-emerald-400" : "border-red-400/20 text-red-400"}`}>
                           {r.value.length}/{r.max}
@@ -1553,7 +1553,7 @@ Return ONLY valid JSON:
                         <Badge variant="outline" className="text-[10px] border-white/10 text-white/60 capitalize">{platform}</Badge>
                         <div className="flex-1 space-y-1">
                           {(links as string[]).map((link, i) => (
-                            <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[hsl(217,91%,60%)]/70 hover:text-[hsl(217,91%,60%)] block break-all">{link}</a>
+                            <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[hsl(217,91%,60%)]/70 hover:text-[hsl(217,91%,60%)] block break-all overflow-hidden text-ellipsis">{link}</a>
                           ))}
                         </div>
                       </div>
@@ -1632,7 +1632,7 @@ Return ONLY valid JSON:
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                       {Object.entries(scrapeResult.advancedMetrics || {})
                         .sort(([a], [b]) => a.localeCompare(b))
                         .map(([key, value]) => {
