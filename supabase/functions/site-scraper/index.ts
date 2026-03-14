@@ -455,6 +455,20 @@ function detectPlatforms(corpus: string, scripts: string[], stylesheets: string[
     return results;
   };
 
+  const mergeDetections = (bucket: Category, checks: [string, string[]][]) => {
+    for (const [name, sigs] of checks) {
+      const matchedCount = sigs.filter((s) => all.includes(s)).length;
+      if (matchedCount === 0) continue;
+      const confidence: "high" | "medium" = matchedCount >= 2 ? "high" : "medium";
+      const existing = bucket.find((item) => item.name.toLowerCase() === name.toLowerCase());
+      if (!existing) {
+        bucket.push({ name, confidence });
+      } else if (existing.confidence !== "high" && confidence === "high") {
+        existing.confidence = "high";
+      }
+    }
+  };
+
   const crm = detect([
     ["Salesforce", ["salesforce.com", "force.com", "pardot"]], ["HubSpot", ["hubspot.com", "hs-scripts.com", "hbspt"]],
     ["Zoho CRM", ["zoho.com/crm", "zsalesiq"]], ["Pipedrive", ["pipedrive.com"]], ["Freshsales", ["freshsales.io", "freshworks.com"]],
