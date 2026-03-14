@@ -448,6 +448,61 @@ async function buildDeepScanCorpus(startUrl: string, seedHtml: string): Promise<
   };
 }
 
+async function probeSensitiveFileExposure(startUrl: string, rootDomain: string, knownSubdomains: string[]) {
+  const initialHost = normalizeHost(new URL(startUrl).hostname);
+  const candidateHosts = [
+    initialHost,
+    normalizeHost(rootDomain),
+    `www.${normalizeHost(rootDomain)}`,
+    ...knownSubdomains.map(normalizeHost),
+  ];
+
+  const sameSiteHosts = [...new Set(candidateHosts)]
+    .filter(Boolean)
+    .filter(host => isSameSiteHost(rootDomain, host))
+    .slice(0, 8);
+
+  const probeUrls = sameSiteHosts.flatMap(host => SENSITIVE_FILE_PATHS.map(path => `https://${host}${path}`));
+  const findings: { url: string; path: string; status: number; publiclyAccessible: boolean }[] = [];
+
+  for (let i = 0; i < probeUrls.length; i += 8) {
+    const batch = probeUrls.slice(i, i + 8);
+    const batchResults = await Promise.all(batch.map(async (probeUrl) => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4500);
+        const response = await fetch(probeUrl, { headers: SCRAPE_HEADERS, signal: controller.signal, redirect: "follow" });
+        clearTimeout(timeout);
+
+        const body = response.ok ? (await response.text()).slice(0, 4000) : "";
+        const bodyLc = body.toLowerCase();
+        const looksLikeHtmlError = bodyLc.includes("<html") || bodyLc.includes("access denied") || bodyLc.includes("forbidden");
+        const looksLikeConfig = /(^|\n)\s*[a-z0-9_]+\s*=\s*.+/i.test(body) || bodyLc.includes("rewriteengine") || bodyLc.includes("authname");
+        const publiclyAccessible = response.ok && !looksLikeHtmlError && looksLikeConfig;
+
+        findings.push({
+          url: response.url || probeUrl,
+          path: new URL(probeUrl).pathname,
+          status: response.status,
+          publiclyAccessible,
+        });
+      } catch {
+        // ignore probe failures
+      }
+    }));
+
+    if (!batchResults) break;
+  }
+
+  const exposed = findings.filter(item => item.publiclyAccessible);
+  return {
+    checksRun: findings.length,
+    exposedCount: exposed.length,
+    exposed,
+    checks: findings,
+  };
+}
+
 function detectPlatforms(html: string, scripts: string[], stylesheets: string[], externalLinks: string[], iframes?: string[]) {
   const all = html + " " + scripts.join(" ") + " " + stylesheets.join(" ") + " " + externalLinks.join(" ") + " " + (iframes || []).join(" ");
   const lc = all.toLowerCase();
