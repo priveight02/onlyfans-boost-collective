@@ -754,11 +754,16 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
 
     // Merge header-based detections
     if (headerTech.length > 0) {
+      const backendServerSignals = new Set(["cloudflare", "vercel", "netlify", "aws", "render", "railway", "fly.io", "deno deploy", "github pages"]);
+
       for (const ht of headerTech) {
-        // Add to hosting if not already
         const allNames = [...detectedPlatforms.hosting, ...detectedPlatforms.frameworks, ...detectedPlatforms.backendProviders].map(p => p.name.toLowerCase());
         if (!allNames.includes(ht.name.toLowerCase())) {
           detectedPlatforms.hosting.push({ name: `${ht.name} (via ${ht.source})`, confidence: "high" });
+        }
+
+        if (backendServerSignals.has(ht.name.toLowerCase())) {
+          upsertDetection(detectedPlatforms.backendProviders, ht.name, "medium");
         }
       }
     }
