@@ -775,9 +775,9 @@ Return ONLY valid JSON:
         const socialCount = Object.keys(scrapeResult.socialLinks || {}).length;
         const platformCount = Object.values(dp).reduce((a: number, b: any) => a + (Array.isArray(b) ? b.length : 0), 0);
 
-        const keywordsContext = scrapeResult.analysisKeywords ? `\n\nBUSINESS KEYWORDS PROVIDED BY USER: ${scrapeResult.analysisKeywords}\nUse these keywords to research this business more thoroughly — search for public mentions, reviews, funding news, social proof, and any revenue/traction data related to these terms.\n` : "";
+        const keywordsContext = scrapeResult.analysisKeywords ? `\n\nBUSINESS KEYWORDS PROVIDED BY USER: ${scrapeResult.analysisKeywords}\nUse these keywords only for entity matching and niche context.\n` : "";
 
-        const prompt = `You are a world-class competitive intelligence and financial analyst. Today's date is ${new Date().toISOString().slice(0, 10)}. Analyze this website and provide EXTREMELY DETAILED and CURRENT financial intelligence. All data must reflect the CURRENT state as of today — not outdated or historical unless explicitly labeled.
+        const prompt = `You are a world-class financial analyst. Today's date is ${new Date().toISOString().slice(0, 10)}. Return accurate financial intelligence quickly and concisely.
 ${keywordsContext}
 WEBSITE: ${scrapeResult.finalUrl || scrapeResult.url}
 TITLE: ${scrapeResult.basic?.title || "Unknown"}
@@ -808,19 +808,15 @@ SITE METRICS:
 - Page Size: ${scrapeResult.performance?.pageSizeKB || 0} KB
 - PWA Ready: ${(scrapeResult.performance?.hasServiceWorker && scrapeResult.performance?.hasManifest) ? "Yes" : "No"}
 
-CONTENT PREVIEW: ${(scrapeResult.content?.textPreview || "").slice(0, 800)}
+CONTENT PREVIEW: ${(scrapeResult.content?.textPreview || "").slice(0, 350)}
 
 CRITICAL ACCURACY RULES:
-1. If the site has NO checkout flow, NO payment providers, NO subscription UI, and NO price points detected — revenue MUST be "$0" or "None" for ALL revenue fields. Do NOT fabricate revenue numbers.
-2. If there is no evidence of actual sales or customers, say "$0" or "No sales detected" — never invent ranges.
-3. If checkout flow is detected OR price points are found, treat the business as monetized and provide best-effort ESTIMATED ranges for all revenueEstimates fields (dailyRevenue, weeklyRevenue, monthlyRevenue, yearlyRevenue, averageOrderValue, ltv, cac).
-4. For monetized sites, NEVER return placeholders such as "No current data available", "Unknown", "N/A", "Not available" for revenueEstimates fields.
-5. Only use "$0"/"None" for revenue fields when monetization signals are truly absent.
-6. For traffic, if no analytics data exists, estimate using benchmark ranges and mark as "Estimated".
-7. ALL financial data must be CURRENT as of ${new Date().toISOString().slice(0, 10)}. If exact current data is unavailable, provide a conservative estimate and label it clearly as "Estimated".
-8. If the business keywords suggest a specific niche, use that context to validate or invalidate revenue claims.
-
-Cross-reference with publicly available information and industry benchmarks when monetization signals are present.
+1. If no monetization signals exist, set all revenue fields to "$0" or "None".
+2. If monetization exists, do not output placeholders like "N/A", "Unknown", "No current data available".
+3. For known/public companies (e.g. Nike, Adidas), use latest known reported figures from official filings/earnings instead of rough ranges.
+4. For unknown companies, provide clearly labeled conservative estimates.
+5. For non-subscription businesses, set mrr/arr/churn to "Not subscription-based".
+6. Return ONLY valid JSON matching the schema below.
 
 Return ONLY valid JSON:
 {
