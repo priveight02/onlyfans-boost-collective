@@ -1960,9 +1960,9 @@ RULES:
                           ))}
                         </div>
 
-                        {/* Revenue estimates */}
+                        {/* Revenue */}
                         <div className="p-3 rounded-lg bg-green-400/5 border border-green-400/10">
-                          <p className="text-xs font-medium text-green-400 mb-2 flex items-center gap-1"><DollarSign className="h-3.5 w-3.5" /> Revenue Estimates</p>
+                          <p className="text-xs font-medium text-green-400 mb-2 flex items-center gap-1"><DollarSign className="h-3.5 w-3.5" /> Revenue</p>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                             {[
                               { label: "Daily", value: financialData.revenueEstimates?.dailyRevenue },
