@@ -2003,9 +2003,9 @@ RULES:
                           </div>
                         </div>
 
-                        {/* Traffic estimates */}
+                        {/* Traffic */}
                         <div className="p-3 rounded-lg bg-[hsl(217,91%,60%)]/5 border border-[hsl(217,91%,60%)]/10">
-                          <p className="text-xs font-medium text-[hsl(217,91%,60%)] mb-2 flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" /> Traffic Estimates</p>
+                          <p className="text-xs font-medium text-[hsl(217,91%,60%)] mb-2 flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" /> Traffic</p>
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                             {[
                               { label: "Daily", value: financialData.trafficEstimates?.dailyVisitors },
