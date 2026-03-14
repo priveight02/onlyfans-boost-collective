@@ -198,6 +198,21 @@ const Auth = () => {
         <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-purple-500/[0.04] rounded-full blur-[100px]" />
         <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-500/[0.03] rounded-full blur-[80px]" />
 
+        {/* Mini navbar with logo */}
+        <div className="relative z-10 flex justify-center pt-5">
+          <Link
+            to="/"
+            className="flex items-center rounded-xl px-3 py-2 transition-all duration-300 hover:scale-105"
+            style={{
+              background: "hsla(0, 0%, 100%, 0.06)",
+              border: "1px solid hsla(0, 0%, 100%, 0.08)",
+              backdropFilter: "blur(24px)",
+            }}
+          >
+            <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze" className="h-8 w-auto" />
+          </Link>
+        </div>
+
         {/* Mobile logo */}
         <div className="lg:hidden relative z-10 p-6 pb-0">
           <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze" className="h-8 w-auto" />
