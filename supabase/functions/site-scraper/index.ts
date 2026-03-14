@@ -1089,6 +1089,14 @@ function detectPlatforms(corpus: string, scripts: string[], stylesheets: string[
 
 // ─── Metadata extraction ──────────────────────────
 function extractMetadata(html: string, url: string, secHeaders: Record<string, string>, headerTech: { name: string; source: string }[], deep?: DeepCorpus) {
+  // Compute deep corpus variables at the top to avoid TDZ in compiled output
+  const dHtml = deep?.combined || html;
+  const dScripts = deep?.scripts?.length ? deep.scripts : [] as string[];
+  const dStyles = deep?.stylesheets?.length ? deep.stylesheets : [] as string[];
+  const dExtLinks = deep?.externalLinks?.length ? deep.externalLinks : [] as string[];
+  const dIframes = deep?.iframes?.length ? deep.iframes : [] as string[];
+  const deepLc = dHtml.toLowerCase();
+
   try {
     const title = getTag(html, "title");
     const description = getMeta(html, "name", "description") || getMeta(html, "property", "og:description");
