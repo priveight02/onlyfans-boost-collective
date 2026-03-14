@@ -169,25 +169,98 @@ const callAI = async (prompt: string, analysisType?: string): Promise<any> => {
   return data.reply;
 };
 
+const extractBalancedJson = (text: string): string | null => {
+  const start = text.search(/[\[{]/);
+  if (start === -1) return null;
+
+  const stack: string[] = [];
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+      if (ch === "\\") {
+        escaped = true;
+        continue;
+      }
+      if (ch === '"') inString = false;
+      continue;
+    }
+
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (ch === "{" || ch === "[") {
+      stack.push(ch);
+      continue;
+    }
+
+    if (ch === "}" || ch === "]") {
+      const last = stack[stack.length - 1];
+      if ((ch === "}" && last === "{") || (ch === "]" && last === "[")) {
+        stack.pop();
+        if (stack.length === 0) return text.slice(start, i + 1);
+      }
+    }
+  }
+
+  return text.slice(start);
+};
+
+const detectTruncation = (text: string): boolean => {
+  const normalized = text.trim();
+  const openBraces = (normalized.match(/\{/g) || []).length;
+  const closeBraces = (normalized.match(/\}/g) || []).length;
+  const openBrackets = (normalized.match(/\[/g) || []).length;
+  const closeBrackets = (normalized.match(/\]/g) || []).length;
+
+  if (openBraces !== closeBraces || openBrackets !== closeBrackets) return true;
+  return [/\.\.\.$/, /…$/, /\[truncated\]/i, /\[continued\]/i].some((pattern) => pattern.test(normalized));
+};
+
 const parseJSON = (text: string): any => {
-  // Strip markdown code fences first
-  let cleaned = text.replace(/```(?:json)?\s*/gi, '').replace(/```\s*/g, '');
-  const match = cleaned.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("No JSON found in AI response");
-  // Sanitize control characters inside JSON string values that break JSON.parse
-  const sanitized = match[0].replace(/[\x00-\x1F\x7F]/g, (ch) => {
-    if (ch === '\n') return '\\n';
-    if (ch === '\r') return '\\r';
-    if (ch === '\t') return '\\t';
-    return '';
+  let cleaned = text.replace(/```(?:json)?\s*/gi, "").replace(/```\s*/g, "").trim();
+
+  const candidate = extractBalancedJson(cleaned);
+  if (!candidate) throw new Error("No JSON object or array found in AI response");
+
+  const sanitized = candidate.replace(/[\x00-\x1F\x7F]/g, (ch) => {
+    if (ch === "\n") return "\\n";
+    if (ch === "\r") return "\\r";
+    if (ch === "\t") return "\\t";
+    return "";
   });
-  return JSON.parse(sanitized);
+
+  try {
+    return JSON.parse(sanitized);
+  } catch {
+    const repaired = sanitized
+      .replace(/,\s*}/g, "}")
+      .replace(/,\s*]/g, "]");
+
+    try {
+      return JSON.parse(repaired);
+    } catch {
+      if (detectTruncation(candidate)) {
+        throw new Error("AI response was truncated. Please retry financial analysis.");
+      }
+      throw new Error("Invalid AI JSON response. Please retry.");
+    }
+  }
 };
 
 const parseJSONArray = (text: string): any[] => {
-  const match = text.match(/\[[\s\S]*\]/);
-  if (!match) throw new Error("No JSON array found in AI response");
-  return JSON.parse(match[0]);
+  const parsed = parseJSON(text);
+  if (!Array.isArray(parsed)) throw new Error("No JSON array found in AI response");
+  return parsed;
 };
 
 const isFinancialPlaceholder = (value: any): boolean => {
