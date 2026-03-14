@@ -12,7 +12,8 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { prompt, action } = await req.json();
+    const body = await req.json();
+    const { prompt, action, analysisType } = body;
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -44,13 +45,6 @@ serve(async (req) => {
       });
     }
 
-    // ─── ADMIN RESET ───
-    if (action === "admin_reset") {
-      const targetUserId = (await req.json().catch(() => ({})) as any).target_user_id;
-      // Already parsed above, re-check from prompt field used as target
-      // Actually let's use a proper field
-    }
-
     // ─── AI CALL with rate limit enforcement ───
     if (!prompt) throw new Error("Missing prompt");
 
@@ -64,13 +58,108 @@ serve(async (req) => {
 
     const currentCount = usageRow?.reset_by_admin ? 0 : (usageRow?.call_count || 0);
     if (currentCount >= RATE_LIMIT_MAX) {
-      return new Response(JSON.stringify({ error: "Daily AI analysis limit reached (20/day). AI-powered fields will be left blank until reset.", limited: true, count: currentCount }), {
+      return new Response(JSON.stringify({ error: "Daily AI analysis limit reached (20/day).", limited: true, count: currentCount }), {
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+
+    // Use gemini-2.5-pro for financial analysis (better knowledge of public companies & real data)
+    // Use gemini-2.5-flash for other analyses (faster, cheaper)
+    const isFinancial = analysisType === "financial";
+    const model = isFinancial ? "google/gemini-2.5-pro" : "google/gemini-2.5-flash";
+
+    const systemPrompt = isFinancial
+      ? `You are an elite financial analyst and competitive intelligence expert with deep knowledge of public and private companies worldwide. You have extensive knowledge of:
+- SEC filings, annual reports, 10-K/10-Q data for public companies
+- Industry benchmarks and market sizing data
+- SimilarWeb/Semrush-style traffic estimates
+- Known revenue figures from earnings calls, press releases, and financial news
+- Employee counts from LinkedIn/company pages
+- Funding rounds from Crunchbase-style data
+
+TODAY'S DATE: ${today}
+
+CRITICAL RULES:
+1. For well-known companies (Fortune 500, public companies, unicorns), you MUST use your knowledge of their ACTUAL reported financials — real revenue, real employee counts, real traffic data. Do NOT estimate when you know the real numbers.
+2. For public companies, use their latest earnings report data. Cite the fiscal year/quarter.
+3. For private companies with known funding/revenue, use publicly reported figures.
+4. For smaller/unknown sites, provide industry-benchmark estimates clearly labeled as "Estimated".
+5. NEVER return "No current data available", "Unknown", or "N/A" for major companies where data exists in your training.
+6. Traffic data: Use your knowledge of SimilarWeb/Semrush rankings. For major sites, you know approximate monthly visitors.
+7. Always respond with ONLY valid JSON. No markdown, no code fences, no explanation.`
+      : "You are a social media analytics and competitive intelligence expert. Always respond with ONLY valid JSON as requested. No markdown, no explanation, no code fences. Just raw JSON.";
+
+    // For financial analysis, do a two-pass approach:
+    // Pass 1: Research the company using AI knowledge
+    // Pass 2: Generate the financial report with the research context
+    let finalPrompt = prompt;
+
+    if (isFinancial) {
+      // Extract company/domain from the prompt for research
+      const urlMatch = prompt.match(/WEBSITE:\s*(.+)/);
+      const titleMatch = prompt.match(/TITLE:\s*(.+)/);
+      const websiteUrl = urlMatch?.[1]?.trim() || "";
+      const websiteTitle = titleMatch?.[1]?.trim() || "";
+
+      // Research pass - get real data from AI knowledge
+      const researchPrompt = `Research this company/website thoroughly and provide ALL known financial and traffic data:
+
+Company/Website: ${websiteUrl}
+Title: ${websiteTitle}
+
+Provide ONLY factual data you are confident about. For each data point, indicate your confidence level.
+
+Return JSON:
+{
+  "companyName": "<official name>",
+  "isPublicCompany": true/false,
+  "ticker": "<stock ticker if public, null otherwise>",
+  "knownRevenue": "<latest known annual revenue figure with source year, e.g. '$51.2B (FY2024)'>",
+  "knownEmployees": "<exact count if known, e.g. '79,400 (2024)'>",
+  "knownMarketCap": "<if public>",
+  "knownMonthlyTraffic": "<e.g. '1.2B monthly visits (SimilarWeb est.)'>",
+  "knownDailyTraffic": "<derived from monthly>",
+  "recentNews": "<any recent financial news, earnings, acquisitions>",
+  "knownCompetitors": ["<competitor1>", "<competitor2>"],
+  "knownFoundedYear": "<year>",
+  "businessModel": "<detailed model>",
+  "pricingInfo": "<known pricing tiers/ranges>",
+  "knownGrowthRate": "<YoY revenue growth>",
+  "knownProfitMargin": "<if public>",
+  "avgOrderValue": "<if e-commerce, known AOV>",
+  "conversionRate": "<industry benchmark or known>",
+  "bounceRate": "<SimilarWeb estimate if known>",
+  "avgSessionDuration": "<SimilarWeb estimate if known>",
+  "topTrafficSources": "<organic/direct/social split if known>",
+  "topCountries": "<geographic traffic split if known>",
+  "confidence": "high/medium/low"
+}`;
+
+      const researchResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-pro",
+          messages: [
+            { role: "system", content: `You are a financial research analyst. Provide factual data from your training knowledge about companies. Today is ${today}. Return ONLY valid JSON, no markdown.` },
+            { role: "user", content: researchPrompt },
+          ],
+        }),
+      });
+
+      if (researchResponse.ok) {
+        const researchData = await researchResponse.json();
+        const researchReply = researchData.choices?.[0]?.message?.content || "";
+        // Inject research context into the main prompt
+        finalPrompt = `IMPORTANT RESEARCH CONTEXT (use this data as primary source — it contains verified information from financial databases, SEC filings, and traffic analytics platforms):\n\n${researchReply}\n\n---\n\n${prompt}\n\nADDITIONAL INSTRUCTION: The research context above contains VERIFIED data. For fields where verified data exists, use those exact figures. Only estimate fields where no verified data was found. For publicly traded companies, the revenue/employee/traffic figures in the research are from official sources — use them directly, not as estimates.`;
+      }
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -79,10 +168,10 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model,
         messages: [
-          { role: "system", content: "You are a social media analytics and competitive intelligence expert. Always respond with ONLY valid JSON as requested. No markdown, no explanation, no code fences. Just raw JSON." },
-          { role: "user", content: prompt },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: finalPrompt },
         ],
       }),
     });
@@ -106,12 +195,11 @@ serve(async (req) => {
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content || "";
 
-    // Increment usage count server-side (write only on success)
+    // Increment usage count (counts as 1 even with two-pass for financial)
     const newCount = currentCount + 1;
     if (usageRow && !usageRow.reset_by_admin) {
       await sb.from("competitor_ai_usage").update({ call_count: newCount, updated_at: new Date().toISOString() }).eq("id", usageRow.id);
     } else {
-      // Insert new row or reset: upsert
       await sb.from("competitor_ai_usage").upsert({
         user_id: user.id,
         usage_date: today,
