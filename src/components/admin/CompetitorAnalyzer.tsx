@@ -809,7 +809,7 @@ Return ONLY valid JSON:
             { value: "content", icon: Calendar, label: "Content Intel" },
             { value: "swot", icon: Target, label: "SWOT" },
             { value: "strategy", icon: Brain, label: "AI Strategy" },
-            { value: "scraper", icon: Globe, label: "Site Scraper" },
+            { value: "analysis", icon: Globe, label: "Site Analysis" },
           ].map(tab => (
             <TabsTrigger key={tab.value} value={tab.value} className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium">
               <tab.icon className="h-3.5 w-3.5" /> {tab.label}
