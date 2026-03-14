@@ -69,7 +69,7 @@ async function safeFetch(url: string, timeoutMs = 6000): Promise<Response | null
   finally { clearTimeout(t); }
 }
 
-async function safeFetchText(url: string, timeoutMs = 6000, maxLen = 300_000): Promise<string> {
+async function safeFetchText(url: string, timeoutMs = 5000, maxLen = 150_000): Promise<string> {
   try {
     const r = await safeFetch(url, timeoutMs);
     if (!r?.ok) return "";
@@ -79,27 +79,13 @@ async function safeFetchText(url: string, timeoutMs = 6000, maxLen = 300_000): P
   } catch { return ""; }
 }
 
-function compressForDetection(input: string, maxLen = 450_000): string {
+function compressForDetection(input: string, maxLen = 200_000): string {
   if (!input || input.length <= maxLen) return input;
-
-  const segments = 4;
-  const chunkLen = Math.max(1, Math.floor(maxLen / segments));
-  const lastStart = Math.max(0, input.length - chunkLen);
-  const starts = [
-    0,
-    Math.max(0, Math.floor(input.length * 0.33) - Math.floor(chunkLen / 2)),
-    Math.max(0, Math.floor(input.length * 0.66) - Math.floor(chunkLen / 2)),
-    lastStart,
-  ];
-
-  const sampled = [...new Set(starts)]
-    .map((start) => input.slice(start, start + chunkLen))
-    .filter(Boolean);
-
-  return sampled.join("\n/* sampled-js-segment */\n");
+  const chunkLen = Math.floor(maxLen / 2);
+  return input.slice(0, chunkLen) + "\n/* sampled */\n" + input.slice(-chunkLen);
 }
 
-async function safeFetchTextForDetection(url: string, timeoutMs = 6000, maxLen = 450_000): Promise<string> {
+async function safeFetchTextForDetection(url: string, timeoutMs = 4000, maxLen = 200_000): Promise<string> {
   try {
     const r = await safeFetch(url, timeoutMs);
     if (!r?.ok) return "";
@@ -112,11 +98,11 @@ async function safeFetchTextForDetection(url: string, timeoutMs = 6000, maxLen =
 
 async function safeFetchHtml(url: string): Promise<string | null> {
   try {
-    const r = await safeFetch(url, 7000);
+    const r = await safeFetch(url, 5000);
     if (!r?.ok) return null;
     const ct = (r.headers.get("content-type") || "").toLowerCase();
     if (!ct.includes("text/html") && !ct.includes("xhtml") && !ct.includes("xml")) return null;
-    return (await r.text()).slice(0, 500_000);
+    return (await r.text()).slice(0, 200_000);
   } catch { return null; }
 }
 
@@ -218,7 +204,7 @@ async function fetchSitemapUrls(origins: string[], rootDomain: string): Promise<
     }));
   }
 
-  return { urls: prioritize([...urls]).slice(0, 60), sources };
+  return { urls: prioritize([...urls]).slice(0, 20), sources };
 }
 
 interface DeepCorpus {
@@ -234,7 +220,7 @@ interface DeepCorpus {
 }
 
 async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<DeepCorpus> {
-  const MAX_PAGES = 8;
+  const MAX_PAGES = 4;
   const root = new URL(startUrl);
   const rootDomain = getRegistrableDomain(root.hostname);
   const origins = [...new Set([root.origin, `https://${normalizeHost(rootDomain)}`, `https://www.${normalizeHost(rootDomain)}`, ...SUB_SEEDS.map(s => `https://${s}.${normalizeHost(rootDomain)}`)])];
@@ -304,10 +290,10 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
   // Fetch same-site JS bundles for deeper signature detection
   const sameScripts = [...scriptSet]
     .filter(s => { try { return isSameSite(rootDomain, new URL(s).hostname); } catch { return false; } })
-    .slice(0, 6);
+    .slice(0, 3);
 
   const jsFetches = await Promise.all(sameScripts.map(async (s) => {
-    const body = await safeFetchTextForDetection(s, 5000, 700_000);
+    const body = await safeFetchTextForDetection(s, 4000, 200_000);
     return { url: s, body };
   }));
 
@@ -322,8 +308,8 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
     }
   }
 
-  const chunkScripts = [...chunkCandidates].slice(0, 10);
-  const chunkBodies = (await Promise.all(chunkScripts.map(c => safeFetchTextForDetection(c, 4000, 450_000)))).filter(Boolean);
+  const chunkScripts = [...chunkCandidates].slice(0, 4);
+  const chunkBodies = (await Promise.all(chunkScripts.map(c => safeFetchTextForDetection(c, 3000, 150_000)))).filter(Boolean);
 
   const combined = pages.map(p => p.html).join("\n<!-- page -->\n") + "\n" + [...jsBodies, ...chunkBodies].join("\n");
 
