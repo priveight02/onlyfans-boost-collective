@@ -1474,7 +1474,7 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
       images: { total: imagesWithAlt.length, withAlt: imagesWithAlt.filter(i => i.hasAlt && i.alt).length, withoutAlt: imagesWithAlt.filter(i => !i.hasAlt || !i.alt).length, samples: imagesWithAlt.slice(0, 15) },
       scripts: { external: scripts, inlineCount: (html.match(/<script[^>]*>[\s\S]*?<\/script>/gi) || []).length, stylesheets, inlineStyleCount: (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).length },
       performance: { hasServiceWorker, hasManifest, hasPreconnect, hasPreload, hasDeferScripts, hasAsyncScripts, hasLazyImages, hasResponsiveImages, hasWebP, hasAVIF, pageSizeKB },
-      structuredData, socialLinks, detectedPlatforms, headerTechDetections: headerTech, screenshotUrl,
+      structuredData, socialLinks, socialHandles, pricingData, detectedPlatforms, headerTechDetections: headerTech, screenshotUrl,
       scanCoverage: {
         pagesScanned: deep?.pages || 1, scannedUrls: (deep?.scannedUrls || [url]).slice(0, 30),
         sitemapUrlsFound: deep?.sitemapUrls?.length || 0, sitemapSample: (deep?.sitemapUrls || []).slice(0, 20),
