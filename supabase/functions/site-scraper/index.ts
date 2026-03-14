@@ -1582,7 +1582,7 @@ serve(async (req) => {
     };
 
     const deepScan = await buildDeepScanCorpus(finalUrl, html);
-    console.log(`Deep scan coverage: ${deepScan.pagesScanned} pages`);
+    console.log(`Deep scan: ${deepScan.pagesScanned} pages, ${deepScan.sitemapUrls.length} sitemap URLs, ${deepScan.subdomainsFound.length} subdomains`);
     const metadata = extractMetadata(html, finalUrl, securityHeaders, deepScan);
     const isHttps = finalUrl.startsWith("https://");
 
