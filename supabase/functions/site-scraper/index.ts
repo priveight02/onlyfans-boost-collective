@@ -91,7 +91,7 @@ async function safeFetchHtml(url: string): Promise<string | null> {
 
 // ─── Deep scan corpus builder ─────────────────────
 const SUB_SEEDS = ["www", "app", "api", "checkout"];
-const INTENT_PATHS = ["/pricing", "/plans", "/checkout", "/cart", "/billing", "/pay", "/subscribe", "/store", "/shop", "/products", "/api", "/docs", "/integrations", "/about", "/contact"];
+const INTENT_PATHS = ["/pricing", "/checkout", "/billing", "/api", "/about"];
 const SENSITIVE_PATHS = ["/.env", "/.env.local", "/.env.production", "/.env.backup", "/.htaccess", "/.git/config", "/.git/HEAD", "/wp-config.php.bak", "/.aws/credentials", "/.docker/config.json", "/config.yml", "/database.yml"];
 
 function extractLinks(html: string, base: string, rootDomain: string): string[] {
