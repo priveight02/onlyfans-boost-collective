@@ -29,6 +29,224 @@ function getTag(html: string, name: string): string {
   return m?.[1]?.trim() || "";
 }
 
+const SCRAPE_HEADERS = {
+  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9",
+  "Accept-Encoding": "gzip, deflate, br",
+  "Connection": "keep-alive",
+  "Upgrade-Insecure-Requests": "1",
+  "Cache-Control": "max-age=0",
+};
+
+type DeepScanCorpus = {
+  combinedHtml: string;
+  combinedScripts: string[];
+  combinedStylesheets: string[];
+  combinedExternalLinks: string[];
+  scannedUrls: string[];
+  pagesScanned: number;
+};
+
+function isSameSiteHost(rootHost: string, testHost: string): boolean {
+  return testHost === rootHost || testHost.endsWith(`.${rootHost}`) || rootHost.endsWith(`.${testHost}`);
+}
+
+function extractInternalPageLinks(html: string, baseUrl: string, rootHost: string): string[] {
+  const hrefs = getAllMatches(html, /<a[^>]*href=["']([^"'#]+)["']/gi);
+  const links = new Set<string>();
+  const excludedFileExt = /\.(jpg|jpeg|png|gif|svg|webp|avif|mp4|mp3|pdf|zip|rar|css|js|ico|woff2?|ttf|eot|xml)(\?|#|$)/i;
+
+  for (const href of hrefs) {
+    try {
+      const parsed = new URL(href, baseUrl);
+      if (!["http:", "https:"].includes(parsed.protocol)) continue;
+      if (!isSameSiteHost(rootHost, parsed.hostname)) continue;
+      if (excludedFileExt.test(parsed.pathname)) continue;
+      links.add(parsed.href);
+    } catch {
+      // skip invalid links
+    }
+  }
+
+  return [...links];
+}
+
+function prioritizeLinks(links: string[]): string[] {
+  const highIntentKeywords = [
+    "checkout", "payment", "billing", "pricing", "plans", "subscribe", "subscription", "cart", "buy", "upgrade", "portal", "invoice", "pay",
+  ];
+
+  return [...new Set(links)].sort((a, b) => {
+    const al = a.toLowerCase();
+    const bl = b.toLowerCase();
+    const aScore = highIntentKeywords.reduce((acc, keyword) => acc + (al.includes(keyword) ? 10 : 0), 0) - al.length / 500;
+    const bScore = highIntentKeywords.reduce((acc, keyword) => acc + (bl.includes(keyword) ? 10 : 0), 0) - bl.length / 500;
+    return bScore - aScore;
+  });
+}
+
+async function fetchHtmlForDeepScan(targetUrl: string): Promise<string | null> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 7000);
+
+  try {
+    const response = await fetch(targetUrl, {
+      headers: SCRAPE_HEADERS,
+      redirect: "follow",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) return null;
+
+    const contentType = (response.headers.get("content-type") || "").toLowerCase();
+    if (!contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) return null;
+
+    return await response.text();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchTextForDeepScanAsset(assetUrl: string): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 7000);
+
+  try {
+    const response = await fetch(assetUrl, {
+      headers: SCRAPE_HEADERS,
+      redirect: "follow",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) return "";
+
+    const contentType = (response.headers.get("content-type") || "").toLowerCase();
+    const skipBinary = ["image/", "video/", "audio/", "font/", "application/octet-stream"];
+    if (skipBinary.some((prefix) => contentType.startsWith(prefix))) return "";
+
+    const text = await response.text();
+    return text.slice(0, 250_000);
+  } catch {
+    return "";
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function buildDeepScanCorpus(startUrl: string, seedHtml: string): Promise<DeepScanCorpus> {
+  const maxPages = 10;
+  const maxBatchSize = 3;
+  const maxQueueSize = 120;
+  const rootHost = new URL(startUrl).hostname;
+
+  const visited = new Set<string>([startUrl]);
+  const scannedUrls: string[] = [startUrl];
+  const pageHtmls: { url: string; html: string }[] = [{ url: startUrl, html: seedHtml }];
+
+  let queue = prioritizeLinks(extractInternalPageLinks(seedHtml, startUrl, rootHost));
+
+  while (queue.length > 0 && pageHtmls.length < maxPages) {
+    const batch: string[] = [];
+    const remainingQueue: string[] = [];
+
+    for (const link of queue) {
+      if (visited.has(link)) continue;
+      if (batch.length < maxBatchSize) batch.push(link);
+      else remainingQueue.push(link);
+    }
+
+    if (batch.length === 0) break;
+
+    const fetched = await Promise.all(batch.map(async (link) => ({ link, html: await fetchHtmlForDeepScan(link) })));
+
+    for (const { link, html } of fetched) {
+      visited.add(link);
+      if (!html) continue;
+      pageHtmls.push({ url: link, html });
+      scannedUrls.push(link);
+
+      if (pageHtmls.length >= maxPages) break;
+
+      const discovered = extractInternalPageLinks(html, link, rootHost).filter((next) => !visited.has(next));
+      remainingQueue.push(...discovered);
+    }
+
+    queue = prioritizeLinks(remainingQueue).slice(0, maxQueueSize);
+  }
+
+  const scriptUrlSet = new Set<string>();
+  const stylesheetUrlSet = new Set<string>();
+  const externalLinkSet = new Set<string>();
+
+  for (const page of pageHtmls) {
+    const scriptSrcs = getAllMatches(page.html, /<script[^>]*src=["']([^"']+)["']/gi);
+    for (const src of scriptSrcs) {
+      try {
+        const resolved = new URL(src, page.url);
+        if (["http:", "https:"].includes(resolved.protocol)) scriptUrlSet.add(resolved.href);
+      } catch {
+        // skip
+      }
+    }
+
+    const cssHrefs = getAllMatches(page.html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi);
+    for (const href of cssHrefs) {
+      try {
+        const resolved = new URL(href, page.url);
+        if (["http:", "https:"].includes(resolved.protocol)) stylesheetUrlSet.add(resolved.href);
+      } catch {
+        // skip
+      }
+    }
+
+    const anchors = getAllMatches(page.html, /<a[^>]*href=["']([^"'#]+)["']/gi);
+    for (const href of anchors) {
+      try {
+        const parsed = new URL(href, page.url);
+        if (!["http:", "https:"].includes(parsed.protocol)) continue;
+        if (!isSameSiteHost(rootHost, parsed.hostname)) externalLinkSet.add(parsed.href);
+      } catch {
+        // skip invalid links
+      }
+    }
+  }
+
+  const combinedScripts = [...scriptUrlSet].slice(0, 180);
+  const combinedStylesheets = [...stylesheetUrlSet].slice(0, 120);
+
+  const sameSiteScriptUrls = combinedScripts
+    .filter((scriptUrl) => {
+      try {
+        const host = new URL(scriptUrl).hostname;
+        return isSameSiteHost(rootHost, host);
+      } catch {
+        return false;
+      }
+    })
+    .slice(0, 10);
+
+  const scriptBodies = (await Promise.all(sameSiteScriptUrls.map((scriptUrl) => fetchTextForDeepScanAsset(scriptUrl))))
+    .filter(Boolean)
+    .map((body, index) => `\n/* deep-script-${index + 1} */\n${body}\n`);
+
+  const combinedHtml = [
+    pageHtmls.map((p) => p.html).join("\n\n<!-- deep-scan-page -->\n\n"),
+    scriptBodies.join("\n"),
+  ].join("\n\n");
+
+  return {
+    combinedHtml,
+    combinedScripts,
+    combinedStylesheets,
+    combinedExternalLinks: [...externalLinkSet].slice(0, 250),
+    scannedUrls,
+    pagesScanned: pageHtmls.length,
+  };
+}
+
 function detectPlatforms(html: string, scripts: string[], stylesheets: string[], externalLinks: string[]) {
   const all = html + " " + scripts.join(" ") + " " + stylesheets.join(" ") + " " + externalLinks.join(" ");
   const lc = all.toLowerCase();
@@ -83,7 +301,7 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     ["Authorize.net", ["authorize.net", "authorizenet"]],
     ["Paddle", ["paddle.com", "paddle.js", "cdn.paddle.com"]],
     ["Lemon Squeezy", ["lemonsqueezy.com", "lmsqueezy", "lemon-squeezy"]],
-    ["Polar.sh", ["polar.sh", "api.polar.sh", "sandbox-api.polar.sh", "polar-sh"]],
+    ["Polar.sh", ["polar.sh", "api.polar.sh", "sandbox-api.polar.sh", "checkout.polar.sh", "@polar-sh", "polar-checkout", "polar_sh"]],
     ["Gumroad", ["gumroad.com"]],
     ["Chargebee", ["chargebee.com", "cbinstance"]],
     ["Recurly", ["recurly.com", "recurly-"]],
@@ -140,7 +358,7 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     ["Plaid", ["plaid.com", "cdn.plaid.com"]],
     ["ThriveCart", ["thrivecart.com"]],
     ["SamCart", ["samcart.com"]],
-    ["SendOwl", ["sendownl.com"]],
+    ["SendOwl", ["sendowl.com"]],
     ["Payhip", ["payhip.com"]],
     ["Sellfy", ["sellfy.com"]],
     ["Podia Payments", ["podia.com"]],
@@ -291,7 +509,7 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     ["Polar Store", ["polar.sh"]],
     ["Whop", ["whop.com"]],
     ["Payhip", ["payhip.com"]],
-    ["SendOwl", ["sendownl.com"]],
+    ["SendOwl", ["sendowl.com"]],
     ["Spring (Teespring)", ["spri.ng", "teespring.com"]],
     ["Printful", ["printful.com"]],
     ["Printify", ["printify.com"]],
@@ -678,7 +896,7 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
   return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity, socialMedia, database, aiTools, affiliate, personalization };
 }
 
-function extractMetadata(html: string, url: string, securityHeaders: Record<string, string>) {
+function extractMetadata(html: string, url: string, securityHeaders: Record<string, string>, deepScan?: DeepScanCorpus) {
   const lc = html.toLowerCase();
   const title = getTag(html, "title");
   const description = getMeta(html, "name", "description") || getMeta(html, "property", "og:description");
@@ -783,8 +1001,12 @@ function extractMetadata(html: string, url: string, securityHeaders: Record<stri
     if (matches.length) socialLinks[platform] = matches.slice(0, 5);
   }
 
-  // Detect platforms
-  const detectedPlatforms = detectPlatforms(html, scripts, stylesheets, externalLinks);
+  // Detect platforms using deep multi-page corpus when available
+  const detectionHtml = deepScan?.combinedHtml || html;
+  const detectionScripts = deepScan?.combinedScripts?.length ? deepScan.combinedScripts : scripts;
+  const detectionStylesheets = deepScan?.combinedStylesheets?.length ? deepScan.combinedStylesheets : stylesheets;
+  const detectionExternalLinks = deepScan?.combinedExternalLinks?.length ? deepScan.combinedExternalLinks : externalLinks;
+  const detectedPlatforms = detectPlatforms(detectionHtml, detectionScripts, detectionStylesheets, detectionExternalLinks);
 
   // Accessibility checks
   const formCount = (html.match(/<form/gi) || []).length;
@@ -1211,6 +1433,10 @@ function extractMetadata(html: string, url: string, securityHeaders: Record<stri
     structuredData,
     socialLinks,
     detectedPlatforms,
+    scanCoverage: {
+      pagesScanned: deepScan?.pagesScanned || 1,
+      scannedUrls: (deepScan?.scannedUrls || [url]).slice(0, 15),
+    },
     accessibility: { formCount, inputsWithLabels, ariaCount, roleCount, tabIndexCount, hasSkipNav, hasFocusStyles },
     fonts: { googleFonts, customFonts, adobeFonts },
     iframes,
@@ -1244,15 +1470,7 @@ serve(async (req) => {
     console.log("Scraping:", formattedUrl);
 
     const response = await fetch(formattedUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Connection": "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-        "Cache-Control": "max-age=0",
-      },
+      headers: SCRAPE_HEADERS,
       redirect: "follow",
     });
 
@@ -1272,7 +1490,9 @@ serve(async (req) => {
       permissionsPolicy: response.headers.get("permissions-policy") ? "Present" : "Missing",
     };
 
-    const metadata = extractMetadata(html, finalUrl, securityHeaders);
+    const deepScan = await buildDeepScanCorpus(finalUrl, html);
+    console.log(`Deep scan coverage: ${deepScan.pagesScanned} pages`);
+    const metadata = extractMetadata(html, finalUrl, securityHeaders, deepScan);
     const isHttps = finalUrl.startsWith("https://");
 
     return new Response(JSON.stringify({
