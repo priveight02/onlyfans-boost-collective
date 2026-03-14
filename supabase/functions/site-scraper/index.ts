@@ -618,6 +618,259 @@ function extractMetadata(html: string, url: string, securityHeaders?: Record<str
   }
 
   const pageSizeKB = Math.round(new TextEncoder().encode(html).length / 1024);
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  const anchorTags = html.match(/<a\b[^>]*>/gi) || [];
+  const metaTags = html.match(/<meta\b[^>]*>/gi) || [];
+  const tagMatches = [...html.matchAll(/<([a-zA-Z][a-zA-Z0-9-]*)(\s|>|\/)/g)].map(m => m[1].toLowerCase());
+  const uniqueTagCount = new Set(tagMatches).size;
+  const totalTagCount = tagMatches.length;
+  const scriptTags = html.match(/<script\b[^>]*>/gi) || [];
+  const inlineScriptTags = scriptTags.filter(t => !/\ssrc\s*=|^<script[^>]*src=/i.test(t));
+  const externalScriptTags = scriptTags.filter(t => /\ssrc\s*=|^<script[^>]*src=/i.test(t));
+  const styleTags = html.match(/<style\b[^>]*>/gi) || [];
+  const deferScriptCount = scriptTags.filter(t => /\sdefer(\s|>|=)/i.test(t)).length;
+  const asyncScriptCount = scriptTags.filter(t => /\sasync(\s|>|=)/i.test(t)).length;
+  const moduleScriptCount = scriptTags.filter(t => /type=["']module["']/i.test(t)).length;
+
+  const imageTags = html.match(/<img\b[^>]*>/gi) || [];
+  const lazyImageCount = imageTags.filter(t => /loading=["']lazy["']/i.test(t)).length;
+  const responsiveImageCount = imageTags.filter(t => /srcset=["']/i.test(t)).length;
+  const imageWithWidthHeightCount = imageTags.filter(t => /\swidth=["']/i.test(t) && /\sheight=["']/i.test(t)).length;
+  const pictureTagCount = (html.match(/<picture\b/gi) || []).length;
+  const sourceTagCount = (html.match(/<source\b/gi) || []).length;
+  const videoTagCount = (html.match(/<video\b/gi) || []).length;
+  const audioTagCount = (html.match(/<audio\b/gi) || []).length;
+  const embedTagCount = (html.match(/<embed\b/gi) || []).length;
+  const svgTagCount = (html.match(/<svg\b/gi) || []).length;
+
+  const headingCount = h1s.length + h2s.length + h3s.length;
+  const headingDepthScore = round2((h1s.length * 3) + (h2s.length * 2) + h3s.length);
+
+  const keywordList = keywords
+    ? keywords.split(",").map(k => k.trim()).filter(Boolean)
+    : [];
+
+  const keywordWordCount = keywordList.reduce((acc, item) => acc + item.split(/\s+/).filter(Boolean).length, 0);
+  const sentenceCount = textContent.split(/[.!?]+/).map(s => s.trim()).filter(Boolean).length;
+  const words = textContent.split(/\s+/).filter(Boolean);
+  const uniqueWords = new Set(words.map(w => w.toLowerCase()));
+  const longWordCount = words.filter(w => w.replace(/[^a-zA-Z]/g, "").length >= 8).length;
+  const paragraphCount = (html.match(/<p\b/gi) || []).length;
+  const listItemCount = (html.match(/<li\b/gi) || []).length;
+  const tableCount = (html.match(/<table\b/gi) || []).length;
+  const blockquoteCount = (html.match(/<blockquote\b/gi) || []).length;
+
+  const mailtoLinkCount = allAnchors.filter(h => /^mailto:/i.test(h)).length;
+  const telLinkCount = allAnchors.filter(h => /^tel:/i.test(h)).length;
+  const javascriptLinkCount = allAnchors.filter(h => /^javascript:/i.test(h)).length;
+  const fragmentLinkCount = (html.match(/<a[^>]*href=["']#[^"']*["']/gi) || []).length;
+  const nofollowLinkCount = anchorTags.filter(t => /rel=["'][^"']*nofollow/i.test(t)).length;
+  const noopenerLinkCount = anchorTags.filter(t => /rel=["'][^"']*noopener/i.test(t)).length;
+  const noreferrerLinkCount = anchorTags.filter(t => /rel=["'][^"']*noreferrer/i.test(t)).length;
+  const targetBlankCount = anchorTags.filter(t => /target=["']_blank["']/i.test(t)).length;
+
+  const externalDomains = new Set(
+    externalLinks
+      .map(link => {
+        try { return new URL(link).hostname; } catch { return ""; }
+      })
+      .filter(Boolean)
+  );
+
+  const ogMetaCount = (html.match(/<meta[^>]*(property|name)=["']og:/gi) || []).length;
+  const twitterMetaCount = (html.match(/<meta[^>]*(property|name)=["']twitter:/gi) || []).length;
+  const canonicalCount = (html.match(/<link[^>]*rel=["']canonical["']/gi) || []).length;
+  const hreflangCount = (html.match(/<link[^>]*hreflang=["']/gi) || []).length;
+  const alternateLinkCount = (html.match(/<link[^>]*rel=["']alternate["']/gi) || []).length;
+  const faviconCount = (html.match(/<link[^>]*rel=["'][^"']*icon[^"']*["']/gi) || []).length;
+  const rssFeedCount = (html.match(/<link[^>]*type=["']application\/(rss|atom)\+xml["']/gi) || []).length;
+  const ampLinkCount = (html.match(/<link[^>]*rel=["']amphtml["']/gi) || []).length;
+  const sitemapMentionCount = ((html.match(/sitemap\.xml/gi) || []).length + (robots.match(/sitemap/i) ? 1 : 0));
+
+  const mainCount = (html.match(/<main\b/gi) || []).length;
+  const navCount = (html.match(/<nav\b/gi) || []).length;
+  const headerCount = (html.match(/<header\b/gi) || []).length;
+  const footerCount = (html.match(/<footer\b/gi) || []).length;
+  const asideCount = (html.match(/<aside\b/gi) || []).length;
+  const buttonCount = (html.match(/<button\b/gi) || []).length;
+  const inputCount = (html.match(/<input\b/gi) || []).length;
+  const selectCount = (html.match(/<select\b/gi) || []).length;
+  const textareaCount = (html.match(/<textarea\b/gi) || []).length;
+  const ariaLabelCount = (html.match(/aria-label=["']/gi) || []).length;
+  const ariaDescribedByCount = (html.match(/aria-describedby=["']/gi) || []).length;
+  const altAttributeCount = (html.match(/\salt=["']/gi) || []).length;
+  const headingHierarchyIssues = (h1s.length === 0 ? 1 : 0) + (h1s.length > 1 ? 1 : 0);
+
+  const platformCategoryCount = Object.values(detectedPlatforms).filter(v => Array.isArray(v) && v.length > 0).length;
+  const totalPlatformDetections = Object.values(detectedPlatforms).reduce((acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0), 0);
+
+  const boolToNumber = (value: boolean) => (value ? 1 : 0);
+  const secureHeadersPresent = [
+    securityHeaders?.strictTransportSecurity && securityHeaders.strictTransportSecurity !== "",
+    securityHeaders?.contentSecurityPolicy === "Present",
+    (securityHeaders?.xFrameOptions || "") !== "Missing",
+    (securityHeaders?.xContentTypeOptions || "") !== "Missing",
+    (securityHeaders?.referrerPolicy || "") !== "Missing",
+    securityHeaders?.permissionsPolicy === "Present",
+  ].filter(Boolean).length;
+
+  const advancedMetrics = {
+    // Document & markup
+    metric_total_tags: totalTagCount,
+    metric_unique_tags: uniqueTagCount,
+    metric_meta_tags: metaTags.length,
+    metric_title_length: title.length,
+    metric_description_length: description.length,
+    metric_keywords_count: keywordList.length,
+    metric_keyword_words_total: keywordWordCount,
+    metric_language_declared: boolToNumber(Boolean(language)),
+    metric_charset_declared: boolToNumber(Boolean(charset)),
+    metric_viewport_declared: boolToNumber(Boolean(viewport)),
+    metric_theme_color_declared: boolToNumber(Boolean(themeColor)),
+    metric_generator_declared: boolToNumber(Boolean(generator)),
+
+    // SEO structure
+    metric_h1_count: h1s.length,
+    metric_h2_count: h2s.length,
+    metric_h3_count: h3s.length,
+    metric_headings_total: headingCount,
+    metric_heading_depth_score: headingDepthScore,
+    metric_heading_hierarchy_issues: headingHierarchyIssues,
+    metric_canonical_count: canonicalCount,
+    metric_hreflang_count: hreflangCount,
+    metric_alternate_link_count: alternateLinkCount,
+    metric_og_tags_count: ogMetaCount,
+    metric_twitter_tags_count: twitterMetaCount,
+    metric_json_ld_blocks: structuredData.length,
+    metric_favicon_count: faviconCount,
+    metric_rss_feed_links: rssFeedCount,
+    metric_amp_links: ampLinkCount,
+    metric_sitemap_mentions: sitemapMentionCount,
+
+    // Content quality
+    metric_word_count: wordCount,
+    metric_sentence_count: sentenceCount,
+    metric_avg_words_per_sentence: round2(sentenceCount ? wordCount / sentenceCount : 0),
+    metric_paragraph_count: paragraphCount,
+    metric_list_items_count: listItemCount,
+    metric_table_count: tableCount,
+    metric_blockquote_count: blockquoteCount,
+    metric_unique_word_count: uniqueWords.size,
+    metric_unique_word_ratio_percent: round2(wordCount ? (uniqueWords.size / wordCount) * 100 : 0),
+    metric_long_word_ratio_percent: round2(wordCount ? (longWordCount / wordCount) * 100 : 0),
+    metric_text_to_html_ratio_percent: round2(html.length ? (textContent.length / html.length) * 100 : 0),
+    metric_keyword_to_word_ratio_percent: round2(wordCount ? (keywordWordCount / wordCount) * 100 : 0),
+
+    // Link intelligence
+    metric_anchor_tags_count: anchorTags.length,
+    metric_internal_links: internalLinks.length,
+    metric_external_links: externalLinks.length,
+    metric_internal_link_ratio_percent: round2((internalLinks.length + externalLinks.length) ? (internalLinks.length / (internalLinks.length + externalLinks.length)) * 100 : 0),
+    metric_external_link_ratio_percent: round2((internalLinks.length + externalLinks.length) ? (externalLinks.length / (internalLinks.length + externalLinks.length)) * 100 : 0),
+    metric_external_domains_count: externalDomains.size,
+    metric_social_platforms_found: Object.keys(socialLinks).length,
+    metric_mailto_links_count: mailtoLinkCount,
+    metric_tel_links_count: telLinkCount,
+    metric_javascript_links_count: javascriptLinkCount,
+    metric_fragment_links_count: fragmentLinkCount,
+    metric_nofollow_links_count: nofollowLinkCount,
+    metric_noopener_links_count: noopenerLinkCount,
+    metric_noreferrer_links_count: noreferrerLinkCount,
+    metric_target_blank_links_count: targetBlankCount,
+
+    // Media
+    metric_images_total: imageTags.length,
+    metric_images_with_alt: imagesWithAlt.filter(i => i.hasAlt && i.alt).length,
+    metric_images_without_alt: imagesWithAlt.filter(i => !i.hasAlt || !i.alt).length,
+    metric_image_alt_coverage_percent: round2(imageTags.length ? (imagesWithAlt.filter(i => i.hasAlt && i.alt).length / imageTags.length) * 100 : 0),
+    metric_lazy_images_count: lazyImageCount,
+    metric_lazy_image_coverage_percent: round2(imageTags.length ? (lazyImageCount / imageTags.length) * 100 : 0),
+    metric_responsive_images_count: responsiveImageCount,
+    metric_responsive_image_coverage_percent: round2(imageTags.length ? (responsiveImageCount / imageTags.length) * 100 : 0),
+    metric_images_with_dimensions_count: imageWithWidthHeightCount,
+    metric_picture_tags_count: pictureTagCount,
+    metric_source_tags_count: sourceTagCount,
+    metric_video_tags_count: videoTagCount,
+    metric_audio_tags_count: audioTagCount,
+    metric_iframe_count: iframes.length,
+    metric_embed_tags_count: embedTagCount,
+    metric_svg_tags_count: svgTagCount,
+
+    // Scripts & styles
+    metric_script_tags_total: scriptTags.length,
+    metric_external_script_tags: externalScriptTags.length,
+    metric_inline_script_tags: inlineScriptTags.length,
+    metric_defer_script_count: deferScriptCount,
+    metric_async_script_count: asyncScriptCount,
+    metric_module_script_count: moduleScriptCount,
+    metric_defer_script_ratio_percent: round2(scriptTags.length ? (deferScriptCount / scriptTags.length) * 100 : 0),
+    metric_async_script_ratio_percent: round2(scriptTags.length ? (asyncScriptCount / scriptTags.length) * 100 : 0),
+    metric_stylesheet_links: stylesheets.length,
+    metric_inline_style_tags: styleTags.length,
+    metric_estimated_request_assets: imageTags.length + externalScriptTags.length + stylesheets.length + iframes.length,
+
+    // Performance flags
+    metric_has_service_worker: boolToNumber(hasServiceWorker),
+    metric_has_manifest: boolToNumber(hasManifest),
+    metric_has_preconnect: boolToNumber(hasPreconnect),
+    metric_has_preload: boolToNumber(hasPreload),
+    metric_has_defer_scripts: boolToNumber(hasDeferScripts),
+    metric_has_async_scripts: boolToNumber(hasAsyncScripts),
+    metric_has_lazy_images: boolToNumber(hasLazyImages),
+    metric_has_responsive_images: boolToNumber(hasResponsiveImages),
+    metric_has_webp: boolToNumber(hasWebP),
+    metric_has_avif: boolToNumber(hasAVIF),
+    metric_page_size_kb: pageSizeKB,
+
+    // Accessibility
+    metric_form_count: formCount,
+    metric_input_count: inputCount,
+    metric_select_count: selectCount,
+    metric_textarea_count: textareaCount,
+    metric_form_field_count: inputCount + selectCount + textareaCount,
+    metric_labels_count: inputsWithLabels,
+    metric_aria_attribute_count: ariaCount,
+    metric_aria_label_count: ariaLabelCount,
+    metric_aria_describedby_count: ariaDescribedByCount,
+    metric_role_attribute_count: roleCount,
+    metric_tabindex_count: tabIndexCount,
+    metric_alt_attribute_count: altAttributeCount,
+    metric_button_count: buttonCount,
+    metric_landmark_tags_count: mainCount + navCount + headerCount + footerCount + asideCount,
+    metric_skip_nav_present: boolToNumber(hasSkipNav),
+    metric_focus_style_present: boolToNumber(hasFocusStyles),
+
+    // Security
+    metric_https_enabled: boolToNumber(url.startsWith("https://")),
+    metric_hsts_header_present: boolToNumber(Boolean(securityHeaders?.strictTransportSecurity && securityHeaders.strictTransportSecurity !== "")),
+    metric_csp_header_present: boolToNumber(securityHeaders?.contentSecurityPolicy === "Present"),
+    metric_xframe_header_present: boolToNumber((securityHeaders?.xFrameOptions || "") !== "Missing"),
+    metric_xcontent_type_options_present: boolToNumber((securityHeaders?.xContentTypeOptions || "") !== "Missing"),
+    metric_referrer_policy_present: boolToNumber((securityHeaders?.referrerPolicy || "") !== "Missing"),
+    metric_permissions_policy_present: boolToNumber(securityHeaders?.permissionsPolicy === "Present"),
+    metric_security_headers_present_count: secureHeadersPresent,
+
+    // Platform intelligence
+    metric_platform_categories_detected: platformCategoryCount,
+    metric_platform_detections_total: totalPlatformDetections,
+    metric_crm_tools_detected: detectedPlatforms.crm.length,
+    metric_payment_tools_detected: detectedPlatforms.payments.length,
+    metric_analytics_tools_detected: detectedPlatforms.analytics.length,
+    metric_marketing_tools_detected: detectedPlatforms.marketing.length,
+    metric_support_tools_detected: detectedPlatforms.support.length,
+    metric_ecommerce_tools_detected: detectedPlatforms.ecommerce.length,
+    metric_hosting_tools_detected: detectedPlatforms.hosting.length,
+    metric_framework_tools_detected: detectedPlatforms.frameworks.length,
+    metric_ads_tools_detected: detectedPlatforms.ads.length,
+    metric_security_tools_detected: detectedPlatforms.security.length,
+    metric_scheduling_tools_detected: detectedPlatforms.scheduling.length,
+    metric_forms_tools_detected: detectedPlatforms.forms.length,
+    metric_engagement_tools_detected: detectedPlatforms.engagement.length,
+    metric_social_proof_tools_detected: detectedPlatforms.socialProof.length,
+    metric_seo_tools_detected: detectedPlatforms.seoTools.length,
+    metric_productivity_tools_detected: detectedPlatforms.productivity.length,
+  };
 
   return {
     basic: { title, description, keywords, author, robots, canonical, language, charset, viewport, generator, themeColor },
