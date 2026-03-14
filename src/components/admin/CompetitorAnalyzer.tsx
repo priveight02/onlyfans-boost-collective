@@ -749,6 +749,7 @@ Return ONLY valid JSON:
         const aiReply = await callAI(prompt);
         const parsed = parseJSON(aiReply);
         setFinancialData(parsed);
+        await refreshAIUsage();
         toast.success("Financial intelligence generated");
         return true;
       } catch (err: any) {
