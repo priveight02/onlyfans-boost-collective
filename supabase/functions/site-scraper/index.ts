@@ -1523,7 +1523,10 @@ function extractMetadata(html: string, url: string, securityHeaders: Record<stri
     detectedPlatforms,
     scanCoverage: {
       pagesScanned: deepScan?.pagesScanned || 1,
-      scannedUrls: (deepScan?.scannedUrls || [url]).slice(0, 15),
+      scannedUrls: (deepScan?.scannedUrls || [url]).slice(0, 30),
+      sitemapUrlsFound: deepScan?.sitemapUrls?.length || 0,
+      sitemapSample: (deepScan?.sitemapUrls || []).slice(0, 20),
+      subdomainsFound: deepScan?.subdomainsFound || [],
     },
     accessibility: { formCount, inputsWithLabels, ariaCount, roleCount, tabIndexCount, hasSkipNav, hasFocusStyles },
     fonts: { googleFonts, customFonts, adobeFonts },
