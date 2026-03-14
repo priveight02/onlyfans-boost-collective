@@ -276,7 +276,7 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
     .slice(0, 6);
 
   const jsFetches = await Promise.all(sameScripts.map(async (s) => {
-    const body = await safeFetchText(s, 8000, 2_500_000);
+    const body = await safeFetchText(s, 5000, 500_000);
     return { url: s, body };
   }));
 
