@@ -318,9 +318,9 @@ Strictly avoid any estimate language.`;
           method: "POST",
           headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            model: "google/gemini-2.5-pro",
-            temperature: 0.05,
-            max_tokens: 3000,
+            model: "google/gemini-3.1-pro-preview",
+            temperature: 0,
+            max_tokens: 3500,
             messages: [{ role: "user", content: researchPrompt }],
           }),
           signal: controller.signal,
@@ -338,32 +338,36 @@ Strictly avoid any estimate language.`;
         const researchBrief = researchData.choices?.[0]?.message?.content || "";
         console.log("Research brief length:", researchBrief.length);
 
-        // Pass 2: Structure research into tool call schema using fast model
-        const structurePrompt = `Use ONLY the verified research below to fill the financial report. Use exact numbers from the research. Do not invent data.
+        // Pass 2: Strictly structure factual output with tool calling
+        const structurePrompt = `Use ONLY the verified research below to fill the financial report schema.
 
 === VERIFIED RESEARCH ===
 ${researchBrief}
 === END RESEARCH ===
 
-ORIGINAL REQUEST: ${prompt}
+TARGET: ${prompt}
+DATE: ${currentDate}
 
-INSTRUCTIONS:
-- Use EXACT numbers from research (e.g. "$51.2B (FY2024 10-K)" not "$50B")
-- Derive daily/weekly from annual: daily=annual/365, weekly=annual/52, monthly=annual/12
-- Derive traffic periods similarly from monthly figures
-- Include source citations in parentheses
-- If research says "No verified data", estimate with label "Estimated: $X based on [reasoning]"
-- For non-subscription companies: mrr/arr/churn = "Not subscription-based"`;
+STRICT OUTPUT RULES:
+- Do NOT estimate, infer, project, approximate, or provide synthetic ranges.
+- Every numeric value must be tied to a source and period in the value text.
+- If a metric has no verifiable source, set it to "Not publicly disclosed".
+- Prefer newest available periods (${currentYear} then ${currentYear - 1}); do not fallback to older years if newer data exists.
+- If deriving daily/weekly/monthly from verified annual/quarterly values, explicitly tag as "Derived from [source period]".
+- dataFreshness must reflect the latest financial and traffic period actually used.
+- sourceLedger must include as many trusted citations as available (minimum 6 when available), each with URL and publication date.
+- For non-subscription companies, mrr/arr/churn should be "Not subscription-based".
+- confidenceLevel must be one of: high, medium, low.`;
 
         const structRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             model: "google/gemini-2.5-flash",
-            temperature: 0.05,
+            temperature: 0,
             max_tokens: 4096,
             messages: [
-              { role: "system", content: "Structure the provided research into the financial report schema. Use only verified data." },
+              { role: "system", content: "Return strictly factual, latest, source-grounded financial intelligence. No estimates." },
               { role: "user", content: structurePrompt },
             ],
             tools: [financialTool],
@@ -385,7 +389,8 @@ INSTRUCTIONS:
         if (toolCall?.function?.arguments) {
           try {
             const parsed = JSON.parse(toolCall.function.arguments);
-            reply = JSON.stringify(parsed);
+            const sanitized = sanitizeFinancialPayload(parsed);
+            reply = JSON.stringify(sanitized);
           } catch {
             reply = toolCall.function.arguments;
           }
