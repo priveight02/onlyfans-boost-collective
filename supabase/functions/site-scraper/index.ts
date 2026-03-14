@@ -1089,6 +1089,14 @@ function detectPlatforms(corpus: string, scripts: string[], stylesheets: string[
 
 // ─── Metadata extraction ──────────────────────────
 function extractMetadata(html: string, url: string, secHeaders: Record<string, string>, headerTech: { name: string; source: string }[], deep?: DeepCorpus) {
+  // Compute deep corpus variables at the top to avoid TDZ in compiled output
+  const dHtml = deep?.combined || html;
+  const dScripts = deep?.scripts?.length ? deep.scripts : [] as string[];
+  const dStyles = deep?.stylesheets?.length ? deep.stylesheets : [] as string[];
+  const dExtLinks = deep?.externalLinks?.length ? deep.externalLinks : [] as string[];
+  const dIframes = deep?.iframes?.length ? deep.iframes : [] as string[];
+  const deepLc = dHtml.toLowerCase();
+
   try {
     const title = getTag(html, "title");
     const description = getMeta(html, "name", "description") || getMeta(html, "property", "og:description");
@@ -1179,13 +1187,12 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
       } catch {}
     }
 
-    // Detection using deep corpus
-    const dHtml = deep?.combined || html;
-    const dScripts = deep?.scripts?.length ? deep.scripts : scripts;
-    const dStyles = deep?.stylesheets?.length ? deep.stylesheets : stylesheets;
-    const dExtLinks = deep?.externalLinks?.length ? deep.externalLinks : externalLinks;
-    const dIframes = deep?.iframes?.length ? deep.iframes : iframes;
-    const detectedPlatforms = detectPlatforms(dHtml, dScripts, dStyles, dExtLinks, dIframes);
+    // Detection using deep corpus (dHtml, dScripts etc. declared at function top)
+    const scriptsForDetect = deep?.scripts?.length ? deep.scripts : scripts;
+    const stylesForDetect = deep?.stylesheets?.length ? deep.stylesheets : stylesheets;
+    const extLinksForDetect = deep?.externalLinks?.length ? deep.externalLinks : externalLinks;
+    const iframesForDetect = deep?.iframes?.length ? deep.iframes : iframes;
+    const detectedPlatforms = detectPlatforms(dHtml, scriptsForDetect, stylesForDetect, extLinksForDetect, iframesForDetect);
 
     const upsertDetection = (
       bucket: { name: string; confidence: string }[],
@@ -1197,7 +1204,6 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
       else if (bucket[i].confidence !== "high" && confidence === "high") bucket[i].confidence = "high";
     };
 
-    const deepLc = dHtml.toLowerCase();
 
     // Heuristics for hidden backend/payment providers in route chunks
     const supabaseSignals = {
