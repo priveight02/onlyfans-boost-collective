@@ -1918,11 +1918,10 @@ RULES:
                                   <span className="text-sm">{icon}</span>
                                   <span className={`text-[11px] font-semibold tracking-wide uppercase ${colors.text}`}>{cat.label}</span>
                                   <span className="ml-auto text-[9px] text-white/30 font-medium bg-white/[0.04] rounded-full px-1.5 py-0.5">{providers.length}</span>
-                                  {allCategoryUrls.length > 0 && (
-                                    isExpanded
-                                      ? <ChevronUp className="h-3 w-3 text-white/20" />
-                                      : <ChevronDown className="h-3 w-3 text-white/20" />
-                                  )}
+                                  {isExpanded
+                                    ? <ChevronUp className="h-3 w-3 text-white/40" />
+                                    : <ChevronDown className="h-3 w-3 text-white/40" />
+                                  }
                                 </div>
                                 <div className="flex flex-wrap gap-1">
                                   {providers.map((p: any) => (
