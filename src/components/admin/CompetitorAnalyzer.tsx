@@ -10,6 +10,7 @@ import {
   BarChart3, Users, Hash, Zap, Brain, Target, ArrowUpRight, ArrowDownRight,
   Loader2, Clock, AlertTriangle, Calendar, Search, Eye, Globe, Sparkles,
   Shield, Flame, Crown, Download, Copy, ChevronDown, ChevronUp, Star,
+  Link, Lock, FileText, Image as ImageIcon, Code, Activity, CheckCircle, XCircle, ExternalLink,
 } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
