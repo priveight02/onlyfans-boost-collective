@@ -290,10 +290,10 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
   // Fetch same-site JS bundles for deeper signature detection
   const sameScripts = [...scriptSet]
     .filter(s => { try { return isSameSite(rootDomain, new URL(s).hostname); } catch { return false; } })
-    .slice(0, 6);
+    .slice(0, 3);
 
   const jsFetches = await Promise.all(sameScripts.map(async (s) => {
-    const body = await safeFetchTextForDetection(s, 5000, 700_000);
+    const body = await safeFetchTextForDetection(s, 4000, 200_000);
     return { url: s, body };
   }));
 
@@ -308,8 +308,8 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
     }
   }
 
-  const chunkScripts = [...chunkCandidates].slice(0, 10);
-  const chunkBodies = (await Promise.all(chunkScripts.map(c => safeFetchTextForDetection(c, 4000, 450_000)))).filter(Boolean);
+  const chunkScripts = [...chunkCandidates].slice(0, 4);
+  const chunkBodies = (await Promise.all(chunkScripts.map(c => safeFetchTextForDetection(c, 3000, 150_000)))).filter(Boolean);
 
   const combined = pages.map(p => p.html).join("\n<!-- page -->\n") + "\n" + [...jsBodies, ...chunkBodies].join("\n");
 
