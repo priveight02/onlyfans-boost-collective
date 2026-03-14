@@ -1410,7 +1410,7 @@ Return ONLY valid JSON:
                     { label: "Final URL", value: scrapeResult.finalUrl },
                     { label: "Server", value: scrapeResult.server },
                   ].filter(r => r.value).map((r, i) => (
-                    <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] overflow-hidden">
+                    <div key={i} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] overflow-hidden min-w-0">
                       <span className="text-[10px] text-white/40 w-20 flex-shrink-0 pt-0.5">{r.label}</span>
                       <span className="text-xs text-white/70 flex-1 min-w-0 break-words whitespace-normal">{r.value}</span>
                       {r.max && r.value && (
