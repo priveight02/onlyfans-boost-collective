@@ -1422,7 +1422,9 @@ serve(async (req) => {
       permissionsPolicy: response.headers.get("permissions-policy") ? "Present" : "Missing",
     };
 
-    const metadata = extractMetadata(html, finalUrl, securityHeaders);
+    const deepScan = await buildDeepScanCorpus(finalUrl, html);
+    console.log(`Deep scan coverage: ${deepScan.pagesScanned} pages`);
+    const metadata = extractMetadata(html, finalUrl, securityHeaders, deepScan);
     const isHttps = finalUrl.startsWith("https://");
 
     return new Response(JSON.stringify({
