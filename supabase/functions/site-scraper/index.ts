@@ -85,7 +85,7 @@ function compressForDetection(input: string, maxLen = 200_000): string {
   return input.slice(0, chunkLen) + "\n/* sampled */\n" + input.slice(-chunkLen);
 }
 
-async function safeFetchTextForDetection(url: string, timeoutMs = 6000, maxLen = 450_000): Promise<string> {
+async function safeFetchTextForDetection(url: string, timeoutMs = 4000, maxLen = 200_000): Promise<string> {
   try {
     const r = await safeFetch(url, timeoutMs);
     if (!r?.ok) return "";
