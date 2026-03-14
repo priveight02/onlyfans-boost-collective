@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { trackAdminLogin } from "@/hooks/useVisitorTracking";
 import authHeroFull from "@/assets/auth-side-hero.png";
+import AnimatedBackground from "@/components/AnimatedBackground";
 import {
   Eye, EyeOff, LogIn, Lock, Mail, User, ArrowLeft,
   Sparkles, KeyRound, Send, UserPlus, Chrome,
@@ -172,31 +173,20 @@ const Auth = () => {
   const inputClass = "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:border-purple-500/40 focus:bg-white/[0.07] rounded-xl h-12 text-sm transition-all duration-200";
 
   return (
-    <div className="flex min-h-screen" style={{ background: "hsl(222, 35%, 7%)" }}>
-      {/* Left Side - Full bleed image with edge blend */}
-      <div className="hidden lg:block lg:w-[44%] relative overflow-hidden">
+    <div className="flex min-h-screen">
+      {/* Left Side - Full bleed image, straight edge */}
+      <div className="hidden lg:block lg:w-[38%] relative overflow-hidden">
         <img
           src={authHeroFull}
           alt="Uplyze AI Platform"
           className="absolute inset-0 w-full h-full object-cover"
         />
-        {/* Gradient blend into right side */}
-        <div className="absolute inset-y-0 right-0 w-[120px]" style={{
-          background: "linear-gradient(to right, transparent, hsl(222, 35%, 7%))",
-        }} />
-        <div className="absolute inset-x-0 bottom-0 h-[80px]" style={{
-          background: "linear-gradient(to top, hsl(222, 35%, 7%), transparent)",
-        }} />
-        <div className="absolute inset-x-0 top-0 h-[60px]" style={{
-          background: "linear-gradient(to bottom, hsl(222, 35%, 7%), transparent)",
-        }} />
       </div>
 
-      {/* Right Side - Form */}
+      {/* Right Side - Form with unified animated background */}
       <div className="flex-1 flex flex-col relative overflow-hidden">
-        {/* Subtle ambient glow */}
-        <div className="absolute top-0 right-0 w-[400px] h-[400px] bg-purple-500/[0.04] rounded-full blur-[100px]" />
-        <div className="absolute bottom-0 left-0 w-[300px] h-[300px] bg-blue-500/[0.03] rounded-full blur-[80px]" />
+        <AnimatedBackground variant="default">
+          <div className="min-h-screen flex flex-col relative">
 
         {/* Mobile logo */}
         <div className="lg:hidden relative z-10 p-6 pb-0">
@@ -465,6 +455,8 @@ const Auth = () => {
             </div>
           </motion.div>
         </div>
+          </div>
+        </AnimatedBackground>
       </div>
     </div>
   );
