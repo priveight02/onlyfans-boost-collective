@@ -202,6 +202,16 @@ const CompetitorAnalyzer = ({
   const [scrapeResult, setScrapeResult] = useState<any>(null);
   const [scrapeLoading, setScrapeLoading] = useState(false);
 
+  // Financial intelligence state
+  const [financialData, setFinancialData] = useState<any>(null);
+  const [financialLoading, setFinancialLoading] = useState(false);
+
+  // Deep analysis section expansion
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    social: true, platforms: true, deepMetrics: false, security: false, performance: false, sensitive: false, financial: true,
+  });
+  const toggleSection = (key: string) => setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
+
   const { performAction } = useCreditAction();
 
   // Load competitors on mount
