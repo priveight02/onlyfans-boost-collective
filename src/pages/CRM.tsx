@@ -25,6 +25,7 @@ import SocialMediaHub from "@/components/admin/SocialMediaHub";
 import AdminAPI from "@/components/admin/AdminAPI";
 import EnhancedDashboard from "@/components/admin/EnhancedDashboard";
 import AdCreativeEngine from "@/components/admin/AdCreativeEngine";
+import CompetitorAnalyzer from "@/components/admin/CompetitorAnalyzer";
 import CRMHelpWidget from "@/components/crm/CRMHelpWidget";
 import CreditsDisplay from "@/components/CreditsDisplay";
 import { supabase } from "@/integrations/supabase/client";
