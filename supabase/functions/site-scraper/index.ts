@@ -877,7 +877,7 @@ function detectPlatforms(corpus: string, scripts: string[], stylesheets: string[
     ["Statsig", ["statsig.com"]], ["GrowthBook", ["growthbook.io"]], ["AB Tasty", ["abtasty.com"]],
   ]);
 
-  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity, socialMedia, backendProviders, database: backendProviders, aiTools, affiliate, personalization };
+  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity, socialMedia, backendProviders, database: backendProviders, aiTools, affiliate, personalization, cdn, fileStorage };
 }
 
 // ─── Metadata extraction ──────────────────────────
