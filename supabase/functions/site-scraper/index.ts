@@ -145,7 +145,7 @@ function extractJsChunkUrls(jsBody: string, baseScriptUrl: string, rootDomain: s
 }
 
 async function fetchSitemapUrls(origins: string[], rootDomain: string): Promise<{ urls: string[]; sources: string[] }> {
-  const smPaths = ["/sitemap.xml", "/sitemap_index.xml", "/wp-sitemap.xml", "/sitemap1.xml", "/page-sitemap.xml"];
+  const smPaths = ["/sitemap.xml", "/sitemap_index.xml"];
   const queued = new Set<string>();
   const queue: string[] = [];
   const sources: string[] = [];
