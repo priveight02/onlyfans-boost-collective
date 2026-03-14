@@ -562,6 +562,30 @@ Return ONLY valid JSON:
     });
   };
 
+  // ─── Site Scraper ──────────────────────────────────
+  const scrapeSite = async () => {
+    if (!scrapeUrl.trim()) return;
+    await performAction("site_scrape", async () => {
+      setScrapeLoading(true);
+      setScrapeResult(null);
+      try {
+        const { data, error } = await supabase.functions.invoke("site-scraper", {
+          body: { url: scrapeUrl.trim() },
+        });
+        if (error) throw new Error(error.message || "Scrape failed");
+        if (!data?.success) throw new Error(data?.error || "Scrape failed");
+        setScrapeResult(data);
+        toast.success("Site scraped successfully");
+        return true;
+      } catch (err: any) {
+        toast.error(err.message || "Scrape failed");
+        throw err;
+      } finally {
+        setScrapeLoading(false);
+      }
+    });
+  };
+
   const selected = competitors.find(c => c.id === selectedCompetitor) || competitors[0] || null;
   const getThreatColor = (score: number) => score >= 70 ? "text-red-400" : score >= 40 ? "text-amber-400" : "text-emerald-400";
   const getThreatBg = (score: number) => score >= 70 ? "bg-red-400/10 border-red-400/20" : score >= 40 ? "bg-amber-400/10 border-amber-400/20" : "bg-emerald-400/10 border-emerald-400/20";
