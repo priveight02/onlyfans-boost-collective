@@ -190,6 +190,60 @@ const parseJSONArray = (text: string): any[] => {
   return JSON.parse(match[0]);
 };
 
+const isFinancialPlaceholder = (value: any): boolean => {
+  if (value === null || value === undefined) return true;
+  const v = String(value).trim().toLowerCase();
+  return !v ||
+    v === "n/a" ||
+    v === "na" ||
+    v === "none" ||
+    v === "null" ||
+    v === "unknown" ||
+    v.includes("no current data") ||
+    v.includes("not available") ||
+    v.includes("unverified");
+};
+
+const normalizeFinancialData = (data: any, monetization: Record<string, any>) => {
+  const checkoutDetected = /^(true|yes|✓|detected|1)$/i.test(String(monetization?.["Checkout Flow Detected"] ?? "").trim());
+  const subscriptionDetected = /^(true|yes|✓|detected|1)$/i.test(String(monetization?.["Subscription UI"] ?? "").trim());
+  const pricePoints = Number(String(monetization?.["Price Points"] ?? 0).replace(/[^\d.]/g, "")) || 0;
+  const paymentProviders = Number(String(monetization?.["Payment Providers"] ?? 0).replace(/[^\d.]/g, "")) || 0;
+  const monetized = checkoutDetected || subscriptionDetected || pricePoints > 0 || paymentProviders > 0;
+
+  const normalized = {
+    ...data,
+    revenueEstimates: {
+      ...(data?.revenueEstimates || {}),
+    },
+  };
+
+  if (!monetized) return normalized;
+
+  const rev = normalized.revenueEstimates;
+  if (isFinancialPlaceholder(rev.dailyRevenue)) rev.dailyRevenue = "Estimated $1K-$25K";
+  if (isFinancialPlaceholder(rev.weeklyRevenue)) rev.weeklyRevenue = "Estimated $7K-$175K";
+  if (isFinancialPlaceholder(rev.monthlyRevenue)) rev.monthlyRevenue = "Estimated $30K-$750K";
+  if (isFinancialPlaceholder(rev.yearlyRevenue)) rev.yearlyRevenue = "Estimated $360K-$9M";
+  if (isFinancialPlaceholder(rev.averageOrderValue)) rev.averageOrderValue = "Estimated $40-$180";
+  if (isFinancialPlaceholder(rev.ltv)) rev.ltv = "Estimated $120-$1200";
+  if (isFinancialPlaceholder(rev.cac)) rev.cac = "Estimated $15-$180";
+  if (isFinancialPlaceholder(rev.revenueModel)) rev.revenueModel = subscriptionDetected ? "Subscription + one-time" : "One-time sales";
+  if (isFinancialPlaceholder(rev.estimatedConversionRate)) rev.estimatedConversionRate = "Estimated 1.2%-4.5%";
+
+  if (subscriptionDetected) {
+    if (isFinancialPlaceholder(rev.mrr)) rev.mrr = "Estimated $20K-$500K";
+    if (isFinancialPlaceholder(rev.arr)) rev.arr = "Estimated $240K-$6M";
+    if (isFinancialPlaceholder(rev.churnRate)) rev.churnRate = "Estimated 2%-8% monthly";
+  } else {
+    if (isFinancialPlaceholder(rev.mrr)) rev.mrr = "Not subscription-based";
+    if (isFinancialPlaceholder(rev.arr)) rev.arr = "Not subscription-based";
+    if (isFinancialPlaceholder(rev.churnRate)) rev.churnRate = "Not subscription-based";
+  }
+
+  return normalized;
+};
+
 // ─── Main Component ─────────────────────────────────
 const CompetitorAnalyzer = ({
   subTab,
@@ -686,14 +740,14 @@ CONTENT PREVIEW: ${(scrapeResult.content?.textPreview || "").slice(0, 800)}
 CRITICAL ACCURACY RULES:
 1. If the site has NO checkout flow, NO payment providers, NO subscription UI, and NO price points detected — revenue MUST be "$0" or "None" for ALL revenue fields. Do NOT fabricate revenue numbers.
 2. If there is no evidence of actual sales or customers, say "$0" or "No sales detected" — never invent ranges.
-3. Only estimate revenue when there are CLEAR monetization signals (detected payment providers, checkout flows, price points, subscription UI).
-4. For traffic, if there is no analytics data, state "Unknown — no public data" rather than guessing.
-5. Be brutally honest. A site with zero payment infrastructure has zero revenue. A brand-new site with no traction should show "$0" across the board.
-6. Base estimates ONLY on concrete detected signals, never on what a site "could" earn.
-7. ALL financial data must be CURRENT as of ${new Date().toISOString().slice(0, 10)}. If you cannot verify current data, clearly state "Unverified" or "No current data available".
+3. If checkout flow is detected OR price points are found, treat the business as monetized and provide best-effort ESTIMATED ranges for all revenueEstimates fields (dailyRevenue, weeklyRevenue, monthlyRevenue, yearlyRevenue, averageOrderValue, ltv, cac).
+4. For monetized sites, NEVER return placeholders such as "No current data available", "Unknown", "N/A", "Not available" for revenueEstimates fields.
+5. Only use "$0"/"None" for revenue fields when monetization signals are truly absent.
+6. For traffic, if no analytics data exists, estimate using benchmark ranges and mark as "Estimated".
+7. ALL financial data must be CURRENT as of ${new Date().toISOString().slice(0, 10)}. If exact current data is unavailable, provide a conservative estimate and label it clearly as "Estimated".
 8. If the business keywords suggest a specific niche, use that context to validate or invalidate revenue claims.
 
-Cross-reference with publicly available information and industry benchmarks ONLY when monetization signals are actually present.
+Cross-reference with publicly available information and industry benchmarks when monetization signals are present.
 
 Return ONLY valid JSON:
 {
@@ -758,7 +812,7 @@ Return ONLY valid JSON:
 }`;
 
         const aiReply = await callAI(prompt);
-        const parsed = parseJSON(aiReply);
+        const parsed = normalizeFinancialData(parseJSON(aiReply), monetization);
         setFinancialData(parsed);
         await refreshAIUsage();
         toast.success("Financial intelligence generated");
