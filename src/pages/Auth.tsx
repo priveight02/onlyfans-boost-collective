@@ -179,7 +179,7 @@ const Auth = () => {
   };
 
   const current = titles[mode];
-  const inputClass = "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:border-purple-500/40 focus:bg-white/[0.07] rounded-xl h-12 text-sm transition-all duration-200";
+  const inputClass = "bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 focus:border-purple-500/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-purple-500/10 rounded-2xl h-[52px] px-4 text-sm transition-all duration-300 backdrop-blur-sm shadow-[inset_0_1px_0_hsla(0,0%,100%,0.03)]";
 
   return (
     <div className="flex min-h-screen">
