@@ -90,9 +90,9 @@ async function safeFetchHtml(url: string): Promise<string | null> {
 }
 
 // ─── Deep scan corpus builder ─────────────────────
-const SUB_SEEDS = ["www", "app", "api", "checkout", "pay", "billing", "portal", "shop", "store", "m", "help", "docs"];
-const INTENT_PATHS = ["/pricing", "/plans", "/checkout", "/cart", "/billing", "/pay", "/subscribe", "/store", "/shop", "/products", "/api", "/docs", "/integrations", "/about", "/contact"];
-const SENSITIVE_PATHS = ["/.env", "/.env.local", "/.env.production", "/.env.backup", "/.htaccess", "/.git/config", "/.git/HEAD", "/wp-config.php.bak", "/.aws/credentials", "/.docker/config.json", "/config.yml", "/database.yml"];
+const SUB_SEEDS = ["www", "app", "api", "checkout"];
+const INTENT_PATHS = ["/pricing", "/checkout", "/billing", "/api", "/about"];
+const SENSITIVE_PATHS = ["/.env", "/.env.local", "/.htaccess", "/.git/config", "/.git/HEAD"];
 
 function extractLinks(html: string, base: string, rootDomain: string): string[] {
   const links = new Set<string>();
@@ -145,7 +145,7 @@ function extractJsChunkUrls(jsBody: string, baseScriptUrl: string, rootDomain: s
 }
 
 async function fetchSitemapUrls(origins: string[], rootDomain: string): Promise<{ urls: string[]; sources: string[] }> {
-  const smPaths = ["/sitemap.xml", "/sitemap_index.xml", "/wp-sitemap.xml", "/sitemap1.xml", "/page-sitemap.xml"];
+  const smPaths = ["/sitemap.xml", "/sitemap_index.xml"];
   const queued = new Set<string>();
   const queue: string[] = [];
   const sources: string[] = [];
@@ -161,7 +161,7 @@ async function fetchSitemapUrls(origins: string[], rootDomain: string): Promise<
   for (const o of origins) smPaths.forEach(p => addCandidate(p, o));
 
   // robots.txt
-  await Promise.all(origins.slice(0, 8).map(async o => {
+  await Promise.all(origins.slice(0, 3).map(async o => {
     try {
       const txt = await safeFetchText(`${o}/robots.txt`, 4000, 50_000);
       for (const line of txt.match(/^Sitemap:\s*(.+)$/gmi) || []) addCandidate(line.replace(/^Sitemap:\s*/i, "").trim(), o);
@@ -169,7 +169,7 @@ async function fetchSitemapUrls(origins: string[], rootDomain: string): Promise<
   }));
 
   let processed = 0;
-  while (queue.length > 0 && processed < 60) {
+  while (queue.length > 0 && processed < 10) {
     const batch = queue.splice(0, 6);
     processed += batch.length;
     await Promise.all(batch.map(async smUrl => {
@@ -187,7 +187,7 @@ async function fetchSitemapUrls(origins: string[], rootDomain: string): Promise<
     }));
   }
 
-  return { urls: prioritize([...urls]).slice(0, 400), sources };
+  return { urls: prioritize([...urls]).slice(0, 60), sources };
 }
 
 interface DeepCorpus {
@@ -203,7 +203,7 @@ interface DeepCorpus {
 }
 
 async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<DeepCorpus> {
-  const MAX_PAGES = 40;
+  const MAX_PAGES = 8;
   const root = new URL(startUrl);
   const rootDomain = getRegistrableDomain(root.hostname);
   const origins = [...new Set([root.origin, `https://${normalizeHost(rootDomain)}`, `https://www.${normalizeHost(rootDomain)}`, ...SUB_SEEDS.map(s => `https://${s}.${normalizeHost(rootDomain)}`)])];
@@ -228,10 +228,10 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
 
   const seedLinks = extractLinks(seedHtml, startUrl, rootDomain);
   const probes = origins.flatMap(o => INTENT_PATHS.map(p => `${o}${p}`));
-  let queue = prioritize([...new Set([...smResult.urls, ...seedLinks, ...probes])].filter(u => !visited.has(u))).slice(0, 500);
+  let queue = prioritize([...new Set([...smResult.urls, ...seedLinks, ...probes])].filter(u => !visited.has(u))).slice(0, 40);
 
   while (queue.length > 0 && pages.length < MAX_PAGES) {
-    const batch = queue.splice(0, 6).filter(u => !visited.has(u));
+    const batch = queue.splice(0, 3).filter(u => !visited.has(u));
     if (!batch.length) continue;
 
     const results = await Promise.all(batch.map(async u => {
@@ -251,7 +251,7 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
       const newLinks = extractLinks(html, u, rootDomain).filter(l => !visited.has(l));
       queue.push(...newLinks);
     }
-    queue = prioritize([...new Set(queue)]).slice(0, 500);
+    queue = prioritize([...new Set(queue)]).slice(0, 40);
   }
 
   const scriptSet = new Set<string>();
@@ -273,10 +273,10 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
   // Fetch same-site JS bundles for deeper signature detection
   const sameScripts = [...scriptSet]
     .filter(s => { try { return isSameSite(rootDomain, new URL(s).hostname); } catch { return false; } })
-    .slice(0, 24);
+    .slice(0, 6);
 
   const jsFetches = await Promise.all(sameScripts.map(async (s) => {
-    const body = await safeFetchText(s, 8000, 2_500_000);
+    const body = await safeFetchText(s, 5000, 500_000);
     return { url: s, body };
   }));
 
@@ -291,8 +291,8 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
     }
   }
 
-  const chunkScripts = [...chunkCandidates].slice(0, 50);
-  const chunkBodies = (await Promise.all(chunkScripts.map(c => safeFetchText(c, 8000, 1_200_000)))).filter(Boolean);
+  const chunkScripts = [...chunkCandidates].slice(0, 8);
+  const chunkBodies = (await Promise.all(chunkScripts.map(c => safeFetchText(c, 4000, 300_000)))).filter(Boolean);
 
   const combined = pages.map(p => p.html).join("\n<!-- page -->\n") + "\n" + [...jsBodies, ...chunkBodies].join("\n");
 
@@ -311,13 +311,13 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
 
 // ─── Sensitive file exposure probing ──────────────
 async function probeSensitiveFiles(startUrl: string, rootDomain: string, knownSubs: string[]) {
-  const hosts = [...new Set([normalizeHost(new URL(startUrl).hostname), normalizeHost(rootDomain), `www.${normalizeHost(rootDomain)}`, ...knownSubs.map(normalizeHost)])].filter(h => isSameSite(rootDomain, h)).slice(0, 6);
+  const hosts = [...new Set([normalizeHost(new URL(startUrl).hostname), normalizeHost(rootDomain)])].filter(h => isSameSite(rootDomain, h)).slice(0, 2);
   const probes = hosts.flatMap(h => SENSITIVE_PATHS.map(p => ({ url: `https://${h}${p}`, path: p, host: h })));
 
   const findings: { url: string; path: string; host: string; status: number; exposed: boolean; snippet: string; fullContent: string; contentType: string }[] = [];
 
-  for (let i = 0; i < probes.length; i += 8) {
-    const batch = probes.slice(i, i + 8);
+  for (let i = 0; i < probes.length; i += 4) {
+    const batch = probes.slice(i, i + 4);
     await Promise.all(batch.map(async probe => {
       try {
         const r = await safeFetch(probe.url, 4000);
