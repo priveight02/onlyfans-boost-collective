@@ -1553,7 +1553,7 @@ Return ONLY valid JSON:
                         <Badge variant="outline" className="text-[10px] border-white/10 text-white/60 capitalize">{platform}</Badge>
                         <div className="flex-1 space-y-1">
                           {(links as string[]).map((link, i) => (
-                            <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[hsl(217,91%,60%)]/70 hover:text-[hsl(217,91%,60%)] block break-all">{link}</a>
+                            <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[hsl(217,91%,60%)]/70 hover:text-[hsl(217,91%,60%)] block break-all overflow-hidden text-ellipsis">{link}</a>
                           ))}
                         </div>
                       </div>
