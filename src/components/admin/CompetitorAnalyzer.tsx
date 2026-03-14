@@ -1632,7 +1632,7 @@ Return ONLY valid JSON:
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                       {Object.entries(scrapeResult.advancedMetrics || {})
                         .sort(([a], [b]) => a.localeCompare(b))
                         .map(([key, value]) => {
