@@ -1484,21 +1484,58 @@ Return ONLY valid JSON:
                   </CardContent>
                 </Card>
 
-                {/* Technologies */}
-                <Card className="crm-card">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><Code className="h-4 w-4" /> Technologies Detected</CardTitle></CardHeader>
-                  <CardContent>
-                    {(scrapeResult.technologies || []).length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
-                        {scrapeResult.technologies.map((tech: string) => (
-                          <Badge key={tech} variant="outline" className="text-xs border-white/10 text-white/70 bg-white/[0.03]">{tech}</Badge>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-white/30 text-center py-4">No technologies detected</p>
-                    )}
-                  </CardContent>
-                </Card>
+              {/* Detected Platforms - categorized */}
+                {(() => {
+                  const dp = scrapeResult.detectedPlatforms || {};
+                  const categories: { key: string; label: string; color: string; icon: any }[] = [
+                    { key: "crm", label: "CRM Systems", color: "text-purple-400", icon: Users },
+                    { key: "payments", label: "Payment Platforms", color: "text-emerald-400", icon: Zap },
+                    { key: "analytics", label: "Analytics & Tracking", color: "text-[hsl(217,91%,60%)]", icon: BarChart3 },
+                    { key: "marketing", label: "Email & Marketing", color: "text-pink-400", icon: Sparkles },
+                    { key: "support", label: "Customer Support & Chat", color: "text-cyan-400", icon: Activity },
+                    { key: "ecommerce", label: "E-commerce Platform", color: "text-orange-400", icon: Globe },
+                    { key: "hosting", label: "Hosting & CDN", color: "text-teal-400", icon: Globe },
+                    { key: "frameworks", label: "Frameworks & CMS", color: "text-amber-400", icon: Code },
+                    { key: "ads", label: "Ads & Monetization", color: "text-yellow-400", icon: TrendingUp },
+                    { key: "security", label: "Security, Auth & Monitoring", color: "text-red-400", icon: Shield },
+                    { key: "scheduling", label: "Scheduling & Booking", color: "text-indigo-400", icon: Calendar },
+                    { key: "forms", label: "Forms & Surveys", color: "text-lime-400", icon: FileText },
+                    { key: "engagement", label: "Engagement & Media", color: "text-sky-400", icon: Eye },
+                    { key: "socialProof", label: "Reviews & Social Proof", color: "text-amber-300", icon: Star },
+                    { key: "seoTools", label: "SEO & Compliance Tools", color: "text-green-400", icon: Search },
+                    { key: "productivity", label: "Productivity & Collaboration", color: "text-violet-400", icon: Crown },
+                  ];
+                  const activeCats = categories.filter(c => (dp[c.key] || []).length > 0);
+                  if (activeCats.length === 0) return (
+                    <Card className="crm-card md:col-span-2">
+                      <CardContent className="p-6 text-center">
+                        <Code className="h-6 w-6 text-white/20 mx-auto mb-2" />
+                        <p className="text-xs text-white/30">No external platforms detected</p>
+                      </CardContent>
+                    </Card>
+                  );
+                  return activeCats.map(cat => (
+                    <Card key={cat.key} className="crm-card">
+                      <CardHeader className="pb-2">
+                        <CardTitle className={`text-sm font-medium flex items-center gap-2 ${cat.color}`}>
+                          <cat.icon className="h-4 w-4" /> {cat.label}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-1.5">
+                          {(dp[cat.key] as { name: string; confidence: string }[]).map((p: any) => (
+                            <div key={p.name} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                              <span className="text-xs text-white/80">{p.name}</span>
+                              <Badge variant="outline" className={`text-[9px] ${p.confidence === "high" ? "border-emerald-400/30 text-emerald-400" : "border-white/10 text-white/40"}`}>
+                                {p.confidence}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ));
+                })()}
 
                 {/* Social Links */}
                 <Card className="crm-card">
