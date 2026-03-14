@@ -812,7 +812,7 @@ Return ONLY valid JSON:
 }`;
 
         const aiReply = await callAI(prompt);
-        const parsed = parseJSON(aiReply);
+        const parsed = normalizeFinancialData(parseJSON(aiReply), monetization);
         setFinancialData(parsed);
         await refreshAIUsage();
         toast.success("Financial intelligence generated");
