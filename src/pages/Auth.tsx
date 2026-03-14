@@ -14,9 +14,18 @@ import authHeroFull from "@/assets/auth-side-hero.png";
 import AnimatedBackground from "@/components/AnimatedBackground";
 import {
   Eye, EyeOff, LogIn, Lock, Mail, User, ArrowLeft,
-  Sparkles, KeyRound, Send, UserPlus, Chrome,
+  Sparkles, KeyRound, Send, UserPlus,
   CheckCircle2, AlertCircle, XCircle, X, Shield
 } from "lucide-react";
+
+const GoogleIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 48 48" className="shrink-0">
+    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+  </svg>
+);
 
 type CardNotification = {
   type: "success" | "error" | "info";
@@ -170,7 +179,7 @@ const Auth = () => {
   };
 
   const current = titles[mode];
-  const inputClass = "bg-white/[0.05] border-white/[0.08] text-white placeholder:text-white/25 focus:border-purple-500/40 focus:bg-white/[0.07] rounded-xl h-12 text-sm transition-all duration-200";
+  const inputClass = "bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/20 focus:border-purple-500/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-purple-500/10 rounded-2xl h-[52px] px-4 text-sm transition-all duration-300 backdrop-blur-sm shadow-[inset_0_1px_0_hsla(0,0%,100%,0.03)]";
 
   return (
     <div className="flex min-h-screen">
@@ -250,21 +259,23 @@ const Auth = () => {
                 <button
                   type="button"
                   onClick={handleGoogleLogin}
-                  className="w-full flex items-center justify-center gap-3 h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.01]"
+                  className="group w-full flex items-center justify-center gap-3 h-[52px] rounded-2xl text-sm font-semibold transition-all duration-300 hover:scale-[1.015] active:scale-[0.99]"
                   style={{
-                    background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(262, 70%, 48%))",
-                    boxShadow: "0 4px 20px hsla(262, 83%, 58%, 0.25), 0 0 0 1px hsla(262, 83%, 58%, 0.1) inset",
+                    background: "linear-gradient(135deg, hsl(262, 83%, 58%) 0%, hsl(280, 70%, 50%) 50%, hsl(262, 70%, 48%) 100%)",
+                    boxShadow: "0 6px 24px hsla(262, 83%, 58%, 0.3), 0 2px 8px hsla(262, 83%, 58%, 0.15), 0 0 0 1px hsla(262, 83%, 68%, 0.15) inset, 0 1px 0 hsla(0,0%,100%,0.12) inset",
                     color: "white",
                   }}
                 >
-                  <Chrome className="h-[18px] w-[18px]" />
+                  <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/15 backdrop-blur-sm">
+                    <GoogleIcon />
+                  </div>
                   Continue with Google
                 </button>
 
                 <div className="flex items-center gap-4 my-6">
-                  <div className="flex-1 h-px bg-white/[0.06]" />
-                  <span className="text-white/25 text-[11px] uppercase tracking-[0.2em] font-medium">or</span>
-                  <div className="flex-1 h-px bg-white/[0.06]" />
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
+                  <span className="text-white/20 text-[11px] uppercase tracking-[0.2em] font-medium">or</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent" />
                 </div>
               </div>
             )}
@@ -295,23 +306,22 @@ const Auth = () => {
                   </div>
                 </div>
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <Checkbox
-                      id="remember" checked={rememberMe}
-                      onCheckedChange={(c) => setRememberMe(!!c)}
-                      className="border-white/15 data-[state=checked]:bg-purple-600 data-[state=checked]:border-purple-500 h-4 w-4"
-                    />
-                    <label htmlFor="remember" className="text-[13px] text-white/40 cursor-pointer">Remember me (30 days)</label>
+                  <div className="flex items-center gap-2.5 group cursor-pointer" onClick={() => setRememberMe(!rememberMe)}>
+                    <div className={`relative w-9 h-5 rounded-full transition-all duration-300 ${rememberMe ? 'bg-purple-600 shadow-[0_0_12px_hsla(262,83%,58%,0.4)]' : 'bg-white/[0.08]'}`}>
+                      <div className={`absolute top-0.5 w-4 h-4 rounded-full transition-all duration-300 ${rememberMe ? 'left-[18px] bg-white' : 'left-0.5 bg-white/40'}`} />
+                    </div>
+                    <label className="text-[13px] text-white/40 cursor-pointer select-none group-hover:text-white/55 transition-colors">Remember me</label>
                   </div>
-                  <button type="button" onClick={() => setMode("forgot")} className="text-[13px] text-purple-400/70 hover:text-purple-400 transition-colors">
+                  <button type="button" onClick={() => setMode("forgot")} className="text-[13px] text-purple-400/60 hover:text-purple-400 transition-colors font-medium">
                     Forgot?
                   </button>
                 </div>
                 <Button type="submit" disabled={isSubmitting}
-                  className="w-full h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.01]"
+                  className="w-full h-[52px] rounded-2xl text-sm font-semibold transition-all duration-300 hover:scale-[1.015] active:scale-[0.99] hover:bg-white/[0.12]"
                   style={{
-                    background: "hsla(0, 0%, 100%, 0.08)",
-                    border: "1px solid hsla(0, 0%, 100%, 0.1)",
+                    background: "hsla(0, 0%, 100%, 0.06)",
+                    border: "1px solid hsla(0, 0%, 100%, 0.08)",
+                    boxShadow: "0 1px 0 hsla(0,0%,100%,0.04) inset",
                     color: "white",
                   }}
                 >
@@ -368,10 +378,11 @@ const Auth = () => {
                   </div>
                 </div>
                 <Button type="submit" disabled={isSubmitting}
-                  className="w-full h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.01]"
+                  className="w-full h-[52px] rounded-2xl text-sm font-semibold transition-all duration-300 hover:scale-[1.015] active:scale-[0.99] hover:bg-white/[0.12]"
                   style={{
-                    background: "hsla(0, 0%, 100%, 0.08)",
-                    border: "1px solid hsla(0, 0%, 100%, 0.1)",
+                    background: "hsla(0, 0%, 100%, 0.06)",
+                    border: "1px solid hsla(0, 0%, 100%, 0.08)",
+                    boxShadow: "0 1px 0 hsla(0,0%,100%,0.04) inset",
                     color: "white",
                   }}
                 >
@@ -393,8 +404,8 @@ const Auth = () => {
                   />
                 </div>
                 <Button type="submit" disabled={isSubmitting}
-                  className="w-full h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.01]"
-                  style={{ background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(262, 70%, 48%))", color: "white" }}
+                  className="w-full h-[52px] rounded-2xl text-sm font-semibold transition-all duration-300 hover:scale-[1.015] active:scale-[0.99]"
+                  style={{ background: "linear-gradient(135deg, hsl(262, 83%, 58%) 0%, hsl(280, 70%, 50%) 50%, hsl(262, 70%, 48%) 100%)", color: "white", boxShadow: "0 6px 24px hsla(262, 83%, 58%, 0.3), 0 1px 0 hsla(0,0%,100%,0.12) inset" }}
                 >
                   <Send className="mr-2 h-4 w-4" />
                   {isSubmitting ? "Sending..." : "Send Reset Link"}
@@ -415,8 +426,8 @@ const Auth = () => {
                 </div>
                 <p className="text-white/25 text-xs">We'll send a one-time login link that expires after 24 hours.</p>
                 <Button type="submit" disabled={isSubmitting}
-                  className="w-full h-12 rounded-xl text-sm font-semibold transition-all duration-200 hover:scale-[1.01]"
-                  style={{ background: "linear-gradient(135deg, hsl(262, 83%, 58%), hsl(262, 70%, 48%))", color: "white" }}
+                  className="w-full h-[52px] rounded-2xl text-sm font-semibold transition-all duration-300 hover:scale-[1.015] active:scale-[0.99]"
+                  style={{ background: "linear-gradient(135deg, hsl(262, 83%, 58%) 0%, hsl(280, 70%, 50%) 50%, hsl(262, 70%, 48%) 100%)", color: "white", boxShadow: "0 6px 24px hsla(262, 83%, 58%, 0.3), 0 1px 0 hsla(0,0%,100%,0.12) inset" }}
                 >
                   <Sparkles className="mr-2 h-4 w-4" />
                   {isSubmitting ? "Sending..." : "Send Magic Link"}
