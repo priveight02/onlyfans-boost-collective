@@ -1094,7 +1094,7 @@ function extractMetadata(html: string, url: string, securityHeaders: Record<stri
   const detectionScripts = deepScan?.combinedScripts?.length ? deepScan.combinedScripts : scripts;
   const detectionStylesheets = deepScan?.combinedStylesheets?.length ? deepScan.combinedStylesheets : stylesheets;
   const detectionExternalLinks = deepScan?.combinedExternalLinks?.length ? deepScan.combinedExternalLinks : externalLinks;
-  const detectedPlatforms = detectPlatforms(detectionHtml, detectionScripts, detectionStylesheets, detectionExternalLinks);
+  const detectedPlatforms = detectPlatforms(detectionHtml, detectionScripts, detectionStylesheets, detectionExternalLinks, iframes);
 
   // Accessibility checks
   const formCount = (html.match(/<form/gi) || []).length;
