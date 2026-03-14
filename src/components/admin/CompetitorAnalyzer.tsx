@@ -2254,15 +2254,53 @@ RULES:
                               }
                             }
 
-                            // Match URLs to each provider
+                            // Match URLs to each provider (string + regex + hostname token match)
+                            const parsedUrls = allUrls.map((url) => {
+                              try {
+                                const parsed = new URL(url);
+                                return { url, lc: url.toLowerCase(), host: parsed.hostname.toLowerCase(), path: parsed.pathname.toLowerCase() };
+                              } catch {
+                                return { url, lc: url.toLowerCase(), host: '', path: '' };
+                              }
+                            });
+
                             const providerUrls: Record<string, string[]> = {};
                             for (const p of providers) {
                               const sigs = providerSigs[p.name] || [];
-                              const matched = allUrls.filter(url => {
-                                if (!url) return false;
-                                const urlLC = url.toLowerCase();
-                                return sigs.some(sig => urlLC.includes(sig));
-                              });
+                              const providerTokens = p.name
+                                .toLowerCase()
+                                .split(/[^a-z0-9]+/)
+                                .filter((t) => t.length >= 3);
+
+                              const matched = parsedUrls.filter(({ lc, host, path }) => {
+                                if (!lc) return false;
+
+                                const signatureMatch = sigs.some((sig) => {
+                                  const s = sig.toLowerCase().trim();
+                                  if (!s) return false;
+                                  if (lc.includes(s)) return true;
+
+                                  const domainToken = s
+                                    .replace(/^https?:\/\//, '')
+                                    .replace(/^www\./, '')
+                                    .replace(/^\./, '')
+                                    .split('/')[0]
+                                    .replace(/[^a-z0-9.-]/g, '');
+
+                                  if (!domainToken || domainToken.length < 3) return false;
+                                  return host.includes(domainToken) || lc.includes(`.${domainToken}`) || path.includes(domainToken);
+                                });
+
+                                if (signatureMatch) return true;
+
+                                return providerTokens.some((token) =>
+                                  host.includes(token) ||
+                                  path.includes(token) ||
+                                  lc.includes(`.${token}.`) ||
+                                  lc.includes(`/${token}`)
+                                );
+                              }).map((x) => x.url);
+
                               if (matched.length > 0) providerUrls[p.name] = [...new Set(matched)];
                             }
 
