@@ -1585,174 +1585,168 @@ Be as accurate as possible. Use real industry benchmarks. If uncertain, provide 
                   </CardContent>
                 </Card>
 
-                {/* Twitter Card */}
-                <Card className="crm-card">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(217,91%,60%)] flex items-center gap-2"><Hash className="h-4 w-4" /> Twitter Card</CardTitle></CardHeader>
-                  <CardContent className="space-y-2">
-                    {(() => {
-                      const og = scrapeResult.openGraph || {};
-                      const twitterEntries = Object.entries(scrapeResult.twitterCard || {}).filter(([k, v]) => {
-                        if (!v) return false;
-                        if (["title", "description", "image"].includes(k)) {
-                          const ogValue = (og as Record<string, string>)[k];
-                          return (ogValue || "").trim().toLowerCase() !== String(v).trim().toLowerCase();
-                        }
-                        return true;
-                      });
-
-                      if (twitterEntries.length === 0) {
-                        return <p className="text-xs text-white/30 text-center py-4">No unique Twitter Card tags found</p>;
-                      }
-
-                      return twitterEntries.map(([k, v]) => (
-                        <div key={k} className="flex items-start gap-3 p-2 rounded-lg bg-white/[0.02]">
-                          <span className="text-[10px] text-white/40 w-16 flex-shrink-0">{k}</span>
-                          {k === "image" ? (
-                            <div className="flex-1">
-                              <img src={v as string} alt="Twitter Card" className="max-h-20 rounded border border-white/10" onError={e => (e.currentTarget.style.display = "none")} />
-                              <p className="text-[10px] text-white/40 mt-1 break-all">{v as string}</p>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-white/70 flex-1 break-all">{v as string}</span>
-                          )}
-                        </div>
-                      ));
-                    })()}
-                  </CardContent>
-                </Card>
-
-                {/* Headings */}
-                <Card className="crm-card">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-400 flex items-center gap-2"><FileText className="h-4 w-4" /> Heading Structure</CardTitle></CardHeader>
-                  <CardContent className="space-y-2">
-                    {(scrapeResult.headings?.h1 || []).map((h: string, i: number) => (
-                      <div key={`h1-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
-                        <Badge className="bg-emerald-400/15 text-emerald-400 text-[9px]">H1</Badge>
-                        <span className="text-xs text-white/70">{h}</span>
-                      </div>
-                    ))}
-                    {(scrapeResult.headings?.h2 || []).slice(0, 10).map((h: string, i: number) => (
-                      <div key={`h2-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
-                        <Badge className="bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)] text-[9px]">H2</Badge>
-                        <span className="text-xs text-white/70">{h}</span>
-                      </div>
-                    ))}
-                    {(scrapeResult.headings?.h3 || []).slice(0, 5).map((h: string, i: number) => (
-                      <div key={`h3-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
-                        <Badge className="bg-white/10 text-white/50 text-[9px]">H3</Badge>
-                        <span className="text-xs text-white/70">{h}</span>
-                      </div>
-                    ))}
-                    {scrapeResult.headings?.h1?.length === 0 && <p className="text-xs text-red-400/70 text-center py-2">⚠ No H1 tag found — bad for SEO</p>}
-                    {(scrapeResult.headings?.h1?.length || 0) > 1 && <p className="text-xs text-amber-400/70 text-center py-2">⚠ Multiple H1 tags — consider using only one</p>}
-                  </CardContent>
-                </Card>
-
-              {/* Detected Platforms - categorized */}
-                {(() => {
-                  const dp = scrapeResult.detectedPlatforms || {};
-                  const categories: { key: string; label: string; color: string; icon: any }[] = [
-                    { key: "crm", label: "CRM Systems", color: "text-purple-400", icon: Users },
-                    { key: "payments", label: "Payment Platforms", color: "text-emerald-400", icon: Zap },
-                    { key: "analytics", label: "Analytics & Tracking", color: "text-[hsl(217,91%,60%)]", icon: BarChart3 },
-                    { key: "marketing", label: "Email & Marketing", color: "text-pink-400", icon: Sparkles },
-                    { key: "support", label: "Customer Support & Chat", color: "text-cyan-400", icon: Activity },
-                    { key: "ecommerce", label: "E-commerce Platform", color: "text-orange-400", icon: Globe },
-                    { key: "hosting", label: "Hosting & Infrastructure", color: "text-teal-400", icon: Globe },
-                    { key: "cdn", label: "CDN Providers", color: "text-sky-400", icon: Globe },
-                    { key: "fileStorage", label: "File Storage & Media CDN", color: "text-violet-400", icon: ImageIcon },
-                    { key: "frameworks", label: "Frameworks & CMS", color: "text-amber-400", icon: Code },
-                    { key: "ads", label: "Ads & Monetization", color: "text-yellow-400", icon: TrendingUp },
-                    { key: "security", label: "Security, Auth & Monitoring", color: "text-red-400", icon: Shield },
-                    { key: "identityAuth", label: "Identity & Auth Providers", color: "text-rose-300", icon: Lock },
-                    { key: "databaseInfra", label: "Database & Data Infra", color: "text-emerald-300", icon: Activity },
-                    { key: "observability", label: "Observability & Monitoring", color: "text-orange-300", icon: Eye },
-                    { key: "scheduling", label: "Scheduling & Booking", color: "text-indigo-400", icon: Calendar },
-                    { key: "forms", label: "Forms & Surveys", color: "text-lime-400", icon: FileText },
-                    { key: "engagement", label: "Engagement & Media", color: "text-sky-400", icon: Eye },
-                    { key: "socialProof", label: "Reviews & Social Proof", color: "text-amber-300", icon: Star },
-                    { key: "seoTools", label: "SEO & Compliance Tools", color: "text-green-400", icon: Search },
-                    { key: "productivity", label: "Productivity & Collaboration", color: "text-violet-400", icon: Crown },
-                    { key: "socialMedia", label: "Social Media Integrations", color: "text-pink-500", icon: Globe },
-                    { key: "backendProviders", label: "Backend Providers", color: "text-cyan-300", icon: Code },
-                    { key: "aiTools", label: "AI & ML Tools", color: "text-fuchsia-400", icon: Sparkles },
-                    { key: "affiliate", label: "Affiliate & Referral", color: "text-rose-400", icon: TrendingUp },
-                    { key: "personalization", label: "Personalization & A/B Testing", color: "text-sky-300", icon: Eye },
-                  ];
-                  const persistentCards = ["backendProviders", "cdn", "fileStorage", "identityAuth", "databaseInfra", "observability"];
-                  const activeCats = categories.filter(c => persistentCards.includes(c.key) || (dp[c.key] || []).length > 0);
-                  if (activeCats.length === 0) return (
-                    <Card className="crm-card md:col-span-2">
-                      <CardContent className="p-6 text-center">
-                        <Code className="h-6 w-6 text-white/20 mx-auto mb-2" />
-                        <p className="text-xs text-white/30">No external platforms detected</p>
-                      </CardContent>
-                    </Card>
-                  );
-                  return activeCats.map(cat => {
-                    const providers = (dp[cat.key] as { name: string; confidence: string }[]) || [];
-                    return (
-                      <Card key={cat.key} className="crm-card">
-                        <CardHeader className="pb-2">
-                          <CardTitle className={`text-sm font-medium flex items-center gap-2 ${cat.color}`}>
-                            <cat.icon className="h-4 w-4" /> {cat.label}
-                            <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{providers.length}</Badge>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          {providers.length > 0 ? (
-                            <div className="space-y-1.5 max-h-64 overflow-auto">
-                              {providers.map((p: any) => (
-                                <div key={p.name} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                                  <span className="text-xs text-white/80">{p.name}</span>
-                                  <Badge variant="outline" className={`text-[9px] ${p.confidence === "high" ? "border-emerald-400/30 text-emerald-400" : "border-white/10 text-white/40"}`}>
-                                    {p.confidence}
-                                  </Badge>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-white/35">None detected</p>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  });
-                })()}
-
-                {/* Social Presence - Enhanced */}
+                {/* ═══ UNIFIED SOCIAL MEDIA CARD ═══ */}
                 <Card className="crm-card md:col-span-2">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2"><Link className="h-4 w-4" /> Social Presence <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{Object.keys(scrapeResult.socialLinks || {}).length} platforms</Badge></CardTitle></CardHeader>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-pink-400 flex items-center gap-2">
+                      <Users className="h-4 w-4" /> Social Media Presence
+                      <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">
+                        {Object.keys(scrapeResult.socialLinks || {}).length + Object.keys(scrapeResult.socialHandles || {}).length > 0
+                          ? `${Object.keys(scrapeResult.socialLinks || {}).length} platforms`
+                          : "0 found"}
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
                   <CardContent>
                     {Object.keys(scrapeResult.socialLinks || {}).length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {Object.entries(scrapeResult.socialLinks || {}).map(([platform, links]) => {
-                          const platformIcons: Record<string, string> = {
-                            facebook: "🔵", twitter: "🐦", instagram: "📸", linkedin: "💼", youtube: "🎬",
-                            tiktok: "🎵", pinterest: "📌", github: "🐙", reddit: "🔴", discord: "💬",
-                            telegram: "✈️", whatsapp: "💬", snapchat: "👻", threads: "🧵", mastodon: "🐘",
-                          };
-                          return (
-                            <div key={platform} className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="text-lg">{platformIcons[platform] || "🌐"}</span>
-                                <span className="text-xs font-medium text-white/80 capitalize">{platform}</span>
-                                <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{(links as string[]).length}</Badge>
+                      <div className="space-y-3">
+                        {/* Handles grid */}
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                          {Object.entries(scrapeResult.socialLinks || {}).map(([platform, links]) => {
+                            const handles = (scrapeResult.socialHandles || {})[platform] || [];
+                            const platformIcons: Record<string, string> = {
+                              facebook: "🔵", twitter: "🐦", instagram: "📸", linkedin: "💼", youtube: "🎬",
+                              tiktok: "🎵", pinterest: "📌", github: "🐙", reddit: "🔴", discord: "💬",
+                              telegram: "✈️", whatsapp: "💬", snapchat: "👻", threads: "🧵", mastodon: "🐘",
+                              bluesky: "🦋", twitch: "🟣", spotify: "🎧", medium: "📝", substack: "📰",
+                              patreon: "🎨", onlyfans: "💎", linktree: "🌳", beacons: "🔗", cashapp: "💵", venmo: "💳",
+                            };
+                            return (
+                              <div key={platform} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  <span className="text-base">{platformIcons[platform] || "🌐"}</span>
+                                  <span className="text-xs font-medium text-white/80 capitalize">{platform}</span>
+                                </div>
+                                {handles.length > 0 ? (
+                                  <div className="space-y-0.5">
+                                    {handles.map((h: string, i: number) => (
+                                      <p key={i} className="text-[11px] text-[hsl(217,91%,60%)] font-mono">@{h}</p>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <div className="space-y-0.5">
+                                    {(links as string[]).slice(0, 2).map((link, i) => (
+                                      <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[hsl(217,91%,60%)]/60 hover:text-[hsl(217,91%,60%)] block truncate">{link}</a>
+                                    ))}
+                                  </div>
+                                )}
                               </div>
-                              <div className="space-y-1">
-                                {(links as string[]).map((link, i) => (
-                                  <a key={i} href={link} target="_blank" rel="noopener noreferrer" className="text-[11px] text-[hsl(217,91%,60%)]/70 hover:text-[hsl(217,91%,60%)] block break-all overflow-hidden text-ellipsis">{link}</a>
+                            );
+                          })}
+                        </div>
+                        {/* Twitter/OG card data if unique */}
+                        {(() => {
+                          const tc = scrapeResult.twitterCard || {};
+                          const uniqueFields = Object.entries(tc).filter(([k, v]) => {
+                            if (!v) return false;
+                            if (["title", "description", "image"].includes(k)) {
+                              const ogV = (scrapeResult.openGraph || {} as Record<string, string>)[k];
+                              return (ogV || "").trim().toLowerCase() !== String(v).trim().toLowerCase();
+                            }
+                            return true;
+                          });
+                          if (uniqueFields.length === 0) return null;
+                          return (
+                            <div className="pt-2 border-t border-white/[0.04]">
+                              <p className="text-[10px] text-white/30 mb-1.5">Twitter/X Card Meta</p>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                {uniqueFields.map(([k, v]) => (
+                                  <div key={k} className="flex items-center gap-2 p-1.5 rounded bg-white/[0.02]">
+                                    <span className="text-[9px] text-white/40 w-14">{k}</span>
+                                    <span className="text-[10px] text-white/60 truncate flex-1">{String(v)}</span>
+                                  </div>
                                 ))}
                               </div>
                             </div>
                           );
-                        })}
+                        })()}
+                        {/* Social API detections */}
+                        {(() => {
+                          const sm = (scrapeResult.detectedPlatforms?.socialMedia || []) as { name: string; confidence: string }[];
+                          if (sm.length === 0) return null;
+                          return (
+                            <div className="pt-2 border-t border-white/[0.04]">
+                              <p className="text-[10px] text-white/30 mb-1.5">Social API Integrations</p>
+                              <div className="flex flex-wrap gap-1.5">
+                                {sm.map((s: any) => (
+                                  <Badge key={s.name} variant="outline" className={`text-[9px] ${s.confidence === "high" ? "border-pink-400/30 text-pink-400" : "border-white/10 text-white/40"}`}>{s.name}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     ) : (
-                      <p className="text-xs text-white/30 text-center py-4">No social links found</p>
+                      <p className="text-xs text-white/30 text-center py-4">No social media presence detected</p>
                     )}
                   </CardContent>
                 </Card>
+
+                {/* ═══ UNIFIED TECH INFRASTRUCTURE CARD ═══ */}
+                {(() => {
+                  const dp = scrapeResult.detectedPlatforms || {};
+                  const infraCategories = [
+                    { key: "payments", label: "💳 Payment Platforms", items: dp.payments || [] },
+                    { key: "crm", label: "📊 CRM Systems", items: dp.crm || [] },
+                    { key: "analytics", label: "📈 Analytics & Tracking", items: dp.analytics || [] },
+                    { key: "marketing", label: "📧 Email & Marketing", items: dp.marketing || [] },
+                    { key: "support", label: "💬 Customer Support", items: dp.support || [] },
+                    { key: "ecommerce", label: "🛒 E-commerce", items: dp.ecommerce || [] },
+                    { key: "hosting", label: "🌐 Hosting & Infra", items: dp.hosting || [] },
+                    { key: "cdn", label: "⚡ CDN Providers", items: dp.cdn || [] },
+                    { key: "fileStorage", label: "💾 File Storage", items: dp.fileStorage || [] },
+                    { key: "frameworks", label: "🔧 Frameworks & CMS", items: dp.frameworks || [] },
+                    { key: "backendProviders", label: "🖥️ Backend Providers", items: dp.backendProviders || [] },
+                    { key: "identityAuth", label: "🔐 Identity & Auth", items: dp.identityAuth || [] },
+                    { key: "databaseInfra", label: "🗄️ Database & Data", items: dp.databaseInfra || [] },
+                    { key: "observability", label: "📡 Observability", items: dp.observability || [] },
+                    { key: "ads", label: "📢 Ads & Monetization", items: dp.ads || [] },
+                    { key: "security", label: "🛡️ Security", items: dp.security || [] },
+                    { key: "aiTools", label: "🤖 AI & ML Tools", items: dp.aiTools || [] },
+                    { key: "scheduling", label: "📅 Scheduling", items: dp.scheduling || [] },
+                    { key: "forms", label: "📝 Forms & Surveys", items: dp.forms || [] },
+                    { key: "socialProof", label: "⭐ Reviews & Social Proof", items: dp.socialProof || [] },
+                    { key: "seoTools", label: "🔍 SEO Tools", items: dp.seoTools || [] },
+                    { key: "productivity", label: "🚀 Productivity", items: dp.productivity || [] },
+                    { key: "affiliate", label: "🤝 Affiliate & Referral", items: dp.affiliate || [] },
+                    { key: "personalization", label: "🎯 A/B Testing", items: dp.personalization || [] },
+                    { key: "engagement", label: "📱 Engagement", items: dp.engagement || [] },
+                  ].filter(c => (c.items as any[]).length > 0);
+
+                  const totalDetected = infraCategories.reduce((a, c) => a + (c.items as any[]).length, 0);
+
+                  return (
+                    <Card className="crm-card md:col-span-2">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm font-medium text-cyan-400 flex items-center gap-2">
+                          <Code className="h-4 w-4" /> Tech Stack & Infrastructure
+                          <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/40">{totalDetected} detected</Badge>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {infraCategories.length > 0 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {infraCategories.map(cat => (
+                              <div key={cat.key} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                                <p className="text-[10px] font-medium text-white/50 mb-1.5">{cat.label}</p>
+                                <div className="space-y-1">
+                                  {(cat.items as { name: string; confidence: string }[]).map((p: any) => (
+                                    <div key={p.name} className="flex items-center justify-between">
+                                      <span className="text-[11px] text-white/80">{p.name}</span>
+                                      <Badge variant="outline" className={`text-[8px] ${p.confidence === "high" ? "border-emerald-400/30 text-emerald-400" : "border-white/10 text-white/30"}`}>{p.confidence}</Badge>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-white/30 text-center py-4">No platforms detected</p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })()}
 
                 {/* Security Headers */}
                 <Card className="crm-card">
