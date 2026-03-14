@@ -772,14 +772,15 @@ MONETIZATION: Checkout: ${monetization["Checkout Flow"] || "N/A"} | Subscription
 METRICS: SEO ${scrapeResult.seoScore}/100 | Words: ${scrapeResult.content?.wordCount || 0} | Social: ${socialCount} | Platforms: ${platformCount}
 
 RULES:
-- For known/public companies use REAL reported figures from earnings/filings
-- For unknown companies provide conservative estimate ranges
-- Never use "N/A", "Unknown" or "No data" - always estimate
-- Non-subscription businesses: set mrr/arr/churn to "Not subscription-based"
-- Provide specific dollar ranges, not vague descriptions`;
+- Use only latest verifiable facts as of today from trusted sources.
+- Never estimate, infer, project, or provide guessed ranges.
+- Prioritize official filings/reports, company registers/tax records, and trusted traffic datasets.
+- Every numeric value must include source + period/date in the value text.
+- If unavailable, return "Not publicly disclosed".
+- Non-subscription businesses: set mrr/arr/churn to "Not subscription-based"`;
 
         const aiReply = await callAI(prompt, "financial");
-        const parsed = normalizeFinancialData(parseJSON(aiReply), monetization);
+        const parsed = normalizeFinancialData(parseJSON(aiReply));
         setFinancialData(parsed);
         await refreshAIUsage();
         toast.success("Financial intelligence generated");
