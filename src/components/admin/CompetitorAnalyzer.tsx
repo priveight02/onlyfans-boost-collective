@@ -2334,8 +2334,8 @@ Return ONLY valid JSON:
             <Card className="crm-card">
               <CardContent className="p-12 text-center">
                 <Globe className="h-10 w-10 text-white/20 mx-auto mb-3" />
-                <h3 className="text-white/50 font-medium mb-1">Deep Site Scraper</h3>
-                <p className="text-white/30 text-sm max-w-md mx-auto">Enter any website URL to extract SEO, tech stack, social profiles, financial intelligence, and security analysis</p>
+                <h3 className="text-white/50 font-medium mb-1">Deep Site Analysis</h3>
+                <p className="text-white/30 text-sm max-w-md mx-auto">Enter any website URL and optional business keywords to extract SEO, tech stack, social profiles, financial intelligence, and security analysis</p>
               </CardContent>
             </Card>
           )}
