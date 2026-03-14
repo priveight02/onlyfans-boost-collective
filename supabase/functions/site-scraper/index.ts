@@ -1282,12 +1282,16 @@ function extractMetadata(html: string, url: string, securityHeaders: Record<stri
     if (matches.length) socialLinks[platform] = matches.slice(0, 5);
   }
 
+  // iFrames
+  const iframes = getAllMatches(html, /<iframe[^>]*src=["']([^"']+)["']/gi).slice(0, 30);
+
   // Detect platforms using deep multi-page corpus when available
   const detectionHtml = deepScan?.combinedHtml || html;
   const detectionScripts = deepScan?.combinedScripts?.length ? deepScan.combinedScripts : scripts;
   const detectionStylesheets = deepScan?.combinedStylesheets?.length ? deepScan.combinedStylesheets : stylesheets;
   const detectionExternalLinks = deepScan?.combinedExternalLinks?.length ? deepScan.combinedExternalLinks : externalLinks;
-  const detectedPlatforms = detectPlatforms(detectionHtml, detectionScripts, detectionStylesheets, detectionExternalLinks, iframes);
+  const detectionIframes = deepScan?.combinedIframes?.length ? deepScan.combinedIframes : iframes;
+  const detectedPlatforms = detectPlatforms(detectionHtml, detectionScripts, detectionStylesheets, detectionExternalLinks, detectionIframes);
 
   // Accessibility checks
   const formCount = (html.match(/<form/gi) || []).length;
@@ -1302,9 +1306,6 @@ function extractMetadata(html: string, url: string, securityHeaders: Record<stri
   const googleFonts = [...new Set(getAllMatches(html, /fonts\.googleapis\.com\/css2?\?family=([^"'&]+)/gi))];
   const customFonts = [...new Set(getAllMatches(html, /font-family:\s*['"]?([^;'"]+)/gi))].slice(0, 10);
   const adobeFonts = html.includes("use.typekit.net") || html.includes("adobe");
-
-  // iFrames
-  const iframes = getAllMatches(html, /<iframe[^>]*src=["']([^"']+)["']/gi).slice(0, 15);
 
   // Text content
   const textContent = html
