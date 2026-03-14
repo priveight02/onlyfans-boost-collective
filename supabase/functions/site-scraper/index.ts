@@ -69,7 +69,7 @@ async function safeFetch(url: string, timeoutMs = 6000): Promise<Response | null
   finally { clearTimeout(t); }
 }
 
-async function safeFetchText(url: string, timeoutMs = 6000, maxLen = 300_000): Promise<string> {
+async function safeFetchText(url: string, timeoutMs = 5000, maxLen = 150_000): Promise<string> {
   try {
     const r = await safeFetch(url, timeoutMs);
     if (!r?.ok) return "";
