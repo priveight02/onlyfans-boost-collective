@@ -187,7 +187,7 @@ async function fetchSitemapUrls(origins: string[], rootDomain: string): Promise<
     }));
   }
 
-  return { urls: prioritize([...urls]).slice(0, 400), sources };
+  return { urls: prioritize([...urls]).slice(0, 60), sources };
 }
 
 interface DeepCorpus {
