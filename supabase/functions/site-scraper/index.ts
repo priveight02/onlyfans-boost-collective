@@ -1137,8 +1137,32 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
     }
 
     const scripts = safeMatch(html, /<script[^>]*src=["']([^"']+)["']/gi).slice(0, 50);
-    const stylesheets = safeMatch(html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi).slice(0, 30);
+    const stylesheets = [
+      ...safeMatch(html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi),
+      ...safeMatch(html, /<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["']/gi),
+    ].slice(0, 30);
     const iframes = safeMatch(html, /<iframe[^>]*src=["']([^"']+)["']/gi).slice(0, 30);
+
+    // Extract additional resource URLs: preconnect, preload, prefetch, dns-prefetch, video, audio, source, object, embed
+    const preconnects = safeMatch(html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["'](?:preconnect|dns-prefetch)["']/gi);
+    const preloads = safeMatch(html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["'](?:preload|prefetch|modulepreload)["']/gi);
+    const preconnects2 = safeMatch(html, /<link[^>]*rel=["'](?:preconnect|dns-prefetch)["'][^>]*href=["']([^"']+)["']/gi);
+    const preloads2 = safeMatch(html, /<link[^>]*rel=["'](?:preload|prefetch|modulepreload)["'][^>]*href=["']([^"']+)["']/gi);
+    const mediaSrcs = [
+      ...safeMatch(html, /<(?:video|audio|source|embed|object)[^>]*src=["']([^"']+)["']/gi),
+      ...safeMatch(html, /<(?:video|audio)[^>]*poster=["']([^"']+)["']/gi),
+    ];
+    const dataSrcs = safeMatch(html, /data-src=["']([^"']+)["']/gi);
+    const bgUrls = safeMatch(html, /url\(["']?(https?:\/\/[^"')]+)["']?\)/gi);
+    const manifestUrl = (html.match(/<link[^>]*rel=["']manifest["'][^>]*href=["']([^"']+)["']/i) || [])[1] || "";
+    const faviconUrl = (html.match(/<link[^>]*rel=["'](?:icon|shortcut icon|apple-touch-icon)["'][^>]*href=["']([^"']+)["']/i) || [])[1] || "";
+
+    const allResourceUrls = [...new Set([
+      ...preconnects, ...preloads, ...preconnects2, ...preloads2,
+      ...mediaSrcs, ...dataSrcs, ...bgUrls,
+      ...(manifestUrl ? [manifestUrl] : []),
+      ...(faviconUrl ? [faviconUrl] : []),
+    ])].slice(0, 100);
 
     const lc = html.toLowerCase();
     const hasServiceWorker = lc.includes("serviceworker");
@@ -1407,22 +1431,29 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
       },
     };
 
+    // Merge deep corpus URLs with page-level URLs for maximum coverage
+    const allScripts = deep?.scripts?.length ? [...new Set([...scripts, ...deep.scripts])] : scripts;
+    const allStylesheets = deep?.stylesheets?.length ? [...new Set([...stylesheets, ...deep.stylesheets])] : stylesheets;
+    const allExtLinks = deep?.externalLinks?.length ? [...new Set([...externalLinks, ...deep.externalLinks])] : externalLinks;
+    const allIframes = deep?.iframes?.length ? [...new Set([...iframes, ...deep.iframes])] : iframes;
+
     return {
       basic: { title, description, keywords, author, robots, canonical, language, charset, viewport, generator, themeColor },
       openGraph: og, twitterCard: twitter,
       headings: { h1: h1s, h2: h2s, h3: h3s },
-      links: { internal: internalLinks.slice(0, 50), external: externalLinks.slice(0, 50), totalInternal: internalLinks.length, totalExternal: externalLinks.length },
-      images: { total: imagesWithAlt.length, withAlt: imagesWithAlt.filter(i => i.hasAlt && i.alt).length, withoutAlt: imagesWithAlt.filter(i => !i.hasAlt || !i.alt).length, samples: imagesWithAlt.slice(0, 15) },
-      scripts: { external: scripts, inlineCount: (html.match(/<script[^>]*>[\s\S]*?<\/script>/gi) || []).length, stylesheets, inlineStyleCount: (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).length },
+      links: { internal: internalLinks.slice(0, 100), external: allExtLinks.slice(0, 200), totalInternal: internalLinks.length, totalExternal: allExtLinks.length },
+      images: { total: imagesWithAlt.length, withAlt: imagesWithAlt.filter(i => i.hasAlt && i.alt).length, withoutAlt: imagesWithAlt.filter(i => !i.hasAlt || !i.alt).length, samples: imagesWithAlt.slice(0, 30) },
+      scripts: { external: allScripts.slice(0, 200), inlineCount: (html.match(/<script[^>]*>[\s\S]*?<\/script>/gi) || []).length, stylesheets: allStylesheets.slice(0, 100), inlineStyleCount: (html.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).length },
+      resourceUrls: allResourceUrls,
       performance: { hasServiceWorker, hasManifest, hasPreconnect, hasPreload, hasDeferScripts, hasAsyncScripts, hasLazyImages, hasResponsiveImages, hasWebP, hasAVIF, pageSizeKB },
       structuredData, socialLinks, detectedPlatforms, headerTechDetections: headerTech, screenshotUrl,
       scanCoverage: {
-        pagesScanned: deep?.pages || 1, scannedUrls: (deep?.scannedUrls || [url]).slice(0, 30),
-        sitemapUrlsFound: deep?.sitemapUrls?.length || 0, sitemapSample: (deep?.sitemapUrls || []).slice(0, 20),
+        pagesScanned: deep?.pages || 1, scannedUrls: (deep?.scannedUrls || [url]).slice(0, 80),
+        sitemapUrlsFound: deep?.sitemapUrls?.length || 0, sitemapSample: (deep?.sitemapUrls || []).slice(0, 50),
         subdomainsFound: deep?.subdomains || [],
       },
       accessibility: { formCount, inputsWithLabels, ariaCount, roleCount, tabIndexCount, hasSkipNav, hasFocusStyles },
-      fonts: { googleFonts, customFonts, adobeFonts }, iframes,
+      fonts: { googleFonts, customFonts, adobeFonts }, iframes: allIframes.slice(0, 100),
       contactInfo: { phoneNumbers, emailAddresses },
       content: { wordCount, textPreview: textContent.slice(0, 500) },
       curatedMetrics, seoScore: Math.min(seoScore, 100),

@@ -1900,15 +1900,17 @@ RULES:
                             const extractStr = (v: any): string => typeof v === 'string' ? v : v?.href || v?.url || v?.src || '';
 
                             const rawUrls: string[] = [
-                              // Scripts (external JS files)
+                              // Scripts (external JS files from all crawled pages)
                               ...toArr(scrapeResult?.scripts?.external),
-                              // Stylesheets
+                              // Stylesheets (from all crawled pages)
                               ...toArr(scrapeResult?.scripts?.stylesheets),
-                              // External links (anchors pointing off-domain)
+                              // Resource URLs (preconnect, preload, prefetch, dns-prefetch, media, bg urls)
+                              ...toArr(scrapeResult?.resourceUrls),
+                              // External links (anchors pointing off-domain, from all pages)
                               ...toArr(scrapeResult?.links?.external).map(extractStr),
-                              // Internal links
+                              // Internal links (from all pages)
                               ...toArr(scrapeResult?.links?.internal).map(extractStr),
-                              // Iframes
+                              // Iframes (from all crawled pages)
                               ...toArr(scrapeResult?.iframes),
                               // Scanned pages from deep crawl
                               ...toArr(scrapeResult?.scanCoverage?.scannedUrls),
@@ -1924,18 +1926,24 @@ RULES:
                               ...toArr(scrapeResult?.fonts?.customFonts),
                               // Social link URLs
                               ...Object.values(scrapeResult?.socialLinks || {}).filter((v): v is string => typeof v === 'string'),
-                              // Open Graph / Twitter images
+                              // Open Graph / Twitter images & URLs
                               scrapeResult?.openGraph?.image || '',
                               scrapeResult?.openGraph?.url || '',
                               scrapeResult?.twitterCard?.image || '',
                               // Canonical
                               scrapeResult?.basic?.canonical || '',
-                              // Structured data URLs
+                              // Generator
+                              scrapeResult?.basic?.generator || '',
+                              // Structured data URLs (deep extract from JSON-LD)
                               ...toArr(scrapeResult?.structuredData).flatMap((sd: any) => {
                                 const urls: string[] = [];
                                 try { const s = JSON.stringify(sd); for (const m of s.matchAll(/"(https?:\/\/[^"]+)"/g)) urls.push(m[1]); } catch {}
                                 return urls;
                               }),
+                              // Screenshot URL
+                              ...(scrapeResult?.screenshotUrl ? [scrapeResult.screenshotUrl] : []),
+                              // Header tech detection sources (construct probe URLs)
+                              ...toArr(scrapeResult?.headerTechDetections).map((h: any) => h?.source || ''),
                             ];
 
                             // Resolve all to absolute clickable URLs and deduplicate
