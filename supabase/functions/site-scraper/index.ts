@@ -44,21 +44,69 @@ type DeepScanCorpus = {
   combinedScripts: string[];
   combinedStylesheets: string[];
   combinedExternalLinks: string[];
+  combinedIframes: string[];
   scannedUrls: string[];
   pagesScanned: number;
   sitemapUrls: string[];
   subdomainsFound: string[];
 };
 
-function isSameSiteHost(rootHost: string, testHost: string): boolean {
-  // Strip www for comparison
-  const stripWww = (h: string) => h.replace(/^www\./, "");
-  const a = stripWww(rootHost);
-  const b = stripWww(testHost);
-  return b === a || b.endsWith(`.${a}`) || a.endsWith(`.${b}`);
+const SUBDOMAIN_SEEDS = ["www", "app", "api", "checkout", "pay", "billing", "portal", "shop", "store", "m", "help", "docs"];
+const HIGH_INTENT_PATH_PROBES = [
+  "/pricing", "/plans", "/checkout", "/cart", "/billing", "/pay", "/subscribe", "/subscription", "/store", "/shop",
+  "/products", "/product", "/api", "/developers", "/docs", "/integrations", "/partners", "/about", "/contact",
+];
+const SENSITIVE_FILE_PATHS = ["/.env", "/.env.local", "/.env.production", "/.env.backup", "/.htaccess", "/.git/config", "/.git/HEAD"];
+
+function normalizeHost(host: string): string {
+  return host.trim().toLowerCase().replace(/^www\./, "");
 }
 
-function extractInternalPageLinks(html: string, baseUrl: string, rootHost: string): string[] {
+function getRegistrableDomain(host: string): string {
+  const normalized = normalizeHost(host);
+  const parts = normalized.split(".").filter(Boolean);
+  if (parts.length <= 2) return normalized;
+
+  const tld = parts[parts.length - 1];
+  const sld = parts[parts.length - 2];
+  const commonSecondLevel = new Set(["co", "com", "org", "net", "gov", "edu", "ac"]);
+
+  if (tld.length === 2 && commonSecondLevel.has(sld) && parts.length >= 3) {
+    return parts.slice(-3).join(".");
+  }
+  return parts.slice(-2).join(".");
+}
+
+function isSameSiteHost(rootDomain: string, testHost: string): boolean {
+  return getRegistrableDomain(testHost) === getRegistrableDomain(rootDomain);
+}
+
+function buildOriginCandidates(startUrl: string, rootDomain: string): string[] {
+  const start = new URL(startUrl);
+  const candidates = new Set<string>([start.origin]);
+  const normalizedRoot = normalizeHost(rootDomain);
+
+  candidates.add(`https://${normalizedRoot}`);
+  candidates.add(`https://www.${normalizedRoot}`);
+
+  for (const sub of SUBDOMAIN_SEEDS) {
+    candidates.add(`https://${sub}.${normalizedRoot}`);
+  }
+
+  return [...candidates];
+}
+
+function buildProbeUrls(origins: string[]): string[] {
+  const urls = new Set<string>();
+  for (const origin of origins) {
+    for (const path of HIGH_INTENT_PATH_PROBES) {
+      urls.add(`${origin}${path}`);
+    }
+  }
+  return [...urls];
+}
+
+function extractInternalPageLinks(html: string, baseUrl: string, rootDomain: string): string[] {
   const hrefs = getAllMatches(html, /<a[^>]*href=["']([^"'#]+)["']/gi);
   const links = new Set<string>();
   const excludedFileExt = /\.(jpg|jpeg|png|gif|svg|webp|avif|mp4|mp3|pdf|zip|rar|css|js|ico|woff2?|ttf|eot)(\?|#|$)/i;
@@ -67,7 +115,7 @@ function extractInternalPageLinks(html: string, baseUrl: string, rootHost: strin
     try {
       const parsed = new URL(href, baseUrl);
       if (!["http:", "https:"].includes(parsed.protocol)) continue;
-      if (!isSameSiteHost(rootHost, parsed.hostname)) continue;
+      if (!isSameSiteHost(rootDomain, parsed.hostname)) continue;
       if (excludedFileExt.test(parsed.pathname)) continue;
       links.add(parsed.href);
     } catch {
@@ -96,7 +144,7 @@ function prioritizeLinks(links: string[]): string[] {
 
 async function fetchHtmlForDeepScan(targetUrl: string): Promise<string | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
+  const timeout = setTimeout(() => controller.abort(), 6500);
   try {
     const response = await fetch(targetUrl, { headers: SCRAPE_HEADERS, redirect: "follow", signal: controller.signal });
     if (!response.ok) return null;
@@ -109,7 +157,7 @@ async function fetchHtmlForDeepScan(targetUrl: string): Promise<string | null> {
 
 async function fetchTextForDeepScanAsset(assetUrl: string): Promise<string> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 7000);
+  const timeout = setTimeout(() => controller.abort(), 6000);
   try {
     const response = await fetch(assetUrl, { headers: SCRAPE_HEADERS, redirect: "follow", signal: controller.signal });
     if (!response.ok) return "";
@@ -120,136 +168,151 @@ async function fetchTextForDeepScanAsset(assetUrl: string): Promise<string> {
   finally { clearTimeout(timeout); }
 }
 
-async function fetchSitemapUrls(baseOrigin: string, rootHost: string): Promise<{ urls: string[]; sitemapSources: string[] }> {
-  const sitemapCandidates = [
-    `${baseOrigin}/sitemap.xml`,
-    `${baseOrigin}/sitemap_index.xml`,
-    `${baseOrigin}/sitemap-index.xml`,
-    `${baseOrigin}/wp-sitemap.xml`,
-    `${baseOrigin}/sitemap1.xml`,
-    `${baseOrigin}/sitemap-pages.xml`,
-    `${baseOrigin}/page-sitemap.xml`,
-    `${baseOrigin}/post-sitemap.xml`,
-    `${baseOrigin}/product-sitemap.xml`,
-    `${baseOrigin}/sitemaps/sitemap.xml`,
+async function fetchSitemapUrls(candidateOrigins: string[], rootDomain: string): Promise<{ urls: string[]; sitemapSources: string[] }> {
+  const defaultSitemapPaths = [
+    "/sitemap.xml",
+    "/sitemap_index.xml",
+    "/sitemap-index.xml",
+    "/wp-sitemap.xml",
+    "/sitemap1.xml",
+    "/sitemap-pages.xml",
+    "/page-sitemap.xml",
+    "/post-sitemap.xml",
+    "/product-sitemap.xml",
+    "/sitemaps/sitemap.xml",
   ];
 
-  // Also check robots.txt for Sitemap directives
-  let robotsSitemaps: string[] = [];
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 5000);
-    const robotsRes = await fetch(`${baseOrigin}/robots.txt`, { headers: SCRAPE_HEADERS, signal: controller.signal });
-    clearTimeout(timeout);
-    if (robotsRes.ok) {
-      const robotsTxt = await robotsRes.text();
-      const sitemapMatches = robotsTxt.match(/^Sitemap:\s*(.+)$/gmi);
-      if (sitemapMatches) {
-        robotsSitemaps = sitemapMatches.map(line => line.replace(/^Sitemap:\s*/i, "").trim()).filter(Boolean);
-      }
+  const sitemapQueue: string[] = [];
+  const sitemapQueued = new Set<string>();
+  const sitemapSources = new Set<string>();
+  const discoveredUrls = new Set<string>();
+
+  const addSitemapCandidate = (candidate: string, fallbackOrigin?: string) => {
+    if (!candidate) return;
+    try {
+      const parsed = fallbackOrigin ? new URL(candidate, fallbackOrigin) : new URL(candidate);
+      if (!["http:", "https:"].includes(parsed.protocol)) return;
+      if (!isSameSiteHost(rootDomain, parsed.hostname)) return;
+      if (sitemapQueued.has(parsed.href)) return;
+      sitemapQueued.add(parsed.href);
+      sitemapQueue.push(parsed.href);
+    } catch {
+      // ignore invalid URL
     }
-  } catch { /* ignore */ }
+  };
 
-  const allCandidates = [...new Set([...robotsSitemaps, ...sitemapCandidates])];
-  const allUrls = new Set<string>();
-  const foundSitemaps: string[] = [];
+  for (const origin of candidateOrigins) {
+    defaultSitemapPaths.forEach(path => addSitemapCandidate(path, origin));
+  }
 
-  // Fetch sitemaps in parallel (max 6 at a time)
-  const batch1 = allCandidates.slice(0, 6);
-  const batch2 = allCandidates.slice(6);
-
-  async function parseSitemap(sitemapUrl: string): Promise<string[]> {
+  await Promise.all(candidateOrigins.slice(0, 16).map(async (origin) => {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 6000);
-      const res = await fetch(sitemapUrl, { headers: SCRAPE_HEADERS, redirect: "follow", signal: controller.signal });
+      const timeout = setTimeout(() => controller.abort(), 4500);
+      const robotsRes = await fetch(`${origin}/robots.txt`, { headers: SCRAPE_HEADERS, signal: controller.signal, redirect: "follow" });
       clearTimeout(timeout);
-      if (!res.ok) return [];
-      const text = await res.text();
-      if (!text.includes("<url") && !text.includes("<sitemap")) return [];
-      foundSitemaps.push(sitemapUrl);
+      if (!robotsRes.ok) return;
+      const robotsTxt = await robotsRes.text();
+      const sitemapLines = robotsTxt.match(/^Sitemap:\s*(.+)$/gmi) || [];
+      for (const line of sitemapLines) {
+        const value = line.replace(/^Sitemap:\s*/i, "").trim();
+        addSitemapCandidate(value, origin);
+      }
+    } catch {
+      // ignore
+    }
+  }));
 
-      const urls: string[] = [];
-      // Extract <loc> tags
-      const locMatches = text.match(/<loc>\s*(.*?)\s*<\/loc>/gi) || [];
-      for (const loc of locMatches) {
-        const url = loc.replace(/<\/?loc>/gi, "").trim();
-        if (url.endsWith(".xml") || url.endsWith(".xml.gz")) {
-          // It's a sub-sitemap - we'll recurse one level
-          urls.push(`__SUBSITEMAP__${url}`);
-        } else {
-          urls.push(url);
+  while (sitemapQueue.length > 0 && sitemapSources.size < 120) {
+    const batch = sitemapQueue.splice(0, 8);
+    const batchResults = await Promise.all(batch.map(async (sitemapUrl) => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5500);
+        const res = await fetch(sitemapUrl, { headers: SCRAPE_HEADERS, signal: controller.signal, redirect: "follow" });
+        clearTimeout(timeout);
+        if (!res.ok) return;
+
+        const finalUrl = res.url || sitemapUrl;
+        if (!isSameSiteHost(rootDomain, new URL(finalUrl).hostname)) return;
+
+        const text = await res.text();
+        if (!text.includes("<loc")) return;
+        sitemapSources.add(finalUrl);
+
+        const locMatches = text.match(/<loc>\s*(.*?)\s*<\/loc>/gi) || [];
+        for (const loc of locMatches) {
+          const value = loc.replace(/<\/?loc>/gi, "").trim();
+          if (!value) continue;
+          if (value.endsWith(".xml") || value.endsWith(".xml.gz") || /sitemap/i.test(value)) {
+            addSitemapCandidate(value, finalUrl);
+          } else {
+            try {
+              const pageUrl = new URL(value, finalUrl);
+              if (["http:", "https:"].includes(pageUrl.protocol) && isSameSiteHost(rootDomain, pageUrl.hostname)) {
+                discoveredUrls.add(pageUrl.href);
+              }
+            } catch {
+              // ignore bad loc URL
+            }
+          }
         }
+      } catch {
+        // ignore single sitemap failure
       }
-      return urls;
-    } catch { return []; }
+    }));
+
+    if (!batchResults) break;
   }
 
-  const results1 = await Promise.all(batch1.map(parseSitemap));
-  const results2 = batch2.length > 0 ? await Promise.all(batch2.map(parseSitemap)) : [];
-
-  const subSitemaps: string[] = [];
-  for (const urls of [...results1, ...results2]) {
-    for (const u of urls) {
-      if (u.startsWith("__SUBSITEMAP__")) {
-        subSitemaps.push(u.replace("__SUBSITEMAP__", ""));
-      } else {
-        allUrls.add(u);
-      }
-    }
-  }
-
-  // Fetch up to 8 sub-sitemaps
-  if (subSitemaps.length > 0) {
-    const subBatch = subSitemaps.slice(0, 8);
-    const subResults = await Promise.all(subBatch.map(parseSitemap));
-    for (const urls of subResults) {
-      for (const u of urls) {
-        if (!u.startsWith("__SUBSITEMAP__")) allUrls.add(u);
-      }
-    }
-  }
-
-  // Filter to same-site only
-  const filtered = [...allUrls].filter(u => {
-    try { return isSameSiteHost(rootHost, new URL(u).hostname); } catch { return false; }
-  });
-
-  return { urls: filtered, sitemapSources: foundSitemaps };
+  return {
+    urls: prioritizeLinks([...discoveredUrls]).slice(0, 500),
+    sitemapSources: [...sitemapSources],
+  };
 }
 
 async function buildDeepScanCorpus(startUrl: string, seedHtml: string): Promise<DeepScanCorpus> {
-  const maxPages = 25;
-  const maxBatchSize = 5;
+  const maxPages = 45;
+  const maxBatchSize = 6;
   const rootUrl = new URL(startUrl);
-  const rootHost = rootUrl.hostname.replace(/^www\./, "");
-  const baseOrigin = rootUrl.origin;
+  const rootDomain = getRegistrableDomain(rootUrl.hostname);
+  const candidateOrigins = buildOriginCandidates(startUrl, rootDomain);
 
   const visited = new Set<string>([startUrl]);
   const scannedUrls: string[] = [startUrl];
   const pageHtmls: { url: string; html: string }[] = [{ url: startUrl, html: seedHtml }];
   const subdomainsFound = new Set<string>();
+  const iframeSet = new Set<string>();
 
-  // 1) Fetch sitemap URLs in parallel with initial link extraction
-  const [sitemapResult, _] = await Promise.all([
-    fetchSitemapUrls(baseOrigin, rootHost),
-    Promise.resolve(null), // placeholder for parallelism
+  for (const iframe of getAllMatches(seedHtml, /<iframe[^>]*src=["']([^"']+)["']/gi)) {
+    try {
+      iframeSet.add(new URL(iframe, startUrl).href);
+    } catch {
+      // ignore bad iframe URL
+    }
+  }
+
+  const [sitemapResult] = await Promise.all([
+    fetchSitemapUrls(candidateOrigins, rootDomain),
   ]);
 
   console.log(`Sitemap discovery: ${sitemapResult.urls.length} URLs from ${sitemapResult.sitemapSources.length} sitemaps`);
 
-  // Track subdomains from sitemap
   for (const u of sitemapResult.urls) {
     try {
-      const h = new URL(u).hostname;
-      if (h !== rootUrl.hostname && isSameSiteHost(rootHost, h)) subdomainsFound.add(h);
-    } catch { /* skip */ }
+      const host = new URL(u).hostname;
+      if (isSameSiteHost(rootDomain, host) && normalizeHost(host) !== normalizeHost(rootUrl.hostname)) {
+        subdomainsFound.add(host);
+      }
+    } catch {
+      // skip
+    }
   }
 
-  // Build initial queue: page links + sitemap URLs (prioritized)
-  const pageLinks = extractInternalPageLinks(seedHtml, startUrl, rootHost);
-  const combinedQueue = [...new Set([...sitemapResult.urls, ...pageLinks])].filter(u => !visited.has(u));
-  let queue = prioritizeLinks(combinedQueue).slice(0, 300);
+  const pageLinks = extractInternalPageLinks(seedHtml, startUrl, rootDomain);
+  const probeUrls = buildProbeUrls(candidateOrigins);
+  const combinedQueue = [...new Set([...sitemapResult.urls, ...pageLinks, ...probeUrls])].filter(u => !visited.has(u));
+  let queue = prioritizeLinks(combinedQueue).slice(0, 700);
 
   while (queue.length > 0 && pageHtmls.length < maxPages) {
     const batch: string[] = [];
@@ -268,51 +331,100 @@ async function buildDeepScanCorpus(startUrl: string, seedHtml: string): Promise<
     for (const { link, html } of fetched) {
       visited.add(link);
       if (!html) continue;
+
       pageHtmls.push({ url: link, html });
       scannedUrls.push(link);
 
-      // Track subdomains
       try {
-        const h = new URL(link).hostname;
-        if (h !== rootUrl.hostname && isSameSiteHost(rootHost, h)) subdomainsFound.add(h);
-      } catch { /* skip */ }
+        const host = new URL(link).hostname;
+        if (isSameSiteHost(rootDomain, host) && normalizeHost(host) !== normalizeHost(rootUrl.hostname)) {
+          subdomainsFound.add(host);
+        }
+      } catch {
+        // ignore invalid URL
+      }
+
+      for (const iframe of getAllMatches(html, /<iframe[^>]*src=["']([^"']+)["']/gi)) {
+        try {
+          iframeSet.add(new URL(iframe, link).href);
+        } catch {
+          // ignore invalid iframe src
+        }
+      }
 
       if (pageHtmls.length >= maxPages) break;
 
-      const discovered = extractInternalPageLinks(html, link, rootHost).filter(next => !visited.has(next));
+      const discovered = extractInternalPageLinks(html, link, rootDomain).filter(next => !visited.has(next));
       remainingQueue.push(...discovered);
+
+      const newSubdomainOrigins = new Set<string>();
+      for (const next of discovered) {
+        try {
+          const host = new URL(next).hostname;
+          if (isSameSiteHost(rootDomain, host) && normalizeHost(host) !== normalizeHost(rootUrl.hostname)) {
+            subdomainsFound.add(host);
+            newSubdomainOrigins.add(`https://${normalizeHost(host)}`);
+          }
+        } catch {
+          // ignore invalid URL
+        }
+      }
+
+      if (newSubdomainOrigins.size > 0) {
+        remainingQueue.push(...buildProbeUrls([...newSubdomainOrigins]));
+      }
     }
 
-    queue = prioritizeLinks(remainingQueue).slice(0, 300);
+    queue = prioritizeLinks(remainingQueue).slice(0, 700);
   }
 
-  // Collect scripts, stylesheets, external links from all pages
   const scriptUrlSet = new Set<string>();
   const stylesheetUrlSet = new Set<string>();
   const externalLinkSet = new Set<string>();
 
   for (const page of pageHtmls) {
     for (const src of getAllMatches(page.html, /<script[^>]*src=["']([^"']+)["']/gi)) {
-      try { const r = new URL(src, page.url); if (["http:", "https:"].includes(r.protocol)) scriptUrlSet.add(r.href); } catch { /* skip */ }
+      try {
+        const resolved = new URL(src, page.url);
+        if (["http:", "https:"].includes(resolved.protocol)) scriptUrlSet.add(resolved.href);
+      } catch {
+        // skip
+      }
     }
+
     for (const href of getAllMatches(page.html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi)) {
-      try { const r = new URL(href, page.url); if (["http:", "https:"].includes(r.protocol)) stylesheetUrlSet.add(r.href); } catch { /* skip */ }
+      try {
+        const resolved = new URL(href, page.url);
+        if (["http:", "https:"].includes(resolved.protocol)) stylesheetUrlSet.add(resolved.href);
+      } catch {
+        // skip
+      }
     }
+
     for (const href of getAllMatches(page.html, /<a[^>]*href=["']([^"'#]+)["']/gi)) {
       try {
-        const p = new URL(href, page.url);
-        if (["http:", "https:"].includes(p.protocol) && !isSameSiteHost(rootHost, p.hostname)) externalLinkSet.add(p.href);
-      } catch { /* skip */ }
+        const resolved = new URL(href, page.url);
+        if (["http:", "https:"].includes(resolved.protocol) && !isSameSiteHost(rootDomain, resolved.hostname)) {
+          externalLinkSet.add(resolved.href);
+        }
+      } catch {
+        // skip
+      }
     }
   }
 
-  const combinedScripts = [...scriptUrlSet].slice(0, 200);
-  const combinedStylesheets = [...stylesheetUrlSet].slice(0, 120);
+  const combinedScripts = [...scriptUrlSet].slice(0, 260);
+  const combinedStylesheets = [...stylesheetUrlSet].slice(0, 150);
 
-  // Fetch same-site JS bundles for deep detection
   const sameSiteScriptUrls = combinedScripts
-    .filter(s => { try { return isSameSiteHost(rootHost, new URL(s).hostname); } catch { return false; } })
-    .slice(0, 12);
+    .filter(s => {
+      try {
+        return isSameSiteHost(rootDomain, new URL(s).hostname);
+      } catch {
+        return false;
+      }
+    })
+    .slice(0, 20);
 
   const scriptBodies = (await Promise.all(sameSiteScriptUrls.map(s => fetchTextForDeepScanAsset(s))))
     .filter(Boolean)
@@ -327,11 +439,67 @@ async function buildDeepScanCorpus(startUrl: string, seedHtml: string): Promise<
     combinedHtml,
     combinedScripts,
     combinedStylesheets,
-    combinedExternalLinks: [...externalLinkSet].slice(0, 300),
-    scannedUrls,
+    combinedExternalLinks: [...externalLinkSet].slice(0, 500),
+    combinedIframes: [...iframeSet].slice(0, 120),
+    scannedUrls: [...new Set(scannedUrls)].slice(0, 120),
     pagesScanned: pageHtmls.length,
-    sitemapUrls: sitemapResult.urls.slice(0, 100),
-    subdomainsFound: [...subdomainsFound],
+    sitemapUrls: sitemapResult.urls.slice(0, 250),
+    subdomainsFound: [...subdomainsFound].slice(0, 30),
+  };
+}
+
+async function probeSensitiveFileExposure(startUrl: string, rootDomain: string, knownSubdomains: string[]) {
+  const initialHost = normalizeHost(new URL(startUrl).hostname);
+  const candidateHosts = [
+    initialHost,
+    normalizeHost(rootDomain),
+    `www.${normalizeHost(rootDomain)}`,
+    ...knownSubdomains.map(normalizeHost),
+  ];
+
+  const sameSiteHosts = [...new Set(candidateHosts)]
+    .filter(Boolean)
+    .filter(host => isSameSiteHost(rootDomain, host))
+    .slice(0, 8);
+
+  const probeUrls = sameSiteHosts.flatMap(host => SENSITIVE_FILE_PATHS.map(path => `https://${host}${path}`));
+  const findings: { url: string; path: string; status: number; publiclyAccessible: boolean }[] = [];
+
+  for (let i = 0; i < probeUrls.length; i += 8) {
+    const batch = probeUrls.slice(i, i + 8);
+    const batchResults = await Promise.all(batch.map(async (probeUrl) => {
+      try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 4500);
+        const response = await fetch(probeUrl, { headers: SCRAPE_HEADERS, signal: controller.signal, redirect: "follow" });
+        clearTimeout(timeout);
+
+        const body = response.ok ? (await response.text()).slice(0, 4000) : "";
+        const bodyLc = body.toLowerCase();
+        const looksLikeHtmlError = bodyLc.includes("<html") || bodyLc.includes("access denied") || bodyLc.includes("forbidden");
+        const looksLikeConfig = /(^|\n)\s*[a-z0-9_]+\s*=\s*.+/i.test(body) || bodyLc.includes("rewriteengine") || bodyLc.includes("authname");
+        const publiclyAccessible = response.ok && !looksLikeHtmlError && looksLikeConfig;
+
+        findings.push({
+          url: response.url || probeUrl,
+          path: new URL(probeUrl).pathname,
+          status: response.status,
+          publiclyAccessible,
+        });
+      } catch {
+        // ignore probe failures
+      }
+    }));
+
+    if (!batchResults) break;
+  }
+
+  const exposed = findings.filter(item => item.publiclyAccessible);
+  return {
+    checksRun: findings.length,
+    exposedCount: exposed.length,
+    exposed,
+    checks: findings,
   };
 }
 
@@ -387,9 +555,13 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     ["Mollie", ["mollie.com", "mollie-"]],
     ["2Checkout/Verifone", ["2checkout.com", "2co.com", "verifone.com"]],
     ["Authorize.net", ["authorize.net", "authorizenet"]],
-    ["Paddle", ["paddle.com", "paddle.js", "cdn.paddle.com"]],
-    ["Lemon Squeezy", ["lemonsqueezy.com", "lmsqueezy", "lemon-squeezy"]],
-    ["Polar.sh", ["polar.sh", "api.polar.sh", "sandbox-api.polar.sh", "checkout.polar.sh", "@polar-sh", "polar-checkout", "polar_sh"]],
+    ["Paddle", ["paddle.com", "paddle.js", "cdn.paddle.com", "vendors.paddle.com"]],
+    ["Lemon Squeezy", ["lemonsqueezy.com", "lmsqueezy", "lemon-squeezy", "store.lemonsqueezy.com"]],
+    ["Polar.sh", [
+      "polar.sh", "api.polar.sh", "sandbox-api.polar.sh", "checkout.polar.sh", "sandbox-checkout.polar.sh",
+      "@polar-sh", "polar-checkout", "polar_sh", "polar_customer", "polar_checkout", "polar_access_token",
+      "/v1/checkouts", "customer-sessions", "benefit_grant", "polar_webhook",
+    ]],
     ["Gumroad", ["gumroad.com"]],
     ["Chargebee", ["chargebee.com", "cbinstance"]],
     ["Recurly", ["recurly.com", "recurly-"]],
@@ -901,31 +1073,52 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     if (matched.length > 0) socialMedia.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
   }
 
-  // Database & Backend-as-a-Service
-  const database: { name: string; confidence: string }[] = [];
-  const dbChecks: [string, string[]][] = [
-    ["Supabase", ["supabase.co", "supabase.com"]],
-    ["Firebase", ["firebase.google.com", "firebaseio.com", "firebaseapp.com"]],
-    ["MongoDB Realm", ["realm.mongodb.com"]],
-    ["AWS Amplify", ["aws-amplify", "amplifyapp.com"]],
-    ["Appwrite", ["appwrite.io"]],
-    ["Convex", ["convex.dev", "convex.cloud"]],
-    ["Neon", ["neon.tech"]],
-    ["PlanetScale", ["planetscale.com"]],
-    ["Upstash", ["upstash.com"]],
-    ["Hasura", ["hasura.io", "hasura.app"]],
+  // Backend Providers (BaaS, Databases, Serverless, Auth, Infra)
+  const backendProviders: { name: string; confidence: string }[] = [];
+  const backendChecks: [string, string[]][] = [
+    ["Supabase", ["supabase.co", "supabase.com", "supabase-js", "supabase/functions"]],
+    ["Firebase", ["firebase.google.com", "firebaseio.com", "firebaseapp.com", "gstatic.com/firebasejs"]],
+    ["Google Cloud", ["cloudfunctions.net", "run.app", "gcp", "storage.googleapis.com"]],
+    ["AWS", ["amazonaws.com", "execute-api", "lambda-url", "aws-amplify", "amplifyapp.com"]],
+    ["Azure", ["azurewebsites.net", "azure-api.net", "azureedge.net"]],
+    ["Cloudflare Workers", ["workers.dev", "cloudflareworkers.com", "cloudflare"]],
+    ["Vercel Functions", ["vercel.app", "vercel.com", "x-vercel-id"]],
+    ["Netlify Functions", ["netlify.app", "netlify.com", "/.netlify/functions/"]],
+    ["Render", ["onrender.com", "render.com"]],
+    ["Railway", ["railway.app", "railway"]],
+    ["Fly.io", ["fly.dev", "fly.io"]],
+    ["Heroku", ["herokuapp.com", "heroku"]],
+    ["Appwrite", ["appwrite.io", "appwrite"]],
+    ["Nhost", ["nhost.io", "nhost.run"]],
+    ["PocketBase", ["pocketbase", "pb_public", "pb.collection"]],
+    ["Parse Server", ["parse-server", "parseplatform"]],
+    ["Hasura", ["hasura.io", "hasura.app", "x-hasura"]],
+    ["Convex", ["convex.dev", "convex.cloud", "convex.site"]],
+    ["Neon", ["neon.tech", "neon.database"]],
+    ["PlanetScale", ["planetscale.com", "psdb.cloud"]],
+    ["Upstash", ["upstash.com", "upstash.io"]],
+    ["Turso", ["turso.io", "libsql"]],
+    ["Xata", ["xata.io"]],
+    ["MongoDB Atlas", ["mongodb.net", "atlas.mongodb.com", "realm.mongodb.com"]],
+    ["Prisma", ["prisma.io", "prismagraphql", "@prisma/client"]],
+    ["Redis Cloud", ["redis.com", "redislabs.com"]],
     ["Sanity", ["sanity.io", "cdn.sanity.io"]],
     ["Contentful", ["contentful.com", "ctfassets.net"]],
-    ["Strapi", ["strapi.io"]],
+    ["Strapi", ["strapi.io", "strapi"]],
     ["Storyblok", ["storyblok.com"]],
     ["Builder.io", ["builder.io", "cdn.builder.io"]],
     ["Algolia", ["algolia.com", "algolianet.com", "algoliasearch"]],
-    ["Xata", ["xata.io"]],
+    ["Clerk", ["clerk.com", "clerk.dev"]],
+    ["Auth0", ["auth0.com", "auth0-"]],
+    ["Okta", ["okta.com"]],
+    ["Stytch", ["stytch.com"]],
   ];
-  for (const [name, sigs] of dbChecks) {
+  for (const [name, sigs] of backendChecks) {
     const matched = sigs.filter(s => lc.includes(s));
-    if (matched.length > 0) database.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
+    if (matched.length > 0) backendProviders.push({ name, confidence: matched.length >= 2 ? "high" : "medium" });
   }
+
+  const database = backendProviders;
 
   // AI & ML Tools
   const aiTools: { name: string; confidence: string }[] = [];
@@ -981,7 +1174,7 @@ function detectPlatforms(html: string, scripts: string[], stylesheets: string[],
     if (sigs.some(s => lc.includes(s))) personalization.push({ name, confidence: "medium" });
   }
 
-  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity, socialMedia, database, aiTools, affiliate, personalization };
+  return { crm, payments, analytics, marketing, support, ecommerce, hosting, frameworks, ads, security, scheduling, forms, engagement, socialProof, seoTools, productivity, socialMedia, backendProviders, database, aiTools, affiliate, personalization };
 }
 
 function extractMetadata(html: string, url: string, securityHeaders: Record<string, string>, deepScan?: DeepScanCorpus) {
@@ -1089,12 +1282,16 @@ function extractMetadata(html: string, url: string, securityHeaders: Record<stri
     if (matches.length) socialLinks[platform] = matches.slice(0, 5);
   }
 
+  // iFrames
+  const iframes = getAllMatches(html, /<iframe[^>]*src=["']([^"']+)["']/gi).slice(0, 30);
+
   // Detect platforms using deep multi-page corpus when available
   const detectionHtml = deepScan?.combinedHtml || html;
   const detectionScripts = deepScan?.combinedScripts?.length ? deepScan.combinedScripts : scripts;
   const detectionStylesheets = deepScan?.combinedStylesheets?.length ? deepScan.combinedStylesheets : stylesheets;
   const detectionExternalLinks = deepScan?.combinedExternalLinks?.length ? deepScan.combinedExternalLinks : externalLinks;
-  const detectedPlatforms = detectPlatforms(detectionHtml, detectionScripts, detectionStylesheets, detectionExternalLinks, iframes);
+  const detectionIframes = deepScan?.combinedIframes?.length ? deepScan.combinedIframes : iframes;
+  const detectedPlatforms = detectPlatforms(detectionHtml, detectionScripts, detectionStylesheets, detectionExternalLinks, detectionIframes);
 
   // Accessibility checks
   const formCount = (html.match(/<form/gi) || []).length;
@@ -1109,9 +1306,6 @@ function extractMetadata(html: string, url: string, securityHeaders: Record<stri
   const googleFonts = [...new Set(getAllMatches(html, /fonts\.googleapis\.com\/css2?\?family=([^"'&]+)/gi))];
   const customFonts = [...new Set(getAllMatches(html, /font-family:\s*['"]?([^;'"]+)/gi))].slice(0, 10);
   const adobeFonts = html.includes("use.typekit.net") || html.includes("adobe");
-
-  // iFrames
-  const iframes = getAllMatches(html, /<iframe[^>]*src=["']([^"']+)["']/gi).slice(0, 15);
 
   // Text content
   const textContent = html
