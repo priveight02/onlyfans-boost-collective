@@ -1546,7 +1546,9 @@ Return ONLY valid JSON:
                     { key: "marketing", label: "Email & Marketing", color: "text-pink-400", icon: Sparkles },
                     { key: "support", label: "Customer Support & Chat", color: "text-cyan-400", icon: Activity },
                     { key: "ecommerce", label: "E-commerce Platform", color: "text-orange-400", icon: Globe },
-                    { key: "hosting", label: "Hosting & CDN", color: "text-teal-400", icon: Globe },
+                    { key: "hosting", label: "Hosting & Infrastructure", color: "text-teal-400", icon: Globe },
+                    { key: "cdn", label: "CDN Providers", color: "text-sky-400", icon: Globe },
+                    { key: "fileStorage", label: "File Storage & Media CDN", color: "text-violet-400", icon: ImageIcon },
                     { key: "frameworks", label: "Frameworks & CMS", color: "text-amber-400", icon: Code },
                     { key: "ads", label: "Ads & Monetization", color: "text-yellow-400", icon: TrendingUp },
                     { key: "security", label: "Security, Auth & Monitoring", color: "text-red-400", icon: Shield },
@@ -1562,7 +1564,7 @@ Return ONLY valid JSON:
                     { key: "affiliate", label: "Affiliate & Referral", color: "text-rose-400", icon: TrendingUp },
                     { key: "personalization", label: "Personalization & A/B Testing", color: "text-sky-300", icon: Eye },
                   ];
-                  const activeCats = categories.filter(c => c.key === "backendProviders" || (dp[c.key] || []).length > 0);
+                  const activeCats = categories.filter(c => ["backendProviders", "cdn", "fileStorage"].includes(c.key) || (dp[c.key] || []).length > 0);
                   if (activeCats.length === 0) return (
                     <Card className="crm-card md:col-span-2">
                       <CardContent className="p-6 text-center">
@@ -1583,7 +1585,7 @@ Return ONLY valid JSON:
                         </CardHeader>
                         <CardContent>
                           {providers.length > 0 ? (
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 max-h-64 overflow-auto">
                               {providers.map((p: any) => (
                                 <div key={p.name} className="flex items-center justify-between p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
                                   <span className="text-xs text-white/80">{p.name}</span>
@@ -1594,7 +1596,7 @@ Return ONLY valid JSON:
                               ))}
                             </div>
                           ) : (
-                            <p className="text-xs text-white/35">No backend/server providers detected yet</p>
+                            <p className="text-xs text-white/35">None detected</p>
                           )}
                         </CardContent>
                       </Card>
