@@ -1137,8 +1137,32 @@ function extractMetadata(html: string, url: string, secHeaders: Record<string, s
     }
 
     const scripts = safeMatch(html, /<script[^>]*src=["']([^"']+)["']/gi).slice(0, 50);
-    const stylesheets = safeMatch(html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi).slice(0, 30);
+    const stylesheets = [
+      ...safeMatch(html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi),
+      ...safeMatch(html, /<link[^>]*rel=["']stylesheet["'][^>]*href=["']([^"']+)["']/gi),
+    ].slice(0, 30);
     const iframes = safeMatch(html, /<iframe[^>]*src=["']([^"']+)["']/gi).slice(0, 30);
+
+    // Extract additional resource URLs: preconnect, preload, prefetch, dns-prefetch, video, audio, source, object, embed
+    const preconnects = safeMatch(html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["'](?:preconnect|dns-prefetch)["']/gi);
+    const preloads = safeMatch(html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["'](?:preload|prefetch|modulepreload)["']/gi);
+    const preconnects2 = safeMatch(html, /<link[^>]*rel=["'](?:preconnect|dns-prefetch)["'][^>]*href=["']([^"']+)["']/gi);
+    const preloads2 = safeMatch(html, /<link[^>]*rel=["'](?:preload|prefetch|modulepreload)["'][^>]*href=["']([^"']+)["']/gi);
+    const mediaSrcs = [
+      ...safeMatch(html, /<(?:video|audio|source|embed|object)[^>]*src=["']([^"']+)["']/gi),
+      ...safeMatch(html, /<(?:video|audio)[^>]*poster=["']([^"']+)["']/gi),
+    ];
+    const dataSrcs = safeMatch(html, /data-src=["']([^"']+)["']/gi);
+    const bgUrls = safeMatch(html, /url\(["']?(https?:\/\/[^"')]+)["']?\)/gi);
+    const manifestUrl = (html.match(/<link[^>]*rel=["']manifest["'][^>]*href=["']([^"']+)["']/i) || [])[1] || "";
+    const faviconUrl = (html.match(/<link[^>]*rel=["'](?:icon|shortcut icon|apple-touch-icon)["'][^>]*href=["']([^"']+)["']/i) || [])[1] || "";
+
+    const allResourceUrls = [...new Set([
+      ...preconnects, ...preloads, ...preconnects2, ...preloads2,
+      ...mediaSrcs, ...dataSrcs, ...bgUrls,
+      ...(manifestUrl ? [manifestUrl] : []),
+      ...(faviconUrl ? [faviconUrl] : []),
+    ])].slice(0, 100);
 
     const lc = html.toLowerCase();
     const hasServiceWorker = lc.includes("serviceworker");
