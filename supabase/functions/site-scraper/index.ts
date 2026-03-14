@@ -46,16 +46,22 @@ type DeepScanCorpus = {
   combinedExternalLinks: string[];
   scannedUrls: string[];
   pagesScanned: number;
+  sitemapUrls: string[];
+  subdomainsFound: string[];
 };
 
 function isSameSiteHost(rootHost: string, testHost: string): boolean {
-  return testHost === rootHost || testHost.endsWith(`.${rootHost}`) || rootHost.endsWith(`.${testHost}`);
+  // Strip www for comparison
+  const stripWww = (h: string) => h.replace(/^www\./, "");
+  const a = stripWww(rootHost);
+  const b = stripWww(testHost);
+  return b === a || b.endsWith(`.${a}`) || a.endsWith(`.${b}`);
 }
 
 function extractInternalPageLinks(html: string, baseUrl: string, rootHost: string): string[] {
   const hrefs = getAllMatches(html, /<a[^>]*href=["']([^"'#]+)["']/gi);
   const links = new Set<string>();
-  const excludedFileExt = /\.(jpg|jpeg|png|gif|svg|webp|avif|mp4|mp3|pdf|zip|rar|css|js|ico|woff2?|ttf|eot|xml)(\?|#|$)/i;
+  const excludedFileExt = /\.(jpg|jpeg|png|gif|svg|webp|avif|mp4|mp3|pdf|zip|rar|css|js|ico|woff2?|ttf|eot)(\?|#|$)/i;
 
   for (const href of hrefs) {
     try {
@@ -65,88 +71,185 @@ function extractInternalPageLinks(html: string, baseUrl: string, rootHost: strin
       if (excludedFileExt.test(parsed.pathname)) continue;
       links.add(parsed.href);
     } catch {
-      // skip invalid links
+      // skip
     }
   }
-
   return [...links];
 }
 
 function prioritizeLinks(links: string[]): string[] {
   const highIntentKeywords = [
-    "checkout", "payment", "billing", "pricing", "plans", "subscribe", "subscription", "cart", "buy", "upgrade", "portal", "invoice", "pay",
+    "checkout", "payment", "billing", "pricing", "plans", "subscribe", "subscription",
+    "cart", "buy", "upgrade", "portal", "invoice", "pay", "donate", "shop", "store",
+    "product", "membership", "account", "settings", "integrations", "partners",
+    "tools", "features", "api", "developers", "docs", "about", "contact",
   ];
 
   return [...new Set(links)].sort((a, b) => {
     const al = a.toLowerCase();
     const bl = b.toLowerCase();
-    const aScore = highIntentKeywords.reduce((acc, keyword) => acc + (al.includes(keyword) ? 10 : 0), 0) - al.length / 500;
-    const bScore = highIntentKeywords.reduce((acc, keyword) => acc + (bl.includes(keyword) ? 10 : 0), 0) - bl.length / 500;
+    const aScore = highIntentKeywords.reduce((acc, kw) => acc + (al.includes(kw) ? 10 : 0), 0) - al.length / 500;
+    const bScore = highIntentKeywords.reduce((acc, kw) => acc + (bl.includes(kw) ? 10 : 0), 0) - bl.length / 500;
     return bScore - aScore;
   });
 }
 
 async function fetchHtmlForDeepScan(targetUrl: string): Promise<string | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 7000);
-
+  const timeout = setTimeout(() => controller.abort(), 8000);
   try {
-    const response = await fetch(targetUrl, {
-      headers: SCRAPE_HEADERS,
-      redirect: "follow",
-      signal: controller.signal,
-    });
-
+    const response = await fetch(targetUrl, { headers: SCRAPE_HEADERS, redirect: "follow", signal: controller.signal });
     if (!response.ok) return null;
-
-    const contentType = (response.headers.get("content-type") || "").toLowerCase();
-    if (!contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) return null;
-
+    const ct = (response.headers.get("content-type") || "").toLowerCase();
+    if (!ct.includes("text/html") && !ct.includes("application/xhtml+xml") && !ct.includes("text/xml") && !ct.includes("application/xml")) return null;
     return await response.text();
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timeout);
-  }
+  } catch { return null; }
+  finally { clearTimeout(timeout); }
 }
 
 async function fetchTextForDeepScanAsset(assetUrl: string): Promise<string> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 7000);
-
   try {
-    const response = await fetch(assetUrl, {
-      headers: SCRAPE_HEADERS,
-      redirect: "follow",
-      signal: controller.signal,
-    });
-
+    const response = await fetch(assetUrl, { headers: SCRAPE_HEADERS, redirect: "follow", signal: controller.signal });
     if (!response.ok) return "";
+    const ct = (response.headers.get("content-type") || "").toLowerCase();
+    if (["image/", "video/", "audio/", "font/", "application/octet-stream"].some(p => ct.startsWith(p))) return "";
+    return (await response.text()).slice(0, 250_000);
+  } catch { return ""; }
+  finally { clearTimeout(timeout); }
+}
 
-    const contentType = (response.headers.get("content-type") || "").toLowerCase();
-    const skipBinary = ["image/", "video/", "audio/", "font/", "application/octet-stream"];
-    if (skipBinary.some((prefix) => contentType.startsWith(prefix))) return "";
+async function fetchSitemapUrls(baseOrigin: string, rootHost: string): Promise<{ urls: string[]; sitemapSources: string[] }> {
+  const sitemapCandidates = [
+    `${baseOrigin}/sitemap.xml`,
+    `${baseOrigin}/sitemap_index.xml`,
+    `${baseOrigin}/sitemap-index.xml`,
+    `${baseOrigin}/wp-sitemap.xml`,
+    `${baseOrigin}/sitemap1.xml`,
+    `${baseOrigin}/sitemap-pages.xml`,
+    `${baseOrigin}/page-sitemap.xml`,
+    `${baseOrigin}/post-sitemap.xml`,
+    `${baseOrigin}/product-sitemap.xml`,
+    `${baseOrigin}/sitemaps/sitemap.xml`,
+  ];
 
-    const text = await response.text();
-    return text.slice(0, 250_000);
-  } catch {
-    return "";
-  } finally {
+  // Also check robots.txt for Sitemap directives
+  let robotsSitemaps: string[] = [];
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    const robotsRes = await fetch(`${baseOrigin}/robots.txt`, { headers: SCRAPE_HEADERS, signal: controller.signal });
     clearTimeout(timeout);
+    if (robotsRes.ok) {
+      const robotsTxt = await robotsRes.text();
+      const sitemapMatches = robotsTxt.match(/^Sitemap:\s*(.+)$/gmi);
+      if (sitemapMatches) {
+        robotsSitemaps = sitemapMatches.map(line => line.replace(/^Sitemap:\s*/i, "").trim()).filter(Boolean);
+      }
+    }
+  } catch { /* ignore */ }
+
+  const allCandidates = [...new Set([...robotsSitemaps, ...sitemapCandidates])];
+  const allUrls = new Set<string>();
+  const foundSitemaps: string[] = [];
+
+  // Fetch sitemaps in parallel (max 6 at a time)
+  const batch1 = allCandidates.slice(0, 6);
+  const batch2 = allCandidates.slice(6);
+
+  async function parseSitemap(sitemapUrl: string): Promise<string[]> {
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 6000);
+      const res = await fetch(sitemapUrl, { headers: SCRAPE_HEADERS, redirect: "follow", signal: controller.signal });
+      clearTimeout(timeout);
+      if (!res.ok) return [];
+      const text = await res.text();
+      if (!text.includes("<url") && !text.includes("<sitemap")) return [];
+      foundSitemaps.push(sitemapUrl);
+
+      const urls: string[] = [];
+      // Extract <loc> tags
+      const locMatches = text.match(/<loc>\s*(.*?)\s*<\/loc>/gi) || [];
+      for (const loc of locMatches) {
+        const url = loc.replace(/<\/?loc>/gi, "").trim();
+        if (url.endsWith(".xml") || url.endsWith(".xml.gz")) {
+          // It's a sub-sitemap - we'll recurse one level
+          urls.push(`__SUBSITEMAP__${url}`);
+        } else {
+          urls.push(url);
+        }
+      }
+      return urls;
+    } catch { return []; }
   }
+
+  const results1 = await Promise.all(batch1.map(parseSitemap));
+  const results2 = batch2.length > 0 ? await Promise.all(batch2.map(parseSitemap)) : [];
+
+  const subSitemaps: string[] = [];
+  for (const urls of [...results1, ...results2]) {
+    for (const u of urls) {
+      if (u.startsWith("__SUBSITEMAP__")) {
+        subSitemaps.push(u.replace("__SUBSITEMAP__", ""));
+      } else {
+        allUrls.add(u);
+      }
+    }
+  }
+
+  // Fetch up to 8 sub-sitemaps
+  if (subSitemaps.length > 0) {
+    const subBatch = subSitemaps.slice(0, 8);
+    const subResults = await Promise.all(subBatch.map(parseSitemap));
+    for (const urls of subResults) {
+      for (const u of urls) {
+        if (!u.startsWith("__SUBSITEMAP__")) allUrls.add(u);
+      }
+    }
+  }
+
+  // Filter to same-site only
+  const filtered = [...allUrls].filter(u => {
+    try { return isSameSiteHost(rootHost, new URL(u).hostname); } catch { return false; }
+  });
+
+  return { urls: filtered, sitemapSources: foundSitemaps };
 }
 
 async function buildDeepScanCorpus(startUrl: string, seedHtml: string): Promise<DeepScanCorpus> {
-  const maxPages = 10;
-  const maxBatchSize = 3;
-  const maxQueueSize = 120;
-  const rootHost = new URL(startUrl).hostname;
+  const maxPages = 25;
+  const maxBatchSize = 5;
+  const rootUrl = new URL(startUrl);
+  const rootHost = rootUrl.hostname.replace(/^www\./, "");
+  const baseOrigin = rootUrl.origin;
 
   const visited = new Set<string>([startUrl]);
   const scannedUrls: string[] = [startUrl];
   const pageHtmls: { url: string; html: string }[] = [{ url: startUrl, html: seedHtml }];
+  const subdomainsFound = new Set<string>();
 
-  let queue = prioritizeLinks(extractInternalPageLinks(seedHtml, startUrl, rootHost));
+  // 1) Fetch sitemap URLs in parallel with initial link extraction
+  const [sitemapResult, _] = await Promise.all([
+    fetchSitemapUrls(baseOrigin, rootHost),
+    Promise.resolve(null), // placeholder for parallelism
+  ]);
+
+  console.log(`Sitemap discovery: ${sitemapResult.urls.length} URLs from ${sitemapResult.sitemapSources.length} sitemaps`);
+
+  // Track subdomains from sitemap
+  for (const u of sitemapResult.urls) {
+    try {
+      const h = new URL(u).hostname;
+      if (h !== rootUrl.hostname && isSameSiteHost(rootHost, h)) subdomainsFound.add(h);
+    } catch { /* skip */ }
+  }
+
+  // Build initial queue: page links + sitemap URLs (prioritized)
+  const pageLinks = extractInternalPageLinks(seedHtml, startUrl, rootHost);
+  const combinedQueue = [...new Set([...sitemapResult.urls, ...pageLinks])].filter(u => !visited.has(u));
+  let queue = prioritizeLinks(combinedQueue).slice(0, 300);
 
   while (queue.length > 0 && pageHtmls.length < maxPages) {
     const batch: string[] = [];
@@ -168,72 +271,55 @@ async function buildDeepScanCorpus(startUrl: string, seedHtml: string): Promise<
       pageHtmls.push({ url: link, html });
       scannedUrls.push(link);
 
+      // Track subdomains
+      try {
+        const h = new URL(link).hostname;
+        if (h !== rootUrl.hostname && isSameSiteHost(rootHost, h)) subdomainsFound.add(h);
+      } catch { /* skip */ }
+
       if (pageHtmls.length >= maxPages) break;
 
-      const discovered = extractInternalPageLinks(html, link, rootHost).filter((next) => !visited.has(next));
+      const discovered = extractInternalPageLinks(html, link, rootHost).filter(next => !visited.has(next));
       remainingQueue.push(...discovered);
     }
 
-    queue = prioritizeLinks(remainingQueue).slice(0, maxQueueSize);
+    queue = prioritizeLinks(remainingQueue).slice(0, 300);
   }
 
+  // Collect scripts, stylesheets, external links from all pages
   const scriptUrlSet = new Set<string>();
   const stylesheetUrlSet = new Set<string>();
   const externalLinkSet = new Set<string>();
 
   for (const page of pageHtmls) {
-    const scriptSrcs = getAllMatches(page.html, /<script[^>]*src=["']([^"']+)["']/gi);
-    for (const src of scriptSrcs) {
-      try {
-        const resolved = new URL(src, page.url);
-        if (["http:", "https:"].includes(resolved.protocol)) scriptUrlSet.add(resolved.href);
-      } catch {
-        // skip
-      }
+    for (const src of getAllMatches(page.html, /<script[^>]*src=["']([^"']+)["']/gi)) {
+      try { const r = new URL(src, page.url); if (["http:", "https:"].includes(r.protocol)) scriptUrlSet.add(r.href); } catch { /* skip */ }
     }
-
-    const cssHrefs = getAllMatches(page.html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi);
-    for (const href of cssHrefs) {
-      try {
-        const resolved = new URL(href, page.url);
-        if (["http:", "https:"].includes(resolved.protocol)) stylesheetUrlSet.add(resolved.href);
-      } catch {
-        // skip
-      }
+    for (const href of getAllMatches(page.html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi)) {
+      try { const r = new URL(href, page.url); if (["http:", "https:"].includes(r.protocol)) stylesheetUrlSet.add(r.href); } catch { /* skip */ }
     }
-
-    const anchors = getAllMatches(page.html, /<a[^>]*href=["']([^"'#]+)["']/gi);
-    for (const href of anchors) {
+    for (const href of getAllMatches(page.html, /<a[^>]*href=["']([^"'#]+)["']/gi)) {
       try {
-        const parsed = new URL(href, page.url);
-        if (!["http:", "https:"].includes(parsed.protocol)) continue;
-        if (!isSameSiteHost(rootHost, parsed.hostname)) externalLinkSet.add(parsed.href);
-      } catch {
-        // skip invalid links
-      }
+        const p = new URL(href, page.url);
+        if (["http:", "https:"].includes(p.protocol) && !isSameSiteHost(rootHost, p.hostname)) externalLinkSet.add(p.href);
+      } catch { /* skip */ }
     }
   }
 
-  const combinedScripts = [...scriptUrlSet].slice(0, 180);
+  const combinedScripts = [...scriptUrlSet].slice(0, 200);
   const combinedStylesheets = [...stylesheetUrlSet].slice(0, 120);
 
+  // Fetch same-site JS bundles for deep detection
   const sameSiteScriptUrls = combinedScripts
-    .filter((scriptUrl) => {
-      try {
-        const host = new URL(scriptUrl).hostname;
-        return isSameSiteHost(rootHost, host);
-      } catch {
-        return false;
-      }
-    })
-    .slice(0, 10);
+    .filter(s => { try { return isSameSiteHost(rootHost, new URL(s).hostname); } catch { return false; } })
+    .slice(0, 12);
 
-  const scriptBodies = (await Promise.all(sameSiteScriptUrls.map((scriptUrl) => fetchTextForDeepScanAsset(scriptUrl))))
+  const scriptBodies = (await Promise.all(sameSiteScriptUrls.map(s => fetchTextForDeepScanAsset(s))))
     .filter(Boolean)
-    .map((body, index) => `\n/* deep-script-${index + 1} */\n${body}\n`);
+    .map((body, i) => `\n/* deep-script-${i + 1} */\n${body}\n`);
 
   const combinedHtml = [
-    pageHtmls.map((p) => p.html).join("\n\n<!-- deep-scan-page -->\n\n"),
+    pageHtmls.map(p => p.html).join("\n\n<!-- deep-scan-page -->\n\n"),
     scriptBodies.join("\n"),
   ].join("\n\n");
 
@@ -241,9 +327,11 @@ async function buildDeepScanCorpus(startUrl: string, seedHtml: string): Promise<
     combinedHtml,
     combinedScripts,
     combinedStylesheets,
-    combinedExternalLinks: [...externalLinkSet].slice(0, 250),
+    combinedExternalLinks: [...externalLinkSet].slice(0, 300),
     scannedUrls,
     pagesScanned: pageHtmls.length,
+    sitemapUrls: sitemapResult.urls.slice(0, 100),
+    subdomainsFound: [...subdomainsFound],
   };
 }
 
