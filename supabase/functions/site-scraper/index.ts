@@ -99,12 +99,38 @@ async function fetchHtmlForDeepScan(targetUrl: string): Promise<string | null> {
 
     if (!response.ok) return null;
 
-    const contentType = response.headers.get("content-type") || "";
-    if (!contentType.toLowerCase().includes("text/html")) return null;
+    const contentType = (response.headers.get("content-type") || "").toLowerCase();
+    if (!contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) return null;
 
     return await response.text();
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchTextForDeepScanAsset(assetUrl: string): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 7000);
+
+  try {
+    const response = await fetch(assetUrl, {
+      headers: SCRAPE_HEADERS,
+      redirect: "follow",
+      signal: controller.signal,
+    });
+
+    if (!response.ok) return "";
+
+    const contentType = (response.headers.get("content-type") || "").toLowerCase();
+    const skipBinary = ["image/", "video/", "audio/", "font/", "application/octet-stream"];
+    if (skipBinary.some((prefix) => contentType.startsWith(prefix))) return "";
+
+    const text = await response.text();
+    return text.slice(0, 250_000);
+  } catch {
+    return "";
   } finally {
     clearTimeout(timeout);
   }
@@ -151,29 +177,71 @@ async function buildDeepScanCorpus(startUrl: string, seedHtml: string): Promise<
     queue = prioritizeLinks(remainingQueue).slice(0, maxQueueSize);
   }
 
-  const combinedHtml = pageHtmls.map((p) => p.html).join("\n\n<!-- deep-scan-page -->\n\n");
-  const combinedScripts = [...new Set(getAllMatches(combinedHtml, /<script[^>]*src=["']([^"']+)["']/gi))].slice(0, 180);
-  const combinedStylesheets = [...new Set(getAllMatches(combinedHtml, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi))].slice(0, 120);
+  const scriptUrlSet = new Set<string>();
+  const stylesheetUrlSet = new Set<string>();
+  const externalLinkSet = new Set<string>();
 
-  const combinedExternalLinksSet = new Set<string>();
   for (const page of pageHtmls) {
+    const scriptSrcs = getAllMatches(page.html, /<script[^>]*src=["']([^"']+)["']/gi);
+    for (const src of scriptSrcs) {
+      try {
+        const resolved = new URL(src, page.url);
+        if (["http:", "https:"].includes(resolved.protocol)) scriptUrlSet.add(resolved.href);
+      } catch {
+        // skip
+      }
+    }
+
+    const cssHrefs = getAllMatches(page.html, /<link[^>]*href=["']([^"']+)["'][^>]*rel=["']stylesheet["']/gi);
+    for (const href of cssHrefs) {
+      try {
+        const resolved = new URL(href, page.url);
+        if (["http:", "https:"].includes(resolved.protocol)) stylesheetUrlSet.add(resolved.href);
+      } catch {
+        // skip
+      }
+    }
+
     const anchors = getAllMatches(page.html, /<a[^>]*href=["']([^"'#]+)["']/gi);
     for (const href of anchors) {
       try {
         const parsed = new URL(href, page.url);
         if (!["http:", "https:"].includes(parsed.protocol)) continue;
-        if (!isSameSiteHost(rootHost, parsed.hostname)) combinedExternalLinksSet.add(parsed.href);
+        if (!isSameSiteHost(rootHost, parsed.hostname)) externalLinkSet.add(parsed.href);
       } catch {
         // skip invalid links
       }
     }
   }
 
+  const combinedScripts = [...scriptUrlSet].slice(0, 180);
+  const combinedStylesheets = [...stylesheetUrlSet].slice(0, 120);
+
+  const sameSiteScriptUrls = combinedScripts
+    .filter((scriptUrl) => {
+      try {
+        const host = new URL(scriptUrl).hostname;
+        return isSameSiteHost(rootHost, host);
+      } catch {
+        return false;
+      }
+    })
+    .slice(0, 10);
+
+  const scriptBodies = (await Promise.all(sameSiteScriptUrls.map((scriptUrl) => fetchTextForDeepScanAsset(scriptUrl))))
+    .filter(Boolean)
+    .map((body, index) => `\n/* deep-script-${index + 1} */\n${body}\n`);
+
+  const combinedHtml = [
+    pageHtmls.map((p) => p.html).join("\n\n<!-- deep-scan-page -->\n\n"),
+    scriptBodies.join("\n"),
+  ].join("\n\n");
+
   return {
     combinedHtml,
     combinedScripts,
     combinedStylesheets,
-    combinedExternalLinks: [...combinedExternalLinksSet].slice(0, 250),
+    combinedExternalLinks: [...externalLinkSet].slice(0, 250),
     scannedUrls,
     pagesScanned: pageHtmls.length,
   };
