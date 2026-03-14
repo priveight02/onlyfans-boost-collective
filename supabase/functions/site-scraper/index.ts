@@ -273,7 +273,7 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
   // Fetch same-site JS bundles for deeper signature detection
   const sameScripts = [...scriptSet]
     .filter(s => { try { return isSameSite(rootDomain, new URL(s).hostname); } catch { return false; } })
-    .slice(0, 24);
+    .slice(0, 6);
 
   const jsFetches = await Promise.all(sameScripts.map(async (s) => {
     const body = await safeFetchText(s, 8000, 2_500_000);
