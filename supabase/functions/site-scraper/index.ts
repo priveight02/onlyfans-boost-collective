@@ -311,7 +311,7 @@ async function buildDeepCorpus(startUrl: string, seedHtml: string): Promise<Deep
 
 // ─── Sensitive file exposure probing ──────────────
 async function probeSensitiveFiles(startUrl: string, rootDomain: string, knownSubs: string[]) {
-  const hosts = [...new Set([normalizeHost(new URL(startUrl).hostname), normalizeHost(rootDomain), `www.${normalizeHost(rootDomain)}`, ...knownSubs.map(normalizeHost)])].filter(h => isSameSite(rootDomain, h)).slice(0, 6);
+  const hosts = [...new Set([normalizeHost(new URL(startUrl).hostname), normalizeHost(rootDomain)])].filter(h => isSameSite(rootDomain, h)).slice(0, 2);
   const probes = hosts.flatMap(h => SENSITIVE_PATHS.map(p => ({ url: `https://${h}${p}`, path: p, host: h })));
 
   const findings: { url: string; path: string; host: string; status: number; exposed: boolean; snippet: string; fullContent: string; contentType: string }[] = [];
