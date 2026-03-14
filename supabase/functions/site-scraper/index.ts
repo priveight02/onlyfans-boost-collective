@@ -314,7 +314,7 @@ async function probeSensitiveFiles(startUrl: string, rootDomain: string, knownSu
   const hosts = [...new Set([normalizeHost(new URL(startUrl).hostname), normalizeHost(rootDomain), `www.${normalizeHost(rootDomain)}`, ...knownSubs.map(normalizeHost)])].filter(h => isSameSite(rootDomain, h)).slice(0, 6);
   const probes = hosts.flatMap(h => SENSITIVE_PATHS.map(p => ({ url: `https://${h}${p}`, path: p, host: h })));
 
-  const findings: { url: string; path: string; host: string; status: number; exposed: boolean; snippet: string }[] = [];
+  const findings: { url: string; path: string; host: string; status: number; exposed: boolean; snippet: string; fullContent: string; contentType: string }[] = [];
 
   for (let i = 0; i < probes.length; i += 8) {
     const batch = probes.slice(i, i + 8);
@@ -322,17 +322,25 @@ async function probeSensitiveFiles(startUrl: string, rootDomain: string, knownSu
       try {
         const r = await safeFetch(probe.url, 4000);
         if (!r) return;
-        const body = r.ok ? (await r.text()).slice(0, 3000) : "";
+        const body = r.ok ? (await r.text()).slice(0, 10000) : "";
         const lc = body.toLowerCase();
+        const ct = (r.headers.get("content-type") || "").toLowerCase();
 
         // Determine if actually exposed vs error page
-        const isHtmlError = lc.includes("<html") || lc.includes("access denied") || lc.includes("forbidden") || lc.includes("not found") || lc.includes("404");
+        const isHtmlError = lc.includes("<html") || lc.includes("<!doctype") || lc.includes("access denied") || lc.includes("forbidden") || lc.includes("not found") || lc.includes("404") || lc.includes("error");
+        const isEnvFile = probe.path.startsWith("/.env");
+        const isHtaccess = probe.path === "/.htaccess";
+        const isGitFile = probe.path.startsWith("/.git");
+
         const looksReal = !isHtmlError && body.length > 5 && (
-          /^[A-Z_]+=.*/m.test(body) ||  // .env pattern
-          /rewriteengine|authname|deny from|allow from/i.test(body) || // .htaccess
-          /\[core\]|\[remote/i.test(body) || // .git/config
-          /ref:/i.test(body) // .git/HEAD
+          (isEnvFile && /^[A-Z_][A-Z0-9_]*\s*=.*/m.test(body)) ||
+          (isHtaccess && /rewriteengine|rewriterule|rewritecond|authname|deny from|allow from|order|errordocument|header set|redirect|options/i.test(body)) ||
+          (isGitFile && (/\[core\]|\[remote/i.test(body) || /ref:\s*refs\//i.test(body))) ||
+          (!isEnvFile && !isHtaccess && !isGitFile && /^[A-Z_]+=|password|secret|key|token|credential/im.test(body))
         );
+
+        // For exposed files, return full sanitized content
+        const sanitizedFull = looksReal ? body.slice(0, 8000).replace(/[^\x20-\x7E\n\r\t]/g, "") : "";
 
         findings.push({
           url: r.url || probe.url,
@@ -341,6 +349,8 @@ async function probeSensitiveFiles(startUrl: string, rootDomain: string, knownSu
           status: r.status,
           exposed: r.ok && looksReal,
           snippet: looksReal ? body.slice(0, 500).replace(/[^\x20-\x7E\n\r]/g, "") : "",
+          fullContent: sanitizedFull,
+          contentType: ct,
         });
       } catch {}
     }));
