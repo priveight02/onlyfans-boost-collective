@@ -621,10 +621,10 @@ Return ONLY valid JSON:
     });
   };
 
-  // Refresh AI usage count after any AI call
+  // Refresh AI usage count after any AI call (read-only server call)
   const refreshAIUsage = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) setAiUsageCount(getAIUsageCount(user.id));
+    const usage = await checkAIUsage();
+    setAiUsageCount(usage.count);
   };
 
   // ─── Financial Intelligence Analysis ────────────────
