@@ -1616,6 +1616,94 @@ Return ONLY valid JSON:
                 </CardContent>
               </Card>
 
+              {/* Contact Info */}
+              {((scrapeResult.contactInfo?.emailAddresses?.length || 0) > 0 || (scrapeResult.contactInfo?.phoneNumbers?.length || 0) > 0) && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Users className="h-4 w-4" /> Contact Information Found</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {(scrapeResult.contactInfo?.emailAddresses || []).map((email: string, i: number) => (
+                      <div key={`e-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)] text-[9px]">Email</Badge>
+                        <span className="text-xs text-white/70">{email}</span>
+                      </div>
+                    ))}
+                    {(scrapeResult.contactInfo?.phoneNumbers || []).map((phone: string, i: number) => (
+                      <div key={`p-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-emerald-400/15 text-emerald-400 text-[9px]">Phone</Badge>
+                        <span className="text-xs text-white/70">{phone}</span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Fonts */}
+              {((scrapeResult.fonts?.googleFonts?.length || 0) > 0 || (scrapeResult.fonts?.customFonts?.length || 0) > 0) && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><FileText className="h-4 w-4" /> Typography & Fonts</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {scrapeResult.fonts?.adobeFonts && (
+                      <Badge variant="outline" className="text-[10px] border-white/10 text-white/50 mb-2">Adobe Fonts detected</Badge>
+                    )}
+                    {(scrapeResult.fonts?.googleFonts || []).map((f: string, i: number) => (
+                      <div key={`gf-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-amber-400/15 text-amber-400 text-[9px]">Google</Badge>
+                        <span className="text-xs text-white/70">{decodeURIComponent(f).replace(/\+/g, " ")}</span>
+                      </div>
+                    ))}
+                    {(scrapeResult.fonts?.customFonts || []).slice(0, 8).map((f: string, i: number) => (
+                      <div key={`cf-${i}`} className="flex items-center gap-2 p-2 rounded-lg bg-white/[0.02]">
+                        <Badge className="bg-white/10 text-white/40 text-[9px]">CSS</Badge>
+                        <span className="text-xs text-white/70">{f.trim()}</span>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Accessibility */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Eye className="h-4 w-4" /> Accessibility Signals</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {[
+                      { label: "Forms", value: scrapeResult.accessibility?.formCount || 0 },
+                      { label: "Labels", value: scrapeResult.accessibility?.inputsWithLabels || 0 },
+                      { label: "ARIA attrs", value: scrapeResult.accessibility?.ariaCount || 0 },
+                      { label: "Role attrs", value: scrapeResult.accessibility?.roleCount || 0 },
+                      { label: "TabIndex", value: scrapeResult.accessibility?.tabIndexCount || 0 },
+                    ].map((a, i) => (
+                      <div key={i} className="p-2 rounded-lg bg-white/[0.02] text-center">
+                        <p className="text-sm font-semibold text-white">{a.value}</p>
+                        <p className="text-[10px] text-white/40">{a.label}</p>
+                      </div>
+                    ))}
+                    <div className="p-2 rounded-lg bg-white/[0.02] flex items-center justify-center gap-1.5">
+                      {scrapeResult.accessibility?.hasSkipNav ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <XCircle className="h-3.5 w-3.5 text-white/20" />}
+                      <span className="text-xs text-white/60">Skip Nav</span>
+                    </div>
+                    <div className="p-2 rounded-lg bg-white/[0.02] flex items-center justify-center gap-1.5">
+                      {scrapeResult.accessibility?.hasFocusStyles ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <XCircle className="h-3.5 w-3.5 text-white/20" />}
+                      <span className="text-xs text-white/60">Focus Styles</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* iFrames */}
+              {(scrapeResult.iframes || []).length > 0 && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><ExternalLink className="h-4 w-4" /> Embedded iFrames ({scrapeResult.iframes.length})</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="space-y-1 max-h-36 overflow-auto">
+                      {scrapeResult.iframes.map((src: string, i: number) => (
+                        <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="block text-[11px] text-[hsl(217,91%,60%)]/60 hover:text-[hsl(217,91%,60%)] break-all p-1 rounded hover:bg-white/[0.02]">{src}</a>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Structured Data */}
               {(scrapeResult.structuredData || []).length > 0 && (
                 <Card className="crm-card">
