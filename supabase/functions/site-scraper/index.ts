@@ -945,7 +945,7 @@ serve(async (req) => {
       permissionsPolicy: response.headers.get("permissions-policy") ? "Present" : "Missing",
     };
 
-    const metadata = extractMetadata(html, finalUrl);
+    const metadata = extractMetadata(html, finalUrl, securityHeaders);
     const isHttps = finalUrl.startsWith("https://");
 
     return new Response(JSON.stringify({
