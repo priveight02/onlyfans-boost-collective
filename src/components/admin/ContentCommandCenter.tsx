@@ -298,23 +298,104 @@ const ContentCommandCenter = () => {
   };
 
   // ═══ INTER-TAB 1: Import Competitor Posting Plan ═══
+  const buildCompetitorPlanRows = async () => {
+    const compData = competitorProfiles.map(c => ({
+      username: c.username,
+      platform: c.platform,
+      followers: c.followers,
+      engagementRate: c.engagement_rate,
+      avgLikes: c.avg_likes,
+      postFrequency: c.post_frequency,
+      topHashtags: c.top_hashtags || [],
+      contentTypes: c.content_types || [],
+    }));
+    const totalFreq = compData.reduce((sum, competitor) => sum + (competitor.postFrequency || 3), 0);
+    const content = await callAI(`You are a social media strategist. Based on these real competitor profiles, generate a 2-week content calendar that COPIES their posting strategy exactly.\n\nCompetitor data:\n${JSON.stringify(compData, null, 2)}\n\nMatch their posting frequency, content types, top hashtags, and optimal times.\nGenerate ${Math.max(totalFreq * 2, 14)} entries.\nEach: {"title":"...", "platform":"instagram/tiktok/twitter/facebook/threads", "content_type":"post/reel/story/tweet", "caption":"full caption with emojis", "hashtags":["tag1"], "scheduled_at":"ISO date next 2 weeks", "viral_score": 40-90, "description":"Based on @competitor strategy"}\n\nReturn ONLY a JSON array.`);
+    const entries = safeParseJSON(content);
+    if (!Array.isArray(entries)) throw new Error("AI did not return a valid competitor plan");
+
+    const syncedAt = new Date().toISOString();
+
+    return entries.map((entry: any) => ({
+      title: String(entry.title || "Competitor Strategy Post").slice(0, 200),
+      platform: String(entry.platform || "instagram").toLowerCase(),
+      content_type: String(entry.content_type || "post"),
+      caption: String(entry.caption || ""),
+      hashtags: Array.isArray(entry.hashtags) ? entry.hashtags.map((tag: string) => tag.replace("#", "")) : [],
+      scheduled_at: entry.scheduled_at || new Date(Date.now() + Math.random() * 14 * 86400000).toISOString(),
+      status: "draft",
+      viral_score: entry.viral_score || 0,
+      description: entry.description || "Imported from Competitor Intel",
+      metadata: {
+        source: "competitor_intel",
+        synced_at: syncedAt,
+        synced_handles: compData.map(competitor => competitor.username),
+      },
+    }));
+  };
+
+  const removeSyncedCompetitorIntel = async ({ skipConfirm = false, silent = false }: { skipConfirm?: boolean; silent?: boolean } = {}) => {
+    const ids = competitorSyncedItems.map(item => item.id);
+    if (ids.length === 0) {
+      if (!silent) toast.info("No synced competitor content to remove");
+      return 0;
+    }
+
+    if (!skipConfirm && !confirm(`Permanently remove ${ids.length} synced competitor items from Content and the database?`)) {
+      return 0;
+    }
+
+    setRemovingCompetitorIntel(true);
+    try {
+      const { error } = await supabase.from("content_calendar").delete().in("id", ids);
+      if (error) throw error;
+      setItems(prev => prev.filter(item => !ids.includes(item.id)));
+      if (!silent) toast.success(`${ids.length} synced competitor items removed permanently`);
+      return ids.length;
+    } catch (e: any) {
+      if (!silent) toast.error(e.message || "Failed to remove synced competitor intel");
+      throw e;
+    } finally {
+      setRemovingCompetitorIntel(false);
+    }
+  };
+
   const importCompetitorPlan = async () => {
     if (competitorProfiles.length === 0) { toast.error("No competitors tracked · Add competitors in Competitor Analyzer first"); return; }
     await performAction('ai_generate_ideas', async () => {
       setImportingCompetitorPlan(true);
       try {
-        const compData = competitorProfiles.map(c => ({ username: c.username, platform: c.platform, followers: c.followers, engagementRate: c.engagement_rate, avgLikes: c.avg_likes, postFrequency: c.post_frequency, topHashtags: c.top_hashtags || [], contentTypes: c.content_types || [] }));
-        const totalFreq = compData.reduce((s, c) => s + (c.postFrequency || 3), 0);
-        const content = await callAI(`You are a social media strategist. Based on these real competitor profiles, generate a 2-week content calendar that COPIES their posting strategy exactly.\n\nCompetitor data:\n${JSON.stringify(compData, null, 2)}\n\nMatch their posting frequency, content types, top hashtags, and optimal times.\nGenerate ${Math.max(totalFreq * 2, 14)} entries.\nEach: {"title":"...", "platform":"instagram/tiktok/twitter/facebook/threads", "content_type":"post/reel/story/tweet", "caption":"full caption with emojis", "hashtags":["tag1"], "scheduled_at":"ISO date next 2 weeks", "viral_score": 40-90, "description":"Based on @competitor strategy"}\n\nReturn ONLY a JSON array.`);
-        const entries = safeParseJSON(content);
-        if (Array.isArray(entries)) {
-          for (const e of entries) {
-            await supabase.from("content_calendar").insert({ title: String(e.title || "Competitor Strategy Post").slice(0, 200), platform: String(e.platform || "instagram").toLowerCase(), content_type: String(e.content_type || "post"), caption: String(e.caption || ""), hashtags: Array.isArray(e.hashtags) ? e.hashtags.map((h: string) => h.replace("#", "")) : [], scheduled_at: e.scheduled_at || new Date(Date.now() + Math.random() * 14 * 86400000).toISOString(), status: "draft", viral_score: e.viral_score || 0, description: e.description || "Imported from Competitor Intel", metadata: { source: "competitor_intel" } });
-          }
-          toast.success(`${entries.length} posts imported from competitor strategy`);
-        }
-      } catch (e: any) { toast.error(e.message || "Failed to import plan"); }
-      setImportingCompetitorPlan(false);
+        const rows = await buildCompetitorPlanRows();
+        if (rows.length === 0) throw new Error("No competitor plan rows were generated");
+        const { error } = await supabase.from("content_calendar").insert(rows);
+        if (error) throw error;
+        await loadItems();
+        toast.success(`${rows.length} posts imported from competitor strategy`);
+      } catch (e: any) {
+        toast.error(e.message || "Failed to import plan");
+      } finally {
+        setImportingCompetitorPlan(false);
+      }
+    });
+  };
+
+  const refreshCompetitorIntelPlan = async () => {
+    if (competitorProfiles.length === 0) { toast.error("No competitors tracked · Add competitors in Competitor Analyzer first"); return; }
+    await performAction('ai_generate_ideas', async () => {
+      setResyncingCompetitorPlan(true);
+      try {
+        await removeSyncedCompetitorIntel({ skipConfirm: true, silent: true });
+        const rows = await buildCompetitorPlanRows();
+        if (rows.length === 0) throw new Error("No competitor plan rows were generated");
+        const { error } = await supabase.from("content_calendar").insert(rows);
+        if (error) throw error;
+        await loadItems();
+        toast.success(`Competitor plan refreshed · ${rows.length} items resynced`);
+      } catch (e: any) {
+        toast.error(e.message || "Failed to refresh competitor plan");
+      } finally {
+        setResyncingCompetitorPlan(false);
+      }
     });
   };
 
