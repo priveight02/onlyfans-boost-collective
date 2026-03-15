@@ -1928,38 +1928,38 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-card/50 border border-border">
-              <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
-              <TabsTrigger value="drafts" className="text-xs">Drafts</TabsTrigger>
-              <TabsTrigger value="scheduled" className="text-xs">Scheduled</TabsTrigger>
-              <TabsTrigger value="published" className="text-xs">Published</TabsTrigger>
+            <TabsList className="bg-white/[0.03] border border-white/[0.05] p-1 rounded-xl h-auto gap-1">
+              <TabsTrigger value="all" className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium transition-colors">All</TabsTrigger>
+              <TabsTrigger value="drafts" className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium transition-colors">Drafts</TabsTrigger>
+              <TabsTrigger value="scheduled" className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium transition-colors">Scheduled</TabsTrigger>
+              <TabsTrigger value="published" className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium transition-colors">Published</TabsTrigger>
             </TabsList>
           </Tabs>
           <div className="relative flex-1 min-w-[120px] max-w-[200px]">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-white/30" />
             <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search..." className="bg-card/50 border-border text-foreground text-xs h-8 pl-7" />
+              placeholder="Search..." className="bg-white/[0.03] border-white/[0.06] text-white text-xs h-8 pl-7 placeholder:text-white/20" />
           </div>
         </div>
         <div className="flex gap-2 items-center">
           <Button size="sm" variant={bulkMode ? "default" : "outline"} onClick={() => { setBulkMode(!bulkMode); setSelectedItems(new Set()); }}
-            className={`text-xs h-8 ${bulkMode ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}>
+            className={`text-xs h-8 ${bulkMode ? "bg-primary text-primary-foreground" : "border-white/[0.06] text-white/50"}`}>
             <CheckSquare className="h-3.5 w-3.5 mr-1" /> Bulk
           </Button>
           <Select value={platformFilter} onValueChange={setPlatformFilter}>
-            <SelectTrigger className="bg-card/50 border-border text-foreground h-8 text-xs w-32"><SelectValue placeholder="Platform" /></SelectTrigger>
-            <SelectContent className="bg-popover border-border">
-              <SelectItem value="all" className="text-xs">All Platforms</SelectItem>
+            <SelectTrigger className="bg-white/[0.03] border-white/[0.06] text-white h-8 text-xs w-32"><SelectValue placeholder="Platform" /></SelectTrigger>
+            <SelectContent className="bg-[hsl(222,35%,9%)] border-white/[0.08]">
+              <SelectItem value="all" className="text-xs text-white/70">All Platforms</SelectItem>
               {availablePlatforms.map(p => (
-                <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
+                <SelectItem key={p} value={p} className="text-xs capitalize text-white/70">{p}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <div className="flex border border-border rounded-md overflow-hidden">
-            <button onClick={() => setViewMode("grid")} className={`p-1.5 ${viewMode === "grid" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+          <div className="flex border border-white/[0.06] rounded-md overflow-hidden">
+            <button onClick={() => setViewMode("grid")} className={`p-1.5 ${viewMode === "grid" ? "bg-primary/20 text-primary" : "text-white/30 hover:text-white/60"}`}>
               <LayoutGrid className="h-3.5 w-3.5" />
             </button>
-            <button onClick={() => setViewMode("calendar")} className={`p-1.5 ${viewMode === "calendar" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+            <button onClick={() => setViewMode("calendar")} className={`p-1.5 ${viewMode === "calendar" ? "bg-primary/20 text-primary" : "text-white/30 hover:text-white/60"}`}>
               <CalendarDays className="h-3.5 w-3.5" />
             </button>
           </div>
