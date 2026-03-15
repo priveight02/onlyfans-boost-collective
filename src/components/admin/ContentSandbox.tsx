@@ -289,6 +289,14 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [evolving, setEvolving] = useState(false);
   const [savingBack, setSavingBack] = useState(false);
   const [dirty, setDirty] = useState(false);
+
+  // Push to platform states
+  const [showPushPlatform, setShowPushPlatform] = useState(false);
+  const [pushAvailablePlatforms, setPushAvailablePlatforms] = useState<{ platform: string; connected: boolean; username?: string }[]>([]);
+  const [pushSelectedPlatforms, setPushSelectedPlatforms] = useState<Set<string>>(new Set());
+  const [pushMode, setPushMode] = useState<ExecutionMode>("manual");
+  const [pushingToPlatform, setPushingToPlatform] = useState(false);
+  const [pushScope, setPushScope] = useState<"all" | "selected">("all");
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [fontSize, setFontSize] = useState(16);
   const [fontFamily, setFontFamily] = useState("Inter, sans-serif");
