@@ -172,6 +172,17 @@ const ContentCommandCenter = () => {
   const [showPresets, setShowPresets] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // ── Inter-Tab Competitor Intel States ──
+  const [competitorProfiles, setCompetitorProfiles] = useState<any[]>([]);
+  const [showCompetitorSync, setShowCompetitorSync] = useState(false);
+  const [importingCompetitorPlan, setImportingCompetitorPlan] = useState(false);
+  const [importingCompetitorHashtags, setImportingCompetitorHashtags] = useState(false);
+  const [generatingSwotContent, setGeneratingSwotContent] = useState(false);
+  const [generatingGapContent, setGeneratingGapContent] = useState(false);
+  const [generatingBestTimes, setGeneratingBestTimes] = useState(false);
+  const [competitorBestTimes, setCompetitorBestTimes] = useState<any[]>([]);
+  const [showCompetitorBestTimes, setShowCompetitorBestTimes] = useState(false);
+
   // ── Ultimate Content Features ──
   const [generatingHooks, setGeneratingHooks] = useState(false);
   const [hooks, setHooks] = useState<string[]>([]);
