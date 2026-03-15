@@ -3016,18 +3016,18 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== CONTENT BRIEF DIALOG ========== */}
       <Dialog open={showContentBrief} onOpenChange={setShowContentBrief}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><FileText className="h-4 w-4 text-primary" /> AI Content Brief Generator</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><FileText className="h-4 w-4 text-primary" /> AI Content Brief Generator</DialogTitle>
           </DialogHeader>
           {!contentBrief ? (
             <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">Generate a comprehensive campaign brief with target audience, content mix, hashtag strategy, and auto-create all content pieces.</p>
+              <p className="text-xs text-white/50">Generate a comprehensive campaign brief with target audience, content mix, hashtag strategy, and auto-create all content pieces.</p>
               <Input value={briefTopic} onChange={e => setBriefTopic(e.target.value)}
-                placeholder="Campaign topic (e.g., 'Summer Launch', 'Brand Awareness')" className="bg-card/50 border-border text-foreground text-xs" />
+                placeholder="Campaign topic (e.g., 'Summer Launch', 'Brand Awareness')" className="bg-white/[0.04] border-white/[0.08] text-white text-xs" />
               <Select value={formPlatform || "instagram"} onValueChange={v => setFormPlatform(v)}>
-                <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8"><SelectValue placeholder="Primary Platform" /></SelectTrigger>
-                <SelectContent className="bg-popover border-border">
+                <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue placeholder="Primary Platform" /></SelectTrigger>
+                <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
                   {availablePlatforms.map(p => <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>)}
                 </SelectContent>
               </Select>
