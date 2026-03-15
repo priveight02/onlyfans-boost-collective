@@ -1582,9 +1582,8 @@ For each, provide:
 Be creative! Include trending topics, engagement hooks, questions, controversial takes.
 
 Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_type":"...", "caption":"...", "hashtags":["..."], "cta":"...", "viral_score": number, "description":"...", "best_time":"..."}]`);
-        const arrMatch = content.match(/\[[\s\S]*\]/);
-        if (arrMatch) {
-          const ideas = JSON.parse(arrMatch[0]);
+        try {
+          const ideas = safeParseJSON(content);
           for (const idea of ideas) {
             await supabase.from("content_calendar").insert({
               title: idea.title, caption: idea.caption, platform: idea.platform || "instagram",
