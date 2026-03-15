@@ -3807,167 +3807,231 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                   )}
                                 </div>
 
-                                {/* ═══ COPY SOCIAL MEDIA PLAN BUTTON ═══ */}
-                                <Button
-                                  size="sm"
-                                  className="w-full h-8 gap-2 text-[10px] font-bold bg-gradient-to-r from-[hsl(262,83%,58%)] to-[hsl(217,91%,60%)] hover:from-[hsl(262,83%,48%)] hover:to-[hsl(217,91%,50%)] text-white border-0"
-                                  disabled={copyingPlan}
-                                  onClick={async () => {
-                                    setCopyingPlan(true);
+                                {/* ═══ PLAN MANAGEMENT SYSTEM ═══ */}
+                                {(() => {
+                                  const generatePlanForCompetitors = async (targetComps: typeof competitors, planLabel: string) => {
+                                    const planData = platforms.map(([key, data]) => {
+                                      const cc = data.competitors.filter(c => targetComps.some(tc => tc.username === c.username));
+                                      if (!cc.length) return null;
+                                      const avgFreq = cc.reduce((s, c) => s + c.postFrequency, 0) / Math.max(cc.length, 1);
+                                      const avgLikes = Math.round(cc.reduce((s, c) => s + c.avgLikes, 0) / Math.max(cc.length, 1));
+                                      const avgComments = Math.round(cc.reduce((s, c) => s + c.avgComments, 0) / Math.max(cc.length, 1));
+                                      const avgEng = cc.reduce((s, c) => s + c.engagementRate, 0) / Math.max(cc.length, 1);
+                                      const topHashtags = [...new Set(cc.flatMap(c => { const comp = competitors.find(comp => comp.username === c.username); return comp?.topHashtags || []; }))].slice(0, 10);
+                                      return { platform: key, name: data.name, postsPerWeek: avgFreq, avgLikes, avgComments, engagementRate: avgEng, topHashtags, competitors: cc.map(c => c.username) };
+                                    }).filter(Boolean);
+                                    if (!planData.length) throw new Error("No platform data found for selected competitors");
+
+                                    const { data: { session } } = await supabase.auth.getSession();
+                                    const totalPosts = Math.max(Math.round(planData.reduce((s, p: any) => s + p.postsPerWeek, 0) * 2), 14);
+                                    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`, {
+                                      method: "POST",
+                                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+                                      body: JSON.stringify({
+                                        messages: [
+                                          { role: "system", content: `You are the world's #1 competitive intelligence analyst. Produce a PERFECT CLONE of a competitor's content operation — PLATFORM-SPECIFIC strategy for EACH social network.\n\nRULES:\n1. Match EXACT posts/week per platform\n2. Mirror content type ratios exactly\n3. Write FULL publish-ready captions with emojis, line breaks, CTAs\n4. Use competitor's proven hashtags\n5. Schedule across 14 days from ${new Date().toISOString().split("T")[0]}\n6. Instagram: 15-25 hashtags, peak 9AM/12PM/5PM/8PM\n7. TikTok: 5-8 hashtags, peak 7AM/10AM/2PM/9PM\n8. Twitter: 2-3 hashtags, 280 char max\n9. Facebook: 3-5 hashtags\n10. Threads: 3-5 hashtags\n\nGenerate EXACTLY ${totalPosts} entries.\nJSON format: {"title":"...","platform":"instagram|tiktok|twitter|facebook|threads|youtube","content_type":"post|reel|story|video|thread|short|carousel","caption":"FULL PUBLISH-READY","hashtags":["tag1",...],"scheduled_at":"ISO","status":"draft","viral_score":50-98,"description":"Cloned from @handle","content_pillar":"education|entertainment|inspiration|promotion|community|behind_scenes"}\nReturn ONLY a valid JSON array.` },
+                                          { role: "user", content: `COMPETITOR DATA:\n${JSON.stringify(planData, null, 2)}\n\nPROFILES:\n${JSON.stringify(targetComps.map(c => ({ username: c.username, platform: c.platform, followers: c.followers, following: c.following, engagementRate: c.engagementRate, avgLikes: c.avgLikes, avgComments: c.avgComments, postFrequency: c.postFrequency, posts: c.posts, growthRate: c.growthRate, topHashtags: c.topHashtags, contentTypes: c.contentTypes })), null, 2)}` },
+                                        ],
+                                        model: "google/gemini-2.5-flash",
+                                      }),
+                                    });
+                                    if (!resp.ok) throw new Error("AI generation failed");
+                                    const aiResult = await resp.json();
+                                    const content = aiResult?.choices?.[0]?.message?.content || aiResult?.content || "";
+                                    let entries: any[] = [];
                                     try {
-                                      // Build plan data from all platforms
-                                      const planData = platforms.map(([key, data]) => {
-                                        const cc = data.competitors;
-                                        const avgFreq = cc.reduce((s, c) => s + c.postFrequency, 0) / Math.max(cc.length, 1);
-                                        const avgLikes = Math.round(cc.reduce((s, c) => s + c.avgLikes, 0) / Math.max(cc.length, 1));
-                                        const avgComments = Math.round(cc.reduce((s, c) => s + c.avgComments, 0) / Math.max(cc.length, 1));
-                                        const avgEng = cc.reduce((s, c) => s + c.engagementRate, 0) / Math.max(cc.length, 1);
-                                        const topHashtags = [...new Set(cc.flatMap(c => {
-                                          const comp = competitors.find(comp => comp.username === c.username);
-                                          return comp?.topHashtags || [];
-                                        }))].slice(0, 10);
-                                        return {
-                                          platform: key,
-                                          name: data.name,
-                                          postsPerWeek: avgFreq,
-                                          avgLikes,
-                                          avgComments,
-                                          engagementRate: avgEng,
-                                          topHashtags,
-                                          competitors: cc.map(c => c.username),
-                                        };
-                                      });
+                                      const cleaned = content.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+                                      const si = cleaned.indexOf("["), ei = cleaned.lastIndexOf("]");
+                                      if (si !== -1 && ei !== -1) entries = JSON.parse(cleaned.slice(si, ei + 1));
+                                    } catch {}
+                                    if (!entries.length) throw new Error("Failed to parse AI plan");
+                                    return { entries, label: planLabel, id: `plan_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, createdAt: new Date().toISOString() };
+                                  };
 
-                                      // Use AI to generate a posting plan
-                                      const { data: { session } } = await supabase.auth.getSession();
-                                      const resp = await fetch(
-                                        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`,
-                                        {
-                                          method: "POST",
-                                          headers: {
-                                            "Content-Type": "application/json",
-                                            Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-                                          },
-                                          body: JSON.stringify({
-                                            messages: [
-                                              {
-                                                role: "system",
-                                                content: `You are the world's #1 competitive intelligence analyst and social media strategist. You have been retained to produce a PERFECT CLONE of a competitor's ENTIRE content operation — so precise that their own team could not tell the difference.
+                                  const pushPlanToCalendar = async (entries: any[]) => {
+                                    const { data: { session } } = await supabase.auth.getSession();
+                                    const userId = session?.user?.id;
+                                    const inserts = entries.map((e: any) => ({
+                                      title: String(e.title || "Cloned Post").slice(0, 200),
+                                      platform: String(e.platform || "instagram").toLowerCase(),
+                                      content_type: String(e.content_type || "post"),
+                                      caption: String(e.caption || ""),
+                                      scheduled_at: e.scheduled_at || new Date(Date.now() + Math.random() * 14 * 86400000).toISOString(),
+                                      status: "draft",
+                                      created_by: userId,
+                                      viral_score: e.viral_score || 0,
+                                      description: e.description || "Cloned from competitor strategy",
+                                      cta: e.content_pillar || null,
+                                      hashtags: Array.isArray(e.hashtags) ? e.hashtags.map((t: string) => t.replace("#", "")) : [],
+                                      metadata: { source: "competitor_intel", cloned_from: "content_intel_tab", cloned_at: new Date().toISOString() },
+                                    }));
+                                    const { error } = await supabase.from("content_calendar").insert(inserts);
+                                    if (error) throw error;
+                                    return inserts.length;
+                                  };
 
-YOUR MISSION: Analyze EVERY metric provided and create a PLATFORM-SPECIFIC strategy for EACH social network. Each platform gets its OWN tailored approach because competitors behave DIFFERENTLY on each platform.
+                                  const allPlans = Object.values(generatedPlans).flat();
+                                  const selectedCount = allPlans.filter(p => selectedPlanIds.has(p.id)).length;
 
-═══ DEEP ANALYSIS PROTOCOL ═══
+                                  return (
+                                    <div className="space-y-2">
+                                      {/* ── Generate All Competitors Plan ── */}
+                                      <Button
+                                        size="sm"
+                                        className="w-full h-8 gap-2 text-[10px] font-bold bg-gradient-to-r from-[hsl(262,83%,58%)] to-[hsl(217,91%,60%)] hover:from-[hsl(262,83%,48%)] hover:to-[hsl(217,91%,50%)] text-white border-0"
+                                        disabled={copyingPlan}
+                                        onClick={async () => {
+                                          setCopyingPlan(true);
+                                          try {
+                                            const result = await generatePlanForCompetitors(competitors, `All Competitors — ${new Date().toLocaleDateString()}`);
+                                            // Save to generated plans under "all"
+                                            const updated = { ...generatedPlans, all: [...(generatedPlans.all || []), result] };
+                                            saveGeneratedPlans(updated);
+                                            // Also push to content_calendar
+                                            const count = await pushPlanToCalendar(result.entries);
+                                            toast.success(`🎯 ${count} posts generated & pushed to Content Calendar!`);
+                                          } catch (err: any) { toast.error(err.message); }
+                                          finally { setCopyingPlan(false); }
+                                        }}
+                                      >
+                                        {copyingPlan && !copyingPlanFor ? <><Loader2 className="h-3 w-3 animate-spin" /> Generating plan for all competitors...</> : <><Copy className="h-3 w-3" /> Generate Plan from ALL Competitors</>}
+                                      </Button>
 
-STEP 1 — METRIC DECONSTRUCTION (per platform):
-• Posting frequency: EXACT posts/week (not approximate)
-• Content type distribution: Calculate EXACT percentages from contentTypes data
-• Engagement rate analysis: High ER (>3%) = value-driven content. Medium (1-3%) = mixed. Low (<1%) = volume play
-• Avg likes vs avg comments ratio: High comments/likes = conversation-driven. Low = visual/scroll content
-• Growth rate: Positive = momentum content. Negative = repositioning needed
-• Follower-to-following ratio: High = authority brand. Near 1:1 = community builder
-• Post frequency vs engagement: High freq + high ER = content machine. High freq + low ER = spam pattern
+                                      {/* ── Per-Competitor Plan Generation ── */}
+                                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                        {competitors.map(comp => {
+                                          const compPlans = generatedPlans[comp.id] || [];
+                                          const isGenerating = copyingPlanFor === comp.id;
+                                          return (
+                                            <div key={comp.id} className="rounded-lg border border-white/[0.06] bg-white/[0.015] p-2 space-y-1.5">
+                                              <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                  <div className="w-5 h-5 rounded flex items-center justify-center text-[8px] font-bold text-white shrink-0" style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(262 83% 58%))" }}>{comp.username.charAt(0).toUpperCase()}</div>
+                                                  <span className="text-[10px] font-semibold text-white truncate">@{comp.username}</span>
+                                                </div>
+                                                <Badge variant="outline" className="text-[8px] border-white/10 text-white/40">{compPlans.length} plan{compPlans.length !== 1 ? "s" : ""}</Badge>
+                                              </div>
+                                              <Button size="sm" variant="outline"
+                                                className="w-full h-6 text-[9px] gap-1 border-primary/20 text-primary hover:bg-primary/10"
+                                                disabled={isGenerating || copyingPlan}
+                                                onClick={async () => {
+                                                  setCopyingPlanFor(comp.id);
+                                                  setCopyingPlan(true);
+                                                  try {
+                                                    const result = await generatePlanForCompetitors([comp], `@${comp.username} — ${new Date().toLocaleDateString()}`);
+                                                    const updated = { ...generatedPlans, [comp.id]: [...compPlans, result] };
+                                                    saveGeneratedPlans(updated);
+                                                    toast.success(`🎯 ${result.entries.length} posts generated for @${comp.username}`);
+                                                  } catch (err: any) { toast.error(err.message); }
+                                                  finally { setCopyingPlan(false); setCopyingPlanFor(null); }
+                                                }}
+                                              >
+                                                {isGenerating ? <><Loader2 className="h-2.5 w-2.5 animate-spin" /> Generating...</> : <><Sparkles className="h-2.5 w-2.5" /> Generate Clone Plan</>}
+                                              </Button>
 
-STEP 2 — PLATFORM-SPECIFIC STRATEGY ADAPTATION:
-• INSTAGRAM: Mirror their Reels-to-Feed ratio exactly. If 60% Reels, generate 60% Reels. Use carousel posts if engagement suggests educational content. Stories for behind-scenes.
-• TIKTOK: Clone their hook patterns (first 3 seconds). Match video length distribution. Mirror their trending sound usage. Replicate duet/stitch patterns from metadata.
-• FACEBOOK: Match their link-post vs photo-post ratio. Clone their community engagement style. Mirror group posting patterns.
-• THREADS: Replicate their thread length and conversational tone. Mirror their reply engagement style.
-• TWITTER/X: Clone their tweet frequency, thread ratio, quote-tweet patterns, and tone (formal vs casual).
-• YOUTUBE: Match their Shorts-to-Long ratio. Clone thumbnail style descriptions. Mirror upload schedule.
+                                              {/* Existing plans for this competitor */}
+                                              {compPlans.map(plan => (
+                                                <div key={plan.id} className={cn("rounded-md border p-1.5 transition-all", selectedPlanIds.has(plan.id) ? "border-primary/30 bg-primary/5" : "border-white/[0.06] bg-white/[0.02]")}>
+                                                  <div className="flex items-center justify-between gap-1">
+                                                    <button onClick={() => { const s = new Set(selectedPlanIds); s.has(plan.id) ? s.delete(plan.id) : s.add(plan.id); setSelectedPlanIds(s); }} className="flex items-center gap-1 min-w-0">
+                                                      <div className={cn("w-3 h-3 rounded border flex items-center justify-center transition-all shrink-0", selectedPlanIds.has(plan.id) ? "bg-primary/20 border-primary/40" : "border-white/15")}>
+                                                        {selectedPlanIds.has(plan.id) && <CheckCircle className="h-2 w-2 text-primary" />}
+                                                      </div>
+                                                      <span className="text-[8px] text-white/60 truncate">{plan.label}</span>
+                                                    </button>
+                                                    <div className="flex items-center gap-0.5 shrink-0">
+                                                      <Badge variant="outline" className="text-[7px] border-emerald-500/15 text-emerald-400 px-1">{plan.entries.length} posts</Badge>
+                                                      {/* Push this plan to /content */}
+                                                      <button title="Push to Content Tab" onClick={async () => {
+                                                        try { const c = await pushPlanToCalendar(plan.entries); toast.success(`${c} posts pushed to Content Calendar`); } catch (err: any) { toast.error(err.message); }
+                                                      }} className="p-0.5 rounded hover:bg-primary/15 transition-colors"><ArrowUpRight className="h-2.5 w-2.5 text-primary/60" /></button>
+                                                      {/* Regenerate */}
+                                                      <button title="Regenerate" onClick={async () => {
+                                                        setCopyingPlanFor(comp.id); setCopyingPlan(true);
+                                                        try {
+                                                          const result = await generatePlanForCompetitors([comp], `@${comp.username} — ${new Date().toLocaleDateString()} (regen)`);
+                                                          const updatedPlans = compPlans.map(p => p.id === plan.id ? result : p);
+                                                          saveGeneratedPlans({ ...generatedPlans, [comp.id]: updatedPlans });
+                                                          toast.success(`♻️ Plan regenerated with ${result.entries.length} posts`);
+                                                        } catch (err: any) { toast.error(err.message); }
+                                                        finally { setCopyingPlan(false); setCopyingPlanFor(null); }
+                                                      }} className="p-0.5 rounded hover:bg-amber-500/15 transition-colors"><RefreshCw className="h-2.5 w-2.5 text-amber-400/60" /></button>
+                                                      {/* Delete */}
+                                                      <button title="Delete" onClick={() => {
+                                                        const updatedPlans = compPlans.filter(p => p.id !== plan.id);
+                                                        saveGeneratedPlans({ ...generatedPlans, [comp.id]: updatedPlans });
+                                                        selectedPlanIds.delete(plan.id); setSelectedPlanIds(new Set(selectedPlanIds));
+                                                        toast.success("Plan deleted");
+                                                      }} className="p-0.5 rounded hover:bg-destructive/15 transition-colors"><Trash2 className="h-2.5 w-2.5 text-destructive/60" /></button>
+                                                    </div>
+                                                  </div>
+                                                  <p className="text-[7px] text-white/25 mt-0.5">{new Date(plan.createdAt).toLocaleString()}</p>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
 
-STEP 3 — CAPTION ENGINEERING (per platform):
-• Extract the competitor's EXACT writing style: emoji density, line break patterns, CTA placement
-• Mirror their vocabulary level and tone (professional, casual, edgy, motivational)
-• Clone their hashtag placement (inline vs footer) and count per post
-• Replicate their engagement hooks (questions, polls, "save this", "tag someone")
-• Each caption MUST be 100% publish-ready — NO placeholders, NO "[insert topic]"
+                                      {/* ── "All" group plans ── */}
+                                      {(generatedPlans.all || []).length > 0 && (
+                                        <div className="rounded-lg border border-white/[0.06] bg-white/[0.015] p-2 space-y-1.5">
+                                          <p className="text-[9px] text-white/40 font-semibold uppercase tracking-wider">All-Competitor Plans</p>
+                                          {(generatedPlans.all || []).map(plan => (
+                                            <div key={plan.id} className={cn("rounded-md border p-1.5 flex items-center justify-between", selectedPlanIds.has(plan.id) ? "border-primary/30 bg-primary/5" : "border-white/[0.06] bg-white/[0.02]")}>
+                                              <button onClick={() => { const s = new Set(selectedPlanIds); s.has(plan.id) ? s.delete(plan.id) : s.add(plan.id); setSelectedPlanIds(s); }} className="flex items-center gap-1.5 min-w-0">
+                                                <div className={cn("w-3 h-3 rounded border flex items-center justify-center shrink-0", selectedPlanIds.has(plan.id) ? "bg-primary/20 border-primary/40" : "border-white/15")}>
+                                                  {selectedPlanIds.has(plan.id) && <CheckCircle className="h-2 w-2 text-primary" />}
+                                                </div>
+                                                <span className="text-[9px] text-white/60 truncate">{plan.label}</span>
+                                              </button>
+                                              <div className="flex items-center gap-0.5 shrink-0">
+                                                <Badge variant="outline" className="text-[7px] border-emerald-500/15 text-emerald-400 px-1">{plan.entries.length}</Badge>
+                                                <button title="Push to Content" onClick={async () => { try { const c = await pushPlanToCalendar(plan.entries); toast.success(`${c} posts pushed`); } catch (err: any) { toast.error(err.message); } }} className="p-0.5 rounded hover:bg-primary/15"><ArrowUpRight className="h-2.5 w-2.5 text-primary/60" /></button>
+                                                <button title="Delete" onClick={() => { saveGeneratedPlans({ ...generatedPlans, all: (generatedPlans.all || []).filter(p => p.id !== plan.id) }); toast.success("Plan deleted"); }} className="p-0.5 rounded hover:bg-destructive/15"><Trash2 className="h-2.5 w-2.5 text-destructive/60" /></button>
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      )}
 
-STEP 4 — SCHEDULING INTELLIGENCE:
-• Spread posts across 14 days starting ${new Date().toISOString().split("T")[0]}
-• Instagram: Peak hours 9AM, 12PM, 5PM, 8PM UTC. Reels at 7PM-9PM. Stories throughout day
-• TikTok: Peak 7AM, 10AM, 2PM, 9PM UTC. Multiple daily posts if competitor does so
-• Facebook: Peak 9AM, 1PM, 4PM UTC. Wednesdays and Fridays highest engagement
-• Twitter/X: Peak 8AM, 12PM, 5PM UTC. Even distribution Mon-Fri
-• Threads: Peak 8AM, 12PM, 6PM UTC. Conversational posts in evening
-• YouTube: Shorts daily, Long-form 2-3x/week if applicable
-
-Generate EXACTLY ${Math.max(Math.round(planData.reduce((s, p) => s + p.postsPerWeek, 0) * 2), 14)} entries total, distributed proportionally per platform based on EACH platform's posting frequency.
-
-HASHTAG RULES:
-• Use ONLY hashtags from the competitor's proven top_hashtags data
-• Instagram: 15-25 hashtags (mix of competitor's + niche variants)
-• TikTok: 5-8 hashtags (trending + niche)
-• Twitter: 2-3 hashtags max
-• Facebook: 3-5 hashtags
-• Threads: 3-5 hashtags
-
-JSON format per entry:
-{"title":"specific descriptive title", "platform":"instagram|tiktok|twitter|facebook|threads|youtube", "content_type":"post|reel|story|video|thread|short|carousel", "caption":"FULL PUBLISH-READY caption with actual emojis actual line breaks actual hashtags actual CTA — write it like you ARE the competitor's content manager", "hashtags":["tag1","tag2",...], "scheduled_at":"YYYY-MM-DDTHH:mm:ss.000Z", "status":"draft", "viral_score":50-98, "description":"Cloned from @handle — replicates their [exact pattern]: [freq]x/week [type] with [engagement style]", "best_posting_hour":"HH:MM UTC", "content_pillar":"education|entertainment|inspiration|promotion|community|behind_scenes"}
-
-Return ONLY a valid JSON array. No markdown, no explanations, no code blocks.`,
-                                              },
-                                              {
-                                                role: "user",
-                                                content: `REAL SCRAPED COMPETITOR DATA — analyze EVERY metric:\n\nPLATFORM SUMMARY:\n${JSON.stringify(planData, null, 2)}\n\nDETAILED COMPETITOR PROFILES (analyze each individually):\n${JSON.stringify(competitors.map(c => ({ username: c.username, platform: c.platform, followers: c.followers, following: c.following, follower_ratio: c.followers > 0 ? (c.followers / Math.max(c.following, 1)).toFixed(1) : "N/A", engagementRate: c.engagementRate, avgLikes: c.avgLikes, avgComments: c.avgComments, comment_to_like_ratio: c.avgLikes > 0 ? (c.avgComments / c.avgLikes * 100).toFixed(1) + "%" : "N/A", postFrequency: c.postFrequency, posts_total: c.posts, growthRate: c.growthRate, topHashtags: c.topHashtags, contentTypes: c.contentTypes, score: c.score, metadata: c.metadata })), null, 2)}\n\nINSTRUCTIONS: Create a PLATFORM-SPECIFIC content calendar. For EACH platform, adapt the strategy to match that platform's unique competitor behavior. Each caption must be 100% publish-ready with real emojis, real CTAs, real hashtags from the data. This is a PERFECT CLONE — not inspired by, not similar to — IDENTICAL in strategy execution.`,
-                                              },
-                                            ],
-                                            model: "google/gemini-2.5-flash",
-                                          }),
-                                        }
-                                      );
-
-                                      if (!resp.ok) throw new Error("AI generation failed");
-                                      const aiResult = await resp.json();
-                                      const content = aiResult?.choices?.[0]?.message?.content || aiResult?.content || "";
-
-                                      // Parse AI response
-                                      let entries: any[] = [];
-                                      try {
-                                        const cleaned = content.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
-                                        const startIdx = cleaned.indexOf("[");
-                                        const endIdx = cleaned.lastIndexOf("]");
-                                        if (startIdx !== -1 && endIdx !== -1) {
-                                          entries = JSON.parse(cleaned.slice(startIdx, endIdx + 1));
-                                        }
-                                      } catch { /* parse error */ }
-
-                                      if (entries.length === 0) { toast.error("Failed to parse AI plan"); setCopyingPlan(false); return; }
-
-                                      // Insert into content_calendar
-                                      const userId = session?.user?.id;
-                                       const inserts = entries.map((e: any) => ({
-                                        title: String(e.title || "Cloned Post").slice(0, 200),
-                                        platform: String(e.platform || "instagram").toLowerCase(),
-                                        content_type: String(e.content_type || "post"),
-                                        caption: String(e.caption || ""),
-                                        scheduled_at: e.scheduled_at || new Date(Date.now() + Math.random() * 14 * 86400000).toISOString(),
-                                        status: "draft",
-                                        created_by: userId,
-                                        viral_score: e.viral_score || 0,
-                                        description: e.description || "Cloned from competitor strategy",
-                                        cta: e.content_pillar || null,
-                                        hashtags: Array.isArray(e.hashtags) ? e.hashtags.map((t: string) => t.replace("#", "")) : e.caption ? [...(e.caption.match(/#\w+/g) || [])].map((t: string) => t.replace("#", "")) : [],
-                                        metadata: { source: "competitor_intel", cloned_from: "content_intel_tab", cloned_at: new Date().toISOString(), competitor_handles: planData.flatMap(p => p.competitors), content_pillar: e.content_pillar || null, best_posting_hour: e.best_posting_hour || null, platform_strategy: `${e.platform}_clone` },
-                                       }));
-
-                                      const { error } = await supabase.from("content_calendar").insert(inserts);
-                                      if (error) throw error;
-
-                                      toast.success(`🎯 ${entries.length} posts cloned to Content Calendar!`, { description: "Go to /content to review, edit, and push to platform tabs" });
-                                    } catch (err: any) {
-                                      console.error("Copy plan error:", err);
-                                      toast.error(err.message || "Failed to copy social media plan");
-                                    } finally {
-                                      setCopyingPlan(false);
-                                    }
-                                  }}
-                                >
-                                  {copyingPlan ? (
-                                    <><Loader2 className="h-3 w-3 animate-spin" /> AI is generating plan...</>
-                                  ) : (
-                                    <><Copy className="h-3 w-3" /> Copy Competitor's Social Media Plan to Content Calendar</>
-                                  )}
-                                </Button>
+                                      {/* ── Bulk Actions ── */}
+                                      {allPlans.length > 0 && (
+                                        <div className="flex items-center gap-1.5 flex-wrap pt-1 border-t border-white/[0.04]">
+                                          <Button size="sm" variant="outline" className="h-6 text-[8px] gap-1 border-primary/20 text-primary"
+                                            disabled={selectedCount === 0}
+                                            onClick={async () => {
+                                              const selected = allPlans.filter(p => selectedPlanIds.has(p.id));
+                                              const allEntries = selected.flatMap(p => p.entries);
+                                              if (!allEntries.length) return;
+                                              try { const c = await pushPlanToCalendar(allEntries); toast.success(`${c} posts from ${selected.length} plan(s) pushed to Content Calendar`); } catch (err: any) { toast.error(err.message); }
+                                            }}
+                                          ><ArrowUpRight className="h-2 w-2" /> Push Selected ({selectedCount})</Button>
+                                          <Button size="sm" variant="outline" className="h-6 text-[8px] gap-1 border-emerald-500/20 text-emerald-400"
+                                            onClick={async () => {
+                                              const allEntries = allPlans.flatMap(p => p.entries);
+                                              if (!allEntries.length) return;
+                                              try { const c = await pushPlanToCalendar(allEntries); toast.success(`${c} posts from ALL plans pushed to Content Calendar`); } catch (err: any) { toast.error(err.message); }
+                                            }}
+                                          ><ArrowUpRight className="h-2 w-2" /> Push All Plans ({allPlans.length})</Button>
+                                          <Button size="sm" variant="outline" className="h-6 text-[8px] gap-1 border-destructive/20 text-destructive"
+                                            disabled={selectedCount === 0}
+                                            onClick={() => {
+                                              const updated = { ...generatedPlans };
+                                              for (const key of Object.keys(updated)) { updated[key] = updated[key].filter(p => !selectedPlanIds.has(p.id)); }
+                                              saveGeneratedPlans(updated);
+                                              setSelectedPlanIds(new Set());
+                                              toast.success(`${selectedCount} plan(s) deleted`);
+                                            }}
+                                          ><Trash2 className="h-2 w-2" /> Delete Selected</Button>
+                                          <Button size="sm" variant="outline" className="h-6 text-[8px] gap-1 border-destructive/20 text-destructive/60"
+                                            onClick={() => { saveGeneratedPlans({}); setSelectedPlanIds(new Set()); toast.success("All plans deleted"); }}
+                                          ><Trash2 className="h-2 w-2" /> Delete All</Button>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                                 {platforms.map(([key, data]) => {
                                   const cc = data.competitors;
                                   const n = cc.length;
