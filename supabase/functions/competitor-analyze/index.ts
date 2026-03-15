@@ -531,39 +531,52 @@ serve(async (req) => {
     const runBatchPlatformRefresh = async (items: any[]) => {
       const results = await Promise.all(items.map(async (item: any) => {
         const websiteUrl = item?.websiteUrl ? String(item.websiteUrl) : "";
-        const existingPresence = (item?.socialPresence && typeof item.socialPresence === "object") ? item.socialPresence : {};
-        const existingMetrics = (item?.platformMetrics && typeof item.platformMetrics === "object") ? item.platformMetrics : {};
 
-        let socialPresence: Record<string, string | null> = { ...existingPresence };
-        const hasAnyHandle = Object.values(socialPresence).some(Boolean);
+        const existingPresenceRaw = (item?.socialPresence && typeof item.socialPresence === "object")
+          ? item.socialPresence as Record<string, unknown>
+          : {};
+        const existingMetricsRaw = (item?.platformMetrics && typeof item.platformMetrics === "object")
+          ? item.platformMetrics as Record<string, unknown>
+          : {};
 
-        if (!hasAnyHandle && websiteUrl) {
-          const extracted = await extractSocialHandlesFromWebsite(websiteUrl);
-          socialPresence = { ...socialPresence, ...extracted };
+        let socialPresence = normalizeSocialPresence(existingPresenceRaw);
+
+        if (websiteUrl) {
+          const extracted = normalizeSocialPresence(await extractSocialHandlesFromWebsite(websiteUrl));
+          // Keep existing valid handles, but fill any missing ones from live website scan.
+          socialPresence = { ...extracted, ...socialPresence };
+        }
+
+        const platformMetrics: Record<string, ReturnType<typeof normalizePlatformMetric>> = {};
+        for (const [platform, metric] of Object.entries(existingMetricsRaw)) {
+          const key = normalizePlatformKey(platform);
+          if (!key || !metric || typeof metric !== "object") continue;
+          platformMetrics[key] = normalizePlatformMetric(metric as Record<string, unknown>);
         }
 
         const scraped = await scrapeSocialProfiles(socialPresence);
-        const platformMetrics: Record<string, any> = { ...existingMetrics };
 
         for (const [platform, scrapedData] of Object.entries(scraped)) {
-          const prev = platformMetrics[platform] || {};
-          platformMetrics[platform] = {
+          const key = normalizePlatformKey(platform);
+          if (!key) continue;
+          const prev = normalizePlatformMetric((platformMetrics[key] || {}) as Record<string, unknown>);
+
+          platformMetrics[key] = {
             ...prev,
-            followers: scrapedData.followers ?? prev.followers ?? 0,
-            posts: scrapedData.posts ?? prev.posts ?? 0,
-            engagementRate: prev.engagementRate ?? 0,
-            avgLikes: prev.avgLikes ?? 0,
-            avgComments: prev.avgComments ?? 0,
-            postFrequency: prev.postFrequency ?? 0,
-            growthRate: prev.growthRate ?? 0,
+            followers: typeof scrapedData.followers === "number" && scrapedData.followers > 0
+              ? scrapedData.followers
+              : prev.followers,
+            posts: typeof scrapedData.posts === "number" && scrapedData.posts >= 0
+              ? scrapedData.posts
+              : prev.posts,
           };
         }
 
-        const followers = Object.values(platformMetrics).reduce((sum: number, pm: any) => sum + (Number(pm?.followers) || 0), 0);
+        const followers = Object.values(platformMetrics).reduce((sum: number, pm) => sum + parseMetricNumber(pm?.followers), 0);
 
         return {
           id: item?.id,
-          followers: followers > 0 ? followers : (Number(item?.followers) || 0),
+          followers: followers > 0 ? followers : parseMetricNumber(item?.followers),
           socialPresence,
           platformMetrics,
           scrapedPlatforms: Object.keys(scraped),
