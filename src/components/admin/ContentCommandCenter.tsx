@@ -2310,22 +2310,22 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           </DialogHeader>
           <div className="space-y-2 max-h-[60vh] overflow-y-auto">
             {CONTENT_TEMPLATES.map((t, i) => (
-              <Card key={i} className="bg-card/50 border-border hover:border-primary/30 transition-all cursor-pointer"
+              <Card key={i} className="bg-white/[0.03] border-white/[0.06] hover:border-primary/30 transition-all cursor-pointer"
                 onClick={() => { applyTemplate(t); setShowCreate(true); }}>
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-foreground">{t.name}</p>
+                      <p className="text-sm font-medium text-white">{t.name}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize gap-0.5">
+                        <Badge variant="outline" className="text-[9px] border-white/[0.06] text-white/40 capitalize gap-0.5">
                           {platformIcon(t.platform)} {t.platform}
                         </Badge>
-                        <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize">{t.type}</Badge>
+                        <Badge variant="outline" className="text-[9px] border-white/[0.06] text-white/40 capitalize">{t.type}</Badge>
                       </div>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    <ArrowRight className="h-4 w-4 text-white/30" />
                   </div>
-                  {t.caption && <p className="text-[10px] text-muted-foreground mt-1.5 line-clamp-1">{t.caption}</p>}
+                  {t.caption && <p className="text-[10px] text-white/40 mt-1.5 line-clamp-1">{t.caption}</p>}
                 </CardContent>
               </Card>
             ))}
