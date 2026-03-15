@@ -632,7 +632,7 @@ Respond ONLY with JSON array: ["variant A caption", "variant B caption", "varian
           const variants = safeParseJSON(content);
           setAbVariants(variants);
           toast.success("3 A/B variants generated — pick the best one!");
-        }
+        } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingAB(false);
     });
