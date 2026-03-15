@@ -398,6 +398,8 @@ const CompetitorAnalyzer = ({
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [newUsername, setNewUsername] = useState("");
   const [newPlatform, setNewPlatform] = useState("instagram");
+  const [newCompetitorUrl, setNewCompetitorUrl] = useState("");
+  const [newCompetitorKeywords, setNewCompetitorKeywords] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
   const [selectedCompetitor, setSelectedCompetitor] = useState<string | null>(null);
   const [swotResult, setSwotResult] = useState<AnalysisResult | null>(null);
@@ -526,12 +528,21 @@ const CompetitorAnalyzer = ({
   }, []);
 
   const addCompetitor = async () => {
-    const username = newUsername.trim().replace(/^@/, "");
-    if (!username) return;
+    const isInternet = newPlatform === "internet";
+    const username = isInternet ? (newCompetitorKeywords.trim() || newCompetitorUrl.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "")) : newUsername.trim().replace(/^@/, "");
+    const url = isInternet ? newCompetitorUrl.trim() : "";
+    const keywords = isInternet ? newCompetitorKeywords.trim() : "";
+
+    if (!isInternet && !username) return;
+    if (isInternet && !url) { toast.error("Enter a competitor website URL"); return; }
 
     // Check for duplicate
-    if (competitors.some(c => c.username.toLowerCase() === username.toLowerCase() && c.platform === newPlatform)) {
+    if (!isInternet && competitors.some(c => c.username.toLowerCase() === username.toLowerCase() && c.platform === newPlatform)) {
       toast.error(`@${username} is already being tracked on ${newPlatform}`);
+      return;
+    }
+    if (isInternet && competitors.some(c => c.platform === "internet" && c.metadata?.websiteUrl && c.metadata.websiteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") === url.replace(/^https?:\/\//, "").replace(/\/$/, ""))) {
+      toast.error(`This website is already being tracked`);
       return;
     }
 
@@ -540,8 +551,52 @@ const CompetitorAnalyzer = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not logged in");
 
-      const aiReply = await callAI(
-        `You are a social media analytics expert. Analyze the ${newPlatform} account @${username} and provide realistic estimated statistics based on what you know about this account or similar accounts in that niche.
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      const prompt = isInternet
+        ? `You are an elite competitive intelligence analyst. Today is ${todayStr}. Analyze this competitor business/website and provide comprehensive data.
+
+WEBSITE: ${url}
+COMPETITOR NAME/KEYWORDS: ${keywords || "not provided — infer from website"}
+
+Research this website/company and provide the MOST UP TO DATE data as of today ${todayStr}. Use the website URL and keywords to identify the exact competitor.
+
+IMPORTANT: Return ONLY a valid JSON object, no markdown, no explanation:
+{
+  "displayName": "company/brand name",
+  "companyDescription": "1-2 sentence description of what they do",
+  "industry": "their industry/niche",
+  "foundedYear": "year founded or estimate",
+  "headquarters": "city, country",
+  "teamSize": "estimated team size range",
+  "websiteTraffic": "estimated monthly visitors as number",
+  "domainAuthority": <number 0-100>,
+  "socialPresence": {"instagram": "handle or null", "twitter": "handle or null", "linkedin": "handle or null", "tiktok": "handle or null", "youtube": "handle or null"},
+  "followers": <total social following across platforms as number>,
+  "following": 0,
+  "posts": <estimated total content pieces>,
+  "engagementRate": <number 0.5-15, average social engagement rate>,
+  "avgLikes": <average likes across platforms>,
+  "avgComments": <average comments>,
+  "growthRate": <number -5 to 15, estimated weekly traffic/social growth %>,
+  "postFrequency": <content pieces per week>,
+  "topHashtags": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
+  "contentTypes": [{"type":"Blog","pct":30},{"type":"Video","pct":25},{"type":"Social","pct":25},{"type":"Email","pct":20}],
+  "niche": "their specific niche",
+  "revenueEstimate": "estimated ARR/revenue range",
+  "pricingModel": "freemium/subscription/one-time/etc",
+  "mainProducts": ["product1", "product2"],
+  "targetAudience": "who they target",
+  "competitiveStrengths": ["strength1", "strength2", "strength3"],
+  "competitiveWeaknesses": ["weakness1", "weakness2"],
+  "techStack": ["tech1", "tech2", "tech3"],
+  "seoKeywords": ["keyword1", "keyword2", "keyword3"],
+  "fundingStatus": "bootstrapped/seed/series A/etc or unknown",
+  "score": <number 0-100, competitive threat level>
+}
+
+Be as accurate as possible using your knowledge. If you recognize the company, use real data. Estimates must be clearly realistic.`
+        : `You are a social media analytics expert. Today is ${todayStr}. Analyze the ${newPlatform} account @${username} and provide realistic estimated statistics based on what you know about this account or similar accounts in that niche. All data must reflect the MOST CURRENT state as of ${todayStr}.
 
 IMPORTANT: Return ONLY a valid JSON object, no markdown, no explanation. The JSON must have these exact keys:
 {
@@ -563,11 +618,11 @@ IMPORTANT: Return ONLY a valid JSON object, no markdown, no explanation. The JSO
   "score": <number 0-100, competitive threat level>
 }
 
-Be as accurate as possible. If you recognize the account, use real data. If not, estimate based on the username and platform norms.`
-      );
+Be as accurate as possible. If you recognize the account, use real data. If not, estimate based on the username and platform norms.`;
 
       let parsed: any;
       try {
+        const aiReply = await callAI(prompt);
         parsed = parseJSON(aiReply);
       } catch {
         toast.error("AI analysis failed to return valid data. Please try again.");
@@ -575,35 +630,60 @@ Be as accurate as possible. If you recognize the account, use real data. If not,
       }
 
       // Validate critical fields
-      if (!parsed.followers || typeof parsed.followers !== "number") {
+      if (!parsed.followers && !isInternet) {
         toast.error("AI returned invalid data. Please try again.");
         throw new Error("Invalid AI response data");
       }
 
       const id = crypto.randomUUID();
-      const row = {
+      const competitorName = isInternet 
+        ? (parsed.displayName || keywords || url.replace(/^https?:\/\//, "").replace(/\/.*$/, ""))
+        : (parsed.displayName || username);
+
+      const row: Record<string, any> = {
         id,
         user_id: user.id,
-        username,
+        username: isInternet ? competitorName.toLowerCase().replace(/[^a-z0-9_-]/g, "_").slice(0, 50) : username,
         platform: newPlatform,
-        display_name: parsed.displayName || username,
-        followers: parsed.followers,
+        display_name: competitorName,
+        followers: parsed.followers || parsed.websiteTraffic || 0,
         following: parsed.following || 0,
         posts: parsed.posts || 0,
-        engagement_rate: parsed.engagementRate,
-        avg_likes: parsed.avgLikes,
-        avg_comments: parsed.avgComments,
-        growth_rate: parsed.growthRate,
-        post_frequency: parsed.postFrequency,
-        top_hashtags: parsed.topHashtags || [],
+        engagement_rate: parsed.engagementRate || 0,
+        avg_likes: parsed.avgLikes || 0,
+        avg_comments: parsed.avgComments || 0,
+        growth_rate: parsed.growthRate || 0,
+        post_frequency: parsed.postFrequency || 0,
+        top_hashtags: parsed.topHashtags || parsed.seoKeywords || [],
         content_types: parsed.contentTypes || [],
-        threat_score: parsed.score,
+        threat_score: parsed.score || 50,
         metadata: {
-          niche: parsed.niche,
-          bestPostingTimes: parsed.bestPostingTimes,
-          audienceDemo: parsed.audienceDemo,
-          contentStyle: parsed.contentStyle,
-          analysisHistory: [{ date: new Date().toISOString(), followers: parsed.followers, engagement: parsed.engagementRate }],
+          ...(isInternet ? {
+            websiteUrl: url.startsWith("http") ? url : `https://${url}`,
+            competitorKeywords: keywords,
+            companyDescription: parsed.companyDescription,
+            industry: parsed.industry,
+            foundedYear: parsed.foundedYear,
+            headquarters: parsed.headquarters,
+            teamSize: parsed.teamSize,
+            websiteTraffic: parsed.websiteTraffic,
+            domainAuthority: parsed.domainAuthority,
+            socialPresence: parsed.socialPresence,
+            revenueEstimate: parsed.revenueEstimate,
+            pricingModel: parsed.pricingModel,
+            mainProducts: parsed.mainProducts,
+            targetAudience: parsed.targetAudience,
+            competitiveStrengths: parsed.competitiveStrengths,
+            competitiveWeaknesses: parsed.competitiveWeaknesses,
+            techStack: parsed.techStack,
+            fundingStatus: parsed.fundingStatus,
+          } : {
+            niche: parsed.niche,
+            bestPostingTimes: parsed.bestPostingTimes,
+            audienceDemo: parsed.audienceDemo,
+            contentStyle: parsed.contentStyle,
+          }),
+          analysisHistory: [{ date: new Date().toISOString(), followers: parsed.followers || parsed.websiteTraffic || 0, engagement: parsed.engagementRate || 0 }],
         },
         last_analyzed_at: new Date().toISOString(),
       };
@@ -617,8 +697,10 @@ Be as accurate as possible. If you recognize the account, use real data. If not,
     if (result) {
       setCompetitors(prev => [result, ...prev]);
       setNewUsername("");
+      setNewCompetitorUrl("");
+      setNewCompetitorKeywords("");
       if (!selectedCompetitor) setSelectedCompetitor(result.id);
-      toast.success(`@${result.username} analyzed and added`);
+      toast.success(isInternet ? `${result.displayName} analyzed and added` : `@${result.username} analyzed and added`);
     }
   };
 
@@ -635,8 +717,29 @@ Be as accurate as possible. If you recognize the account, use real data. If not,
   const refreshCompetitor = async (comp: Competitor) => {
     setRefreshingId(comp.id);
     await performAction("competitor_refresh", async () => {
-      const aiReply = await callAI(
-        `You are a social media analytics expert. Provide UPDATED stats for the ${comp.platform} account @${comp.username}.
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const isInternet = comp.platform === "internet";
+      const refreshPrompt = isInternet
+        ? `You are an elite competitive intelligence analyst. Today is ${todayStr}. Provide UPDATED data for this competitor business/website.
+Website: ${comp.metadata?.websiteUrl || comp.username}
+Company: ${comp.displayName}
+Previous data: ${comp.followers} traffic/followers, ${comp.engagementRate}% engagement, DA: ${comp.metadata?.domainAuthority || "?"}.
+
+Return ONLY valid JSON with updated data as of today:
+{
+  "followers": <updated total reach/traffic number>,
+  "following": 0,
+  "posts": <content count>,
+  "engagementRate": <number>,
+  "avgLikes": <number>,
+  "avgComments": <number>,
+  "growthRate": <weekly growth %>,
+  "postFrequency": <content pieces/week>,
+  "topHashtags": ["keyword1","keyword2","keyword3","keyword4","keyword5"],
+  "score": <0-100 threat level>,
+  "recentTrend": "brief description of recent company/website trend"
+}`
+        : `You are a social media analytics expert. Today is ${todayStr}. Provide UPDATED stats for the ${comp.platform} account @${comp.username}.
 Their previous stats were: ${comp.followers} followers, ${comp.engagementRate}% engagement, ${comp.avgLikes} avg likes.
 
 Return ONLY valid JSON:
@@ -652,8 +755,9 @@ Return ONLY valid JSON:
   "topHashtags": ["tag1","tag2","tag3","tag4","tag5"],
   "score": <0-100 threat level>,
   "recentTrend": "brief description of recent trend"
-}`
-      );
+}`;
+
+      const aiReply = await callAI(refreshPrompt);
 
       let parsed: any;
       try {
@@ -1116,27 +1220,49 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
         {/* ═══ TRACKER TAB ═══ */}
         <TabsContent value="tracker" className="space-y-5">
-          <Card className="crm-card">
+           <Card className="crm-card">
             <CardContent className="p-4">
-              <div className="flex gap-3 items-end">
-                <div className="flex-1 space-y-1.5">
-                  <label className="text-xs font-medium text-white/50">Username</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">@</span>
-                    <Input value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="competitor_username" className="crm-input pl-7" onKeyDown={e => e.key === "Enter" && !analyzing && addCompetitor()} />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
+              <div className="flex gap-3 items-end flex-wrap">
+                <div className="space-y-1.5 w-[140px]">
                   <label className="text-xs font-medium text-white/50">Platform</label>
-                  <select value={newPlatform} onChange={e => setNewPlatform(e.target.value)} className="h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
+                  <select value={newPlatform} onChange={e => setNewPlatform(e.target.value)} className="h-10 w-full px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
                     <option value="instagram">Instagram</option>
                     <option value="tiktok">TikTok</option>
                     <option value="twitter">Twitter/X</option>
                     <option value="youtube">YouTube</option>
                     <option value="threads">Threads</option>
+                    <option value="internet">🌐 Internet / Website</option>
                   </select>
                 </div>
-                <Button onClick={addCompetitor} disabled={analyzing || !newUsername.trim()} className="bg-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,55%)] text-white gap-1.5 h-10">
+
+                {newPlatform === "internet" ? (
+                  <>
+                    <div className="flex-1 min-w-[200px] space-y-1.5">
+                      <label className="text-xs font-medium text-white/50">Competitor Website URL <span className="text-red-400">*</span></label>
+                      <div className="relative">
+                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                        <Input value={newCompetitorUrl} onChange={e => setNewCompetitorUrl(e.target.value)} placeholder="example.com or https://competitor.com" className="crm-input pl-9" onKeyDown={e => e.key === "Enter" && !analyzing && addCompetitor()} />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-[200px] space-y-1.5">
+                      <label className="text-xs font-medium text-white/50">Competitor Name / Keywords <span className="text-white/25">(helps AI identify)</span></label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                        <Input value={newCompetitorKeywords} onChange={e => setNewCompetitorKeywords(e.target.value)} placeholder="e.g. Acme Corp, SaaS, project management" className="crm-input pl-9" onKeyDown={e => e.key === "Enter" && !analyzing && addCompetitor()} />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 min-w-[200px] space-y-1.5">
+                    <label className="text-xs font-medium text-white/50">Username</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">@</span>
+                      <Input value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="competitor_username" className="crm-input pl-7" onKeyDown={e => e.key === "Enter" && !analyzing && addCompetitor()} />
+                    </div>
+                  </div>
+                )}
+
+                <Button onClick={addCompetitor} disabled={analyzing || (newPlatform === "internet" ? !newCompetitorUrl.trim() : !newUsername.trim())} className="bg-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,55%)] text-white gap-1.5 h-10">
                   {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   {analyzing ? "Analyzing..." : "Add & Analyze"}
                 </Button>
@@ -1153,6 +1279,11 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                   </Button>
                 )}
               </div>
+              {newPlatform === "internet" && (
+                <p className="text-[10px] text-white/30 mt-2 flex items-center gap-1">
+                  <Globe className="h-3 w-3" /> Enter any competitor's website — AI will research their company, traffic, social presence, revenue, team size, and more
+                </p>
+              )}
             </CardContent>
           </Card>
 
@@ -1452,13 +1583,20 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                           </div>
                         </div>
                         <div>
-                          <p className="text-white font-medium text-sm">@{comp.username}</p>
+                          <p className="text-white font-medium text-sm">{comp.platform === "internet" ? comp.displayName : `@${comp.username}`}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <Badge variant="outline" className="text-[10px] border-white/10 text-white/50">{comp.platform}</Badge>
+                            <Badge variant="outline" className={`text-[10px] ${comp.platform === "internet" ? "border-cyan-400/20 text-cyan-400" : "border-white/10 text-white/50"}`}>
+                              {comp.platform === "internet" ? "🌐 Website" : comp.platform}
+                            </Badge>
                             {comp.metadata?.niche && (
-                              <Badge variant="outline" className="text-[10px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]/60">{comp.metadata.niche}</Badge>
+                              <Badge variant="outline" className="text-[10px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]/60">{comp.metadata.niche || comp.metadata.industry}</Badge>
                             )}
                           </div>
+                          {comp.platform === "internet" && comp.metadata?.websiteUrl && (
+                            <a href={comp.metadata.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[hsl(217,91%,60%)]/50 hover:text-[hsl(217,91%,60%)] flex items-center gap-0.5 mt-0.5">
+                              <ExternalLink className="h-2.5 w-2.5" /> {comp.metadata.websiteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+                            </a>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
@@ -1473,7 +1611,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        { label: "Followers", value: fmtNum(comp.followers) },
+                        { label: comp.platform === "internet" ? "Traffic/Reach" : "Followers", value: fmtNum(comp.followers) },
                         { label: "Eng. Rate", value: `${comp.engagementRate}%` },
                         { label: "Growth", value: null },
                       ].map((m, i) => (
@@ -1556,6 +1694,107 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                     {/* Expandable details */}
                     {expandedCard === comp.id && (
                       <div className="space-y-2 pt-2 border-t border-white/[0.04]">
+                        {/* Internet competitor extra info */}
+                        {comp.platform === "internet" && (
+                          <>
+                            {comp.metadata?.companyDescription && (
+                              <div className="p-2 rounded-lg bg-cyan-400/5 border border-cyan-400/10">
+                                <p className="text-[10px] text-cyan-400 mb-1">About</p>
+                                <p className="text-xs text-white/70">{comp.metadata.companyDescription}</p>
+                              </div>
+                            )}
+                            <div className="grid grid-cols-2 gap-1.5">
+                              {comp.metadata?.industry && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">Industry</p>
+                                  <p className="text-[11px] text-white/70">{comp.metadata.industry}</p>
+                                </div>
+                              )}
+                              {comp.metadata?.headquarters && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">HQ</p>
+                                  <p className="text-[11px] text-white/70">{comp.metadata.headquarters}</p>
+                                </div>
+                              )}
+                              {comp.metadata?.teamSize && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">Team Size</p>
+                                  <p className="text-[11px] text-white/70">{comp.metadata.teamSize}</p>
+                                </div>
+                              )}
+                              {comp.metadata?.foundedYear && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">Founded</p>
+                                  <p className="text-[11px] text-white/70">{comp.metadata.foundedYear}</p>
+                                </div>
+                              )}
+                              {comp.metadata?.revenueEstimate && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">Revenue Est.</p>
+                                  <p className="text-[11px] text-emerald-400">{comp.metadata.revenueEstimate}</p>
+                                </div>
+                              )}
+                              {comp.metadata?.fundingStatus && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">Funding</p>
+                                  <p className="text-[11px] text-white/70">{comp.metadata.fundingStatus}</p>
+                                </div>
+                              )}
+                              {comp.metadata?.pricingModel && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">Pricing</p>
+                                  <p className="text-[11px] text-white/70">{comp.metadata.pricingModel}</p>
+                                </div>
+                              )}
+                              {comp.metadata?.domainAuthority && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">Domain Auth.</p>
+                                  <p className="text-[11px] text-[hsl(217,91%,60%)]">{comp.metadata.domainAuthority}/100</p>
+                                </div>
+                              )}
+                            </div>
+                            {comp.metadata?.targetAudience && (
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40 mb-1">Target Audience</p>
+                                <p className="text-xs text-white/70">{comp.metadata.targetAudience}</p>
+                              </div>
+                            )}
+                            {(comp.metadata?.mainProducts || []).length > 0 && (
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40 mb-1">Products</p>
+                                <div className="flex flex-wrap gap-1">{comp.metadata.mainProducts.map((p: string, i: number) => <Badge key={i} variant="outline" className="text-[9px] border-white/10 text-white/50">{p}</Badge>)}</div>
+                              </div>
+                            )}
+                            {(comp.metadata?.competitiveStrengths || []).length > 0 && (
+                              <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                                <p className="text-[10px] text-emerald-400 mb-1">Their Strengths</p>
+                                {comp.metadata.competitiveStrengths.map((s: string, i: number) => <p key={i} className="text-[10px] text-white/60">• {s}</p>)}
+                              </div>
+                            )}
+                            {(comp.metadata?.competitiveWeaknesses || []).length > 0 && (
+                              <div className="p-2 rounded-lg bg-red-400/5 border border-red-400/10">
+                                <p className="text-[10px] text-red-400 mb-1">Their Weaknesses</p>
+                                {comp.metadata.competitiveWeaknesses.map((w: string, i: number) => <p key={i} className="text-[10px] text-white/60">• {w}</p>)}
+                              </div>
+                            )}
+                            {(comp.metadata?.techStack || []).length > 0 && (
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40 mb-1">Tech Stack</p>
+                                <div className="flex flex-wrap gap-1">{comp.metadata.techStack.map((t: string, i: number) => <Badge key={i} variant="outline" className="text-[9px] border-purple-400/20 text-purple-400">{t}</Badge>)}</div>
+                              </div>
+                            )}
+                            {comp.metadata?.socialPresence && (
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40 mb-1">Social Presence</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {Object.entries(comp.metadata.socialPresence).filter(([, v]) => v && v !== "null").map(([platform, handle]) => (
+                                    <Badge key={platform} variant="outline" className="text-[9px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]/60">{platform}: {String(handle)}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
                         {comp.metadata?.contentStyle && (
                           <div className="p-2 rounded-lg bg-white/[0.02]">
                             <p className="text-[10px] text-white/40 mb-1">Content Style</p>
@@ -1580,10 +1819,10 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         )}
                         {comp.topHashtags.length > 0 && (
                           <div className="p-2 rounded-lg bg-white/[0.02]">
-                            <p className="text-[10px] text-white/40 mb-1">Top Hashtags</p>
+                            <p className="text-[10px] text-white/40 mb-1">{comp.platform === "internet" ? "SEO Keywords" : "Top Hashtags"}</p>
                             <div className="flex gap-1 flex-wrap">
                               {comp.topHashtags.map(tag => (
-                                <Badge key={tag} variant="outline" className="text-[10px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]/60">#{tag}</Badge>
+                                <Badge key={tag} variant="outline" className="text-[10px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]/60">{comp.platform === "internet" ? tag : `#${tag}`}</Badge>
                               ))}
                             </div>
                           </div>
