@@ -1685,57 +1685,57 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
         </div>
         <div className="flex gap-1.5 flex-wrap">
           <Button size="sm" variant="outline" onClick={() => setShowContentBrief(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <FileText className="h-3.5 w-3.5 mr-1" /> Brief
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowPerformance(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <BarChart3 className="h-3.5 w-3.5 mr-1" /> Analytics
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowHeatmap(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <Flame className="h-3.5 w-3.5 mr-1" /> Heatmap
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowApprovalQueue(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Review{approvalItems.length > 0 ? ` (${approvalItems.length})` : ""}
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowRecycler(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <Repeat className="h-3.5 w-3.5 mr-1" /> Recycle
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowHashtagBank(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <Hash className="h-3.5 w-3.5 mr-1" /> Hashtags
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowCaptionLibrary(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <BookOpen className="h-3.5 w-3.5 mr-1" /> Captions
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowSeriesPlanner(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <Layers className="h-3.5 w-3.5 mr-1" /> Series
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowThreadBuilder(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <Layers className="h-3.5 w-3.5 mr-1" /> Thread
           </Button>
           <Button size="sm" variant="outline" onClick={generatePillars} disabled={generatingPillars}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             {generatingPillars ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Target className="h-3.5 w-3.5 mr-1" />}
             Pillars
           </Button>
           <Button size="sm" variant="outline" onClick={generateCompetitorInspired} disabled={generatingCompetitor}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             {generatingCompetitor ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
             Inspire
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowTemplates(true)}
-            className="border-primary/20 text-primary text-xs h-8">
+            className="border-green-500/20 text-green-400 text-xs h-8 hover:text-green-300">
             <Layers className="h-3.5 w-3.5 mr-1" /> Templates
           </Button>
           <Button size="sm" variant="outline" onClick={generateTrendIdeas} disabled={generatingTrends}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             {generatingTrends ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <TrendingUp className="h-3.5 w-3.5 mr-1" />}
             Trends
           </Button>
