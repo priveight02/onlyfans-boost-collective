@@ -1676,10 +1676,11 @@ STRICT OUTPUT RULES:
 
                 if (Object.keys(socialHandles).length > 0) {
                   console.log("[SCRAPE] Found social handles on website:", JSON.stringify(socialHandles));
-                  // Only scrape the 6 core platforms that have SocialBlade support
+                  // Scrape ALL platforms that have scraping support (not just SocialBlade 6)
                   const scrapeable: Record<string, string> = {};
+                  const supportedScrape = ["instagram", "tiktok", "youtube", "twitter", "facebook", "linkedin", "reddit", "threads", "pinterest", "twitch", "snapchat", "discord", "spotify", "mastodon", "bluesky", "tumblr", "vimeo", "medium", "soundcloud", "patreon", "dribbble", "behance", "github", "telegram"];
                   for (const [k, v] of Object.entries(socialHandles)) {
-                    if (["instagram", "tiktok", "youtube", "twitter", "facebook", "linkedin"].includes(k)) {
+                    if (supportedScrape.includes(k)) {
                       scrapeable[k] = v;
                     }
                   }
