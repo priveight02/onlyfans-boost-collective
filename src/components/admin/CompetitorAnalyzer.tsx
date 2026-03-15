@@ -711,12 +711,14 @@ Competitor stats:
 - Content Style: ${comp.metadata?.contentStyle || "unknown"}
 - Top Hashtags: ${comp.topHashtags.join(", ")}
 
-Return ONLY valid JSON with 4-5 specific, actionable items per category:
+Return ONLY valid JSON with 4-6 items per category. Each item must have "text" and "priority" (high/medium/low) and "action" (what to do about it):
 {
-  "strengths": ["specific strength 1", "..."],
-  "weaknesses": ["specific weakness 1", "..."],
-  "opportunities": ["specific opportunity 1", "..."],
-  "threats": ["specific threat 1", "..."]
+  "strengths": [{"text": "specific strength", "priority": "high", "action": "how to leverage this"}],
+  "weaknesses": [{"text": "specific weakness", "priority": "high", "action": "how to exploit this"}],
+  "opportunities": [{"text": "specific opportunity", "priority": "high", "action": "how to capitalize on this"}],
+  "threats": [{"text": "specific threat", "priority": "high", "action": "how to mitigate this"}],
+  "overallVerdict": "2-3 sentence overall competitive verdict",
+  "topAction": "The single most important action to take right now"
 }`
         );
         const parsed = parseJSON(aiReply);
