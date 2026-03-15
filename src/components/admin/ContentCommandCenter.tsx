@@ -1010,8 +1010,7 @@ Respond ONLY with JSON array: ["Part 1", "Part 2", ...]`);
 Topic: "${formCaption || formTitle || "value-driven content"}"
 Slide 1: Hook (curiosity + bold claim). Slides 2-8: ONE insight per slide. Slide 9: Summary. Slide 10: CTA.
 Respond ONLY with JSON array: [{"title":"", "body":"", "cta":""}]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) { const slides = JSON.parse(jsonMatch[0]); setCarouselSlides(slides); toast.success(`${slides.length}-slide carousel generated`); }
+        try { const slides = safeParseJSON(content); setCarouselSlides(slides); toast.success(`${slides.length}-slide carousel generated`); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingCarousel(false);
     });
