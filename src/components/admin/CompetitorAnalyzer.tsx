@@ -1587,7 +1587,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 <Card
                   key={comp.id}
                   className={`crm-card cursor-pointer transition-all duration-300 hover:border-white/10 hover:shadow-[0_8px_32px_hsl(0,0%,0%/0.3)] hover:translate-y-[-2px] ${selectedCompetitor === comp.id ? "ring-1 ring-[hsl(217,91%,60%)]/40 shadow-[0_0_20px_hsl(217,91%,60%/0.08)]" : ""}`}
-                  onClick={() => setSelectedCompetitor(comp.id)}
+                  onClick={() => toggleCompetitorSelection(comp.id)}
                 >
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between">
