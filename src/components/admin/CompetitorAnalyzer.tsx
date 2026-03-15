@@ -3910,6 +3910,8 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
         {/* ═══ HEAD-TO-HEAD TAB ═══ */}
         <TabsContent value="h2h" className="space-y-5">
           {competitors.length < 2 ? (
