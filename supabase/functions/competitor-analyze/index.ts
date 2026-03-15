@@ -847,15 +847,41 @@ serve(async (req) => {
           if (!key) continue;
           const prev = normalizePlatformMetric((platformMetrics[key] || {}) as Record<string, unknown>);
 
+          const nextFollowers = typeof scrapedData.followers === "number" && scrapedData.followers > 0
+            ? scrapedData.followers
+            : prev.followers;
+          const nextPosts = typeof scrapedData.posts === "number" && scrapedData.posts >= 0
+            ? scrapedData.posts
+            : prev.posts;
+
+          const derivedGrowth = prev.followers > 0 && nextFollowers > 0 && nextFollowers !== prev.followers
+            ? ((nextFollowers - prev.followers) / prev.followers) * 100
+            : undefined;
+
           platformMetrics[key] = {
             ...prev,
-            followers: typeof scrapedData.followers === "number" && scrapedData.followers > 0
-              ? scrapedData.followers
-              : prev.followers,
-            posts: typeof scrapedData.posts === "number" && scrapedData.posts >= 0
-              ? scrapedData.posts
-              : prev.posts,
+            followers: nextFollowers,
+            posts: nextPosts,
+            engagementRate: typeof scrapedData.engagementRate === "number" && Number.isFinite(scrapedData.engagementRate)
+              ? scrapedData.engagementRate
+              : prev.engagementRate,
+            avgLikes: typeof scrapedData.avgLikes === "number" && scrapedData.avgLikes > 0
+              ? scrapedData.avgLikes
+              : prev.avgLikes,
+            avgComments: typeof scrapedData.avgComments === "number" && scrapedData.avgComments >= 0
+              ? scrapedData.avgComments
+              : prev.avgComments,
+            postFrequency: typeof scrapedData.postFrequency === "number" && scrapedData.postFrequency > 0
+              ? scrapedData.postFrequency
+              : prev.postFrequency,
+            growthRate: typeof scrapedData.growthRate === "number" && Number.isFinite(scrapedData.growthRate)
+              ? scrapedData.growthRate
+              : (derivedGrowth ?? prev.growthRate),
           };
+
+          if (platformMetrics[key].engagementRate <= 0 && platformMetrics[key].followers > 0 && platformMetrics[key].avgLikes > 0) {
+            platformMetrics[key].engagementRate = ((platformMetrics[key].avgLikes + (platformMetrics[key].avgComments || 0)) / platformMetrics[key].followers) * 100;
+          }
         }
 
         const followers = Object.values(platformMetrics).reduce((sum: number, pm) => sum + parseMetricNumber(pm?.followers), 0);
