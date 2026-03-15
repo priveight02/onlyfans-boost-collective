@@ -1672,6 +1672,107 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                     {/* Expandable details */}
                     {expandedCard === comp.id && (
                       <div className="space-y-2 pt-2 border-t border-white/[0.04]">
+                        {/* Internet competitor extra info */}
+                        {comp.platform === "internet" && (
+                          <>
+                            {comp.metadata?.companyDescription && (
+                              <div className="p-2 rounded-lg bg-cyan-400/5 border border-cyan-400/10">
+                                <p className="text-[10px] text-cyan-400 mb-1">About</p>
+                                <p className="text-xs text-white/70">{comp.metadata.companyDescription}</p>
+                              </div>
+                            )}
+                            <div className="grid grid-cols-2 gap-1.5">
+                              {comp.metadata?.industry && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">Industry</p>
+                                  <p className="text-[11px] text-white/70">{comp.metadata.industry}</p>
+                                </div>
+                              )}
+                              {comp.metadata?.headquarters && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">HQ</p>
+                                  <p className="text-[11px] text-white/70">{comp.metadata.headquarters}</p>
+                                </div>
+                              )}
+                              {comp.metadata?.teamSize && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">Team Size</p>
+                                  <p className="text-[11px] text-white/70">{comp.metadata.teamSize}</p>
+                                </div>
+                              )}
+                              {comp.metadata?.foundedYear && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">Founded</p>
+                                  <p className="text-[11px] text-white/70">{comp.metadata.foundedYear}</p>
+                                </div>
+                              )}
+                              {comp.metadata?.revenueEstimate && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">Revenue Est.</p>
+                                  <p className="text-[11px] text-emerald-400">{comp.metadata.revenueEstimate}</p>
+                                </div>
+                              )}
+                              {comp.metadata?.fundingStatus && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">Funding</p>
+                                  <p className="text-[11px] text-white/70">{comp.metadata.fundingStatus}</p>
+                                </div>
+                              )}
+                              {comp.metadata?.pricingModel && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">Pricing</p>
+                                  <p className="text-[11px] text-white/70">{comp.metadata.pricingModel}</p>
+                                </div>
+                              )}
+                              {comp.metadata?.domainAuthority && (
+                                <div className="p-1.5 rounded bg-white/[0.02]">
+                                  <p className="text-[9px] text-white/30">Domain Auth.</p>
+                                  <p className="text-[11px] text-[hsl(217,91%,60%)]">{comp.metadata.domainAuthority}/100</p>
+                                </div>
+                              )}
+                            </div>
+                            {comp.metadata?.targetAudience && (
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40 mb-1">Target Audience</p>
+                                <p className="text-xs text-white/70">{comp.metadata.targetAudience}</p>
+                              </div>
+                            )}
+                            {(comp.metadata?.mainProducts || []).length > 0 && (
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40 mb-1">Products</p>
+                                <div className="flex flex-wrap gap-1">{comp.metadata.mainProducts.map((p: string, i: number) => <Badge key={i} variant="outline" className="text-[9px] border-white/10 text-white/50">{p}</Badge>)}</div>
+                              </div>
+                            )}
+                            {(comp.metadata?.competitiveStrengths || []).length > 0 && (
+                              <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                                <p className="text-[10px] text-emerald-400 mb-1">Their Strengths</p>
+                                {comp.metadata.competitiveStrengths.map((s: string, i: number) => <p key={i} className="text-[10px] text-white/60">• {s}</p>)}
+                              </div>
+                            )}
+                            {(comp.metadata?.competitiveWeaknesses || []).length > 0 && (
+                              <div className="p-2 rounded-lg bg-red-400/5 border border-red-400/10">
+                                <p className="text-[10px] text-red-400 mb-1">Their Weaknesses</p>
+                                {comp.metadata.competitiveWeaknesses.map((w: string, i: number) => <p key={i} className="text-[10px] text-white/60">• {w}</p>)}
+                              </div>
+                            )}
+                            {(comp.metadata?.techStack || []).length > 0 && (
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40 mb-1">Tech Stack</p>
+                                <div className="flex flex-wrap gap-1">{comp.metadata.techStack.map((t: string, i: number) => <Badge key={i} variant="outline" className="text-[9px] border-purple-400/20 text-purple-400">{t}</Badge>)}</div>
+                              </div>
+                            )}
+                            {comp.metadata?.socialPresence && (
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40 mb-1">Social Presence</p>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {Object.entries(comp.metadata.socialPresence).filter(([, v]) => v && v !== "null").map(([platform, handle]) => (
+                                    <Badge key={platform} variant="outline" className="text-[9px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]/60">{platform}: {String(handle)}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
                         {comp.metadata?.contentStyle && (
                           <div className="p-2 rounded-lg bg-white/[0.02]">
                             <p className="text-[10px] text-white/40 mb-1">Content Style</p>
@@ -1696,10 +1797,10 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         )}
                         {comp.topHashtags.length > 0 && (
                           <div className="p-2 rounded-lg bg-white/[0.02]">
-                            <p className="text-[10px] text-white/40 mb-1">Top Hashtags</p>
+                            <p className="text-[10px] text-white/40 mb-1">{comp.platform === "internet" ? "SEO Keywords" : "Top Hashtags"}</p>
                             <div className="flex gap-1 flex-wrap">
                               {comp.topHashtags.map(tag => (
-                                <Badge key={tag} variant="outline" className="text-[10px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]/60">#{tag}</Badge>
+                                <Badge key={tag} variant="outline" className="text-[10px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]/60">{comp.platform === "internet" ? tag : `#${tag}`}</Badge>
                               ))}
                             </div>
                           </div>
