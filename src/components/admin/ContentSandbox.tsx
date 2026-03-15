@@ -1,790 +1,1410 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 import {
-  Plus, Trash2, Move, Type, Pencil, Eraser, Square, Circle,
-  ArrowRight, Sparkles, Download, ZoomIn, ZoomOut, RotateCcw,
-  Loader2, Link2, Unlink, MousePointer, Grip, Layers,
-  PaintBucket, StickyNote, X, Check, Copy, Maximize2,
-  Triangle, Star, Hexagon, Diamond,
+  ArrowRight,
+  Check,
+  Circle,
+  Copy,
+  Diamond,
+  Download,
+  Eraser,
+  Grip,
+  Layers,
+  Link2,
+  Loader2,
+  MousePointer,
+  Move,
+  Pencil,
+  RefreshCw,
+  RotateCcw,
+  Save,
+  Search,
+  Sparkles,
+  Square,
+  StickyNote,
+  Trash2,
+  Triangle,
+  Type,
+  Unlink,
+  Wand2,
+  ZoomIn,
+  ZoomOut,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type Tool = "select" | "move" | "pen" | "text" | "eraser" | "rect" | "circle" | "arrow" | "triangle" | "star" | "diamond" | "note";
+type Tool = "select" | "pan" | "pen" | "eraser" | "text" | "note" | "rectangle" | "ellipse" | "triangle" | "diamond" | "arrow";
+type ShapeKind = "rectangle" | "ellipse" | "triangle" | "diamond" | "arrow";
+type PaletteTone = "primary" | "accent" | "foreground" | "muted" | "destructive";
+type ElementKind = "content" | "note" | "text" | "shape";
 
-interface CanvasCard {
+type Point = { x: number; y: number };
+type Viewport = { x: number; y: number; zoom: number };
+
+interface SandboxStroke {
   id: string;
-  type: "content" | "note" | "shape" | "text";
+  tool: "pen" | "eraser";
+  tone: PaletteTone;
+  size: number;
+  points: Point[];
+}
+
+interface SandboxElement {
+  id: string;
+  kind: ElementKind;
   x: number;
   y: number;
   width: number;
   height: number;
-  data?: any; // content_calendar item
+  z: number;
+  tone: PaletteTone;
+  links: string[];
+  sourceItemId?: string;
+  data?: any;
   text?: string;
-  color?: string;
-  shape?: string;
-  linkedTo?: string[];
+  annotation?: string;
+  shape?: ShapeKind;
   fontSize?: number;
 }
 
-interface DrawStroke {
-  id: string;
-  points: { x: number; y: number }[];
-  color: string;
-  width: number;
-  tool: "pen" | "eraser";
-}
+type InteractionState =
+  | { type: "pan"; originClient: Point; originViewport: Viewport }
+  | { type: "draw"; tool: "pen" | "eraser"; tone: PaletteTone; size: number; points: Point[] }
+  | { type: "drag"; anchor: Point; originPositions: Record<string, Point> }
+  | { type: "resize"; elementId: string; anchor: Point; originRect: Pick<SandboxElement, "x" | "y" | "width" | "height"> };
 
-const COLORS = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#ef4444", "#ffffff", "#6b7280"];
-const SANDBOX_KEY = "content_sandbox_state";
+const STORAGE_KEY = "content_sandbox_state_v4";
+const MIN_ZOOM = 0.45;
+const MAX_ZOOM = 2.4;
+const DEFAULT_VIEWPORT: Viewport = { x: 32, y: 32, zoom: 1 };
+
+const PALETTE: Record<PaletteTone, { label: string; stroke: string; fill: string; softClass: string }> = {
+  primary: {
+    label: "Primary",
+    stroke: "hsl(var(--primary))",
+    fill: "hsl(var(--primary) / 0.14)",
+    softClass: "border-primary/20 bg-primary/10 text-primary",
+  },
+  accent: {
+    label: "Accent",
+    stroke: "hsl(var(--accent))",
+    fill: "hsl(var(--accent) / 0.14)",
+    softClass: "border-accent/20 bg-accent/10 text-accent",
+  },
+  foreground: {
+    label: "Ink",
+    stroke: "hsl(var(--foreground))",
+    fill: "hsl(var(--foreground) / 0.12)",
+    softClass: "border-foreground/20 bg-foreground/10 text-foreground",
+  },
+  muted: {
+    label: "Muted",
+    stroke: "hsl(var(--muted-foreground))",
+    fill: "hsl(var(--muted-foreground) / 0.12)",
+    softClass: "border-muted-foreground/20 bg-muted text-muted-foreground",
+  },
+  destructive: {
+    label: "Delete",
+    stroke: "hsl(var(--destructive))",
+    fill: "hsl(var(--destructive) / 0.14)",
+    softClass: "border-destructive/20 bg-destructive/10 text-destructive",
+  },
+};
+
+const TOOL_ITEMS: { id: Tool; label: string; icon: any }[] = [
+  { id: "select", label: "Select", icon: MousePointer },
+  { id: "pan", label: "Pan", icon: Move },
+  { id: "pen", label: "Brush", icon: Pencil },
+  { id: "eraser", label: "Eraser", icon: Eraser },
+  { id: "text", label: "Text", icon: Type },
+  { id: "note", label: "Sticky", icon: StickyNote },
+  { id: "rectangle", label: "Rect", icon: Square },
+  { id: "ellipse", label: "Ellipse", icon: Circle },
+  { id: "triangle", label: "Triangle", icon: Triangle },
+  { id: "diamond", label: "Diamond", icon: Diamond },
+  { id: "arrow", label: "Arrow", icon: ArrowRight },
+];
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value));
+const getElementCenter = (element: SandboxElement) => ({ x: element.x + element.width / 2, y: element.y + element.height / 2 });
+const nextZ = (elements: SandboxElement[]) => (elements.length ? Math.max(...elements.map(element => element.z)) + 1 : 1);
+const getItemSource = (item: any) => (typeof item?.metadata?.source === "string" ? item.metadata.source : "");
+
+const gridPosition = (index: number, columns: number) => ({
+  x: 48 + (index % columns) * 312,
+  y: 48 + Math.floor(index / columns) * 228,
+});
+
+const parseAiPayload = (raw: unknown) => {
+  const text = typeof raw === "string"
+    ? raw
+    : typeof raw === "object" && raw !== null && "choices" in raw
+      ? (raw as any)?.choices?.[0]?.message?.content || JSON.stringify(raw)
+      : JSON.stringify(raw ?? "");
+
+  const cleaned = text.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
+  const match = cleaned.match(/\{[\s\S]*\}/);
+  if (match) {
+    return JSON.parse(match[0].replace(/,\s*([}\]])/g, "$1"));
+  }
+
+  return {
+    title: "Evolved concept",
+    caption: cleaned,
+    platform: "instagram",
+    content_type: "post",
+    hashtags: [],
+    evolution_notes: "Combined inside Sandbox",
+    viral_score: 82,
+  };
+};
+
+const getScenePoint = (clientX: number, clientY: number, board: HTMLDivElement | null, viewport: Viewport): Point => {
+  if (!board) return { x: 0, y: 0 };
+  const rect = board.getBoundingClientRect();
+  return {
+    x: (clientX - rect.left - viewport.x) / viewport.zoom,
+    y: (clientY - rect.top - viewport.y) / viewport.zoom,
+  };
+};
+
+const createImportedElement = (item: any, index: number, columns: number, z: number): SandboxElement => {
+  const point = gridPosition(index, columns);
+  return {
+    id: `sandbox-${crypto.randomUUID()}`,
+    kind: "content",
+    x: point.x,
+    y: point.y,
+    width: 284,
+    height: 192,
+    z,
+    tone: "primary",
+    links: [],
+    sourceItemId: item.id,
+    data: clone(item),
+    annotation: item.description || "",
+    fontSize: 14,
+  };
+};
+
+const shapeFillStyle = (shape: ShapeKind, tone: PaletteTone) => {
+  const palette = PALETTE[tone];
+  switch (shape) {
+    case "rectangle":
+      return <div className="h-full w-full rounded-xl border-2" style={{ borderColor: palette.stroke, backgroundColor: palette.fill }} />;
+    case "ellipse":
+      return <div className="h-full w-full rounded-full border-2" style={{ borderColor: palette.stroke, backgroundColor: palette.fill }} />;
+    case "triangle":
+      return (
+        <svg viewBox="0 0 100 100" className="h-full w-full">
+          <polygon points="50,6 94,94 6,94" fill={palette.fill} stroke={palette.stroke} strokeWidth="2" />
+        </svg>
+      );
+    case "diamond":
+      return (
+        <svg viewBox="0 0 100 100" className="h-full w-full">
+          <polygon points="50,5 95,50 50,95 5,50" fill={palette.fill} stroke={palette.stroke} strokeWidth="2" />
+        </svg>
+      );
+    case "arrow":
+      return (
+        <svg viewBox="0 0 100 100" className="h-full w-full">
+          <path d="M8 50h68" stroke={palette.stroke} strokeWidth="8" strokeLinecap="round" />
+          <path d="M56 20l30 30-30 30" fill="none" stroke={palette.stroke} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+};
+
+type ElementViewProps = {
+  element: SandboxElement;
+  isSelected: boolean;
+  isLinkSource: boolean;
+  onElementPointerDown: (event: React.PointerEvent<HTMLDivElement>, element: SandboxElement) => void;
+  onResizePointerDown: (event: React.PointerEvent<HTMLButtonElement>, element: SandboxElement) => void;
+  onInlineTextChange: (elementId: string, value: string) => void;
+};
+
+const ElementView = memo(function ElementView({
+  element,
+  isSelected,
+  isLinkSource,
+  onElementPointerDown,
+  onResizePointerDown,
+  onInlineTextChange,
+}: ElementViewProps) {
+  const palette = PALETTE[element.tone];
+  const source = element.data ? getItemSource(element.data) : "";
+
+  return (
+    <div
+      className={cn(
+        "absolute will-change-transform",
+        isSelected && "ring-2 ring-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.2)]",
+        isLinkSource && "ring-2 ring-accent"
+      )}
+      style={{
+        left: element.x,
+        top: element.y,
+        width: element.width,
+        height: element.height,
+        zIndex: element.z,
+      }}
+      onPointerDown={(event) => onElementPointerDown(event, element)}
+    >
+      {element.kind === "content" && element.data && (
+        <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card/95 shadow-sm backdrop-blur-sm">
+          <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+            <Grip className="h-3.5 w-3.5 text-muted-foreground" />
+            <Badge variant="outline" className="border-border text-[10px] capitalize text-muted-foreground">{element.data.platform}</Badge>
+            <Badge variant="outline" className={cn(
+              "text-[10px] capitalize",
+              element.data.status === "published" ? "border-accent/20 text-accent" : element.data.status === "draft" ? "border-primary/20 text-primary" : "border-border text-muted-foreground"
+            )}>{element.data.status}</Badge>
+            {source && <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">{source.replace(/_/g, " ")}</Badge>}
+          </div>
+          <div className="flex-1 space-y-2 overflow-hidden px-3 py-3">
+            <p className="line-clamp-2 text-sm font-semibold text-foreground">{element.data.title}</p>
+            <p className="line-clamp-4 text-xs leading-relaxed text-muted-foreground">{element.data.caption || "No caption yet"}</p>
+            {element.annotation && (
+              <div className="rounded-xl border border-primary/20 bg-primary/10 px-2 py-1.5 text-[11px] text-primary line-clamp-2">
+                {element.annotation}
+              </div>
+            )}
+          </div>
+          <div className="border-t border-border px-3 py-2">
+            <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+              <span>{element.data.hashtags?.length || 0} hashtags</span>
+              <span>{element.links.length} links</span>
+            </div>
+            {Number(element.data.viral_score || 0) > 0 && (
+              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${clamp(Number(element.data.viral_score || 0), 0, 100)}%` }} />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {element.kind === "note" && (
+        <div className="flex h-full flex-col rounded-2xl border p-3 shadow-sm backdrop-blur-sm" style={{ borderColor: palette.stroke, backgroundColor: palette.fill }}>
+          <div className="mb-2 flex items-center gap-2">
+            <Grip className="h-3.5 w-3.5" style={{ color: palette.stroke }} />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: palette.stroke }}>Note</span>
+          </div>
+          <textarea
+            value={element.text || ""}
+            onPointerDown={(event) => event.stopPropagation()}
+            onChange={(event) => onInlineTextChange(element.id, event.target.value)}
+            className="h-full w-full resize-none border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            placeholder="Sketch an idea, paste raw copy, write markup notes..."
+          />
+        </div>
+      )}
+
+      {element.kind === "text" && (
+        <div className="flex h-full items-start rounded-xl border border-dashed border-border bg-background/70 p-3 shadow-sm">
+          <div
+            contentEditable
+            suppressContentEditableWarning
+            onPointerDown={(event) => event.stopPropagation()}
+            onBlur={(event) => onInlineTextChange(element.id, event.currentTarget.textContent || "")}
+            className="w-full whitespace-pre-wrap break-words text-foreground outline-none"
+            style={{ color: palette.stroke, fontSize: element.fontSize || 16 }}
+          >
+            {element.text || "New text"}
+          </div>
+        </div>
+      )}
+
+      {element.kind === "shape" && element.shape && (
+        <div className="h-full rounded-2xl border border-border bg-background/60 p-2 backdrop-blur-sm">
+          {shapeFillStyle(element.shape, element.tone)}
+        </div>
+      )}
+
+      <button
+        type="button"
+        aria-label="Resize element"
+        className="absolute bottom-1 right-1 h-4 w-4 rounded-full border border-border bg-background shadow-sm"
+        onPointerDown={(event) => onResizePointerDown(event, element)}
+      />
+    </div>
+  );
+});
 
 const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => void }) => {
+  const isMobile = useIsMobile();
+  const boardRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const interactionRef = useRef<InteractionState | null>(null);
+  const elementsRef = useRef<SandboxElement[]>([]);
+  const selectedIdsRef = useRef<Set<string>>(new Set());
+  const viewportRef = useRef<Viewport>(DEFAULT_VIEWPORT);
 
-  // Canvas state
-  const [cards, setCards] = useState<CanvasCard[]>([]);
-  const [strokes, setStrokes] = useState<DrawStroke[]>([]);
+  const [elements, setElements] = useState<SandboxElement[]>([]);
+  const [strokes, setStrokes] = useState<SandboxStroke[]>([]);
+  const [draftStroke, setDraftStroke] = useState<SandboxStroke | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeTool, setActiveTool] = useState<Tool>("select");
-  const [activeColor, setActiveColor] = useState("#3b82f6");
-  const [brushSize, setBrushSize] = useState(3);
-  const [zoom, setZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
-  const [selectedCard, setSelectedCard] = useState<string | null>(null);
-  const [draggingCard, setDraggingCard] = useState<string | null>(null);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentStroke, setCurrentStroke] = useState<{ x: number; y: number }[]>([]);
-  const [isPanning, setIsPanning] = useState(false);
-  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
-  const [linkingFrom, setLinkingFrom] = useState<string | null>(null);
-  const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
-  const [evolving, setEvolving] = useState(false);
+  const [activeTone, setActiveTone] = useState<PaletteTone>("primary");
+  const [brushSize, setBrushSize] = useState(4);
+  const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT);
+  const [linkSourceId, setLinkSourceId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
-  const [textInput, setTextInput] = useState("");
-  const [textPos, setTextPos] = useState<{ x: number; y: number } | null>(null);
+  const [importQuery, setImportQuery] = useState("");
+  const [importMode, setImportMode] = useState<"all" | "drafts" | "non-drafts" | "competitor">("all");
+  const [showInspector, setShowInspector] = useState(!isMobile);
+  const [evolverPrompt, setEvolverPrompt] = useState("");
+  const [evolverPlatform, setEvolverPlatform] = useState("instagram");
+  const [evolving, setEvolving] = useState(false);
+  const [savingBack, setSavingBack] = useState(false);
 
-  // Load/save
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(SANDBOX_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setCards(parsed.cards || []);
-        setStrokes(parsed.strokes || []);
-      }
-    } catch {}
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      setElements(Array.isArray(parsed?.elements) ? parsed.elements : []);
+      setStrokes(Array.isArray(parsed?.strokes) ? parsed.strokes : []);
+    } catch {
+      // ignore invalid sandbox state
+    }
   }, []);
 
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      localStorage.setItem(SANDBOX_KEY, JSON.stringify({ cards, strokes }));
-    }, 500);
-    return () => clearTimeout(timeout);
-  }, [cards, strokes]);
+    const timeout = window.setTimeout(() => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 4, elements, strokes }));
+    }, 250);
 
-  // Draw canvas strokes
+    return () => window.clearTimeout(timeout);
+  }, [elements, strokes]);
+
   useEffect(() => {
+    elementsRef.current = elements;
+  }, [elements]);
+
+  useEffect(() => {
+    selectedIdsRef.current = selectedIds;
+  }, [selectedIds]);
+
+  useEffect(() => {
+    viewportRef.current = viewport;
+  }, [viewport]);
+
+  const orderedElements = useMemo(() => [...elements].sort((left, right) => left.z - right.z), [elements]);
+  const primarySelectedId = useMemo(() => Array.from(selectedIds)[0] || null, [selectedIds]);
+  const selectedElements = useMemo(() => orderedElements.filter(element => selectedIds.has(element.id)), [orderedElements, selectedIds]);
+  const primaryElement = useMemo(() => orderedElements.find(element => element.id === primarySelectedId) || null, [orderedElements, primarySelectedId]);
+  const importedSourceIds = useMemo(() => new Set(elements.map(element => element.sourceItemId).filter(Boolean)), [elements]);
+
+  const importableItems = useMemo(() => {
+    const query = importQuery.trim().toLowerCase();
+    return items.filter(item => {
+      const matchesMode = importMode === "all"
+        || (importMode === "drafts" && item.status === "draft")
+        || (importMode === "non-drafts" && item.status !== "draft")
+        || (importMode === "competitor" && ["competitor_intel", "swot_analysis", "gap_analysis"].includes(getItemSource(item)));
+
+      if (!matchesMode) return false;
+      if (!query) return true;
+      return [item.title, item.caption, item.platform, item.content_type, getItemSource(item)]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes(query);
+    });
+  }, [importMode, importQuery, items]);
+
+  const drawScene = useCallback(() => {
+    const board = boardRef.current;
     const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
+    if (!board || !canvas) return;
 
-    const rect = canvas.parentElement?.getBoundingClientRect();
-    if (rect) {
-      canvas.width = rect.width;
-      canvas.height = rect.height;
+    const rect = board.getBoundingClientRect();
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    if (canvas.width !== rect.width * ratio || canvas.height !== rect.height * ratio) {
+      canvas.width = rect.width * ratio;
+      canvas.height = rect.height * ratio;
     }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.save();
-    ctx.translate(pan.x, pan.y);
-    ctx.scale(zoom, zoom);
+    const context = canvas.getContext("2d");
+    if (!context) return;
 
-    // Draw strokes
-    for (const stroke of strokes) {
-      if (stroke.points.length < 2) continue;
-      ctx.beginPath();
-      ctx.strokeStyle = stroke.tool === "eraser" ? "rgba(10,12,20,1)" : stroke.color;
-      ctx.lineWidth = stroke.width;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.globalCompositeOperation = stroke.tool === "eraser" ? "destination-out" : "source-over";
-      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-      for (let i = 1; i < stroke.points.length; i++) {
-        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
-      }
-      ctx.stroke();
-      ctx.globalCompositeOperation = "source-over";
-    }
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.clearRect(0, 0, rect.width, rect.height);
+    context.save();
+    context.translate(viewport.x, viewport.y);
+    context.scale(viewport.zoom, viewport.zoom);
 
-    // Draw current stroke
-    if (currentStroke.length > 1) {
-      ctx.beginPath();
-      ctx.strokeStyle = activeTool === "eraser" ? "rgba(200,200,200,0.5)" : activeColor;
-      ctx.lineWidth = brushSize;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.moveTo(currentStroke[0].x, currentStroke[0].y);
-      for (let i = 1; i < currentStroke.length; i++) {
-        ctx.lineTo(currentStroke[i].x, currentStroke[i].y);
-      }
-      ctx.stroke();
-    }
+    const lookup = new Map(elements.map(element => [element.id, element]));
 
-    // Draw links between cards
-    for (const card of cards) {
-      if (!card.linkedTo?.length) continue;
-      for (const targetId of card.linkedTo) {
-        const target = cards.find(c => c.id === targetId);
-        if (!target) continue;
-        ctx.beginPath();
-        ctx.strokeStyle = "rgba(139,92,246,0.4)";
-        ctx.lineWidth = 2;
-        ctx.setLineDash([6, 4]);
-        const fromX = card.x + card.width / 2;
-        const fromY = card.y + card.height / 2;
-        const toX = target.x + target.width / 2;
-        const toY = target.y + target.height / 2;
-        ctx.moveTo(fromX, fromY);
-        ctx.lineTo(toX, toY);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        // Arrow head
-        const angle = Math.atan2(toY - fromY, toX - fromX);
-        const headLen = 10;
-        ctx.beginPath();
-        ctx.fillStyle = "rgba(139,92,246,0.6)";
-        ctx.moveTo(toX, toY);
-        ctx.lineTo(toX - headLen * Math.cos(angle - Math.PI / 6), toY - headLen * Math.sin(angle - Math.PI / 6));
-        ctx.lineTo(toX - headLen * Math.cos(angle + Math.PI / 6), toY - headLen * Math.sin(angle + Math.PI / 6));
-        ctx.closePath();
-        ctx.fill();
-      }
-    }
+    orderedElements.forEach(element => {
+      element.links.forEach(targetId => {
+        const target = lookup.get(targetId);
+        if (!target) return;
 
-    ctx.restore();
-  }, [strokes, currentStroke, cards, zoom, pan, activeColor, brushSize, activeTool]);
+        const from = getElementCenter(element);
+        const to = getElementCenter(target);
+        context.beginPath();
+        context.strokeStyle = "hsl(var(--primary) / 0.4)";
+        context.lineWidth = 2;
+        context.setLineDash([8, 6]);
+        context.moveTo(from.x, from.y);
+        context.lineTo(to.x, to.y);
+        context.stroke();
+        context.setLineDash([]);
 
-  // Mouse helpers
-  const getCanvasPos = useCallback((e: React.MouseEvent) => {
-    const rect = canvasRef.current?.getBoundingClientRect();
-    if (!rect) return { x: 0, y: 0 };
-    return { x: (e.clientX - rect.left - pan.x) / zoom, y: (e.clientY - rect.top - pan.y) / zoom };
-  }, [pan, zoom]);
+        const angle = Math.atan2(to.y - from.y, to.x - from.x);
+        const head = 10;
+        context.beginPath();
+        context.fillStyle = "hsl(var(--primary) / 0.8)";
+        context.moveTo(to.x, to.y);
+        context.lineTo(to.x - head * Math.cos(angle - Math.PI / 6), to.y - head * Math.sin(angle - Math.PI / 6));
+        context.lineTo(to.x - head * Math.cos(angle + Math.PI / 6), to.y - head * Math.sin(angle + Math.PI / 6));
+        context.closePath();
+        context.fill();
+      });
+    });
 
-  const findCardAt = useCallback((x: number, y: number) => {
-    for (let i = cards.length - 1; i >= 0; i--) {
-      const c = cards[i];
-      if (x >= c.x && x <= c.x + c.width && y >= c.y && y <= c.y + c.height) return c;
-    }
-    return null;
-  }, [cards]);
+    [...strokes, ...(draftStroke ? [draftStroke] : [])].forEach(stroke => {
+      if (stroke.points.length < 2) return;
+      context.beginPath();
+      context.lineCap = "round";
+      context.lineJoin = "round";
+      context.lineWidth = stroke.size;
+      context.globalCompositeOperation = stroke.tool === "eraser" ? "destination-out" : "source-over";
+      context.strokeStyle = PALETTE[stroke.tone].stroke;
+      context.moveTo(stroke.points[0].x, stroke.points[0].y);
+      stroke.points.slice(1).forEach(point => context.lineTo(point.x, point.y));
+      context.stroke();
+      context.globalCompositeOperation = "source-over";
+    });
 
-  // Mouse events
-  const handleMouseDown = (e: React.MouseEvent) => {
-    const pos = getCanvasPos(e);
+    context.restore();
+  }, [draftStroke, elements, orderedElements, strokes, viewport]);
 
-    // Middle mouse or space+click = pan
-    if (e.button === 1 || (e.button === 0 && activeTool === "move")) {
-      setIsPanning(true);
-      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-      return;
-    }
+  useEffect(() => {
+    drawScene();
+  }, [drawScene]);
 
-    if (activeTool === "select") {
-      const card = findCardAt(pos.x, pos.y);
-      if (card) {
-        if (linkingFrom) {
-          // Linking mode
-          if (linkingFrom !== card.id) {
-            setCards(prev => prev.map(c => c.id === linkingFrom ? { ...c, linkedTo: [...(c.linkedTo || []).filter(id => id !== card.id), card.id] } : c));
-            toast.success("Cards linked");
-          }
-          setLinkingFrom(null);
-          return;
-        }
-        if (e.shiftKey) {
-          setSelectedCards(prev => {
-            const next = new Set(prev);
-            if (next.has(card.id)) next.delete(card.id); else next.add(card.id);
-            return next;
-          });
-        } else {
-          setSelectedCard(card.id);
-          setSelectedCards(new Set([card.id]));
-        }
-        setDraggingCard(card.id);
-        setDragOffset({ x: pos.x - card.x, y: pos.y - card.y });
-      } else {
-        setSelectedCard(null);
-        setSelectedCards(new Set());
-        setLinkingFrom(null);
-      }
-      return;
-    }
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+    const observer = new ResizeObserver(() => drawScene());
+    observer.observe(board);
+    return () => observer.disconnect();
+  }, [drawScene]);
 
-    if (activeTool === "text") {
-      setTextPos(pos);
-      setTextInput("");
-      return;
-    }
-
-    if (activeTool === "note") {
-      addNote(pos.x, pos.y);
-      return;
-    }
-
-    if (["rect", "circle", "triangle", "star", "diamond"].includes(activeTool)) {
-      addShape(activeTool, pos.x, pos.y);
-      return;
-    }
-
-    if (activeTool === "pen" || activeTool === "eraser") {
-      setIsDrawing(true);
-      setCurrentStroke([pos]);
-    }
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (isPanning) {
-      setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
-      return;
-    }
-    const pos = getCanvasPos(e);
-    if (draggingCard) {
-      const dx = pos.x - dragOffset.x;
-      const dy = pos.y - dragOffset.y;
-      if (selectedCards.size > 1 && selectedCards.has(draggingCard)) {
-        const draggedCard = cards.find(c => c.id === draggingCard);
-        if (draggedCard) {
-          const moveX = dx - draggedCard.x;
-          const moveY = dy - draggedCard.y;
-          setCards(prev => prev.map(c => selectedCards.has(c.id) ? { ...c, x: c.x + moveX, y: c.y + moveY } : c));
-        }
-      } else {
-        setCards(prev => prev.map(c => c.id === draggingCard ? { ...c, x: dx, y: dy } : c));
-      }
-      return;
-    }
-    if (isDrawing) {
-      setCurrentStroke(prev => [...prev, pos]);
-    }
-  };
-
-  const handleMouseUp = () => {
-    if (isPanning) { setIsPanning(false); return; }
-    if (draggingCard) { setDraggingCard(null); return; }
-    if (isDrawing && currentStroke.length > 1) {
-      setStrokes(prev => [...prev, {
-        id: crypto.randomUUID(),
-        points: currentStroke,
-        color: activeColor,
-        width: brushSize,
-        tool: activeTool === "eraser" ? "eraser" : "pen",
-      }]);
-    }
-    setIsDrawing(false);
-    setCurrentStroke([]);
-  };
-
-  // Add items
-  const importContentCard = (item: any, x: number, y: number) => {
-    const card: CanvasCard = {
-      id: `card-${item.id}`,
-      type: "content",
-      x, y,
-      width: 240, height: 160,
-      data: item,
-      linkedTo: [],
-    };
-    setCards(prev => [...prev, card]);
-  };
-
-  const addNote = (x: number, y: number) => {
-    setCards(prev => [...prev, {
-      id: `note-${crypto.randomUUID()}`,
-      type: "note",
-      x, y,
-      width: 200, height: 120,
-      text: "",
-      color: activeColor,
-      linkedTo: [],
-    }]);
-    setActiveTool("select");
-  };
-
-  const addShape = (shape: string, x: number, y: number) => {
-    setCards(prev => [...prev, {
-      id: `shape-${crypto.randomUUID()}`,
-      type: "shape",
-      x, y,
-      width: 100, height: 100,
-      shape, color: activeColor,
-      linkedTo: [],
-    }]);
-    setActiveTool("select");
-  };
-
-  const addTextBlock = () => {
-    if (!textPos || !textInput.trim()) { setTextPos(null); return; }
-    setCards(prev => [...prev, {
-      id: `text-${crypto.randomUUID()}`,
-      type: "text",
-      x: textPos.x, y: textPos.y,
-      width: 200, height: 40,
-      text: textInput,
-      color: activeColor,
-      fontSize: 14,
-      linkedTo: [],
-    }]);
-    setTextPos(null);
-    setTextInput("");
-    setActiveTool("select");
-  };
-
-  const deleteSelected = () => {
-    if (selectedCards.size === 0) return;
-    setCards(prev => prev.filter(c => !selectedCards.has(c.id)).map(c => ({
-      ...c,
-      linkedTo: c.linkedTo?.filter(id => !selectedCards.has(id)),
-    })));
-    setSelectedCards(new Set());
-    setSelectedCard(null);
-  };
-
-  const duplicateSelected = () => {
-    const newCards = cards.filter(c => selectedCards.has(c.id)).map(c => ({
-      ...c,
-      id: `dup-${crypto.randomUUID()}`,
-      x: c.x + 30,
-      y: c.y + 30,
-      linkedTo: [],
+  const linkElements = useCallback((fromId: string, toId: string) => {
+    setElements(prev => prev.map(element => {
+      if (element.id !== fromId) return element;
+      const nextLinks = element.links.includes(toId)
+        ? element.links.filter(id => id !== toId)
+        : [...element.links, toId];
+      return { ...element, links: nextLinks };
     }));
-    setCards(prev => [...prev, ...newCards]);
-  };
+  }, []);
 
-  // AI Evolver
-  const evolveCards = async () => {
-    const selected = cards.filter(c => selectedCards.has(c.id));
-    if (selected.length < 2) { toast.error("Select 2+ cards to evolve"); return; }
+  const addElementFromTool = useCallback((tool: Tool, point: Point) => {
+    const z = nextZ(elementsRef.current);
+    const base = {
+      id: `sandbox-${crypto.randomUUID()}`,
+      x: point.x,
+      y: point.y,
+      z,
+      tone: activeTone,
+      links: [],
+      annotation: "",
+      fontSize: 16,
+    } satisfies Partial<SandboxElement>;
+
+    let element: SandboxElement | null = null;
+
+    if (tool === "note") {
+      element = { ...base, kind: "note", width: 240, height: 180, text: "", } as SandboxElement;
+    }
+
+    if (tool === "text") {
+      element = { ...base, kind: "text", width: 260, height: 96, text: "Type freely here", } as SandboxElement;
+    }
+
+    if (["rectangle", "ellipse", "triangle", "diamond", "arrow"].includes(tool)) {
+      element = {
+        ...base,
+        kind: "shape",
+        width: tool === "arrow" ? 220 : 180,
+        height: tool === "arrow" ? 80 : 160,
+        shape: tool as ShapeKind,
+      } as SandboxElement;
+    }
+
+    if (!element) return;
+
+    setElements(prev => [...prev, element!]);
+    setSelectedIds(new Set([element.id]));
+  }, [activeTone]);
+
+  const updateElement = useCallback((elementId: string, patch: Partial<SandboxElement>) => {
+    setElements(prev => prev.map(element => element.id === elementId ? { ...element, ...patch } : element));
+  }, []);
+
+  const updatePrimaryContentField = useCallback((field: string, value: any) => {
+    if (!primaryElement || primaryElement.kind !== "content") return;
+    setElements(prev => prev.map(element => {
+      if (element.id !== primaryElement.id) return element;
+      return {
+        ...element,
+        data: {
+          ...element.data,
+          [field]: value,
+        },
+      };
+    }));
+  }, [primaryElement]);
+
+  const updatePrimaryText = useCallback((value: string) => {
+    if (!primaryElement) return;
+    updateElement(primaryElement.id, { text: value });
+  }, [primaryElement, updateElement]);
+
+  const bringSelectionForward = useCallback(() => {
+    const ids = Array.from(selectedIdsRef.current);
+    if (ids.length === 0) return;
+
+    setElements(prev => {
+      let z = nextZ(prev);
+      return prev.map(element => ids.includes(element.id) ? { ...element, z: z++ } : element);
+    });
+  }, []);
+
+  const duplicateSelection = useCallback(() => {
+    const ids = Array.from(selectedIdsRef.current);
+    if (ids.length === 0) return;
+
+    const source = elementsRef.current.filter(element => ids.includes(element.id));
+    let z = nextZ(elementsRef.current);
+    const duplicates = source.map(element => ({
+      ...clone(element),
+      id: `sandbox-${crypto.randomUUID()}`,
+      x: element.x + 28,
+      y: element.y + 28,
+      z: z++,
+      links: [],
+    }));
+
+    setElements(prev => [...prev, ...duplicates]);
+    setSelectedIds(new Set(duplicates.map(element => element.id)));
+  }, []);
+
+  const deleteSelection = useCallback(() => {
+    const ids = new Set(selectedIdsRef.current);
+    if (ids.size === 0) return;
+
+    setElements(prev => prev
+      .filter(element => !ids.has(element.id))
+      .map(element => ({ ...element, links: element.links.filter(linkId => !ids.has(linkId)) }))
+    );
+    setSelectedIds(new Set());
+    setLinkSourceId(null);
+  }, []);
+
+  const clearSandbox = useCallback(() => {
+    if (!confirm("Reset the entire Sandbox canvas?")) return;
+    setElements([]);
+    setStrokes([]);
+    setSelectedIds(new Set());
+    setLinkSourceId(null);
+  }, []);
+
+  const clearInk = useCallback(() => setStrokes([]), []);
+
+  const autoArrange = useCallback(() => {
+    const ids = Array.from(selectedIdsRef.current);
+    const targets = ids.length > 0 ? ids : elementsRef.current.map(element => element.id);
+    const columns = isMobile ? 1 : 3;
+    let index = 0;
+
+    setElements(prev => prev.map(element => {
+      if (!targets.includes(element.id)) return element;
+      const point = gridPosition(index++, columns);
+      return { ...element, x: point.x, y: point.y };
+    }));
+  }, [isMobile]);
+
+  const importItemsToBoard = useCallback((rows: any[]) => {
+    const columns = isMobile ? 1 : 3;
+    const existingIds = new Set(elementsRef.current.map(element => element.sourceItemId).filter(Boolean));
+    const nextItems = rows.filter(item => !existingIds.has(item.id));
+    if (nextItems.length === 0) {
+      toast.info("Those cards are already on the Sandbox");
+      return;
+    }
+
+    let z = nextZ(elementsRef.current);
+    const imported = nextItems.map((item, index) => createImportedElement(item, index, columns, z++));
+    setElements(prev => [...prev, ...imported]);
+    setSelectedIds(new Set(imported.map(element => element.id)));
+    toast.success(`${imported.length} cards imported into Sandbox`);
+  }, [isMobile]);
+
+  const saveSelectedBackToContent = useCallback(async () => {
+    if (!primaryElement || primaryElement.kind !== "content" || !primaryElement.data?.id) return;
+    setSavingBack(true);
+    try {
+      const metadata = {
+        ...(primaryElement.data.metadata || {}),
+        sandbox_annotation: primaryElement.annotation || null,
+      };
+      const { data, error } = await supabase
+        .from("content_calendar")
+        .update({
+          title: primaryElement.data.title,
+          caption: primaryElement.data.caption,
+          description: primaryElement.annotation || primaryElement.data.description || null,
+          metadata,
+        })
+        .eq("id", primaryElement.data.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setElements(prev => prev.map(element => element.id === primaryElement.id
+        ? { ...element, data, annotation: data.description || primaryElement.annotation }
+        : element
+      ));
+      onRefresh();
+      toast.success("Sandbox edits saved back to Content");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to save changes back to Content");
+    } finally {
+      setSavingBack(false);
+    }
+  }, [onRefresh, primaryElement]);
+
+  const evolveSelection = useCallback(async () => {
+    const selected = elementsRef.current.filter(element => selectedIdsRef.current.has(element.id));
+    if (selected.length < 2) {
+      toast.error("Select 2 or more cards to evolve");
+      return;
+    }
+
     setEvolving(true);
     try {
-      const cardDescriptions = selected.map(c => {
-        if (c.type === "content" && c.data) return `Content: "${c.data.title}" - ${c.data.caption || ""} [${c.data.platform}/${c.data.content_type}] hashtags: ${(c.data.hashtags || []).join(", ")}`;
-        if (c.type === "note") return `Note: "${c.text}"`;
-        if (c.type === "text") return `Text: "${c.text}"`;
-        return `Shape: ${c.shape}`;
-      }).join("\n");
+      const prompt = selected.map(element => {
+        if (element.kind === "content" && element.data) {
+          return `CONTENT\nTitle: ${element.data.title}\nPlatform: ${element.data.platform}\nType: ${element.data.content_type}\nCaption: ${element.data.caption || ""}\nNotes: ${element.annotation || "none"}`;
+        }
+        if (element.kind === "note") return `NOTE\n${element.text || ""}`;
+        if (element.kind === "text") return `TEXT\n${element.text || ""}`;
+        return `SHAPE\n${element.shape}`;
+      }).join("\n\n---\n\n");
 
       const { data, error } = await supabase.functions.invoke("agency-copilot", {
         body: {
           messages: [{
             role: "user",
-            content: `You are a creative content strategist. I have these ${selected.length} content cards on my sandbox:\n\n${cardDescriptions}\n\nCOMBINE and EVOLVE them into something greater. Create a new evolved concept that merges the best of all cards into a superior piece of content.\n\nReturn ONLY a JSON object:\n{"title":"evolved title","caption":"full evolved caption with emojis","platform":"best platform","content_type":"post/reel/story","hashtags":["tag1","tag2"],"evolution_notes":"explain how you combined and elevated the ideas","viral_score":70-95}`
-          }]
-        }
+            content: `You are an elite creative director working inside a visual idea sandbox. Combine the following selected cards into one stronger concept.\n\n${prompt}\n\nGoal: ${evolverPrompt || "Make the concept more strategic, original, and publishable."}\nTarget platform: ${evolverPlatform}\n\nReturn ONLY valid JSON:\n{"title":"...","caption":"...","platform":"instagram/tiktok/facebook/threads/twitter/onlyfans","content_type":"post/reel/story/tweet/promo","hashtags":["tag"],"evolution_notes":"...","viral_score":85}`,
+          }],
+        },
       });
 
       if (error) throw error;
-      const text = typeof data === "string" ? data : data?.choices?.[0]?.message?.content || JSON.stringify(data);
-      
-      // Parse response
-      let evolved: any;
-      try {
-        const cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-        const match = cleaned.match(/\{[\s\S]*\}/);
-        evolved = JSON.parse(match ? match[0].replace(/,\s*([\]}])/g, "$1") : cleaned);
-      } catch { evolved = { title: "Evolved Concept", caption: text, platform: "instagram", content_type: "post", hashtags: [], evolution_notes: "AI combined your ideas", viral_score: 80 }; }
+      const evolved = parseAiPayload(data);
 
-      // Create new content item in DB
-      const { data: newItem, error: insertError } = await supabase.from("content_calendar").insert({
-        title: evolved.title || "Evolved Content",
-        caption: evolved.caption || "",
-        platform: evolved.platform || "instagram",
-        content_type: evolved.content_type || "post",
-        hashtags: evolved.hashtags || [],
-        status: "draft",
-        viral_score: evolved.viral_score || 80,
-        description: evolved.evolution_notes || "Evolved from sandbox cards",
-        metadata: { source: "sandbox_evolver", evolved_from: selected.map(c => c.id) },
-      }).select().single();
+      const { data: newItem, error: insertError } = await supabase
+        .from("content_calendar")
+        .insert({
+          title: evolved.title || "Evolved concept",
+          caption: evolved.caption || "",
+          platform: (evolved.platform || evolverPlatform || "instagram").toLowerCase(),
+          content_type: evolved.content_type || "post",
+          hashtags: Array.isArray(evolved.hashtags) ? evolved.hashtags.map((tag: string) => tag.replace(/^#/, "")) : [],
+          status: "draft",
+          viral_score: Number(evolved.viral_score || 82),
+          description: evolved.evolution_notes || "Created inside Sandbox Evolver",
+          metadata: {
+            source: "sandbox_evolver",
+            evolved_from: selected.map(element => element.sourceItemId || element.id),
+            sandbox_prompt: evolverPrompt || null,
+          },
+        })
+        .select()
+        .single();
 
       if (insertError) throw insertError;
 
-      // Place evolved card in center of selected cards
-      const avgX = selected.reduce((s, c) => s + c.x, 0) / selected.length;
-      const avgY = selected.reduce((s, c) => s + c.y, 0) / selected.length - 200;
+      const center = selected.reduce((acc, element) => {
+        acc.x += element.x;
+        acc.y += element.y;
+        return acc;
+      }, { x: 0, y: 0 });
 
-      if (newItem) {
-        const evolvedCard: CanvasCard = {
-          id: `card-${newItem.id}`,
-          type: "content",
-          x: avgX, y: avgY,
-          width: 280, height: 180,
-          data: newItem,
-          linkedTo: selected.map(c => c.id),
-        };
-        setCards(prev => [...prev, evolvedCard]);
+      const evolvedElement: SandboxElement = {
+        id: `sandbox-${crypto.randomUUID()}`,
+        kind: "content",
+        x: center.x / selected.length + 48,
+        y: center.y / selected.length - 120,
+        width: 304,
+        height: 208,
+        z: nextZ(elementsRef.current),
+        tone: "accent",
+        links: selected.map(element => element.id),
+        sourceItemId: newItem.id,
+        data: newItem,
+        annotation: evolved.evolution_notes || "",
+        fontSize: 14,
+      };
+
+      setElements(prev => [...prev, evolvedElement]);
+      setSelectedIds(new Set([evolvedElement.id]));
+      setEvolverPrompt("");
+      onRefresh();
+      toast.success(`Evolved ${selected.length} cards into a stronger draft`);
+    } catch (error: any) {
+      toast.error(error.message || "Sandbox Evolver failed");
+    } finally {
+      setEvolving(false);
+    }
+  }, [evolverPlatform, evolverPrompt, onRefresh]);
+
+  const startDrag = useCallback((element: SandboxElement, clientX: number, clientY: number) => {
+    const scenePoint = getScenePoint(clientX, clientY, boardRef.current, viewportRef.current);
+    const selected = selectedIdsRef.current.has(element.id) ? Array.from(selectedIdsRef.current) : [element.id];
+    const originPositions = Object.fromEntries(
+      elementsRef.current
+        .filter(entry => selected.includes(entry.id))
+        .map(entry => [entry.id, { x: entry.x, y: entry.y }])
+    );
+    interactionRef.current = { type: "drag", anchor: scenePoint, originPositions };
+  }, []);
+
+  const handleElementPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>, element: SandboxElement) => {
+    event.stopPropagation();
+
+    if (linkSourceId && linkSourceId !== element.id) {
+      linkElements(linkSourceId, element.id);
+      setLinkSourceId(null);
+      toast.success("Cards linked");
+      return;
+    }
+
+    const nextSelected = new Set(selectedIdsRef.current);
+    if (event.shiftKey) {
+      if (nextSelected.has(element.id)) nextSelected.delete(element.id);
+      else nextSelected.add(element.id);
+    } else {
+      nextSelected.clear();
+      nextSelected.add(element.id);
+    }
+
+    setSelectedIds(new Set(nextSelected));
+    bringSelectionForward();
+
+    if (activeTool === "select") {
+      startDrag(element, event.clientX, event.clientY);
+    }
+  }, [activeTool, bringSelectionForward, linkElements, linkSourceId, startDrag]);
+
+  const handleResizePointerDown = useCallback((event: React.PointerEvent<HTMLButtonElement>, element: SandboxElement) => {
+    event.stopPropagation();
+    const anchor = getScenePoint(event.clientX, event.clientY, boardRef.current, viewportRef.current);
+    interactionRef.current = {
+      type: "resize",
+      elementId: element.id,
+      anchor,
+      originRect: {
+        x: element.x,
+        y: element.y,
+        width: element.width,
+        height: element.height,
+      },
+    };
+    setSelectedIds(new Set([element.id]));
+  }, []);
+
+  const handleBoardPointerDown = useCallback((event: React.PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0 && event.button !== 1) return;
+
+    if (event.button === 1 || activeTool === "pan") {
+      interactionRef.current = {
+        type: "pan",
+        originClient: { x: event.clientX, y: event.clientY },
+        originViewport: viewportRef.current,
+      };
+      return;
+    }
+
+    const scenePoint = getScenePoint(event.clientX, event.clientY, boardRef.current, viewportRef.current);
+
+    if (activeTool === "pen" || activeTool === "eraser") {
+      interactionRef.current = {
+        type: "draw",
+        tool: activeTool,
+        tone: activeTone,
+        size: brushSize,
+        points: [scenePoint],
+      };
+      setDraftStroke({ id: "draft", tool: activeTool, tone: activeTone, size: brushSize, points: [scenePoint] });
+      return;
+    }
+
+    if (["note", "text", "rectangle", "ellipse", "triangle", "diamond", "arrow"].includes(activeTool)) {
+      addElementFromTool(activeTool, scenePoint);
+      return;
+    }
+
+    setSelectedIds(new Set());
+    setLinkSourceId(null);
+  }, [activeTool, activeTone, addElementFromTool, brushSize]);
+
+  useEffect(() => {
+    const handlePointerMove = (event: PointerEvent) => {
+      const interaction = interactionRef.current;
+      if (!interaction) return;
+
+      if (interaction.type === "pan") {
+        setViewport({
+          ...interaction.originViewport,
+          x: interaction.originViewport.x + (event.clientX - interaction.originClient.x),
+          y: interaction.originViewport.y + (event.clientY - interaction.originClient.y),
+        });
+        return;
       }
 
-      onRefresh();
-      toast.success(`🧬 Evolved ${selected.length} cards into "${evolved.title}"`);
-    } catch (e: any) {
-      toast.error(e.message || "Evolution failed");
+      const point = getScenePoint(event.clientX, event.clientY, boardRef.current, viewportRef.current);
+
+      if (interaction.type === "draw") {
+        const nextPoints = [...interaction.points, point];
+        interaction.points = nextPoints;
+        setDraftStroke({ id: "draft", tool: interaction.tool, tone: interaction.tone, size: interaction.size, points: nextPoints });
+        return;
+      }
+
+      if (interaction.type === "drag") {
+        const dx = point.x - interaction.anchor.x;
+        const dy = point.y - interaction.anchor.y;
+        setElements(prev => prev.map(element => {
+          const origin = interaction.originPositions[element.id];
+          return origin ? { ...element, x: origin.x + dx, y: origin.y + dy } : element;
+        }));
+        return;
+      }
+
+      if (interaction.type === "resize") {
+        const dx = point.x - interaction.anchor.x;
+        const dy = point.y - interaction.anchor.y;
+        setElements(prev => prev.map(element => element.id === interaction.elementId
+          ? {
+            ...element,
+            width: clamp(interaction.originRect.width + dx, 120, 920),
+            height: clamp(interaction.originRect.height + dy, 70, 720),
+          }
+          : element
+        ));
+      }
+    };
+
+    const handlePointerUp = () => {
+      const interaction = interactionRef.current;
+      if (!interaction) return;
+
+      if (interaction.type === "draw" && interaction.points.length > 1) {
+        setStrokes(prev => [...prev, {
+          id: crypto.randomUUID(),
+          tool: interaction.tool,
+          tone: interaction.tone,
+          size: interaction.size,
+          points: interaction.points,
+        }]);
+      }
+
+      interactionRef.current = null;
+      setDraftStroke(null);
+    };
+
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+    };
+  }, []);
+
+  const zoomAroundPoint = useCallback((nextZoom: number, clientX?: number, clientY?: number) => {
+    const board = boardRef.current;
+    if (!board) return;
+
+    const rect = board.getBoundingClientRect();
+    const anchorX = clientX ?? rect.left + rect.width / 2;
+    const anchorY = clientY ?? rect.top + rect.height / 2;
+    const point = getScenePoint(anchorX, anchorY, board, viewportRef.current);
+    const clampedZoom = clamp(nextZoom, MIN_ZOOM, MAX_ZOOM);
+
+    setViewport({
+      zoom: clampedZoom,
+      x: anchorX - rect.left - point.x * clampedZoom,
+      y: anchorY - rect.top - point.y * clampedZoom,
+    });
+  }, []);
+
+  const handleWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (event.ctrlKey || event.metaKey) {
+      const direction = event.deltaY > 0 ? -0.1 : 0.1;
+      zoomAroundPoint(viewportRef.current.zoom + direction, event.clientX, event.clientY);
+      return;
     }
-    setEvolving(false);
-  };
 
-  const clearAll = () => {
-    if (!confirm("Clear entire sandbox?")) return;
-    setCards([]);
-    setStrokes([]);
-    setSelectedCards(new Set());
-    setSelectedCard(null);
-  };
+    setViewport(prev => ({
+      ...prev,
+      x: prev.x - event.deltaX,
+      y: prev.y - event.deltaY,
+    }));
+  }, [zoomAroundPoint]);
 
-  // Tool config
-  const tools: { id: Tool; icon: any; label: string }[] = [
-    { id: "select", icon: MousePointer, label: "Select" },
-    { id: "move", icon: Move, label: "Pan" },
-    { id: "pen", icon: Pencil, label: "Draw" },
-    { id: "eraser", icon: Eraser, label: "Eraser" },
-    { id: "text", icon: Type, label: "Text" },
-    { id: "note", icon: StickyNote, label: "Sticky Note" },
-    { id: "rect", icon: Square, label: "Rectangle" },
-    { id: "circle", icon: Circle, label: "Circle" },
-    { id: "triangle", icon: Triangle, label: "Triangle" },
-    { id: "star", icon: Star, label: "Star" },
-    { id: "diamond", icon: Diamond, label: "Diamond" },
-    { id: "arrow", icon: ArrowRight, label: "Arrow" },
-  ];
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && ["INPUT", "TEXTAREA"].includes(target.tagName)) return;
+      if (event.key === "Delete" || event.key === "Backspace") {
+        event.preventDefault();
+        deleteSelection();
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "d") {
+        event.preventDefault();
+        duplicateSelection();
+      }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "0") {
+        event.preventDefault();
+        setViewport(DEFAULT_VIEWPORT);
+      }
+      if (event.key.toLowerCase() === "v") setActiveTool("select");
+      if (event.key.toLowerCase() === "h") setActiveTool("pan");
+      if (event.key.toLowerCase() === "p") setActiveTool("pen");
+      if (event.key.toLowerCase() === "n") setActiveTool("note");
+      if (event.key.toLowerCase() === "t") setActiveTool("text");
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [deleteSelection, duplicateSelection]);
 
   return (
-    <div className="space-y-2">
-      {/* Toolbar */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {/* Tool palette */}
-        <div className="flex items-center gap-0.5 bg-white/[0.03] border border-white/[0.06] rounded-xl p-1">
-          {tools.map(t => (
-            <button key={t.id} onClick={() => setActiveTool(t.id)} title={t.label}
-              className={`p-1.5 rounded-lg transition-all ${activeTool === t.id ? "bg-primary/20 text-primary" : "text-white/30 hover:text-white/60 hover:bg-white/[0.05]"}`}>
-              <t.icon className="h-3.5 w-3.5" />
-            </button>
-          ))}
-        </div>
+    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="space-y-3">
+        <Card className="border-border bg-card/70">
+          <CardContent className="space-y-3 p-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary">Sandbox</Badge>
+                  <span className="text-sm font-semibold text-foreground">Real idea canvas for drafts, live content, notes, and linked experiments</span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Import any content card, drag it smoothly, annotate it, connect it, draw over it, and evolve multiple ideas into stronger drafts.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Button size="sm" variant="outline" onClick={() => setShowImport(true)} className="h-8 border-primary/20 text-primary hover:bg-primary/10">
+                  <Download className="mr-1 h-3.5 w-3.5" /> Import
+                </Button>
+                <Button size="sm" variant="outline" onClick={autoArrange} className="h-8 border-border text-muted-foreground hover:text-foreground">
+                  <Wand2 className="mr-1 h-3.5 w-3.5" /> Arrange
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowInspector(prev => !prev)} className="h-8 border-border text-muted-foreground hover:text-foreground lg:hidden">
+                  <Layers className="mr-1 h-3.5 w-3.5" /> {showInspector ? "Hide" : "Show"} panel
+                </Button>
+              </div>
+            </div>
 
-        {/* Colors */}
-        <div className="flex items-center gap-0.5 bg-white/[0.03] border border-white/[0.06] rounded-xl p-1">
-          {COLORS.map(c => (
-            <button key={c} onClick={() => setActiveColor(c)}
-              className={`w-5 h-5 rounded-full border-2 transition-all ${activeColor === c ? "border-white scale-110" : "border-transparent hover:border-white/30"}`}
-              style={{ backgroundColor: c }} />
-          ))}
-        </div>
+            <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-background/60 p-2">
+              <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border bg-card/70 p-1">
+                {TOOL_ITEMS.map(tool => (
+                  <button
+                    key={tool.id}
+                    type="button"
+                    title={tool.label}
+                    onClick={() => setActiveTool(tool.id)}
+                    className={cn(
+                      "rounded-lg px-2 py-1.5 text-[11px] font-medium transition-colors",
+                      activeTool === tool.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <tool.icon className="mx-auto h-3.5 w-3.5" />
+                    <span className="mt-1 hidden sm:block">{tool.label}</span>
+                  </button>
+                ))}
+              </div>
 
-        {/* Brush size */}
-        {(activeTool === "pen" || activeTool === "eraser") && (
-          <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-2 py-1">
-            {[2, 4, 8, 16].map(s => (
-              <button key={s} onClick={() => setBrushSize(s)}
-                className={`rounded-full transition-all ${brushSize === s ? "bg-primary" : "bg-white/20 hover:bg-white/40"}`}
-                style={{ width: Math.max(s * 1.5, 8), height: Math.max(s * 1.5, 8) }} />
+              <div className="flex flex-wrap items-center gap-1 rounded-xl border border-border bg-card/70 p-1">
+                {(Object.keys(PALETTE) as PaletteTone[]).map(tone => (
+                  <button
+                    key={tone}
+                    type="button"
+                    title={PALETTE[tone].label}
+                    onClick={() => setActiveTone(tone)}
+                    className={cn(
+                      "h-7 w-7 rounded-full border-2 transition-transform",
+                      activeTone === tone ? "scale-110 border-foreground" : "border-transparent"
+                    )}
+                    style={{ backgroundColor: PALETTE[tone].stroke }}
+                  />
+                ))}
+              </div>
+
+              {(activeTool === "pen" || activeTool === "eraser") && (
+                <div className="flex items-center gap-1 rounded-xl border border-border bg-card/70 px-2 py-1">
+                  {[2, 4, 8, 14].map(size => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setBrushSize(size)}
+                      className={cn("rounded-full transition-transform", brushSize === size ? "scale-110 bg-primary" : "bg-muted-foreground/40")}
+                      style={{ width: Math.max(size * 1.4, 10), height: Math.max(size * 1.4, 10) }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              <div className="ml-auto flex flex-wrap items-center gap-1.5">
+                <Button size="sm" variant="outline" onClick={() => zoomAroundPoint(viewport.zoom - 0.15)} className="h-8 border-border text-muted-foreground hover:text-foreground">
+                  <ZoomOut className="h-3.5 w-3.5" />
+                </Button>
+                <div className="rounded-lg border border-border px-2 py-1 text-[11px] text-muted-foreground">{Math.round(viewport.zoom * 100)}%</div>
+                <Button size="sm" variant="outline" onClick={() => zoomAroundPoint(viewport.zoom + 0.15)} className="h-8 border-border text-muted-foreground hover:text-foreground">
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setViewport(DEFAULT_VIEWPORT)} className="h-8 border-border text-muted-foreground hover:text-foreground">
+                  <RotateCcw className="mr-1 h-3.5 w-3.5" /> Reset view
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+              <span>{elements.filter(element => element.kind === "content").length} content cards</span>
+              <span>•</span>
+              <span>{elements.filter(element => element.kind !== "content").length} sandbox elements</span>
+              <span>•</span>
+              <span>{strokes.length} ink layers</span>
+              <span>•</span>
+              <span>{selectedIds.size} selected</span>
+              {linkSourceId && (
+                <Badge variant="outline" className="border-accent/20 bg-accent/10 text-accent">
+                  <Link2 className="mr-1 h-3 w-3" /> Click another card to link
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <div
+          ref={boardRef}
+          onPointerDown={handleBoardPointerDown}
+          onWheel={handleWheel}
+          className="relative overflow-hidden rounded-[1.5rem] border border-border bg-background touch-none"
+          style={{
+            height: isMobile ? "68vh" : "74vh",
+            cursor: activeTool === "pan" ? "grab" : activeTool === "pen" ? "crosshair" : activeTool === "eraser" ? "cell" : activeTool === "text" ? "text" : "default",
+            backgroundImage: "radial-gradient(circle at 1px 1px, hsl(var(--border)) 1px, transparent 0)",
+            backgroundSize: `${32 * viewport.zoom}px ${32 * viewport.zoom}px`,
+            backgroundPosition: `${viewport.x}px ${viewport.y}px`,
+          }}
+        >
+          <canvas ref={canvasRef} className="absolute inset-0 h-full w-full pointer-events-none" />
+
+          <div
+            className="absolute inset-0"
+            style={{
+              transform: `translate3d(${viewport.x}px, ${viewport.y}px, 0) scale(${viewport.zoom})`,
+              transformOrigin: "0 0",
+            }}
+          >
+            {orderedElements.map(element => (
+              <ElementView
+                key={element.id}
+                element={element}
+                isSelected={selectedIds.has(element.id)}
+                isLinkSource={linkSourceId === element.id}
+                onElementPointerDown={handleElementPointerDown}
+                onResizePointerDown={handleResizePointerDown}
+                onInlineTextChange={(elementId, value) => updateElement(elementId, { text: value })}
+              />
             ))}
           </div>
-        )}
 
-        <div className="flex-1" />
+          {elements.length === 0 && strokes.length === 0 && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+              <div className="max-w-sm rounded-[1.5rem] border border-border bg-card/80 p-6 text-center shadow-sm backdrop-blur-sm">
+                <Layers className="mx-auto mb-3 h-10 w-10 text-primary" />
+                <h3 className="text-lg font-semibold text-foreground">Build the perfect idea sandbox</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Import drafts or live cards, sketch over them, create sticky notes, add shapes, connect thoughts, then evolve several ideas into something stronger.
+                </p>
+              </div>
+            </div>
+          )}
 
-        {/* Actions */}
-        <div className="flex items-center gap-1">
-          <Button size="sm" variant="outline" onClick={() => setShowImport(true)}
-            className="text-xs h-7 border-primary/20 text-primary hover:bg-primary/10">
-            <Download className="h-3 w-3 mr-1" /> Import Cards
-          </Button>
-
-          {selectedCards.size >= 2 && (
-            <Button size="sm" onClick={evolveCards} disabled={evolving}
-              className="text-xs h-7 bg-gradient-to-r from-purple-600 to-pink-600 text-white">
-              {evolving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
-              Evolve ({selectedCards.size})
+          <div className="absolute bottom-3 left-3 flex flex-wrap items-center gap-1.5">
+            <Button size="sm" variant="outline" onClick={clearInk} className="h-8 border-border bg-background/80 text-muted-foreground backdrop-blur-sm hover:text-foreground">
+              <Eraser className="mr-1 h-3.5 w-3.5" /> Clear ink
             </Button>
-          )}
-
-          {selectedCards.size > 0 && (
-            <>
-              <Button size="sm" variant="outline" onClick={() => {
-                if (!linkingFrom) {
-                  if (selectedCards.size === 1) {
-                    setLinkingFrom(Array.from(selectedCards)[0]);
-                    toast.info("Click another card to link");
-                  }
-                } else {
-                  setLinkingFrom(null);
-                }
-              }} className={`text-xs h-7 ${linkingFrom ? "border-purple-500/40 text-purple-400 bg-purple-500/10" : "border-white/[0.06] text-white/50"}`}>
-                <Link2 className="h-3 w-3 mr-1" /> {linkingFrom ? "Linking..." : "Link"}
-              </Button>
-              <Button size="sm" variant="outline" onClick={duplicateSelected}
-                className="text-xs h-7 border-white/[0.06] text-white/50">
-                <Copy className="h-3 w-3 mr-1" /> Dup
-              </Button>
-              <Button size="sm" variant="outline" onClick={deleteSelected}
-                className="text-xs h-7 border-red-500/20 text-red-400">
-                <Trash2 className="h-3 w-3 mr-1" /> Del
-              </Button>
-            </>
-          )}
-
-          {/* Zoom */}
-          <div className="flex items-center gap-0.5 bg-white/[0.03] border border-white/[0.06] rounded-lg">
-            <button onClick={() => setZoom(z => Math.max(0.25, z - 0.15))} className="p-1 text-white/30 hover:text-white/60"><ZoomOut className="h-3 w-3" /></button>
-            <span className="text-[9px] text-white/40 w-8 text-center">{Math.round(zoom * 100)}%</span>
-            <button onClick={() => setZoom(z => Math.min(3, z + 0.15))} className="p-1 text-white/30 hover:text-white/60"><ZoomIn className="h-3 w-3" /></button>
-            <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-1 text-white/30 hover:text-white/60"><RotateCcw className="h-3 w-3" /></button>
+            <Button size="sm" variant="outline" onClick={duplicateSelection} disabled={selectedIds.size === 0} className="h-8 border-border bg-background/80 text-muted-foreground backdrop-blur-sm hover:text-foreground">
+              <Copy className="mr-1 h-3.5 w-3.5" /> Duplicate
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => {
+              if (selectedIds.size !== 1) {
+                toast.info("Select exactly one card to start linking");
+                return;
+              }
+              setLinkSourceId(prev => prev ? null : Array.from(selectedIds)[0]);
+            }} disabled={selectedIds.size === 0} className="h-8 border-border bg-background/80 text-muted-foreground backdrop-blur-sm hover:text-foreground">
+              <Link2 className="mr-1 h-3.5 w-3.5" /> {linkSourceId ? "Cancel link" : "Link"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => {
+              const ids = Array.from(selectedIdsRef.current);
+              if (ids.length === 0) return;
+              setElements(prev => prev.map(element => ({
+                ...element,
+                links: ids.includes(element.id) ? [] : element.links.filter(linkId => !ids.includes(linkId)),
+              })));
+            }} disabled={selectedIds.size === 0} className="h-8 border-border bg-background/80 text-muted-foreground backdrop-blur-sm hover:text-foreground">
+              <Unlink className="mr-1 h-3.5 w-3.5" /> Unlink
+            </Button>
+            <Button size="sm" variant="outline" onClick={deleteSelection} disabled={selectedIds.size === 0} className="h-8 border-destructive/20 bg-background/80 text-destructive backdrop-blur-sm hover:bg-destructive/10">
+              <Trash2 className="mr-1 h-3.5 w-3.5" /> Delete
+            </Button>
+            <Button size="sm" variant="outline" onClick={clearSandbox} className="h-8 border-destructive/20 bg-background/80 text-destructive backdrop-blur-sm hover:bg-destructive/10">
+              <RefreshCw className="mr-1 h-3.5 w-3.5" /> Reset sandbox
+            </Button>
           </div>
-
-          <Button size="sm" variant="outline" onClick={() => setStrokes([])} className="text-xs h-7 border-white/[0.06] text-white/30">
-            Clear Strokes
-          </Button>
-          <Button size="sm" variant="outline" onClick={clearAll} className="text-xs h-7 border-red-500/20 text-red-400/50">
-            Reset All
-          </Button>
         </div>
       </div>
 
-      {/* Canvas Area */}
-      <div
-        ref={containerRef}
-        className="relative bg-[hsl(222,47%,3%)] border border-white/[0.06] rounded-xl overflow-hidden"
-        style={{ height: "calc(100vh - 280px)", cursor: activeTool === "move" ? "grab" : activeTool === "pen" ? "crosshair" : activeTool === "eraser" ? "cell" : activeTool === "text" ? "text" : "default" }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      >
-        {/* Grid pattern */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.03]">
-          <defs>
-            <pattern id="sandboxGrid" width={40 * zoom} height={40 * zoom} patternUnits="userSpaceOnUse" x={pan.x % (40 * zoom)} y={pan.y % (40 * zoom)}>
-              <path d={`M ${40 * zoom} 0 L 0 0 0 ${40 * zoom}`} fill="none" stroke="white" strokeWidth="0.5" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#sandboxGrid)" />
-        </svg>
+      {showInspector && (
+        <div className="space-y-3">
+          <Card className="border-border bg-card/70">
+            <CardContent className="space-y-4 p-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="border-border text-muted-foreground">Inspector</Badge>
+                  {primaryElement && (
+                    <Badge variant="outline" className={PALETTE[primaryElement.tone].softClass}>{primaryElement.kind}</Badge>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">Edit the selected item, write directly on ideas, or push refined content back into Content.</p>
+              </div>
 
-        {/* Drawing canvas */}
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
-
-        {/* Cards Layer */}
-        <div className="absolute inset-0" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "0 0" }}>
-          {cards.map(card => (
-            <div
-              key={card.id}
-              className={`absolute group transition-shadow ${selectedCards.has(card.id) ? "ring-2 ring-primary shadow-lg shadow-primary/20" : ""} ${linkingFrom === card.id ? "ring-2 ring-purple-500 animate-pulse" : ""}`}
-              style={{ left: card.x, top: card.y, width: card.width, height: card.height, zIndex: selectedCard === card.id ? 50 : 10 }}
-              onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e); }}
-            >
-              {/* Content card */}
-              {card.type === "content" && card.data && (
-                <div className="w-full h-full bg-[hsl(222,35%,8%)] border border-white/[0.08] rounded-lg overflow-hidden flex flex-col hover:border-primary/30">
-                  <div className="px-2 py-1.5 border-b border-white/[0.06] flex items-center gap-1.5">
-                    <Grip className="h-2.5 w-2.5 text-white/15 cursor-grab" />
-                    <Badge variant="outline" className="text-[7px] border-white/[0.08] text-white/40 capitalize">{card.data.platform}</Badge>
-                    <Badge variant="outline" className={`text-[7px] capitalize ${card.data.status === "draft" ? "border-amber-500/20 text-amber-400" : card.data.status === "published" ? "border-emerald-500/20 text-emerald-400" : "border-blue-500/20 text-blue-400"}`}>{card.data.status}</Badge>
+              {!primaryElement ? (
+                <div className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
+                  Select a card or element to edit it here.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-muted-foreground">
+                    <div className="rounded-xl border border-border bg-background/60 px-3 py-2">x {Math.round(primaryElement.x)}</div>
+                    <div className="rounded-xl border border-border bg-background/60 px-3 py-2">y {Math.round(primaryElement.y)}</div>
+                    <div className="rounded-xl border border-border bg-background/60 px-3 py-2">w {Math.round(primaryElement.width)}</div>
+                    <div className="rounded-xl border border-border bg-background/60 px-3 py-2">h {Math.round(primaryElement.height)}</div>
                   </div>
-                  <div className="px-2 py-1.5 flex-1 overflow-hidden">
-                    <p className="text-[10px] font-semibold text-white line-clamp-2 mb-1">{card.data.title}</p>
-                    {card.data.caption && <p className="text-[8px] text-white/30 line-clamp-3">{card.data.caption}</p>}
-                    {card.data.hashtags?.length > 0 && (
-                      <div className="flex flex-wrap gap-0.5 mt-1">
-                        {(card.data.hashtags as string[]).slice(0, 4).map((h: string, i: number) => (
-                          <span key={i} className="text-[7px] text-blue-400/50">#{h}</span>
-                        ))}
+
+                  {primaryElement.kind === "content" && primaryElement.data && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-medium text-foreground">Title</label>
+                        <Input
+                          value={primaryElement.data.title || ""}
+                          onChange={(event) => updatePrimaryContentField("title", event.target.value)}
+                          className="border-border bg-background/70"
+                        />
                       </div>
-                    )}
-                  </div>
-                  {card.data.viral_score > 0 && (
-                    <div className="px-2 py-1 border-t border-white/[0.04]">
-                      <div className="w-full h-1 bg-white/[0.05] rounded-full">
-                        <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-primary" style={{ width: `${card.data.viral_score}%` }} />
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-medium text-foreground">Caption / PDF-style markup layer</label>
+                        <Textarea
+                          value={primaryElement.data.caption || ""}
+                          onChange={(event) => updatePrimaryContentField("caption", event.target.value)}
+                          className="min-h-[140px] border-border bg-background/70"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-medium text-foreground">Creative annotation</label>
+                        <Textarea
+                          value={primaryElement.annotation || ""}
+                          onChange={(event) => updateElement(primaryElement.id, { annotation: event.target.value })}
+                          className="min-h-[96px] border-border bg-background/70"
+                          placeholder="Mark up the idea, add edits, callouts, hooks, CTA changes..."
+                        />
+                      </div>
+                      <Button onClick={saveSelectedBackToContent} disabled={savingBack} className="w-full bg-primary text-primary-foreground">
+                        {savingBack ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Save className="mr-1.5 h-4 w-4" />}
+                        Save back to Content
+                      </Button>
+                    </>
+                  )}
+
+                  {(primaryElement.kind === "note" || primaryElement.kind === "text") && (
+                    <>
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-medium text-foreground">Text</label>
+                        <Textarea
+                          value={primaryElement.text || ""}
+                          onChange={(event) => updatePrimaryText(event.target.value)}
+                          className="min-h-[140px] border-border bg-background/70"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-[11px] font-medium text-foreground">Font size</label>
+                        <Input
+                          type="number"
+                          min={12}
+                          max={40}
+                          value={primaryElement.fontSize || 16}
+                          onChange={(event) => updateElement(primaryElement.id, { fontSize: clamp(Number(event.target.value || 16), 12, 40) })}
+                          className="border-border bg-background/70"
+                        />
+                      </div>
+                    </>
+                  )}
+
+                  {primaryElement.kind === "shape" && (
+                    <div className="space-y-2">
+                      <label className="text-[11px] font-medium text-foreground">Shape tone</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(Object.keys(PALETTE) as PaletteTone[]).map(tone => (
+                          <button
+                            key={tone}
+                            type="button"
+                            onClick={() => updateElement(primaryElement.id, { tone })}
+                            className={cn("rounded-xl border px-2.5 py-1 text-[11px]", primaryElement.tone === tone ? PALETTE[tone].softClass : "border-border text-muted-foreground")}
+                          >
+                            {PALETTE[tone].label}
+                          </button>
+                        ))}
                       </div>
                     </div>
                   )}
                 </div>
               )}
+            </CardContent>
+          </Card>
 
-              {/* Sticky Note */}
-              {card.type === "note" && (
-                <div className="w-full h-full rounded-lg border p-2 flex flex-col" style={{ backgroundColor: card.color + "15", borderColor: card.color + "30" }}>
-                  <Grip className="h-2.5 w-2.5 mb-1 cursor-grab" style={{ color: card.color + "60" }} />
-                  <textarea
-                    value={card.text || ""}
-                    onChange={e => setCards(prev => prev.map(c => c.id === card.id ? { ...c, text: e.target.value } : c))}
-                    onClick={e => e.stopPropagation()}
-                    placeholder="Write here..."
-                    className="flex-1 bg-transparent border-none text-[10px] text-white/70 resize-none outline-none placeholder:text-white/20"
-                  />
+          <Card className="border-border bg-card/70">
+            <CardContent className="space-y-4 p-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="border-accent/20 bg-accent/10 text-accent">AI Evolver</Badge>
+                  <span className="text-sm font-semibold text-foreground">Blend 2+ cards into a stronger draft</span>
                 </div>
-              )}
-
-              {/* Text Block */}
-              {card.type === "text" && (
-                <div className="w-full h-full flex items-center cursor-move">
-                  <span
-                    contentEditable
-                    suppressContentEditableWarning
-                    onClick={e => e.stopPropagation()}
-                    onBlur={e => setCards(prev => prev.map(c => c.id === card.id ? { ...c, text: e.currentTarget.textContent || "" } : c))}
-                    className="outline-none text-white/80 w-full"
-                    style={{ fontSize: card.fontSize || 14, color: card.color || "#fff" }}
-                  >{card.text}</span>
-                </div>
-              )}
-
-              {/* Shape */}
-              {card.type === "shape" && (
-                <div className="w-full h-full flex items-center justify-center">
-                  {card.shape === "rect" && <div className="w-full h-full rounded-md border-2" style={{ borderColor: card.color, backgroundColor: card.color + "15" }} />}
-                  {card.shape === "circle" && <div className="w-full h-full rounded-full border-2" style={{ borderColor: card.color, backgroundColor: card.color + "15" }} />}
-                  {card.shape === "triangle" && (
-                    <svg viewBox="0 0 100 100" className="w-full h-full">
-                      <polygon points="50,5 95,95 5,95" fill={card.color + "15"} stroke={card.color} strokeWidth="2" />
-                    </svg>
-                  )}
-                  {card.shape === "star" && (
-                    <svg viewBox="0 0 100 100" className="w-full h-full">
-                      <polygon points="50,5 61,35 95,35 68,57 79,90 50,70 21,90 32,57 5,35 39,35" fill={card.color + "15"} stroke={card.color} strokeWidth="2" />
-                    </svg>
-                  )}
-                  {card.shape === "diamond" && (
-                    <svg viewBox="0 0 100 100" className="w-full h-full">
-                      <polygon points="50,5 95,50 50,95 5,50" fill={card.color + "15"} stroke={card.color} strokeWidth="2" />
-                    </svg>
-                  )}
-                </div>
-              )}
-
-              {/* Resize handle */}
-              <div
-                className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize opacity-0 group-hover:opacity-100"
-                onMouseDown={(e) => {
-                  e.stopPropagation();
-                  const startX = e.clientX;
-                  const startY = e.clientY;
-                  const startW = card.width;
-                  const startH = card.height;
-                  const onMove = (ev: MouseEvent) => {
-                    setCards(prev => prev.map(c => c.id === card.id ? {
-                      ...c,
-                      width: Math.max(80, startW + (ev.clientX - startX) / zoom),
-                      height: Math.max(60, startH + (ev.clientY - startY) / zoom),
-                    } : c));
-                  };
-                  const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
-                  window.addEventListener("mousemove", onMove);
-                  window.addEventListener("mouseup", onUp);
-                }}
-              >
-                <svg viewBox="0 0 10 10" className="w-full h-full text-white/20"><path d="M9 1L1 9M9 5L5 9" stroke="currentColor" strokeWidth="1" /></svg>
+                <p className="mt-1 text-xs text-muted-foreground">The Evolver reads your selected cards, notes, and links, then writes a better draft back into Content.</p>
               </div>
-            </div>
-          ))}
+
+              <div className="rounded-2xl border border-border bg-background/60 p-3 text-sm text-muted-foreground">
+                {selectedIds.size >= 2 ? `${selectedIds.size} cards selected and ready to evolve.` : "Select at least two cards to activate the Evolver."}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-medium text-foreground">Evolution goal</label>
+                <Textarea
+                  value={evolverPrompt}
+                  onChange={(event) => setEvolverPrompt(event.target.value)}
+                  className="min-h-[96px] border-border bg-background/70"
+                  placeholder="Example: Merge these into a sharper teaser campaign with a stronger CTA, clearer visual hook, and one premium reel angle."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[11px] font-medium text-foreground">Target platform</label>
+                <Input value={evolverPlatform} onChange={(event) => setEvolverPlatform(event.target.value)} className="border-border bg-background/70" />
+              </div>
+
+              <Button onClick={evolveSelection} disabled={selectedIds.size < 2 || evolving} className="w-full bg-accent text-accent-foreground">
+                {evolving ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Sparkles className="mr-1.5 h-4 w-4" />}
+                Evolve selected cards
+              </Button>
+            </CardContent>
+          </Card>
         </div>
+      )}
 
-        {/* Text input overlay */}
-        {textPos && (
-          <div className="absolute z-50 bg-[hsl(222,35%,9%)] border border-primary/30 rounded-lg p-2 shadow-xl"
-            style={{ left: textPos.x * zoom + pan.x, top: textPos.y * zoom + pan.y }}>
-            <Input autoFocus value={textInput} onChange={e => setTextInput(e.target.value)}
-              onKeyDown={e => { if (e.key === "Enter") addTextBlock(); if (e.key === "Escape") setTextPos(null); }}
-              placeholder="Type text..."
-              className="bg-transparent border-white/[0.06] text-white text-xs h-7 w-48 placeholder:text-white/20" />
-            <div className="flex gap-1 mt-1">
-              <Button size="sm" onClick={addTextBlock} className="text-[9px] h-5 bg-primary text-primary-foreground"><Check className="h-2.5 w-2.5" /></Button>
-              <Button size="sm" variant="outline" onClick={() => setTextPos(null)} className="text-[9px] h-5 border-white/[0.06] text-white/40"><X className="h-2.5 w-2.5" /></Button>
-            </div>
-          </div>
-        )}
-
-        {/* Empty state */}
-        {cards.length === 0 && strokes.length === 0 && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <div className="text-center">
-              <Layers className="h-12 w-12 text-white/[0.05] mx-auto mb-3" />
-              <p className="text-white/20 text-sm font-medium">Your creative sandbox</p>
-              <p className="text-white/10 text-xs mt-1">Import cards, draw, add notes, and evolve ideas</p>
-            </div>
-          </div>
-        )}
-
-        {/* Linking cursor indicator */}
-        {linkingFrom && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 bg-purple-500/20 border border-purple-500/30 rounded-lg px-3 py-1.5 pointer-events-none">
-            <span className="text-xs text-purple-300 flex items-center gap-1.5">
-              <Link2 className="h-3 w-3 animate-pulse" /> Click a card to link
-            </span>
-          </div>
-        )}
-      </div>
-
-      {/* Import Dialog */}
       <Dialog open={showImport} onOpenChange={setShowImport}>
-        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-h-[86vh] max-w-5xl overflow-hidden border-border bg-card text-card-foreground">
           <DialogHeader>
-            <DialogTitle className="text-white flex items-center gap-2">
-              <Download className="h-4 w-4 text-primary" /> Import Content Cards
+            <DialogTitle className="flex items-center gap-2 text-foreground">
+              <Download className="h-4 w-4 text-primary" /> Import cards into Sandbox
             </DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-white/50">Click cards to add them to your sandbox canvas</p>
-          <div className="flex gap-1.5 mb-2">
-            <Button size="sm" variant="outline" onClick={() => {
-              let x = 50, y = 50;
-              items.forEach((item, i) => {
-                importContentCard(item, x + (i % 4) * 260, y + Math.floor(i / 4) * 180);
-              });
-              setShowImport(false);
-              toast.success(`${items.length} cards imported`);
-            }} className="text-xs h-7 border-primary/20 text-primary">
-              Import All ({items.length})
-            </Button>
-            <Button size="sm" variant="outline" onClick={() => {
-              const drafts = items.filter(i => i.status === "draft");
-              let x = 50, y = 50;
-              drafts.forEach((item, i) => {
-                importContentCard(item, x + (i % 4) * 260, y + Math.floor(i / 4) * 180);
-              });
-              setShowImport(false);
-              toast.success(`${drafts.length} drafts imported`);
-            }} className="text-xs h-7 border-amber-500/20 text-amber-400">
-              Drafts Only ({items.filter(i => i.status === "draft").length})
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[220px] flex-1">
+              <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={importQuery}
+                onChange={(event) => setImportQuery(event.target.value)}
+                className="border-border bg-background/70 pl-9"
+                placeholder="Search drafts, live posts, competitor syncs..."
+              />
+            </div>
+            {(["all", "drafts", "non-drafts", "competitor"] as const).map(mode => (
+              <Button
+                key={mode}
+                size="sm"
+                variant="outline"
+                onClick={() => setImportMode(mode)}
+                className={cn(
+                  "h-8 capitalize",
+                  importMode === mode ? "border-primary/20 bg-primary/10 text-primary" : "border-border text-muted-foreground"
+                )}
+              >
+                {mode.replace("-", " ")}
+              </Button>
+            ))}
+            <Button
+              size="sm"
+              onClick={() => importItemsToBoard(importableItems)}
+              className="h-8 bg-primary text-primary-foreground"
+            >
+              <Check className="mr-1 h-3.5 w-3.5" /> Import visible ({importableItems.length})
             </Button>
           </div>
-          <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
-            {items.map(item => {
-              const alreadyImported = cards.some(c => c.id === `card-${item.id}`);
+
+          <div className="grid gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
+            {importableItems.map(item => {
+              const alreadyImported = importedSourceIds.has(item.id);
               return (
-                <div key={item.id}
-                  onClick={() => {
-                    if (alreadyImported) return;
-                    importContentCard(item, 100 + Math.random() * 300, 100 + Math.random() * 200);
-                    toast.success(`"${item.title}" added to sandbox`);
-                  }}
-                  className={`p-2 rounded-lg border transition-all ${alreadyImported
-                    ? "bg-white/[0.02] border-white/[0.04] opacity-40 cursor-not-allowed"
-                    : "bg-white/[0.03] border-white/[0.06] hover:border-primary/30 cursor-pointer"}`}>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className={`text-[8px] capitalize ${item.status === "draft" ? "border-amber-500/20 text-amber-400" : item.status === "published" ? "border-emerald-500/20 text-emerald-400" : "border-blue-500/20 text-blue-400"}`}>{item.status}</Badge>
-                    <Badge variant="outline" className="text-[8px] border-white/[0.06] text-white/40 capitalize">{item.platform}</Badge>
-                    <span className="text-xs text-white flex-1 truncate">{item.title}</span>
-                    {alreadyImported && <span className="text-[8px] text-emerald-400">Added</span>}
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => importItemsToBoard([item])}
+                  className={cn(
+                    "rounded-2xl border p-4 text-left transition-colors",
+                    alreadyImported ? "border-primary/20 bg-primary/10" : "border-border bg-background/60 hover:border-primary/30 hover:bg-primary/5"
+                  )}
+                >
+                  <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                    <Badge variant="outline" className="border-border text-[10px] capitalize text-muted-foreground">{item.platform}</Badge>
+                    <Badge variant="outline" className={cn(
+                      "text-[10px] capitalize",
+                      item.status === "draft" ? "border-primary/20 text-primary" : item.status === "published" ? "border-accent/20 text-accent" : "border-border text-muted-foreground"
+                    )}>{item.status}</Badge>
+                    {getItemSource(item) && (
+                      <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">{getItemSource(item).replace(/_/g, " ")}</Badge>
+                    )}
+                    {alreadyImported && <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary text-[10px]">On board</Badge>}
                   </div>
-                </div>
+                  <p className="text-sm font-semibold text-foreground line-clamp-2">{item.title}</p>
+                  <p className="mt-2 line-clamp-4 text-xs leading-relaxed text-muted-foreground">{item.caption || item.description || "No copy yet"}</p>
+                </button>
               );
             })}
           </div>
