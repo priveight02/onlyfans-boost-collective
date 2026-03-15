@@ -2743,7 +2743,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Media</label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {formExistingMedia.map((url, i) => (
-                  <div key={`e-${i}`} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
+                  <div key={`e-${i}`} className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/[0.08]">
                     <img src={url} alt="" className="w-full h-full object-cover" />
                     <button onClick={() => removeExistingMedia(i)} className="absolute top-0.5 right-0.5 bg-black/70 rounded-full p-0.5"><X className="h-2.5 w-2.5 text-white" /></button>
                   </div>
