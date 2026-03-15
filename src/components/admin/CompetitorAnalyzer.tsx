@@ -3379,6 +3379,54 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         return avgG > best.avgG ? { key, name: data.name, avgG, logo: data.logo, color: data.color } : best;
                       }, { key: "", name: "-", avgG: 0, logo: "", color: "" }) : null;
 
+                      // Best platform by reach (most followers)
+                      const bestPlatformByReach = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const total = data.competitors.reduce((s, c) => s + c.followers, 0);
+                        return total > best.total ? { key, name: data.name, total, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", total: 0, logo: "", color: "" }) : null;
+
+                      // Best platform by content volume
+                      const bestPlatformByContent = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const total = data.competitors.reduce((s, c) => s + c.posts, 0);
+                        return total > best.total ? { key, name: data.name, total, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", total: 0, logo: "", color: "" }) : null;
+
+                      // Best platform by avg likes
+                      const bestPlatformByLikes = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const avg = data.competitors.reduce((s, c) => s + c.avgLikes, 0) / data.competitors.length;
+                        return avg > best.avg ? { key, name: data.name, avg, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", avg: 0, logo: "", color: "" }) : null;
+
+                      // Best platform by avg views
+                      const bestPlatformByViews = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const avg = data.competitors.reduce((s, c) => s + c.avgViews, 0) / data.competitors.length;
+                        return avg > best.avg ? { key, name: data.name, avg, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", avg: 0, logo: "", color: "" }) : null;
+
+                      // Best platform by post frequency
+                      const bestPlatformByFreq = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const avg = data.competitors.reduce((s, c) => s + c.postFrequency, 0) / data.competitors.length;
+                        return avg > best.avg ? { key, name: data.name, avg, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", avg: 0, logo: "", color: "" }) : null;
+
+                      // Best platform by total likes
+                      const bestPlatformByTotalLikes = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const total = data.competitors.reduce((s, c) => s + c.totalLikes, 0);
+                        return total > best.total ? { key, name: data.name, total, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", total: 0, logo: "", color: "" }) : null;
+
+                      // Best platform by follower gain 30d
+                      const bestPlatformByGain = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const total = data.competitors.reduce((s, c) => s + c.followerGain30d, 0);
+                        return total > best.total ? { key, name: data.name, total, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", total: 0, logo: "", color: "" }) : null;
+
+                      // Best platform by comments
+                      const bestPlatformByComments = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const avg = data.competitors.reduce((s, c) => s + c.avgComments, 0) / data.competitors.length;
+                        return avg > best.avg ? { key, name: data.name, avg, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", avg: 0, logo: "", color: "" }) : null;
+
                       return (
                         <>
                           {/* Aggregate Social Presence */}
