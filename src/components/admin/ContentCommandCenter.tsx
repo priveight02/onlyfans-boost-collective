@@ -26,7 +26,7 @@ import { useCreditAction } from "@/hooks/useCreditAction";
 import CreditCostBadge from "./CreditCostBadge";
 import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 import ContentSandbox from "./ContentSandbox";
-import { pushToSocialHub, pullContentPlanForPlatform, getConnectedAccounts, DEFAULT_BEST_TIMES } from "@/lib/contentSync";
+import { pushToSocialHub, pullContentPlanForPlatform, getConnectedAccounts, DEFAULT_BEST_TIMES, importCompetitorIntelToPlan, distributeToAllPlatforms, cloneAsTemplate, syncMediaPlanIdeas, getSyncLog } from "@/lib/contentSync";
 
 const CONTENT_TYPES = ["post", "story", "reel", "tweet", "promo", "teaser", "behind_scenes", "collab"];
 const STATUSES = ["draft", "planned", "scheduled", "published", "archived"];
@@ -247,6 +247,10 @@ const ContentCommandCenter = () => {
   const [pushCustomTimes, setPushCustomTimes] = useState("");
   const [pushingToSocial, setPushingToSocial] = useState(false);
   const [pushItemFilter, setPushItemFilter] = useState<"all_drafts" | "scheduled" | "competitor" | "selected">("all_drafts");
+
+  // ── Inter-tab sync states ──
+  const [importingCompetitorIntel, setImportingCompetitorIntel] = useState(false);
+  const [distributingAll, setDistributingAll] = useState(false);
 
   // Create form
   const [formTitle, setFormTitle] = useState("");
@@ -1846,6 +1850,46 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
     }
   }, [pushPlatform, showPushToSocial]);
 
+  // ═══ IMPORT COMPETITOR INTEL → PLAN ═══
+  const handleImportCompetitorIntel = async () => {
+    setImportingCompetitorIntel(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Not authenticated"); return; }
+      const { created, competitors } = await importCompetitorIntelToPlan(user.id);
+      if (created > 0) { toast.success(`Imported ${created} strategy drafts from ${competitors} competitors`); loadItems(); }
+      else toast.info("No competitor data found. Add competitors in Competitor Analyzer first.");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setImportingCompetitorIntel(false); }
+  };
+
+  // ═══ DISTRIBUTE ALL PLATFORMS ═══
+  const handleDistributeAll = async () => {
+    if (selectedItems.size === 0 && items.filter(i => i.status === "draft").length === 0) {
+      toast.info("No items to distribute"); return;
+    }
+    setDistributingAll(true);
+    try {
+      const itemsToDistribute = selectedItems.size > 0
+        ? items.filter(i => selectedItems.has(i.id))
+        : items.filter(i => i.status === "draft");
+      const { total_created, per_platform, errors } = await distributeToAllPlatforms(itemsToDistribute, true);
+      if (total_created > 0) {
+        const platformSummary = Object.entries(per_platform).filter(([, n]) => n > 0).map(([p, n]) => `${p}: ${n}`).join(", ");
+        toast.success(`Distributed ${total_created} posts (${platformSummary})`);
+      } else toast.info("No connected platforms found. Connect accounts in Social Hub first.");
+      if (errors.length > 0) toast.error(`${errors.length} items failed`);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setDistributingAll(false); }
+  };
+
+  // ═══ CLONE AS TEMPLATE ═══
+  const handleCloneAsTemplate = async (id: string) => {
+    const newId = await cloneAsTemplate(id, "content_calendar");
+    if (newId) { toast.success("Cloned as reusable template"); loadItems(); }
+    else toast.error("Clone failed");
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -1956,6 +2000,16 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs h-8">
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Zap className="h-3.5 w-3.5 mr-1" />}
             AI Generate
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleImportCompetitorIntel} disabled={importingCompetitorIntel}
+            className="border-amber-500/20 text-amber-400 text-xs h-8 hover:bg-amber-500/10">
+            {importingCompetitorIntel ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Target className="h-3.5 w-3.5 mr-1" />}
+            Import Intel
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleDistributeAll} disabled={distributingAll}
+            className="border-blue-500/20 text-blue-400 text-xs h-8 hover:bg-blue-500/10">
+            {distributingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Globe className="h-3.5 w-3.5 mr-1" />}
+            Distribute All
           </Button>
           <Button size="sm" variant="outline" onClick={openPushToSocial}
             className="border-emerald-500/20 text-emerald-400 text-xs h-8 hover:bg-emerald-500/10">

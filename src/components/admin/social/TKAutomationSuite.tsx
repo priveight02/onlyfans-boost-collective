@@ -9,10 +9,12 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import PlatformAccountSelector from "./PlatformAccountSelector";
 import { TikTokPostPreview } from "./TikTokPostPreview";
+import { pullContentPlanForPlatform, pushToSocialHub, DEFAULT_BEST_TIMES, cloneAsTemplate, ContentPlanItem } from "@/lib/contentSync";
 import {
   Music2, Video, Upload, Eye, MessageSquare, Search, Hash,
   ListVideo, Send, RefreshCw, TrendingUp, BarChart3, Users,
@@ -53,6 +55,41 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
   const selectedAccount = platformAccountId || parentAccount;
   const [loading, setLoading] = useState(false);
   const [tiktokConnected, setTiktokConnected] = useState<boolean | null>(null); // null = loading
+
+  // Import from Content Plan
+  const [showTkImportPlan, setShowTkImportPlan] = useState(false);
+  const [tkPlanItems, setTkPlanItems] = useState<ContentPlanItem[]>([]);
+  const [tkImportingPlan, setTkImportingPlan] = useState(false);
+  const [tkImportAutoSchedule, setTkImportAutoSchedule] = useState(true);
+
+  const openTkImportPlan = async () => {
+    setShowTkImportPlan(true);
+    const items = await pullContentPlanForPlatform("tiktok");
+    setTkPlanItems(items);
+  };
+
+  const tkImportFromPlan = async () => {
+    if (!selectedAccount || tkPlanItems.length === 0) return;
+    setTkImportingPlan(true);
+    try {
+      const { created, errors } = await pushToSocialHub(tkPlanItems, selectedAccount, tkImportAutoSchedule, DEFAULT_BEST_TIMES.tiktok);
+      if (created > 0) {
+        toast.success(`${created} posts imported from Content Plan`);
+        // Reload scheduled
+        const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "tiktok").order("created_at", { ascending: false }).limit(50);
+        if (data) setScheduledPosts(data);
+      }
+      if (errors.length > 0) toast.error(`${errors.length} failed`);
+      setShowTkImportPlan(false);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setTkImportingPlan(false); }
+  };
+
+  const tkClonePost = async (id: string) => {
+    const newId = await cloneAsTemplate(id, "social_posts");
+    if (newId) toast.success("Cloned as template draft in Content Plan");
+    else toast.error("Clone failed");
+  };
 
   // TikTok-native live DM conversations state
   const [tkConversations, setTkConversations] = useState<any[]>([]);
@@ -1225,6 +1262,9 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
             <p className="text-xs text-muted-foreground mt-0.5">Create, upload, publish & track — synced with TikTok API</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={openTkImportPlan}>
+              <FolderOpen className="h-3 w-3" /> Import from Plan
+            </Button>
             <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={syncPublishStatuses}>
               <RefreshCw className="h-3 w-3" /> Sync Statuses
             </Button>
@@ -2875,6 +2915,30 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
         )}
       </TabsContent>
     </Tabs>
+    {/* Import from Plan Dialog */}
+    <Dialog open={showTkImportPlan} onOpenChange={setShowTkImportPlan}>
+      <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogHeader><DialogTitle className="text-white flex items-center gap-2"><FolderOpen className="h-4 w-4 text-cyan-400" /> Import from Content Plan</DialogTitle></DialogHeader>
+        <p className="text-xs text-white/50">{tkPlanItems.length} TikTok items in content plan</p>
+        <div className="flex items-center justify-between rounded-lg border border-white/8 bg-white/3 p-2.5">
+          <div><p className="text-[11px] text-white/80 font-medium">Auto-Schedule</p><p className="text-[10px] text-white/35">Distribute at optimal TikTok hours</p></div>
+          <Switch checked={tkImportAutoSchedule} onCheckedChange={setTkImportAutoSchedule} />
+        </div>
+        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+          {tkPlanItems.map(item => (
+            <div key={item.id} className="rounded border border-white/6 bg-white/[0.02] p-2">
+              <p className="text-xs text-white/80 font-medium truncate">{item.title}</p>
+              <p className="text-[10px] text-white/40 line-clamp-1">{item.caption}</p>
+            </div>
+          ))}
+          {tkPlanItems.length === 0 && <p className="text-xs text-white/30 text-center py-4">No TikTok content in plan. Create items in Content tab first.</p>}
+        </div>
+        <Button onClick={tkImportFromPlan} disabled={tkImportingPlan || tkPlanItems.length === 0} className="w-full bg-cyan-500/15 border border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/25">
+          {tkImportingPlan ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+          {tkImportingPlan ? "Importing..." : `Import ${tkPlanItems.length} items`}
+        </Button>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 };

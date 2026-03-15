@@ -8,14 +8,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { pullContentPlanForPlatform, pushToSocialHub, DEFAULT_BEST_TIMES, cloneAsTemplate, ContentPlanItem } from "@/lib/contentSync";
 import {
   Send, RefreshCw, BarChart3, Users, Eye, Heart,
   ExternalLink, Loader2, Brain, Activity, Globe,
   MessageCircle, LayoutDashboard, Wand2, Megaphone, Copy,
   Target, Calendar, Trash2, Search, Image, Video,
-  Layers, Link2, AtSign, Quote, Shield, Hash,
+  Layers, Link2, AtSign, Quote, Shield, Hash, FolderOpen,
   MessageSquare, ArrowRight, Sparkles, Bot, CheckCircle2,
   AlertCircle, Repeat2, BarChart, EyeOff, MapPin, FileText,
   Clock, ChevronDown, Filter, User,
@@ -120,6 +122,39 @@ const ThreadsAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToCo
   const [schedReplyControl, setSchedReplyControl] = useState("everyone");
   const [schedAiGenerating, setSchedAiGenerating] = useState(false);
 
+  // Import from Content Plan
+  const [showThreadsImportPlan, setShowThreadsImportPlan] = useState(false);
+  const [threadsPlanItems, setThreadsPlanItems] = useState<ContentPlanItem[]>([]);
+  const [threadsImportingPlan, setThreadsImportingPlan] = useState(false);
+  const [threadsImportAutoSchedule, setThreadsImportAutoSchedule] = useState(true);
+
+  const openThreadsImportPlan = async () => {
+    setShowThreadsImportPlan(true);
+    const items = await pullContentPlanForPlatform("threads");
+    setThreadsPlanItems(items);
+  };
+
+  const threadsImportFromPlan = async () => {
+    if (!selectedAccount || threadsPlanItems.length === 0) return;
+    setThreadsImportingPlan(true);
+    try {
+      const { created, errors } = await pushToSocialHub(threadsPlanItems, selectedAccount, threadsImportAutoSchedule, DEFAULT_BEST_TIMES.threads);
+      if (created > 0) {
+        toast.success(`${created} posts imported from Content Plan`);
+        const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "threads").order("created_at", { ascending: false }).limit(50);
+        if (data) setScheduledPosts(data);
+      }
+      if (errors.length > 0) toast.error(`${errors.length} failed`);
+      setShowThreadsImportPlan(false);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setThreadsImportingPlan(false); }
+  };
+
+  const threadsClonePost = async (id: string) => {
+    const newId = await cloneAsTemplate(id, "social_posts");
+    if (newId) toast.success("Cloned as template draft in Content Plan");
+    else toast.error("Clone failed");
+  };
   // Check connection
   useEffect(() => {
     if (!selectedAccount) { setThreadsConnected(false); return; }
@@ -777,7 +812,12 @@ const ThreadsAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToCo
       <TabsContent value="schedule" className="space-y-4 mt-4">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-bold text-foreground flex items-center gap-2"><Calendar className="h-5 w-5 text-purple-400" />Schedule Manager</h3>
-          <Badge variant="outline" className="text-[10px] border-purple-500/20 text-purple-400">{scheduledPosts.filter(p => p.status === "scheduled").length}/50</Badge>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={openThreadsImportPlan}>
+              <FolderOpen className="h-3 w-3" /> Import from Plan
+            </Button>
+            <Badge variant="outline" className="text-[10px] border-purple-500/20 text-purple-400">{scheduledPosts.filter(p => p.status === "scheduled").length}/50</Badge>
+          </div>
         </div>
         <Card className="bg-white/[0.03] border-purple-500/20 backdrop-blur-sm">
           <CardContent className="p-5 space-y-4">
@@ -858,6 +898,30 @@ const ThreadsAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToCo
         </div>
       </TabsContent>
     </Tabs>
+    {/* Import from Plan Dialog */}
+    <Dialog open={showThreadsImportPlan} onOpenChange={setShowThreadsImportPlan}>
+      <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogHeader><DialogTitle className="text-white flex items-center gap-2"><FolderOpen className="h-4 w-4 text-purple-400" /> Import from Content Plan</DialogTitle></DialogHeader>
+        <p className="text-xs text-white/50">{threadsPlanItems.length} Threads items in content plan</p>
+        <div className="flex items-center justify-between rounded-lg border border-white/8 bg-white/3 p-2.5">
+          <div><p className="text-[11px] text-white/80 font-medium">Auto-Schedule</p><p className="text-[10px] text-white/35">Distribute at optimal Threads hours</p></div>
+          <Switch checked={threadsImportAutoSchedule} onCheckedChange={setThreadsImportAutoSchedule} />
+        </div>
+        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+          {threadsPlanItems.map(item => (
+            <div key={item.id} className="rounded border border-white/6 bg-white/[0.02] p-2">
+              <p className="text-xs text-white/80 font-medium truncate">{item.title}</p>
+              <p className="text-[10px] text-white/40 line-clamp-1">{item.caption}</p>
+            </div>
+          ))}
+          {threadsPlanItems.length === 0 && <p className="text-xs text-white/30 text-center py-4">No Threads content in plan. Create items in Content tab first.</p>}
+        </div>
+        <Button onClick={threadsImportFromPlan} disabled={threadsImportingPlan || threadsPlanItems.length === 0} className="w-full bg-purple-500/15 border border-purple-500/20 text-purple-400 hover:bg-purple-500/25">
+          {threadsImportingPlan ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+          {threadsImportingPlan ? "Importing..." : `Import ${threadsPlanItems.length} items`}
+        </Button>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 };

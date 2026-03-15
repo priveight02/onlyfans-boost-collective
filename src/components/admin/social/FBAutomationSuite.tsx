@@ -8,14 +8,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { pullContentPlanForPlatform, pushToSocialHub, DEFAULT_BEST_TIMES, cloneAsTemplate, ContentPlanItem } from "@/lib/contentSync";
 import {
   Send, RefreshCw, BarChart3, Users, Eye, Heart,
   ExternalLink, Loader2, Brain, Activity, Globe,
   MessageCircle, LayoutDashboard, Wand2, Megaphone, Copy,
   Target, Calendar, Trash2, Search, Image, Video,
-  Layers, Link2, Hash, Shield, FileText,
+  Layers, Link2, Hash, Shield, FileText, FolderOpen,
   MessageSquare, ArrowRight, Sparkles, Bot, CheckCircle2,
   AlertCircle, Clock, ThumbsUp, Share2, Play,
   UserPlus, BookOpen, Camera, Mail, Store, DollarSign, Briefcase, MousePointer,
@@ -124,6 +126,39 @@ const FBAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
   const [fbSchedPostType, setFbSchedPostType] = useState<"text" | "photo" | "video">("text");
   const [fbSchedAiGenerating, setFbSchedAiGenerating] = useState(false);
 
+  // Import from Content Plan
+  const [showFbImportPlan, setShowFbImportPlan] = useState(false);
+  const [fbPlanItems, setFbPlanItems] = useState<ContentPlanItem[]>([]);
+  const [fbImportingPlan, setFbImportingPlan] = useState(false);
+  const [fbImportAutoSchedule, setFbImportAutoSchedule] = useState(true);
+
+  const openFbImportPlan = async () => {
+    setShowFbImportPlan(true);
+    const items = await pullContentPlanForPlatform("facebook");
+    setFbPlanItems(items);
+  };
+
+  const fbImportFromPlan = async () => {
+    if (!selectedAccount || fbPlanItems.length === 0) return;
+    setFbImportingPlan(true);
+    try {
+      const { created, errors } = await pushToSocialHub(fbPlanItems, selectedAccount, fbImportAutoSchedule, DEFAULT_BEST_TIMES.facebook);
+      if (created > 0) {
+        toast.success(`${created} posts imported from Content Plan`);
+        const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "facebook").order("created_at", { ascending: false }).limit(50);
+        if (data) setFbScheduledPosts(data);
+      }
+      if (errors.length > 0) toast.error(`${errors.length} failed`);
+      setShowFbImportPlan(false);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setFbImportingPlan(false); }
+  };
+
+  const fbClonePost = async (id: string) => {
+    const newId = await cloneAsTemplate(id, "social_posts");
+    if (newId) toast.success("Cloned as template draft in Content Plan");
+    else toast.error("Clone failed");
+  };
   // Check connection
   useEffect(() => {
     if (!selectedAccount) { setFbConnected(false); return; }
@@ -864,7 +899,12 @@ const FBAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
         <TabsContent value="schedule" className="space-y-4 mt-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-foreground flex items-center gap-2"><Calendar className="h-5 w-5 text-blue-400" />Schedule Manager</h3>
-            <Badge variant="outline" className="text-[10px] border-blue-500/20 text-blue-400">{fbScheduledPosts.filter(p => p.status === "scheduled").length}/50</Badge>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={openFbImportPlan}>
+                <FolderOpen className="h-3 w-3" /> Import from Plan
+              </Button>
+              <Badge variant="outline" className="text-[10px] border-blue-500/20 text-blue-400">{fbScheduledPosts.filter(p => p.status === "scheduled").length}/50</Badge>
+            </div>
           </div>
           <Card className="bg-white/[0.03] border-blue-500/20 backdrop-blur-sm">
             <CardContent className="p-5 space-y-4">
@@ -946,6 +986,30 @@ const FBAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
           </Card>
         </TabsContent>
       </Tabs>
+    {/* Import from Plan Dialog */}
+    <Dialog open={showFbImportPlan} onOpenChange={setShowFbImportPlan}>
+      <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogHeader><DialogTitle className="text-white flex items-center gap-2"><FolderOpen className="h-4 w-4 text-blue-400" /> Import from Content Plan</DialogTitle></DialogHeader>
+        <p className="text-xs text-white/50">{fbPlanItems.length} Facebook items in content plan</p>
+        <div className="flex items-center justify-between rounded-lg border border-white/8 bg-white/3 p-2.5">
+          <div><p className="text-[11px] text-white/80 font-medium">Auto-Schedule</p><p className="text-[10px] text-white/35">Distribute at optimal Facebook hours</p></div>
+          <Switch checked={fbImportAutoSchedule} onCheckedChange={setFbImportAutoSchedule} />
+        </div>
+        <div className="space-y-1.5 max-h-48 overflow-y-auto">
+          {fbPlanItems.map(item => (
+            <div key={item.id} className="rounded border border-white/6 bg-white/[0.02] p-2">
+              <p className="text-xs text-white/80 font-medium truncate">{item.title}</p>
+              <p className="text-[10px] text-white/40 line-clamp-1">{item.caption}</p>
+            </div>
+          ))}
+          {fbPlanItems.length === 0 && <p className="text-xs text-white/30 text-center py-4">No Facebook content in plan. Create items in Content tab first.</p>}
+        </div>
+        <Button onClick={fbImportFromPlan} disabled={fbImportingPlan || fbPlanItems.length === 0} className="w-full bg-blue-500/15 border border-blue-500/20 text-blue-400 hover:bg-blue-500/25">
+          {fbImportingPlan ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+          {fbImportingPlan ? "Importing..." : `Import ${fbPlanItems.length} items`}
+        </Button>
+      </DialogContent>
+    </Dialog>
     </div>
   );
 };
