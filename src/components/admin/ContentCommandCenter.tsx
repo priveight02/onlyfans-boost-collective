@@ -1117,8 +1117,7 @@ Respond ONLY with JSON.`);
 Topic: "${formCaption || formTitle || "engaging content"}"
 For each scene: scene_number, duration, visual, text_overlay, audio, transition, engagement (interactive element), camera direction
 Respond ONLY with JSON array.`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) { const scenes = JSON.parse(jsonMatch[0]); setStoryboardScenes(scenes); setShowStoryboard(true); toast.success(`${scenes.length}-scene storyboard created`); }
+        try { const scenes = safeParseJSON(content); setStoryboardScenes(scenes); setShowStoryboard(true); toast.success(`${scenes.length}-scene storyboard created`); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingStoryboard(false);
     });
