@@ -2373,28 +2373,28 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== CONTENT RECYCLER DIALOG ========== */}
       <Dialog open={showRecycler} onOpenChange={setShowRecycler}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Repeat className="h-4 w-4 text-primary" /> Content Recycler</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Repeat className="h-4 w-4 text-primary" /> Content Recycler</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">AI repurposes your published content for other platforms with native adaptation.</p>
+          <p className="text-xs text-white/50">AI repurposes your published content for other platforms with native adaptation.</p>
           <div className="space-y-2 max-h-[55vh] overflow-y-auto">
             {publishedContent.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-8">No published content to recycle yet</p>
+              <p className="text-xs text-white/40 text-center py-8">No published content to recycle yet</p>
             ) : publishedContent.map(item => (
-              <Card key={item.id} className="bg-card/50 border-border">
+              <Card key={item.id} className="bg-white/[0.03] border-white/[0.06]">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-1.5">
                     <Badge variant="outline" className={`text-[9px] capitalize gap-0.5 ${platformConf(item.platform).color}`}>
                       {platformIcon(item.platform)} {item.platform}
                     </Badge>
-                    <span className="text-xs text-foreground flex-1 truncate">{item.title}</span>
+                    <span className="text-xs text-white flex-1 truncate">{item.title}</span>
                   </div>
-                  <p className="text-[10px] text-muted-foreground line-clamp-1 mb-2">{item.caption}</p>
+                  <p className="text-[10px] text-white/40 line-clamp-1 mb-2">{item.caption}</p>
                   <div className="flex gap-1 flex-wrap">
                     {availablePlatforms.filter(p => p !== item.platform).map(p => (
                       <Button key={p} size="sm" variant="outline" onClick={() => recycleContent(item, p)}
-                        className="text-[9px] h-5 border-border text-muted-foreground capitalize">
+                        className="text-[9px] h-5 border-white/[0.06] text-white/50 capitalize">
                         → {p}
                       </Button>
                     ))}
