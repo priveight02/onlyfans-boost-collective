@@ -3389,47 +3389,89 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                               <Badge variant="outline" className="ml-auto text-[7px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]">{competitors.length} competitor{competitors.length !== 1 ? "s" : ""} · {platformCount} platform{platformCount !== 1 ? "s" : ""}</Badge>
                             </div>
                             <div className="p-2.5 md:p-3">
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
-                                <div className="p-2.5 rounded-lg text-center" style={{ background: "hsl(217 91% 60% / 0.06)", border: "1px solid hsl(217 91% 60% / 0.12)" }}>
-                                  <p className="text-[8px] text-white/40 mb-0.5">Total Reach</p>
-                                  <p className="text-base md:text-lg font-black text-white">{fmtNum(totalFollowers)}</p>
-                                  <p className="text-[8px] text-[hsl(217,91%,60%)]">combined followers</p>
-                                </div>
-                                <div className="p-2.5 rounded-lg text-center" style={{ background: "hsl(150 60% 50% / 0.06)", border: "1px solid hsl(150 60% 50% / 0.12)" }}>
-                                  <p className="text-[8px] text-white/40 mb-0.5">Avg Engagement</p>
-                                  <p className="text-base md:text-lg font-black text-emerald-400">{avgEngagement.toFixed(2)}%</p>
-                                  <p className="text-[8px] text-emerald-400/70">across all</p>
-                                </div>
-                                <div className="p-2.5 rounded-lg text-center" style={{ background: "hsl(262 83% 58% / 0.06)", border: "1px solid hsl(262 83% 58% / 0.12)" }}>
-                                  <p className="text-[8px] text-white/40 mb-0.5">Total Content</p>
-                                  <p className="text-base md:text-lg font-black text-[hsl(262,83%,58%)]">{fmtNum(totalPosts)}</p>
-                                  <p className="text-[8px] text-[hsl(262,83%,58%)]/70">posts published</p>
-                                </div>
-                                <div className="p-2.5 rounded-lg text-center" style={{ background: "hsl(30 95% 60% / 0.06)", border: "1px solid hsl(30 95% 60% / 0.12)" }}>
-                                  <p className="text-[8px] text-white/40 mb-0.5">Avg Growth</p>
-                                  <p className="text-base md:text-lg font-black text-amber-400">{avgGrowth >= 0 ? "+" : ""}{avgGrowth.toFixed(2)}%</p>
-                                  <p className="text-[8px] text-amber-400/70">per week</p>
-                                </div>
-                              </div>
-                              {/* Secondary metrics row */}
-                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                <div className="p-2 rounded-lg bg-white/[0.02] text-center">
-                                  <p className="text-[8px] text-white/35">Avg Likes/Post</p>
-                                  <p className="text-sm font-bold text-white">{fmtNum(competitors.length > 0 ? Math.round(totalAvgLikes / competitors.length) : 0)}</p>
-                                </div>
-                                <div className="p-2 rounded-lg bg-white/[0.02] text-center">
-                                  <p className="text-[8px] text-white/35">Avg Comments/Post</p>
-                                  <p className="text-sm font-bold text-white">{fmtNum(competitors.length > 0 ? Math.round(totalAvgComments / competitors.length) : 0)}</p>
-                                </div>
-                                <div className="p-2 rounded-lg bg-white/[0.02] text-center">
-                                  <p className="text-[8px] text-white/35">Est. Monthly Traffic</p>
-                                  <p className="text-sm font-bold text-white">{totalTraffic > 0 ? fmtNum(totalTraffic) : "N/A"}</p>
-                                </div>
-                                <div className="p-2 rounded-lg bg-white/[0.02] text-center">
-                                  <p className="text-[8px] text-white/35">Avg Domain Authority</p>
-                                  <p className="text-sm font-bold text-white">{avgDA > 0 ? avgDA + "/100" : "N/A"}</p>
-                                </div>
-                              </div>
+                              {/* Compute accurate aggregated per-platform metrics */}
+                              {(() => {
+                                // Aggregate from actual per-platform data instead of top-level AI estimates
+                                const aggFollowers = platforms.reduce((s, [, d]) => s + d.competitors.reduce((s2, c) => s2 + c.followers, 0), 0);
+                                const aggPosts = platforms.reduce((s, [, d]) => s + d.competitors.reduce((s2, c) => s2 + c.posts, 0), 0);
+                                const aggAvgLikes = platforms.length > 0 ? Math.round(platforms.reduce((s, [, d]) => s + d.competitors.reduce((s2, c) => s2 + c.avgLikes, 0) / Math.max(d.competitors.length, 1), 0) / platforms.length) : 0;
+                                const aggAvgComments = platforms.length > 0 ? Math.round(platforms.reduce((s, [, d]) => s + d.competitors.reduce((s2, c) => s2 + c.avgComments, 0) / Math.max(d.competitors.length, 1), 0) / platforms.length) : 0;
+                                const aggAvgViews = platforms.length > 0 ? Math.round(platforms.reduce((s, [, d]) => s + d.competitors.reduce((s2, c) => s2 + c.avgViews, 0) / Math.max(d.competitors.length, 1), 0) / platforms.length) : 0;
+                                const allERs = platforms.flatMap(([, d]) => d.competitors.map(c => c.engagementRate));
+                                const aggAvgEng = allERs.length > 0 ? allERs.reduce((s, v) => s + v, 0) / allERs.length : 0;
+                                const allGrowth = platforms.flatMap(([, d]) => d.competitors.map(c => c.growthRate));
+                                const aggAvgGrowth = allGrowth.length > 0 ? allGrowth.reduce((s, v) => s + v, 0) / allGrowth.length : 0;
+                                const aggTotalLikes = platforms.reduce((s, [, d]) => s + d.competitors.reduce((s2, c) => s2 + c.totalLikes, 0), 0);
+                                const aggTotalViews = platforms.reduce((s, [, d]) => s + d.competitors.reduce((s2, c) => s2 + c.totalViews, 0), 0);
+                                const allFreqs = platforms.flatMap(([, d]) => d.competitors.map(c => c.postFrequency)).filter(f => f > 0);
+                                const aggAvgFreq = allFreqs.length > 0 ? allFreqs.reduce((s, v) => s + v, 0) / allFreqs.length : 0;
+
+                                // Use per-platform data when available, fallback to top-level
+                                const displayFollowers = aggFollowers > 0 ? aggFollowers : totalFollowers;
+                                const displayPosts = aggPosts > 0 ? aggPosts : totalPosts;
+                                const displayEng = aggAvgEng > 0 ? aggAvgEng : avgEngagement;
+                                const displayGrowth = aggAvgGrowth !== 0 ? aggAvgGrowth : avgGrowth;
+                                const displayAvgLikes = aggAvgLikes > 0 ? aggAvgLikes : (competitors.length > 0 ? Math.round(totalAvgLikes / competitors.length) : 0);
+                                const displayAvgComments = aggAvgComments > 0 ? aggAvgComments : (competitors.length > 0 ? Math.round(totalAvgComments / competitors.length) : 0);
+                                const displayAvgViews = aggAvgViews;
+                                const displayTotalLikes = aggTotalLikes;
+                                const displayAvgFreq = aggAvgFreq;
+
+                                return (
+                                  <>
+                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">
+                                      <div className="p-2.5 rounded-lg text-center" style={{ background: "hsl(217 91% 60% / 0.06)", border: "1px solid hsl(217 91% 60% / 0.12)" }}>
+                                        <p className="text-[8px] text-white/40 mb-0.5">Total Reach</p>
+                                        <p className="text-base md:text-lg font-black text-white">{fmtNum(displayFollowers)}</p>
+                                        <p className="text-[8px] text-[hsl(217,91%,60%)]">combined followers</p>
+                                      </div>
+                                      <div className="p-2.5 rounded-lg text-center" style={{ background: "hsl(150 60% 50% / 0.06)", border: "1px solid hsl(150 60% 50% / 0.12)" }}>
+                                        <p className="text-[8px] text-white/40 mb-0.5">Avg Engagement</p>
+                                        <p className="text-base md:text-lg font-black text-emerald-400">{displayEng.toFixed(2)}%</p>
+                                        <p className="text-[8px] text-emerald-400/70">across platforms</p>
+                                      </div>
+                                      <div className="p-2.5 rounded-lg text-center" style={{ background: "hsl(262 83% 58% / 0.06)", border: "1px solid hsl(262 83% 58% / 0.12)" }}>
+                                        <p className="text-[8px] text-white/40 mb-0.5">Total Content</p>
+                                        <p className="text-base md:text-lg font-black text-[hsl(262,83%,58%)]">{fmtNum(displayPosts)}</p>
+                                        <p className="text-[8px] text-[hsl(262,83%,58%)]/70">posts published</p>
+                                      </div>
+                                      <div className="p-2.5 rounded-lg text-center" style={{ background: "hsl(30 95% 60% / 0.06)", border: "1px solid hsl(30 95% 60% / 0.12)" }}>
+                                        <p className="text-[8px] text-white/40 mb-0.5">Avg Growth</p>
+                                        <p className="text-base md:text-lg font-black text-amber-400">{displayGrowth >= 0 ? "+" : ""}{displayGrowth.toFixed(2)}%</p>
+                                        <p className="text-[8px] text-amber-400/70">per week</p>
+                                      </div>
+                                      <div className="p-2.5 rounded-lg text-center" style={{ background: "hsl(347 100% 58% / 0.06)", border: "1px solid hsl(347 100% 58% / 0.12)" }}>
+                                        <p className="text-[8px] text-white/40 mb-0.5">Avg Post Freq</p>
+                                        <p className="text-base md:text-lg font-black text-[hsl(347,100%,58%)]">{displayAvgFreq > 0 ? displayAvgFreq.toFixed(1) + "/wk" : "N/A"}</p>
+                                        <p className="text-[8px] text-[hsl(347,100%,58%)]/70">posts per week</p>
+                                      </div>
+                                    </div>
+                                    {/* Secondary metrics row - 5 more for 10 total */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                                      <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                        <p className="text-[8px] text-white/35">Avg Likes/Post</p>
+                                        <p className="text-sm font-bold text-white">{fmtNum(displayAvgLikes)}</p>
+                                      </div>
+                                      <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                        <p className="text-[8px] text-white/35">Avg Comments/Post</p>
+                                        <p className="text-sm font-bold text-white">{fmtNum(displayAvgComments)}</p>
+                                      </div>
+                                      <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                        <p className="text-[8px] text-white/35">Avg Views/Post</p>
+                                        <p className="text-sm font-bold text-white">{displayAvgViews > 0 ? fmtNum(displayAvgViews) : "N/A"}</p>
+                                      </div>
+                                      <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                        <p className="text-[8px] text-white/35">Total Likes (All)</p>
+                                        <p className="text-sm font-bold text-white">{displayTotalLikes > 0 ? fmtNum(displayTotalLikes) : "N/A"}</p>
+                                      </div>
+                                      <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                        <p className="text-[8px] text-white/35">Total Views (All)</p>
+                                        <p className="text-sm font-bold text-white">{aggTotalViews > 0 ? fmtNum(aggTotalViews) : "N/A"}</p>
+                                      </div>
+                                    </div>
+                                  </>
+                                );
+                              })()}
                             </div>
                           </div>
 
