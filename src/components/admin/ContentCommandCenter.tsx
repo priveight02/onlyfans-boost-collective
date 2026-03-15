@@ -1952,40 +1952,130 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
     if (orchSelectedPlatforms.size === 0) { toast.error("Select at least one platform"); return; }
     setOrchExecuting(true);
     try {
-      // In automated mode, first auto-generate captions for items missing them
+      const platforms = Array.from(orchSelectedPlatforms);
+
       if (orchMode === "automated") {
-        toast.info("Generating AI captions for items missing content...");
-        const planItems = [];
-        for (const platform of Array.from(orchSelectedPlatforms)) {
+        // ═══ PHASE 1: Fetch all plan items across selected platforms ═══
+        toast.info("Phase 1/4: Fetching plan items...");
+        const allPlanItems: import("@/lib/contentSync").ContentPlanItem[] = [];
+        for (const platform of platforms) {
           const items = await pullContentPlanForPlatform(platform, ["draft", "planned"]);
-          planItems.push(...items);
+          allPlanItems.push(...items);
         }
-        if (planItems.length > 0) {
-          await autoGenerateCaptionsForPlan(planItems, callAI);
+
+        if (allPlanItems.length === 0) {
+          toast.error("No plan items found for selected platforms");
+          setOrchExecuting(false);
+          return;
         }
-        // Also queue media generation for items without visuals
-        const itemsNeedingMedia = planItems.filter(i => !i.media_urls || i.media_urls.length === 0);
+
+        // ═══ PHASE 2: AI Caption & Title Generation ═══
+        toast.info(`Phase 2/4: AI generating captions & titles for ${allPlanItems.length} items...`);
+        const itemsNeedingContent = allPlanItems.filter(i => !i.caption || i.caption.length < 20);
+        if (itemsNeedingContent.length > 0) {
+          // Group by platform for platform-specific caption generation
+          const byPlatform: Record<string, typeof itemsNeedingContent> = {};
+          for (const item of itemsNeedingContent) {
+            const p = item.platform || "instagram";
+            if (!byPlatform[p]) byPlatform[p] = [];
+            byPlatform[p].push(item);
+          }
+
+          for (const [platform, pItems] of Object.entries(byPlatform)) {
+            const platformPrompt = `You are the content manager for a ${platform} account. Generate PUBLISH-READY captions for these ${pItems.length} posts.
+
+PLATFORM-SPECIFIC RULES for ${platform.toUpperCase()}:
+${platform === "instagram" ? "- Use 15-25 hashtags footer-style. Include emojis throughout. Strong CTA at end. Line breaks for readability. 2200 char max." : ""}
+${platform === "tiktok" ? "- Hook in first line. 5-8 trending hashtags. Casual/viral tone. Use Gen-Z language if appropriate. 4000 char max." : ""}
+${platform === "twitter" ? "- Concise and punchy. Max 280 chars. 1-3 hashtags. Thread-worthy hooks." : ""}
+${platform === "facebook" ? "- Conversational tone. Ask questions. 3-5 hashtags. Encourage shares/comments. Can be longer format." : ""}
+${platform === "threads" ? "- Conversational, authentic voice. 3-5 hashtags. 500 char max. Opinion-driven." : ""}
+
+Posts:
+${pItems.map((item, idx) => `${idx + 1}. Title: "${item.title}", Type: ${item.content_type}, Desc: "${item.description || ""}", Existing hashtags: [${(item.hashtags || []).join(", ")}]`).join("\n")}
+
+Return JSON array: [{"index":1, "caption":"full publish-ready caption", "title":"improved engaging title", "hashtags":["tag1","tag2",...]}]
+ONLY the JSON array.`;
+
+            await autoGenerateCaptionsForPlan(pItems, async () => {
+              return await callAI(platformPrompt);
+            });
+          }
+          toast.success(`AI generated content for ${itemsNeedingContent.length} items`);
+        }
+
+        // ═══ PHASE 3: Smart Scheduling at Optimal Hours ═══
+        toast.info("Phase 3/4: Auto-scheduling at optimal posting hours...");
+        // Re-fetch items after AI enrichment to get updated captions
+        const enrichedItems: import("@/lib/contentSync").ContentPlanItem[] = [];
+        for (const platform of platforms) {
+          const items = await pullContentPlanForPlatform(platform, ["draft", "planned"]);
+          enrichedItems.push(...items);
+        }
+
+        // Assign smart schedules based on platform best times + competitor data
+        for (const platform of platforms) {
+          const pItems = enrichedItems.filter(i => i.platform === platform);
+          const bestTimes = DEFAULT_BEST_TIMES[platform] || ["12:00 PM"];
+          
+          for (let i = 0; i < pItems.length; i++) {
+            const item = pItems[i];
+            if (!item.id) continue;
+            
+            // Calculate optimal schedule: spread across days and best time slots
+            const dayOffset = Math.floor(i / bestTimes.length) + 1;
+            const timeSlotIdx = i % bestTimes.length;
+            const baseDate = new Date();
+            baseDate.setDate(baseDate.getDate() + dayOffset);
+            
+            const timeStr = bestTimes[timeSlotIdx];
+            const timeParts = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+            if (timeParts) {
+              let hours = parseInt(timeParts[1]);
+              const mins = parseInt(timeParts[2]) || 0;
+              const ampm = timeParts[3]?.toUpperCase();
+              if (ampm === "PM" && hours < 12) hours += 12;
+              if (ampm === "AM" && hours === 12) hours = 0;
+              // Add slight randomization (0-15 min) to avoid exact-minute posting
+              baseDate.setHours(hours, mins + Math.floor(Math.random() * 15), 0, 0);
+            }
+            
+            await supabase.from("content_calendar").update({
+              scheduled_at: baseDate.toISOString(),
+              status: "scheduled",
+              metadata: {
+                ...(item.metadata || {}),
+                auto_scheduled: true,
+                scheduled_time_slot: bestTimes[timeSlotIdx],
+                scheduling_strategy: "optimal_hours",
+              },
+            }).eq("id", item.id);
+          }
+        }
+
+        // ═══ PHASE 4: Queue Media Generation + Push to Social Hub ═══
+        toast.info("Phase 4/4: Pushing to platform tabs & queuing media...");
+        const itemsNeedingMedia = enrichedItems.filter(i => !i.media_urls || i.media_urls.length === 0);
         if (itemsNeedingMedia.length > 0) {
           await generateMediaPlaceholders(itemsNeedingMedia);
-          toast.info(`${itemsNeedingMedia.length} media generation tasks queued`);
         }
-      }
 
-      const result = await orchestratePlanToPlatforms(
-        Array.from(orchSelectedPlatforms),
-        orchMode,
-        orchItemFilter === "all" ? "all" : orchItemFilter === "drafts" ? "drafts" : "competitor",
-        selectedItems.size > 0 ? Array.from(selectedItems) : undefined,
-      );
-      setOrchResult(result);
-      setOrchStep(3);
+        // Now orchestrate the push to social_posts
+        const result = await orchestratePlanToPlatforms(platforms, "automated", orchItemFilter === "all" ? "all" : orchItemFilter === "drafts" ? "drafts" : "competitor", selectedItems.size > 0 ? Array.from(selectedItems) : undefined);
+        setOrchResult(result);
+        setOrchStep(3);
 
-      const totalMsg = `${result.total_created} posts pushed to ${result.platforms_processed.length} platform(s)`;
-      if (orchMode === "automated") {
-        toast.success(`${totalMsg} with auto-scheduling & AI captions`);
+        toast.success(`🚀 ${result.total_created} posts auto-scheduled across ${result.platforms_processed.length} platform(s)`, {
+          description: `${itemsNeedingContent.length} captions generated, ${itemsNeedingMedia.length} media tasks queued`,
+        });
       } else {
-        toast.success(`${totalMsg} as drafts (manual mode)`);
+        // ═══ MANUAL MODE: Push as drafts only ═══
+        const result = await orchestratePlanToPlatforms(platforms, "manual", orchItemFilter === "all" ? "all" : orchItemFilter === "drafts" ? "drafts" : "competitor", selectedItems.size > 0 ? Array.from(selectedItems) : undefined);
+        setOrchResult(result);
+        setOrchStep(3);
+        toast.success(`${result.total_created} posts pushed as drafts to ${result.platforms_processed.length} platform(s)`);
       }
+
       await loadItems();
     } catch (e: any) { toast.error(e.message); }
     finally { setOrchExecuting(false); }

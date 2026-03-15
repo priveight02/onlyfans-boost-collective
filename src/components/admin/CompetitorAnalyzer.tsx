@@ -3928,7 +3928,7 @@ Return ONLY a valid JSON array. No markdown, no explanations, no code blocks.`,
 
                                       // Insert into content_calendar
                                       const userId = session?.user?.id;
-                                      const inserts = entries.map((e: any) => ({
+                                       const inserts = entries.map((e: any) => ({
                                         title: String(e.title || "Cloned Post").slice(0, 200),
                                         platform: String(e.platform || "instagram").toLowerCase(),
                                         content_type: String(e.content_type || "post"),
@@ -3938,9 +3938,10 @@ Return ONLY a valid JSON array. No markdown, no explanations, no code blocks.`,
                                         created_by: userId,
                                         viral_score: e.viral_score || 0,
                                         description: e.description || "Cloned from competitor strategy",
+                                        cta: e.content_pillar || null,
                                         hashtags: Array.isArray(e.hashtags) ? e.hashtags.map((t: string) => t.replace("#", "")) : e.caption ? [...(e.caption.match(/#\w+/g) || [])].map((t: string) => t.replace("#", "")) : [],
-                                        metadata: { source: "competitor_intel", cloned_from: "content_intel_tab", cloned_at: new Date().toISOString(), competitor_handles: planData.flatMap(p => p.competitors) },
-                                      }));
+                                        metadata: { source: "competitor_intel", cloned_from: "content_intel_tab", cloned_at: new Date().toISOString(), competitor_handles: planData.flatMap(p => p.competitors), content_pillar: e.content_pillar || null, best_posting_hour: e.best_posting_hour || null, platform_strategy: `${e.platform}_clone` },
+                                       }));
 
                                       const { error } = await supabase.from("content_calendar").insert(inserts);
                                       if (error) throw error;
