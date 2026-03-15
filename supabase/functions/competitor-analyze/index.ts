@@ -726,9 +726,9 @@ const scrapeSocialProfiles = async (
       }
     }
 
-    // ── TERTIARY: YouTube RSS enrichment for real engagement ──
-    if (key === "youtube" && merged.followers) {
-      await enrichYoutubeFromRecentVideos(handle, merged.followers, merged);
+    // ── TERTIARY: YouTube RSS enrichment for real engagement (always run for YouTube) ──
+    if (key === "youtube") {
+      await enrichYoutubeFromRecentVideos(handle, merged.followers || 0, merged);
     }
 
     // ── FALLBACK: Direct platform page scraping (for followers/posts if SB failed) ──
