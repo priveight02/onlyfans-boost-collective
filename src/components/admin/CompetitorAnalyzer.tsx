@@ -1004,7 +1004,12 @@ Return ONLY valid JSON:
   "weeklyHitList": [{"day": "Monday", "action": "specific action to take", "target": "what metric this impacts", "priority": "high/medium"}],
   "immediateActions": [{"action": "do this right now", "timeNeeded": "15min", "impact": "high", "details": "step by step"}],
   "longTermPlays": [{"play": "strategic move", "timeline": "2-4 weeks", "investment": "time/money needed", "expectedROI": "expected return"}],
-  "riskAssessment": {"overallThreat": "low/medium/high/critical", "biggestRisk": "main risk", "mitigation": "how to mitigate"}
+  "riskAssessment": {"overallThreat": "low/medium/high/critical", "biggestRisk": "main risk", "mitigation": "how to mitigate"},
+  "emailAutomationIntel": {"hasEmailCapture": true, "captureMethod": "popup/inline/exit-intent", "leadMagnet": "what they offer", "estimatedListSize": "range", "emailFrequency": "daily/weekly/monthly", "automationLevel": "basic/advanced/enterprise", "espPlatform": "detected email platform", "yourOpportunity": "how to build a better email funnel"},
+  "seoKeywordGaps": [{"keyword": "keyword they rank for", "estimatedPosition": "1-100", "searchVolume": "monthly", "difficulty": "easy/medium/hard", "yourAction": "how to outrank them on this", "contentToCreate": "specific content piece"}],
+  "competitiveMoat": {"moatType": "brand/network/cost/tech/data/switching-costs/none", "moatStrength": "strong/moderate/weak/none", "howToBreachIt": "specific tactics to overcome their moat", "timeToBreak": "estimated timeline", "yourMoatAdvice": "what moat you should build"},
+  "brandPerception": {"brandStrength": <0-100>, "brandPersonality": "how their brand comes across", "brandWeaknesses": ["brand weak spots"], "brandOpportunities": ["how to position against their brand"], "messagingGaps": ["messaging angles they miss"], "emotionalAppeal": "what emotion their brand triggers", "yourBrandStrategy": "how to differentiate your brand"},
+  "retentionSignals": {"hasLoyaltyProgram": true, "retentionTactics": ["tactic1"], "communityEngagement": "strong/moderate/weak", "repeatPurchaseSignals": "what indicates repeat buying", "churnVulnerabilities": ["why their customers might leave"], "yourRetentionPlay": "how to build better retention"}
 }
 
 Be extremely specific. Use actual data from the analysis. No generic advice. Every recommendation must be actionable with clear steps.`;
