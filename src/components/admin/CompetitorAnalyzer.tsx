@@ -11,8 +11,9 @@ import {
   Loader2, Clock, AlertTriangle, Calendar, Search, Eye, Globe, Sparkles,
   Shield, Flame, Crown, Download, Copy, ChevronDown, ChevronUp, Star,
   Link, Lock, FileText, Image as ImageIcon, Code, Activity, CheckCircle, XCircle, ExternalLink,
-  DollarSign, TrendingUp as TrendUp,
+  DollarSign, TrendingUp as TrendUp, Building2, Briefcase,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis,
