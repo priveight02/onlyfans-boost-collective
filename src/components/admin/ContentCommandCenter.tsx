@@ -1850,6 +1850,46 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
     }
   }, [pushPlatform, showPushToSocial]);
 
+  // ═══ IMPORT COMPETITOR INTEL → PLAN ═══
+  const handleImportCompetitorIntel = async () => {
+    setImportingCompetitorIntel(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Not authenticated"); return; }
+      const { created, competitors } = await importCompetitorIntelToPlan(user.id);
+      if (created > 0) { toast.success(`Imported ${created} strategy drafts from ${competitors} competitors`); loadItems(); }
+      else toast.info("No competitor data found. Add competitors in Competitor Analyzer first.");
+    } catch (e: any) { toast.error(e.message); }
+    finally { setImportingCompetitorIntel(false); }
+  };
+
+  // ═══ DISTRIBUTE ALL PLATFORMS ═══
+  const handleDistributeAll = async () => {
+    if (selectedItems.size === 0 && items.filter(i => i.status === "draft").length === 0) {
+      toast.info("No items to distribute"); return;
+    }
+    setDistributingAll(true);
+    try {
+      const itemsToDistribute = selectedItems.size > 0
+        ? items.filter(i => selectedItems.has(i.id))
+        : items.filter(i => i.status === "draft");
+      const { total_created, per_platform, errors } = await distributeToAllPlatforms(itemsToDistribute, true);
+      if (total_created > 0) {
+        const platformSummary = Object.entries(per_platform).filter(([, n]) => n > 0).map(([p, n]) => `${p}: ${n}`).join(", ");
+        toast.success(`Distributed ${total_created} posts (${platformSummary})`);
+      } else toast.info("No connected platforms found. Connect accounts in Social Hub first.");
+      if (errors.length > 0) toast.error(`${errors.length} items failed`);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setDistributingAll(false); }
+  };
+
+  // ═══ CLONE AS TEMPLATE ═══
+  const handleCloneAsTemplate = async (id: string) => {
+    const newId = await cloneAsTemplate(id, "content_calendar");
+    if (newId) { toast.success("Cloned as reusable template"); loadItems(); }
+    else toast.error("Clone failed");
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
