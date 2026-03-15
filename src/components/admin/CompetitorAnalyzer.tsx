@@ -3225,30 +3225,43 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                           const key = plat.toLowerCase();
                           if (!platformDefs[key] || !social[plat]) return;
                           if (!platformMap[key]) platformMap[key] = { name: key.charAt(0).toUpperCase() + key.slice(1), color: platformDefs[key].color, logo: platformDefs[key].logo, competitors: [] };
-                          // Use per-platform metrics if available, otherwise fall back to top-level
-                          const pm = perPlatform[key] || perPlatform[plat] || {};
+                          // Use per-platform metrics only (no fake top-level fallback for internet competitors)
+                          const pm = perPlatform[key] || perPlatform[plat];
+                          const hasPlatformData = pm && typeof pm === "object" && (
+                            Number(pm.followers) > 0 ||
+                            Number(pm.engagementRate) > 0 ||
+                            Number(pm.avgLikes) > 0 ||
+                            Number(pm.postFrequency) > 0 ||
+                            Number(pm.growthRate) !== 0
+                          );
+                          if (!hasPlatformData) return;
+
                           platformMap[key].competitors.push({
                             username: c.username,
-                            followers: pm.followers ?? c.followers,
-                            engagementRate: pm.engagementRate ?? c.engagementRate,
-                            avgLikes: pm.avgLikes ?? c.avgLikes,
-                            postFrequency: pm.postFrequency ?? c.postFrequency,
-                            growthRate: pm.growthRate ?? c.growthRate,
+                            followers: Number(pm.followers) || 0,
+                            engagementRate: Number(pm.engagementRate) || 0,
+                            avgLikes: Number(pm.avgLikes) || 0,
+                            postFrequency: Number(pm.postFrequency) || 0,
+                            growthRate: Number(pm.growthRate) || 0,
                           });
                         });
-                        // Also add from primary platform
+                        // Also add from primary platform (fallback only for non-internet competitors)
                         const primary = (c.platform || "").toLowerCase();
                         if (platformDefs[primary] && !platformMap[primary]?.competitors.some(x => x.username === c.username)) {
                           if (!platformMap[primary]) platformMap[primary] = { name: primary.charAt(0).toUpperCase() + primary.slice(1), color: platformDefs[primary].color, logo: platformDefs[primary].logo, competitors: [] };
                           const pm = (c.metadata?.platformMetrics || {})[primary] || {};
-                          platformMap[primary].competitors.push({
-                            username: c.username,
-                            followers: pm.followers ?? c.followers,
-                            engagementRate: pm.engagementRate ?? c.engagementRate,
-                            avgLikes: pm.avgLikes ?? c.avgLikes,
-                            postFrequency: pm.postFrequency ?? c.postFrequency,
-                            growthRate: pm.growthRate ?? c.growthRate,
-                          });
+                          const usePrimaryFallback = c.platform !== "internet";
+                          const followers = Number(pm.followers) || (usePrimaryFallback ? c.followers : 0);
+                          if (followers > 0) {
+                            platformMap[primary].competitors.push({
+                              username: c.username,
+                              followers,
+                              engagementRate: Number(pm.engagementRate) || (usePrimaryFallback ? c.engagementRate : 0),
+                              avgLikes: Number(pm.avgLikes) || (usePrimaryFallback ? c.avgLikes : 0),
+                              postFrequency: Number(pm.postFrequency) || (usePrimaryFallback ? c.postFrequency : 0),
+                              growthRate: Number(pm.growthRate) || (usePrimaryFallback ? c.growthRate : 0),
+                            });
+                          }
                         }
                       });
 
