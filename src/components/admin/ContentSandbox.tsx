@@ -882,6 +882,21 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <Send className="inline h-3 w-3 mr-0.5" />Export Selected
         </button>
 
+        {/* Push to Platform button */}
+        <button type="button" onClick={async () => {
+          const allPlatforms = Object.keys(DEFAULT_BEST_TIMES);
+          const platformList = [];
+          for (const p of allPlatforms) {
+            const accs = await getConnectedAccounts(p);
+            platformList.push({ platform: p, connected: accs.length > 0, username: accs[0]?.platform_username });
+          }
+          setPushAvailablePlatforms(platformList);
+          setPushSelectedPlatforms(new Set(platformList.filter(p => p.connected).map(p => p.platform)));
+          setShowPushPlatform(true);
+        }} className="rounded-md border border-emerald-500/15 bg-emerald-500/5 px-2.5 py-1 text-[10px] text-emerald-400/70 hover:bg-emerald-500/10">
+          <Layers className="inline h-3 w-3 mr-0.5" />Push to Platforms
+        </button>
+
         <button type="button" onClick={deleteSel} disabled={!selectedIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
         <button type="button" onClick={clearBoard} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">Clear board</button>
         <div className="ml-auto flex items-center gap-1">
