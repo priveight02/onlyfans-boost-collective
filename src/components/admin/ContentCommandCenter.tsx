@@ -3028,7 +3028,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               <Select value={formPlatform || "instagram"} onValueChange={v => setFormPlatform(v)}>
                 <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue placeholder="Primary Platform" /></SelectTrigger>
                 <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
-                  {availablePlatforms.map(p => <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>)}
+                  {availablePlatforms.map(p => <SelectItem key={p} value={p} className="text-xs capitalize text-white/70 focus:bg-white/[0.06] focus:text-white">{p}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Button onClick={generateContentBrief} disabled={generatingBrief || !briefTopic.trim()}
