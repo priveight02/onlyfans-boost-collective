@@ -3308,8 +3308,9 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                             likeGain30d: parseMetricValue(pm?.likeGain30d),
                           };
 
-                          const hasPlatformData = normalized.followers > 0 || normalized.engagementRate > 0 || normalized.avgLikes > 0 || normalized.postFrequency > 0 || normalized.growthRate !== 0;
-                          if (!hasPlatformData) return;
+                          // Show all platforms with valid handles - even with partial data (0 metrics will show as "N/A" or "0")
+                          // Only skip if ALL metrics are exactly 0 AND no handle exists
+                          const hasAnySignal = normalized.followers > 0 || normalized.engagementRate > 0 || normalized.avgLikes > 0 || normalized.postFrequency > 0 || normalized.growthRate !== 0 || normalized.posts > 0 || normalized.totalLikes > 0 || normalized.totalViews > 0 || normalized.avgViews > 0 || normalized.following > 0;
 
                           if (!platformMap[key]) {
                             platformMap[key] = { name: key.charAt(0).toUpperCase() + key.slice(1), color: platformDefs[key].color, logo: platformDefs[key].logo, competitors: [] };
