@@ -236,15 +236,19 @@ const getEnterpriseContextForPrompt = (): string => {
 };
 
 const callAI = async (prompt: string, analysisType?: string): Promise<any> => {
+  // Pre-check usage before making the call
+  const preCheck = await checkAIUsage();
+  if (preCheck.limited) throw new Error(`Daily AI analysis limit reached (${RATE_LIMIT_MAX}/day). Resets at midnight UTC.`);
+  
   const enrichedPrompt = prompt + getEnterpriseContextForPrompt();
   const { data, error } = await supabase.functions.invoke("competitor-analyze", {
     body: { prompt: enrichedPrompt, analysisType },
   });
   if (error) {
-    if (error.message?.includes("limit")) throw new Error("Daily AI analysis limit reached (20/day). AI-powered fields will be left blank until reset.");
+    if (error.message?.includes("limit")) throw new Error(`Daily AI analysis limit reached (${RATE_LIMIT_MAX}/day). Resets at midnight UTC.`);
     throw new Error(error.message || "AI request failed");
   }
-  if (data?.limited) throw new Error("Daily AI analysis limit reached (20/day). AI-powered fields will be left blank until reset.");
+  if (data?.limited) throw new Error(`Daily AI analysis limit reached (${RATE_LIMIT_MAX}/day). Resets at midnight UTC.`);
   if (!data?.reply) throw new Error("No AI response received");
   return data.reply;
 };
@@ -592,6 +596,7 @@ Be as accurate as possible. If you recognize the account, use real data. If not,
       return mapRow({ ...row, metadata: row.metadata });
     });
 
+    await refreshAIUsage();
     setAnalyzing(false);
     if (result) {
       setCompetitors(prev => [result, ...prev]);
@@ -685,6 +690,7 @@ Return ONLY valid JSON:
       };
       setCompetitors(prev => prev.map(c => c.id === comp.id ? updated : c));
       toast.success(`@${comp.username} refreshed`);
+      await refreshAIUsage();
       return true;
     });
     setRefreshingId(null);
@@ -727,6 +733,7 @@ Return ONLY valid JSON with 4-6 items per category. Each item must have "text" a
         const normalize = (arr: any[]) => arr.map((item: any) => typeof item === "string" ? { text: item, priority: "medium", action: "" } : item);
         setSwotResult({ ...parsed, strengths: normalize(parsed.strengths), weaknesses: normalize(parsed.weaknesses), opportunities: normalize(parsed.opportunities), threats: normalize(parsed.threats) });
         setSwotResult(parsed);
+        await refreshAIUsage();
         return true;
       } catch (err) {
         toast.error("SWOT analysis failed. Please try again.");
@@ -762,6 +769,7 @@ Provide a detailed strategy covering:
 Be extremely specific with numbers, times, and actionable steps. No generic advice.`
         );
         setAiInsight(aiReply);
+        await refreshAIUsage();
         return true;
       } catch (err) {
         toast.error("Strategy generation failed");
@@ -811,6 +819,7 @@ Include the original keyword plus 4 related/long-tail keywords. Make accounts re
         const parsed = parseJSONArray(aiReply);
         if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Invalid keyword results");
         setKeywordResults(parsed);
+        await refreshAIUsage();
         return true;
       } catch (err) {
         toast.error("Keyword search failed. Please try again.");
@@ -846,6 +855,7 @@ Return ONLY valid JSON:
         );
         const parsed = parseJSON(aiReply);
         setGapAnalysis(parsed);
+        await refreshAIUsage();
         return true;
       } catch (err) {
         toast.error("Gap analysis failed");
@@ -1042,6 +1052,8 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
     threat: c.score,
   }));
 
+
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -1049,7 +1061,14 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
           <h1 className="text-lg font-semibold text-white font-heading">Competitor Analyzer</h1>
           <p className="text-sm text-white/50 mt-0.5">AI-powered competitive intelligence · track, benchmark, and outperform</p>
         </div>
-        <CreditCostBadge cost="5-15" variant="header" label="per action" />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+            <Brain className="h-3.5 w-3.5 text-[hsl(217,91%,60%)]" />
+            <span className="text-xs text-white/50">AI Calls:</span>
+            <span className={`text-xs font-bold ${aiUsageCount >= RATE_LIMIT_MAX ? "text-red-400" : aiUsageCount >= 15 ? "text-amber-400" : "text-emerald-400"}`}>{aiUsageCount}/{RATE_LIMIT_MAX}</span>
+          </div>
+          <CreditCostBadge cost="5-15" variant="header" label="per action" />
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
@@ -2241,6 +2260,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                           const myContext = myStats ? `\nMY STATS: @${myStats.username}: ${myStats.followers} followers, ${myStats.engagementRate}% ER, ${myStats.postFrequency} posts/wk` : "";
                           const aiReply = await callAI(`Analyze these competitors' content and give me specific recommendations to outperform them.${myContext}\n\nCOMPETITORS:\n${compData}\n\nReturn ONLY valid JSON:\n{"contentPillars":[{"pillar":"name","description":"why","frequency":"posts/week","expectedEngagement":"X%"}],"hookFormulas":[{"formula":"the hook template","example":"concrete example","whyItWorks":"reason"}],"postingSchedule":{"bestDays":["Mon","Wed"],"bestTimes":["9am","7pm"],"reasoning":"why"},"contentCalendar":[{"day":"Monday","contentType":"Reel","topic":"specific topic","hashtags":["tag1","tag2"],"hookIdea":"specific hook"}],"stealableStrategies":[{"from":"@competitor","strategy":"what they do","howToAdapt":"how to do it better"}]}`);
                           setContentRecs(parseJSON(aiReply));
+                          await refreshAIUsage();
                           toast.success("Content recommendations generated");
                         } catch (err: any) { toast.error(err?.message || "Failed"); }
                         finally { setContentRecsLoading(false); }
@@ -2567,6 +2587,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                       const myContext = myStats ? `\nMY STATS: @${myStats.username}: ${myStats.followers} followers, ${myStats.engagementRate}% ER, ${myStats.avgLikes} avg likes, ${myStats.growthRate}% growth, ${myStats.postFrequency} posts/wk` : "\nNo user stats provided.";
                       const aiReply = await callAI(`Create an aggressive weekly battle plan to outperform these competitors.${myContext}\n\nCOMPETITORS:\n${compData}\n\nReturn ONLY valid JSON:\n{"weeklyGoals":[{"goal":"specific measurable goal","metric":"what to track","target":"specific number"}],"dailyActions":{"monday":{"morning":"action","afternoon":"action","evening":"action"},"tuesday":{"morning":"action","afternoon":"action","evening":"action"},"wednesday":{"morning":"action","afternoon":"action","evening":"action"},"thursday":{"morning":"action","afternoon":"action","evening":"action"},"friday":{"morning":"action","afternoon":"action","evening":"action"},"saturday":{"morning":"action","evening":"action"},"sunday":{"morning":"action","evening":"action"}},"quickWins":[{"action":"do this now","impact":"high/medium","timeNeeded":"30min","expectedResult":"what happens"}],"competitorVulnerabilities":[{"competitor":"@name","vulnerability":"their weakness","exploit":"how to exploit it","priority":"high/medium/low"}],"growthHacks":[{"hack":"specific tactic","difficulty":"easy/medium/hard","expectedGrowth":"X% or X followers","timeline":"1 week"}],"contentBombs":[{"title":"viral content idea","format":"reel/carousel/story","hook":"opening hook","whyViral":"reason it would go viral"}]}`);
                       setBattlePlan(parseJSON(aiReply));
+                      await refreshAIUsage();
                       toast.success("Battle plan generated!");
                     } catch (err: any) { toast.error(err?.message || "Failed"); }
                     finally { setBattlePlanLoading(false); }
@@ -4685,6 +4706,7 @@ Return ONLY valid JSON:
   "keyBattleground": "The single most important area where the fight will be won or lost"
 }`);
                             setH2hResult({ ...parseJSON(aiReply), usernameA: a.username, usernameB: b.username, statsA: a, statsB: b });
+                            await refreshAIUsage();
                             return true;
                           });
                         } catch (err: any) { toast.error(err?.message || "Comparison failed"); }
@@ -4899,6 +4921,7 @@ Return ONLY valid JSON:
   "worstCaseScenario": {"followers": <number>, "timeline": "if momentum stalls", "warning": "early warning signs to watch for"}
 }`);
                           setForecastResult({ ...parseJSON(aiReply), username: s.username, currentFollowers: s.followers, currentER: s.engagementRate });
+                          await refreshAIUsage();
                           return true;
                         });
                       } catch (err: any) { toast.error(err?.message || "Forecast failed"); }
