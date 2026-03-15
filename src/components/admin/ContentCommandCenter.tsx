@@ -1952,6 +1952,25 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
     if (orchSelectedPlatforms.size === 0) { toast.error("Select at least one platform"); return; }
     setOrchExecuting(true);
     try {
+      // In automated mode, first auto-generate captions for items missing them
+      if (orchMode === "automated") {
+        toast.info("Generating AI captions for items missing content...");
+        const planItems = [];
+        for (const platform of Array.from(orchSelectedPlatforms)) {
+          const items = await pullContentPlanForPlatform(platform, ["draft", "planned"]);
+          planItems.push(...items);
+        }
+        if (planItems.length > 0) {
+          await autoGenerateCaptionsForPlan(planItems, callAI);
+        }
+        // Also queue media generation for items without visuals
+        const itemsNeedingMedia = planItems.filter(i => !i.media_urls || i.media_urls.length === 0);
+        if (itemsNeedingMedia.length > 0) {
+          await generateMediaPlaceholders(itemsNeedingMedia);
+          toast.info(`${itemsNeedingMedia.length} media generation tasks queued`);
+        }
+      }
+
       const result = await orchestratePlanToPlatforms(
         Array.from(orchSelectedPlatforms),
         orchMode,
@@ -1963,7 +1982,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       const totalMsg = `${result.total_created} posts pushed to ${result.platforms_processed.length} platform(s)`;
       if (orchMode === "automated") {
-        toast.success(`${totalMsg} with auto-scheduling`);
+        toast.success(`${totalMsg} with auto-scheduling & AI captions`);
       } else {
         toast.success(`${totalMsg} as drafts (manual mode)`);
       }
