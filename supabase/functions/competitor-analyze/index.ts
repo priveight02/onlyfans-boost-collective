@@ -1975,20 +1975,29 @@ CRITICAL RULES FOR platformMetrics:
         if (toolCall?.function?.arguments) {
           try {
             const parsed = JSON.parse(toolCall.function.arguments);
-            // Merge scraped data into platformMetrics to override AI hallucinations
+            // Merge ALL scraped data into platformMetrics to override AI hallucinations with real data
             if (Object.keys(scrapedData).length > 0) {
               parsed.platformMetrics = parsed.platformMetrics || {};
               for (const [plat, scraped] of Object.entries(scrapedData)) {
                 const prev = parsed.platformMetrics[plat] || {};
                 parsed.platformMetrics[plat] = {
                   ...prev,
+                  // Real-time API data always wins over AI guesses
                   followers: scraped.followers ?? prev.followers ?? 0,
+                  following: scraped.following ?? prev.following ?? 0,
                   posts: scraped.posts ?? prev.posts ?? 0,
-                  engagementRate: prev.engagementRate ?? 0,
-                  avgLikes: prev.avgLikes ?? 0,
-                  avgComments: prev.avgComments ?? 0,
-                  postFrequency: prev.postFrequency ?? 0,
-                  growthRate: prev.growthRate ?? 0,
+                  engagementRate: scraped.engagementRate ?? prev.engagementRate ?? 0,
+                  avgLikes: scraped.avgLikes ?? prev.avgLikes ?? 0,
+                  avgComments: scraped.avgComments ?? prev.avgComments ?? 0,
+                  avgViews: scraped.avgViews ?? prev.avgViews ?? 0,
+                  avgShares: scraped.avgShares ?? prev.avgShares ?? 0,
+                  totalLikes: scraped.totalLikes ?? prev.totalLikes ?? 0,
+                  totalViews: scraped.totalViews ?? prev.totalViews ?? 0,
+                  postFrequency: scraped.postFrequency ?? prev.postFrequency ?? 0,
+                  growthRate: scraped.growthRate ?? prev.growthRate ?? 0,
+                  followerGain30d: scraped.followerGain30d ?? prev.followerGain30d ?? 0,
+                  viewGain30d: scraped.viewGain30d ?? prev.viewGain30d ?? 0,
+                  likeGain30d: scraped.likeGain30d ?? prev.likeGain30d ?? 0,
                 };
               }
               // Recalculate total followers from platform metrics
