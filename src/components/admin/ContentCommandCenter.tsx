@@ -2588,9 +2588,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               <div className="relative">
                 <Textarea value={formCaption} onChange={e => setFormCaption(e.target.value)}
                   placeholder={curPlatConf ? `${curPlatConf.captionLabel}...` : "Caption..."}
-                  className="bg-card/50 border-border text-foreground text-xs min-h-[80px]" />
+                  className="bg-white/[0.04] border-white/[0.08] text-white text-xs min-h-[80px]" />
                 {curPlatConf && (
-                  <span className={`absolute bottom-2 right-2 text-[9px] ${formCaption.length > curPlatConf.maxCaption ? "text-destructive" : "text-muted-foreground/40"}`}>
+                  <span className={`absolute bottom-2 right-2 text-[9px] ${formCaption.length > curPlatConf.maxCaption ? "text-destructive" : "text-white/30"}`}>
                     {formCaption.length}/{curPlatConf.maxCaption}
                   </span>
                 )}
