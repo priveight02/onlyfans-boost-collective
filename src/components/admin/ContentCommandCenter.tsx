@@ -1594,7 +1594,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             });
           }
           toast.success(`${ideas.length} AI posts generated as drafts!`);
-        } else {
+        } catch {
           toast.error("AI didn't return valid content. Try again.");
         }
       } catch (e: any) { toast.error(e.message || "Generation failed"); }
