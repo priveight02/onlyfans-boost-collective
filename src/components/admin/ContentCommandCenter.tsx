@@ -563,9 +563,8 @@ Score breakdown:
 - Posting time optimization
 
 Respond with ONLY a JSON object: {"score": number, "tips": ["tip1", "tip2", "tip3"], "best_time": "HH:MM AM/PM", "hook_score": number, "cta_score": number, "hashtag_score": number}`);
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const result = JSON.parse(jsonMatch[0]);
+        try {
+          const result = safeParseJSON(content);
           setPredictedScore(result.score || 0);
           const tips = result.tips || [];
           toast.success(`Score: ${result.score}/100 | Hook: ${result.hook_score || '?'} | CTA: ${result.cta_score || '?'}${tips[0] ? ` — ${tips[0]}` : ''}`);
