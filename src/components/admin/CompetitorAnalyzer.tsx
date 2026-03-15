@@ -1362,7 +1362,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               </div>
 
               {/* Controls Row */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 border-white/10 text-white/50 hover:text-white" disabled={refreshingId !== null}
                     onClick={async () => {
@@ -1374,6 +1374,30 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                     <RefreshCw className={`h-3 w-3 ${refreshingId ? "animate-spin" : ""}`} /> Refresh All
                   </Button>
                   <span className="text-[10px] text-white/25">{competitors.length} competitor{competitors.length !== 1 ? "s" : ""}</span>
+                  {/* Stale data warning */}
+                  {competitors.some(c => {
+                    const hrs = (Date.now() - new Date(c.lastAnalyzed).getTime()) / 3600000;
+                    return hrs > 168; // 7 days
+                  }) && (
+                    <Badge variant="outline" className="text-[9px] border-amber-400/20 text-amber-400 animate-pulse">
+                      ⚠ {competitors.filter(c => (Date.now() - new Date(c.lastAnalyzed).getTime()) / 3600000 > 168).length} stale
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Sort */}
+                  <select value={trackerSort} onChange={e => setTrackerSort(e.target.value as any)} className="h-7 px-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/60 text-[10px] focus:outline-none">
+                    <option value="threat">Sort: Threat</option>
+                    <option value="followers">Sort: Followers</option>
+                    <option value="growth">Sort: Growth</option>
+                    <option value="engagement">Sort: Engagement</option>
+                    <option value="recent">Sort: Recent</option>
+                  </select>
+                  {/* Platform filter */}
+                  <select value={trackerFilter} onChange={e => setTrackerFilter(e.target.value)} className="h-7 px-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/60 text-[10px] focus:outline-none">
+                    <option value="all">All Platforms</option>
+                    {[...new Set(competitors.map(c => c.platform))].map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
                 </div>
               </div>
 
