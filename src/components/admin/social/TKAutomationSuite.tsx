@@ -56,6 +56,41 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
   const [loading, setLoading] = useState(false);
   const [tiktokConnected, setTiktokConnected] = useState<boolean | null>(null); // null = loading
 
+  // Import from Content Plan
+  const [showTkImportPlan, setShowTkImportPlan] = useState(false);
+  const [tkPlanItems, setTkPlanItems] = useState<ContentPlanItem[]>([]);
+  const [tkImportingPlan, setTkImportingPlan] = useState(false);
+  const [tkImportAutoSchedule, setTkImportAutoSchedule] = useState(true);
+
+  const openTkImportPlan = async () => {
+    setShowTkImportPlan(true);
+    const items = await pullContentPlanForPlatform("tiktok");
+    setTkPlanItems(items);
+  };
+
+  const tkImportFromPlan = async () => {
+    if (!selectedAccount || tkPlanItems.length === 0) return;
+    setTkImportingPlan(true);
+    try {
+      const { created, errors } = await pushToSocialHub(tkPlanItems, selectedAccount, tkImportAutoSchedule, DEFAULT_BEST_TIMES.tiktok);
+      if (created > 0) {
+        toast.success(`${created} posts imported from Content Plan`);
+        // Reload scheduled
+        const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "tiktok").order("created_at", { ascending: false }).limit(50);
+        if (data) setScheduledPosts(data);
+      }
+      if (errors.length > 0) toast.error(`${errors.length} failed`);
+      setShowTkImportPlan(false);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setTkImportingPlan(false); }
+  };
+
+  const tkClonePost = async (id: string) => {
+    const newId = await cloneAsTemplate(id, "social_posts");
+    if (newId) toast.success("Cloned as template draft in Content Plan");
+    else toast.error("Clone failed");
+  };
+
   // TikTok-native live DM conversations state
   const [tkConversations, setTkConversations] = useState<any[]>([]);
   const [tkMessages, setTkMessages] = useState<any[]>([]);
