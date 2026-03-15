@@ -303,6 +303,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [fontFamily, setFontFamily] = useState("Inter, sans-serif");
   const [locked, setLocked] = useState(true);
   const [zoomSpeed, setZoomSpeed] = useState(1);
+  const [marqueeRect, setMarqueeRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 
   const HISTORY_KEY = STORAGE_KEY + "_history";
   const undoStack = useRef<SandboxSnapshot[]>([]);
