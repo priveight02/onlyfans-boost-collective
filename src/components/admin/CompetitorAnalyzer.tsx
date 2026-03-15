@@ -2888,7 +2888,8 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
 
