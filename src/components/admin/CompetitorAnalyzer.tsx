@@ -3044,293 +3044,14 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                             </div>
                           </div>
                         </div>
-                        </div>
-
-                        {/* ── Hashtag Overlap Matrix ── */}
-                        <div className="mt-3 md:mt-4 rounded-xl overflow-hidden" style={{ background: "hsl(0 0% 100% / 0.02)", border: "1px solid hsl(0 0% 100% / 0.05)" }}>
-                          <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid hsl(0 0% 100% / 0.04)", background: "hsl(0 0% 100% / 0.01)" }}>
-                            <Hash className="h-3.5 w-3.5 text-white/40" />
-                            <span className="text-[10px] md:text-[11px] font-semibold text-white/60">Hashtag Usage Across Competitors</span>
-                          </div>
-                          <div className="p-2.5 md:p-3">
-                            {(() => {
-                              const allTags = [...new Set(competitors.flatMap(c => c.topHashtags))];
-                              const sharedTags = allTags.filter(tag => competitors.filter(c => c.topHashtags.includes(tag)).length >= 2);
-                              const uniqueTags = allTags.filter(tag => competitors.filter(c => c.topHashtags.includes(tag)).length === 1);
-                              return (
-                                <div className="grid grid-cols-3 gap-2 mb-3">
-                                  <div className="p-2 rounded-lg bg-white/[0.02] text-center">
-                                    <p className="text-[9px] text-white/40">Total Unique</p>
-                                    <p className="text-sm font-bold text-[hsl(217,91%,60%)]">{allTags.length}</p>
-                                  </div>
-                                  <div className="p-2 rounded-lg bg-amber-400/5 border border-amber-400/10 text-center">
-                                    <p className="text-[9px] text-white/40">Shared (2+)</p>
-                                    <p className="text-sm font-bold text-amber-400">{sharedTags.length}</p>
-                                  </div>
-                                  <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10 text-center">
-                                    <p className="text-[9px] text-white/40">Exclusive (1 only)</p>
-                                    <p className="text-sm font-bold text-emerald-400">{uniqueTags.length}</p>
-                                  </div>
-                                </div>
-                              );
-                            })()}
-                            <div className="overflow-x-auto">
-                              <table className="w-full text-sm">
-                                <thead>
-                                  <tr className="border-b border-white/[0.06]">
-                                    <th className="text-left py-2 text-white/50 font-medium text-[10px]">Hashtag</th>
-                                    <th className="text-center py-2 text-white/50 font-medium text-[10px]">Used By</th>
-                                    {competitors.map(c => <th key={c.id} className="text-center py-2 text-white/50 font-medium text-[10px]">@{c.username}</th>)}
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {(() => {
-                                    const allTags = [...new Set(competitors.flatMap(c => c.topHashtags))];
-                                    return allTags
-                                      .map(tag => ({ tag, count: competitors.filter(c => c.topHashtags.includes(tag)).length }))
-                                      .sort((a, b) => b.count - a.count)
-                                      .slice(0, 20)
-                                      .map(({ tag, count }) => (
-                                      <tr key={tag} className="border-b border-white/[0.03]">
-                                        <td className="py-1.5 text-white/70 text-[10px] flex items-center gap-1"><Hash className="h-2.5 w-2.5 text-[hsl(217,91%,60%)]" />{tag}</td>
-                                        <td className="text-center py-1.5">
-                                          <Badge variant="outline" className={`text-[8px] ${count >= 2 ? "border-amber-400/20 text-amber-400" : "border-white/10 text-white/40"}`}>{count}/{competitors.length}</Badge>
-                                        </td>
-                                        {competitors.map(c => (
-                                          <td key={c.id} className="text-center py-1.5">
-                                            {c.topHashtags.includes(tag) ? (
-                                              <span className="inline-block w-4 h-4 rounded-full bg-emerald-400/15 text-emerald-400 text-[9px] leading-4">✓</span>
-                                            ) : (
-                                              <span className="inline-block w-4 h-4 rounded-full bg-white/[0.03] text-white/20 text-[9px] leading-4">·</span>
-                                            )}
-                                          </td>
-                                        ))}
-                                      </tr>
-                                    ));
-                                  })()}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* ── Posting Velocity vs Engagement ── */}
-                        <div className="mt-3 md:mt-4 rounded-xl overflow-hidden" style={{ background: "hsl(0 0% 100% / 0.02)", border: "1px solid hsl(0 0% 100% / 0.05)" }}>
-                          <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid hsl(0 0% 100% / 0.04)", background: "hsl(0 0% 100% / 0.01)" }}>
-                            <Activity className="h-3.5 w-3.5 text-white/40" />
-                            <span className="text-[10px] md:text-[11px] font-semibold text-white/60">Posting Velocity vs Engagement</span>
-                          </div>
-                          <div className="p-2.5 md:p-3 space-y-2">
-                            {[...(myStats ? [{ ...myStats, isMe: true }] : []), ...competitors.map(c => ({ ...c, isMe: false }))]
-                              .sort((a, b) => b.engagementRate - a.engagementRate)
-                              .map((entry, i) => {
-                                const maxEng = Math.max(...competitors.map(c => c.engagementRate), myStats?.engagementRate || 0);
-                                const maxFreq = Math.max(...competitors.map(c => c.postFrequency), myStats?.postFrequency || 0);
-                                return (
-                                  <div key={entry.username} className={`p-2.5 rounded-xl border ${entry.isMe ? "bg-emerald-400/5 border-emerald-400/20" : "bg-white/[0.02] border-white/[0.04]"}`}>
-                                    <div className="flex items-center gap-3">
-                                      <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${entry.isMe ? "bg-emerald-400/15 text-emerald-400" : "bg-gradient-to-br from-[hsl(262,83%,58%)]/20 to-[hsl(217,91%,60%)]/20 text-white/70"}`}>
-                                        {i + 1}
-                                      </div>
-                                      <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                          <span className={`text-[10px] font-medium ${entry.isMe ? "text-emerald-400" : "text-white/80"}`}>@{entry.username}</span>
-                                          {entry.isMe && <Badge className="bg-emerald-400/15 text-emerald-400 text-[7px] border-0">YOU</Badge>}
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                          <div>
-                                            <div className="flex justify-between text-[8px] mb-0.5">
-                                              <span className="text-white/40">Engagement</span>
-                                              <span className="text-emerald-400 font-medium">{entry.engagementRate}%</span>
-                                            </div>
-                                            <div className="h-1 rounded-full bg-white/[0.04] overflow-hidden">
-                                              <div className="h-full rounded-full bg-emerald-400/60" style={{ width: `${maxEng > 0 ? (entry.engagementRate / maxEng) * 100 : 0}%` }} />
-                                            </div>
-                                          </div>
-                                          <div>
-                                            <div className="flex justify-between text-[8px] mb-0.5">
-                                              <span className="text-white/40">Posts/Week</span>
-                                              <span className="text-[hsl(262,83%,58%)] font-medium">{entry.postFrequency}</span>
-                                            </div>
-                                            <div className="h-1 rounded-full bg-white/[0.04] overflow-hidden">
-                                              <div className="h-full rounded-full bg-[hsl(262,83%,58%)]/60" style={{ width: `${maxFreq > 0 ? (entry.postFrequency / maxFreq) * 100 : 0}%` }} />
-                                            </div>
-                                          </div>
-                                        </div>
-                                      </div>
-                                      <div className="text-right shrink-0">
-                                        <p className="text-[8px] text-white/30">Efficiency</p>
-                                        <p className="text-xs font-bold text-white/80">{entry.postFrequency > 0 ? (entry.engagementRate / entry.postFrequency).toFixed(2) : "0"}</p>
-                                        <p className="text-[7px] text-white/30">ER/post</p>
-                                      </div>
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            <p className="text-[9px] text-white/30 text-center mt-1">Higher frequency doesn't always mean higher engagement — find your optimal posting cadence</p>
-                          </div>
-                        </div>
-
-                        {/* ── Content Dominance Scorecard ── */}
-                        <div className="mt-3 md:mt-4 rounded-xl overflow-hidden" style={{ background: "hsl(262 83% 58% / 0.03)", border: "1px solid hsl(262 83% 58% / 0.12)" }}>
-                          <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid hsl(262 83% 58% / 0.08)", background: "hsl(262 83% 58% / 0.02)" }}>
-                            <Crown className="h-3.5 w-3.5 text-[hsl(262,83%,58%)]" />
-                            <span className="text-[10px] md:text-[11px] font-semibold text-[hsl(262,83%,58%)]">Content Dominance Scorecard</span>
-                          </div>
-                          <div className="p-2.5 md:p-3 space-y-2">
-                            {(() => {
-                              const entries = competitors.map(c => {
-                                const diversityScore = Math.min(c.contentTypes.length * 25, 100);
-                                const hashtagScore = Math.min(c.topHashtags.length * 20, 100);
-                                const velocityScore = Math.min(c.postFrequency * 15, 100);
-                                const engScore = Math.min(c.engagementRate * 12, 100);
-                                const total = Math.round((diversityScore + hashtagScore + velocityScore + engScore) / 4);
-                                return { username: c.username, diversityScore, hashtagScore, velocityScore, engScore, total };
-                              }).sort((a, b) => b.total - a.total);
-                              const max = entries[0]?.total || 1;
-                              return entries.map((e, i) => (
-                                <div key={e.username} className="flex items-center gap-2.5 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold ${i === 0 ? "bg-[hsl(262,83%,58%)]/15 text-[hsl(262,83%,58%)]" : "bg-white/[0.04] text-white/30"}`}>{i + 1}</div>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5 mb-1">
-                                      <span className="text-[10px] font-medium text-white/80">@{e.username}</span>
-                                      <div className="flex gap-0.5">
-                                        <Badge variant="outline" className="text-[6px] border-white/10 text-white/30 px-1">Div:{e.diversityScore}</Badge>
-                                        <Badge variant="outline" className="text-[6px] border-white/10 text-white/30 px-1">Tags:{e.hashtagScore}</Badge>
-                                        <Badge variant="outline" className="text-[6px] border-white/10 text-white/30 px-1">Vel:{e.velocityScore}</Badge>
-                                        <Badge variant="outline" className="text-[6px] border-white/10 text-white/30 px-1">Eng:{e.engScore}</Badge>
-                                      </div>
-                                    </div>
-                                    <div className="h-1 rounded-full bg-white/[0.04] overflow-hidden">
-                                      <div className="h-full rounded-full bg-gradient-to-r from-[hsl(262,83%,58%)] to-[hsl(217,91%,60%)] transition-all duration-700" style={{ width: `${(e.total / max) * 100}%` }} />
-                                    </div>
-                                  </div>
-                                  <span className="text-xs font-bold text-[hsl(262,83%,58%)] tabular-nums">{e.total}</span>
-                                </div>
-                              ));
-                            })()}
-                          </div>
-                        </div>
-
-                        {/* ── AI Content Recommendations ── */}
-                        <div className="mt-3 md:mt-4 rounded-xl overflow-hidden" style={{ background: "hsl(0 0% 100% / 0.02)", border: "1px solid hsl(0 0% 100% / 0.05)" }}>
-                          <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: "1px solid hsl(0 0% 100% / 0.04)", background: "hsl(0 0% 100% / 0.01)" }}>
-                            <div className="flex items-center gap-2">
-                              <Brain className="h-3.5 w-3.5 text-[hsl(262,83%,58%)]" />
-                              <span className="text-[10px] md:text-[11px] font-semibold text-[hsl(262,83%,58%)]">AI Content Recommendations</span>
-                            </div>
-                            <Button size="sm" variant="outline" className="text-[9px] gap-1 border-[hsl(262,83%,58%)]/20 text-[hsl(262,83%,58%)] hover:bg-[hsl(262,83%,58%)]/10 h-6 px-2" disabled={contentRecsLoading}
-                              onClick={async () => {
-                                setContentRecsLoading(true);
-                                try {
-                                  const compData = competitors.map(c => `@${c.username}: ${c.followers} followers, ${c.engagementRate}% ER, top content: ${c.contentTypes.map(ct => `${ct.type}(${ct.pct}%)`).join(",")}, hashtags: ${c.topHashtags.slice(0,3).join(",")}, niche: ${c.metadata?.niche || "unknown"}`).join("\n");
-                                  const myContext = myStats ? `\nMY STATS: @${myStats.username}: ${myStats.followers} followers, ${myStats.engagementRate}% ER, ${myStats.postFrequency} posts/wk` : "";
-                                  const aiReply = await callAI(`Analyze these competitors' content and give me specific recommendations to outperform them.${myContext}\n\nCOMPETITORS:\n${compData}\n\nReturn ONLY valid JSON:\n{"contentPillars":[{"pillar":"name","description":"why","frequency":"posts/week","expectedEngagement":"X%"}],"hookFormulas":[{"formula":"the hook template","example":"concrete example","whyItWorks":"reason"}],"postingSchedule":{"bestDays":["Mon","Wed"],"bestTimes":["9am","7pm"],"reasoning":"why"},"contentCalendar":[{"day":"Monday","contentType":"Reel","topic":"specific topic","hashtags":["tag1","tag2"],"hookIdea":"specific hook"}],"stealableStrategies":[{"from":"@competitor","strategy":"what they do","howToAdapt":"how to do it better"}]}`);
-                                  setContentRecs(parseJSON(aiReply));
-                                  await refreshAIUsage();
-                                  toast.success("Content recommendations generated");
-                                } catch (err: any) { toast.error(err?.message || "Failed"); }
-                                finally { setContentRecsLoading(false); }
-                              }}>
-                              {contentRecsLoading ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Sparkles className="h-2.5 w-2.5" />}
-                              {contentRecsLoading ? "Analyzing..." : "Generate Recs"}
-                            </Button>
-                          </div>
-                          <div className="p-2.5 md:p-3">
-                            {contentRecsLoading ? (
-                              <div className="text-center py-4"><Loader2 className="h-5 w-5 text-[hsl(262,83%,58%)] mx-auto animate-spin" /><p className="text-[9px] text-white/40 mt-2">Analyzing competitor content patterns...</p></div>
-                            ) : contentRecs ? (
-                              <div className="space-y-3">
-                                {/* Content Pillars */}
-                                <div>
-                                  <p className="text-[10px] font-medium text-white/50 mb-1.5">Content Pillars to Own</p>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
-                                    {(contentRecs.contentPillars || []).map((p: any, i: number) => (
-                                      <div key={i} className="p-2 rounded-lg bg-[hsl(262,83%,58%)]/5 border border-[hsl(262,83%,58%)]/15 space-y-0.5">
-                                        <div className="flex items-center justify-between">
-                                          <span className="text-[10px] font-medium text-white/80">{p.pillar}</span>
-                                          <Badge variant="outline" className="text-[7px] border-[hsl(262,83%,58%)]/20 text-[hsl(262,83%,58%)]">{p.frequency}</Badge>
-                                        </div>
-                                        <p className="text-[9px] text-white/50">{p.description}</p>
-                                        <p className="text-[9px] text-emerald-400">Expected: {p.expectedEngagement}</p>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* Hook Formulas */}
-                                <div>
-                                  <p className="text-[10px] font-medium text-white/50 mb-1.5">Proven Hook Formulas</p>
-                                  <div className="space-y-1.5">
-                                    {(contentRecs.hookFormulas || []).map((h: any, i: number) => (
-                                      <div key={i} className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-0.5">
-                                        <p className="text-[10px] font-medium text-amber-400">"{h.formula}"</p>
-                                        <p className="text-[9px] text-white/60 italic">Example: {h.example}</p>
-                                        <p className="text-[9px] text-white/40">{h.whyItWorks}</p>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* Posting Schedule */}
-                                {contentRecs.postingSchedule && (
-                                  <div className="p-2 rounded-lg bg-[hsl(217,91%,60%)]/5 border border-[hsl(217,91%,60%)]/15">
-                                    <p className="text-[10px] font-medium text-[hsl(217,91%,60%)] mb-1">Optimal Posting Schedule</p>
-                                    <div className="flex gap-1 mb-1 flex-wrap">
-                                      {(contentRecs.postingSchedule.bestDays || []).map((d: string) => <Badge key={d} variant="outline" className="text-[8px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]">{d}</Badge>)}
-                                      {(contentRecs.postingSchedule.bestTimes || []).map((t: string) => <Badge key={t} variant="outline" className="text-[8px] border-emerald-400/20 text-emerald-400">{t}</Badge>)}
-                                    </div>
-                                    <p className="text-[9px] text-white/40">{contentRecs.postingSchedule.reasoning}</p>
-                                  </div>
-                                )}
-
-                                {/* Weekly Content Calendar */}
-                                {(contentRecs.contentCalendar || []).length > 0 && (
-                                  <div>
-                                    <p className="text-[10px] font-medium text-white/50 mb-1.5">Weekly Content Calendar</p>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-1.5">
-                                      {contentRecs.contentCalendar.map((day: any, i: number) => (
-                                        <div key={i} className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-0.5">
-                                          <div className="flex items-center gap-1.5">
-                                            <Badge className="bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)] text-[8px]">{day.day}</Badge>
-                                            <Badge variant="outline" className="text-[8px] border-white/10 text-white/40">{day.contentType}</Badge>
-                                          </div>
-                                          <p className="text-[10px] text-white/70">{day.topic}</p>
-                                          <p className="text-[9px] text-amber-400/70">Hook: {day.hookIdea}</p>
-                                          <div className="flex gap-1 flex-wrap">{(day.hashtags || []).map((t: string) => <span key={t} className="text-[8px] text-[hsl(217,91%,60%)]/50">#{t}</span>)}</div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Stealable Strategies */}
-                                {(contentRecs.stealableStrategies || []).length > 0 && (
-                                  <div>
-                                    <p className="text-[10px] font-medium text-white/50 mb-1.5">Strategies to Steal & Improve</p>
-                                    {contentRecs.stealableStrategies.map((s: any, i: number) => (
-                                      <div key={i} className="p-2 rounded-lg bg-amber-400/5 border border-amber-400/15 space-y-0.5 mb-1.5">
-                                        <span className="text-[10px] text-white/70">From <span className="text-amber-400 font-medium">{s.from}</span></span>
-                                        <p className="text-[9px] text-white/60">They do: {s.strategy}</p>
-                                        <p className="text-[9px] text-emerald-400">Your version: {s.howToAdapt}</p>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            ) : (
-                              <p className="text-[9px] text-white/30 text-center py-3">Click "Generate Recs" for AI-powered content strategy based on competitor analysis</p>
-                            )}
-                          </div>
-                        </div>
                       </div>
 
                       {/* Device bottom — iPadOS dock */}
                       <div className="h-[20px] md:h-[24px] flex items-center justify-center relative" style={{ background: "linear-gradient(180deg, hsl(240 4% 10%), hsl(240 3% 15%))" }}>
                         <div className="absolute inset-x-0 top-0 h-px" style={{ background: "hsl(0 0% 100% / 0.04)" }} />
                         <div className="flex items-center gap-3">
-                          {["⬜","📊","🔍","⚙️"].map((e, i) => (
-                            <div key={i} className="w-[18px] h-[18px] md:w-[22px] md:h-[22px] rounded-[5px] flex items-center justify-center text-[8px] md:text-[10px]" style={{ background: "hsl(0 0% 100% / 0.06)" }}>{e}</div>
+                          {["⬜","📊","🔍","⚙️"].map((em, ei) => (
+                            <div key={ei} className="w-[18px] h-[18px] md:w-[22px] md:h-[22px] rounded-[5px] flex items-center justify-center text-[8px] md:text-[10px]" style={{ background: "hsl(0 0% 100% / 0.06)" }}>{em}</div>
                           ))}
                         </div>
                         <div className="absolute bottom-[3px] left-1/2 -translate-x-1/2 w-[80px] md:w-[120px] h-[3.5px] md:h-[4px] rounded-full" style={{ background: "hsl(0 0% 100% / 0.15)" }} />
@@ -3339,6 +3060,85 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                   </div>
                 );
               })}
+
+              {/* ═══ Cross-Competitor Analytics iPad ═══ */}
+              <div className="w-full" style={{ contentVisibility: "auto", contain: "layout paint style" }}>
+                <div className="relative w-full rounded-[2rem] md:rounded-[2.2rem] overflow-hidden will-change-transform" style={{ background: "linear-gradient(145deg, hsl(240 2% 18%), hsl(240 4% 10%), hsl(240 2% 18%))", boxShadow: "inset 0 1px 0 hsl(0 0% 100% / 0.06), 0 0 0 1.5px hsl(240 4% 24%), 0 0 0 3px hsl(240 5% 10%), 0 30px 80px hsl(0 0% 0% / 0.6)" }}>
+                  <div className="h-[28px] md:h-[32px] flex items-center justify-between px-5 md:px-6 relative" style={{ background: "linear-gradient(180deg, hsl(240 3% 17%), hsl(240 4% 10%))" }}>
+                    <div className="hidden md:block absolute left-1/2 top-[9px] -translate-x-1/2 w-[7px] h-[7px] rounded-full" style={{ background: "radial-gradient(circle, hsl(240 4% 12%) 40%, hsl(240 8% 5%) 100%)" }} />
+                    <div className="md:hidden absolute left-1/2 top-[6px] -translate-x-1/2 w-[90px] h-[22px] rounded-full" style={{ background: "hsl(240 10% 2%)" }} />
+                    <span className="text-[10px] text-white/60 font-semibold tabular-nums" style={{ fontFamily: "-apple-system, system-ui" }}>9:41</span>
+                    <div className="flex gap-[3px] items-center">
+                      <div className="flex gap-[1.5px] items-end h-[9px]">{[3,4.5,6,8].map((h,i)=>(<div key={i} className="w-[2.5px] rounded-[1px]" style={{height:h,background:i<3?"hsl(0 0% 100%/0.7)":"hsl(0 0% 100%/0.25)"}}/>))}</div>
+                      <div className="w-[20px] h-[9px] border border-white/35 rounded-[2.5px] ml-1.5 relative overflow-hidden"><div className="absolute inset-[1.5px] right-[3px] rounded-[1px]" style={{background:"linear-gradient(90deg,hsl(142 71% 45%),hsl(143 64% 49%))"}} /></div>
+                    </div>
+                  </div>
+                  <div className="h-[38px] md:h-[40px] flex items-center px-3 md:px-4 gap-2 md:gap-3 border-b border-white/[0.05]" style={{ background: "linear-gradient(180deg, hsl(240 4% 10%), hsl(240 5% 8%))" }}>
+                    <div className="hidden md:flex gap-[5px]">
+                      <div className="w-[10px] h-[10px] rounded-full" style={{ background: "radial-gradient(circle at 35% 35%, hsl(6 96% 69%), hsl(3 100% 67%))" }} />
+                      <div className="w-[10px] h-[10px] rounded-full" style={{ background: "radial-gradient(circle at 35% 35%, hsl(45 100% 65%), hsl(41 99% 56%))" }} />
+                      <div className="w-[10px] h-[10px] rounded-full" style={{ background: "radial-gradient(circle at 35% 35%, hsl(128 71% 66%), hsl(120 64% 49%))" }} />
+                    </div>
+                    <div className="flex-1 h-[26px] md:h-[28px] rounded-lg flex items-center px-3 gap-1.5" style={{ background: "hsl(0 0% 100% / 0.04)", border: "1px solid hsl(0 0% 100% / 0.04)" }}>
+                      <Lock className="h-2.5 w-2.5 text-emerald-400/80" />
+                      <span className="text-[10px] text-white/35 font-mono truncate">content-intelligence.app/analytics</span>
+                    </div>
+                  </div>
+                  <div className="p-3 md:p-4" style={{ background: "linear-gradient(180deg, hsl(240 10% 5%), hsl(240 10% 4%))" }}>
+                    {/* Hashtag Overlap */}
+                    <div className="rounded-xl overflow-hidden" style={{ background: "hsl(0 0% 100% / 0.02)", border: "1px solid hsl(0 0% 100% / 0.05)" }}>
+                      <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid hsl(0 0% 100% / 0.04)", background: "hsl(0 0% 100% / 0.01)" }}>
+                        <Hash className="h-3.5 w-3.5 text-white/40" />
+                        <span className="text-[10px] md:text-[11px] font-semibold text-white/60">Hashtag Usage Across Competitors</span>
+                      </div>
+                      <div className="p-2.5 md:p-3">
+                        {(() => { const allTags=[...new Set(competitors.flatMap(c=>c.topHashtags))]; const sharedTags=allTags.filter(tag=>competitors.filter(c=>c.topHashtags.includes(tag)).length>=2); const uniqueTags=allTags.filter(tag=>competitors.filter(c=>c.topHashtags.includes(tag)).length===1); return (<div className="grid grid-cols-3 gap-2 mb-3"><div className="p-2 rounded-lg bg-white/[0.02] text-center"><p className="text-[9px] text-white/40">Total Unique</p><p className="text-sm font-bold text-[hsl(217,91%,60%)]">{allTags.length}</p></div><div className="p-2 rounded-lg bg-amber-400/5 border border-amber-400/10 text-center"><p className="text-[9px] text-white/40">Shared (2+)</p><p className="text-sm font-bold text-amber-400">{sharedTags.length}</p></div><div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10 text-center"><p className="text-[9px] text-white/40">Exclusive (1 only)</p><p className="text-sm font-bold text-emerald-400">{uniqueTags.length}</p></div></div>); })()}
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm"><thead><tr className="border-b border-white/[0.06]"><th className="text-left py-2 text-white/50 font-medium text-[10px]">Hashtag</th><th className="text-center py-2 text-white/50 font-medium text-[10px]">Used By</th>{competitors.map(c=><th key={c.id} className="text-center py-2 text-white/50 font-medium text-[10px]">@{c.username}</th>)}</tr></thead>
+                          <tbody>{(()=>{const allTags=[...new Set(competitors.flatMap(c=>c.topHashtags))];return allTags.map(tag=>({tag,count:competitors.filter(c=>c.topHashtags.includes(tag)).length})).sort((a,b)=>b.count-a.count).slice(0,20).map(({tag,count})=>(<tr key={tag} className="border-b border-white/[0.03]"><td className="py-1.5 text-white/70 text-[10px] flex items-center gap-1"><Hash className="h-2.5 w-2.5 text-[hsl(217,91%,60%)]"/>{tag}</td><td className="text-center py-1.5"><Badge variant="outline" className={`text-[8px] ${count>=2?"border-amber-400/20 text-amber-400":"border-white/10 text-white/40"}`}>{count}/{competitors.length}</Badge></td>{competitors.map(c=>(<td key={c.id} className="text-center py-1.5">{c.topHashtags.includes(tag)?<span className="inline-block w-4 h-4 rounded-full bg-emerald-400/15 text-emerald-400 text-[9px] leading-4">✓</span>:<span className="inline-block w-4 h-4 rounded-full bg-white/[0.03] text-white/20 text-[9px] leading-4">·</span>}</td>))}</tr>));})()}</tbody></table>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Posting Velocity */}
+                    <div className="mt-3 rounded-xl overflow-hidden" style={{ background: "hsl(0 0% 100% / 0.02)", border: "1px solid hsl(0 0% 100% / 0.05)" }}>
+                      <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid hsl(0 0% 100% / 0.04)", background: "hsl(0 0% 100% / 0.01)" }}>
+                        <Activity className="h-3.5 w-3.5 text-white/40" />
+                        <span className="text-[10px] md:text-[11px] font-semibold text-white/60">Posting Velocity vs Engagement</span>
+                      </div>
+                      <div className="p-2.5 md:p-3 space-y-2">
+                        {[...(myStats?[{...myStats,isMe:true}]:[]),...competitors.map(c=>({...c,isMe:false}))].sort((a,b)=>b.engagementRate-a.engagementRate).map((entry,i)=>{const maxEng=Math.max(...competitors.map(c=>c.engagementRate),myStats?.engagementRate||0);const maxFreq=Math.max(...competitors.map(c=>c.postFrequency),myStats?.postFrequency||0);return(<div key={entry.username} className={`p-2.5 rounded-xl border ${entry.isMe?"bg-emerald-400/5 border-emerald-400/20":"bg-white/[0.02] border-white/[0.04]"}`}><div className="flex items-center gap-3"><div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${entry.isMe?"bg-emerald-400/15 text-emerald-400":"bg-gradient-to-br from-[hsl(262,83%,58%)]/20 to-[hsl(217,91%,60%)]/20 text-white/70"}`}>{i+1}</div><div className="flex-1 min-w-0"><div className="flex items-center gap-2 mb-1"><span className={`text-[10px] font-medium ${entry.isMe?"text-emerald-400":"text-white/80"}`}>@{entry.username}</span>{entry.isMe&&<Badge className="bg-emerald-400/15 text-emerald-400 text-[7px] border-0">YOU</Badge>}</div><div className="grid grid-cols-2 gap-2"><div><div className="flex justify-between text-[8px] mb-0.5"><span className="text-white/40">Engagement</span><span className="text-emerald-400 font-medium">{entry.engagementRate}%</span></div><div className="h-1 rounded-full bg-white/[0.04] overflow-hidden"><div className="h-full rounded-full bg-emerald-400/60" style={{width:`${maxEng>0?(entry.engagementRate/maxEng)*100:0}%`}}/></div></div><div><div className="flex justify-between text-[8px] mb-0.5"><span className="text-white/40">Posts/Week</span><span className="text-[hsl(262,83%,58%)] font-medium">{entry.postFrequency}</span></div><div className="h-1 rounded-full bg-white/[0.04] overflow-hidden"><div className="h-full rounded-full bg-[hsl(262,83%,58%)]/60" style={{width:`${maxFreq>0?(entry.postFrequency/maxFreq)*100:0}%`}}/></div></div></div></div><div className="text-right shrink-0"><p className="text-[8px] text-white/30">Efficiency</p><p className="text-xs font-bold text-white/80">{entry.postFrequency>0?(entry.engagementRate/entry.postFrequency).toFixed(2):"0"}</p><p className="text-[7px] text-white/30">ER/post</p></div></div></div>);})}
+                        <p className="text-[9px] text-white/30 text-center mt-1">Higher frequency doesn't always mean higher engagement</p>
+                      </div>
+                    </div>
+                    {/* Content Dominance */}
+                    <div className="mt-3 rounded-xl overflow-hidden" style={{ background: "hsl(262 83% 58% / 0.03)", border: "1px solid hsl(262 83% 58% / 0.12)" }}>
+                      <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid hsl(262 83% 58% / 0.08)", background: "hsl(262 83% 58% / 0.02)" }}>
+                        <Crown className="h-3.5 w-3.5 text-[hsl(262,83%,58%)]" />
+                        <span className="text-[10px] md:text-[11px] font-semibold text-[hsl(262,83%,58%)]">Content Dominance Scorecard</span>
+                      </div>
+                      <div className="p-2.5 md:p-3 space-y-2">
+                        {(()=>{const entries=competitors.map(c=>{const ds=Math.min(c.contentTypes.length*25,100);const hs=Math.min(c.topHashtags.length*20,100);const vs=Math.min(c.postFrequency*15,100);const es=Math.min(c.engagementRate*12,100);const total=Math.round((ds+hs+vs+es)/4);return{username:c.username,ds,hs,vs,es,total};}).sort((a,b)=>b.total-a.total);const max=entries[0]?.total||1;return entries.map((e,i)=>(<div key={e.username} className="flex items-center gap-2.5 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]"><div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold ${i===0?"bg-[hsl(262,83%,58%)]/15 text-[hsl(262,83%,58%)]":"bg-white/[0.04] text-white/30"}`}>{i+1}</div><div className="flex-1 min-w-0"><div className="flex items-center gap-1.5 mb-1"><span className="text-[10px] font-medium text-white/80">@{e.username}</span><div className="flex gap-0.5"><Badge variant="outline" className="text-[6px] border-white/10 text-white/30 px-1">Div:{e.ds}</Badge><Badge variant="outline" className="text-[6px] border-white/10 text-white/30 px-1">Tags:{e.hs}</Badge><Badge variant="outline" className="text-[6px] border-white/10 text-white/30 px-1">Vel:{e.vs}</Badge><Badge variant="outline" className="text-[6px] border-white/10 text-white/30 px-1">Eng:{e.es}</Badge></div></div><div className="h-1 rounded-full bg-white/[0.04] overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-[hsl(262,83%,58%)] to-[hsl(217,91%,60%)] transition-all duration-700" style={{width:`${(e.total/max)*100}%`}}/></div></div><span className="text-xs font-bold text-[hsl(262,83%,58%)] tabular-nums">{e.total}</span></div>));})()}
+                      </div>
+                    </div>
+                    {/* AI Recs */}
+                    <div className="mt-3 rounded-xl overflow-hidden" style={{ background: "hsl(0 0% 100% / 0.02)", border: "1px solid hsl(0 0% 100% / 0.05)" }}>
+                      <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: "1px solid hsl(0 0% 100% / 0.04)", background: "hsl(0 0% 100% / 0.01)" }}>
+                        <div className="flex items-center gap-2"><Brain className="h-3.5 w-3.5 text-[hsl(262,83%,58%)]" /><span className="text-[10px] md:text-[11px] font-semibold text-[hsl(262,83%,58%)]">AI Content Recommendations</span></div>
+                        <Button size="sm" variant="outline" className="text-[9px] gap-1 border-[hsl(262,83%,58%)]/20 text-[hsl(262,83%,58%)] hover:bg-[hsl(262,83%,58%)]/10 h-6 px-2" disabled={contentRecsLoading} onClick={async()=>{setContentRecsLoading(true);try{const compData=competitors.map(c=>`@${c.username}: ${c.followers} followers, ${c.engagementRate}% ER, top content: ${c.contentTypes.map(ct=>`${ct.type}(${ct.pct}%)`).join(",")}, hashtags: ${c.topHashtags.slice(0,3).join(",")}, niche: ${c.metadata?.niche||"unknown"}`).join("\n");const myContext=myStats?`\nMY STATS: @${myStats.username}: ${myStats.followers} followers, ${myStats.engagementRate}% ER, ${myStats.postFrequency} posts/wk`:"";const aiReply=await callAI(`Analyze these competitors' content and give me specific recommendations to outperform them.${myContext}\n\nCOMPETITORS:\n${compData}\n\nReturn ONLY valid JSON:\n{"contentPillars":[{"pillar":"name","description":"why","frequency":"posts/week","expectedEngagement":"X%"}],"hookFormulas":[{"formula":"the hook template","example":"concrete example","whyItWorks":"reason"}],"postingSchedule":{"bestDays":["Mon","Wed"],"bestTimes":["9am","7pm"],"reasoning":"why"},"contentCalendar":[{"day":"Monday","contentType":"Reel","topic":"specific topic","hashtags":["tag1","tag2"],"hookIdea":"specific hook"}],"stealableStrategies":[{"from":"@competitor","strategy":"what they do","howToAdapt":"how to do it better"}]}`);setContentRecs(parseJSON(aiReply));await refreshAIUsage();toast.success("Content recommendations generated");}catch(err:any){toast.error(err?.message||"Failed");}finally{setContentRecsLoading(false);}}}>
+                          {contentRecsLoading?<Loader2 className="h-2.5 w-2.5 animate-spin"/>:<Sparkles className="h-2.5 w-2.5"/>}
+                          {contentRecsLoading?"Analyzing...":"Generate Recs"}
+                        </Button>
+                      </div>
+                      <div className="p-2.5 md:p-3">
+                        {contentRecsLoading?(<div className="text-center py-4"><Loader2 className="h-5 w-5 text-[hsl(262,83%,58%)] mx-auto animate-spin"/><p className="text-[9px] text-white/40 mt-2">Analyzing competitor content patterns...</p></div>):contentRecs?(<div className="space-y-3"><div><p className="text-[10px] font-medium text-white/50 mb-1.5">Content Pillars to Own</p><div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">{(contentRecs.contentPillars||[]).map((p:any,i:number)=>(<div key={i} className="p-2 rounded-lg bg-[hsl(262,83%,58%)]/5 border border-[hsl(262,83%,58%)]/15 space-y-0.5"><div className="flex items-center justify-between"><span className="text-[10px] font-medium text-white/80">{p.pillar}</span><Badge variant="outline" className="text-[7px] border-[hsl(262,83%,58%)]/20 text-[hsl(262,83%,58%)]">{p.frequency}</Badge></div><p className="text-[9px] text-white/50">{p.description}</p><p className="text-[9px] text-emerald-400">Expected: {p.expectedEngagement}</p></div>))}</div></div><div><p className="text-[10px] font-medium text-white/50 mb-1.5">Proven Hook Formulas</p><div className="space-y-1.5">{(contentRecs.hookFormulas||[]).map((h:any,i:number)=>(<div key={i} className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-0.5"><p className="text-[10px] font-medium text-amber-400">"{h.formula}"</p><p className="text-[9px] text-white/60 italic">Example: {h.example}</p><p className="text-[9px] text-white/40">{h.whyItWorks}</p></div>))}</div></div>{contentRecs.postingSchedule&&(<div className="p-2 rounded-lg bg-[hsl(217,91%,60%)]/5 border border-[hsl(217,91%,60%)]/15"><p className="text-[10px] font-medium text-[hsl(217,91%,60%)] mb-1">Optimal Posting Schedule</p><div className="flex gap-1 mb-1 flex-wrap">{(contentRecs.postingSchedule.bestDays||[]).map((d:string)=><Badge key={d} variant="outline" className="text-[8px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]">{d}</Badge>)}{(contentRecs.postingSchedule.bestTimes||[]).map((t:string)=><Badge key={t} variant="outline" className="text-[8px] border-emerald-400/20 text-emerald-400">{t}</Badge>)}</div><p className="text-[9px] text-white/40">{contentRecs.postingSchedule.reasoning}</p></div>)}{(contentRecs.contentCalendar||[]).length>0&&(<div><p className="text-[10px] font-medium text-white/50 mb-1.5">Weekly Content Calendar</p><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-1.5">{contentRecs.contentCalendar.map((day:any,i:number)=>(<div key={i} className="p-2 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-0.5"><div className="flex items-center gap-1.5"><Badge className="bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)] text-[8px]">{day.day}</Badge><Badge variant="outline" className="text-[8px] border-white/10 text-white/40">{day.contentType}</Badge></div><p className="text-[10px] text-white/70">{day.topic}</p><p className="text-[9px] text-amber-400/70">Hook: {day.hookIdea}</p><div className="flex gap-1 flex-wrap">{(day.hashtags||[]).map((t:string)=><span key={t} className="text-[8px] text-[hsl(217,91%,60%)]/50">#{t}</span>)}</div></div>))}</div></div>)}{(contentRecs.stealableStrategies||[]).length>0&&(<div><p className="text-[10px] font-medium text-white/50 mb-1.5">Strategies to Steal & Improve</p>{contentRecs.stealableStrategies.map((s:any,i:number)=>(<div key={i} className="p-2 rounded-lg bg-amber-400/5 border border-amber-400/15 space-y-0.5 mb-1.5"><span className="text-[10px] text-white/70">From <span className="text-amber-400 font-medium">{s.from}</span></span><p className="text-[9px] text-white/60">They do: {s.strategy}</p><p className="text-[9px] text-emerald-400">Your version: {s.howToAdapt}</p></div>))}</div>)}</div>):(<p className="text-[9px] text-white/30 text-center py-3">Click "Generate Recs" for AI-powered content strategy</p>)}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="h-[20px] md:h-[24px] flex items-center justify-center relative" style={{ background: "linear-gradient(180deg, hsl(240 4% 10%), hsl(240 3% 15%))" }}>
+                    <div className="absolute bottom-[3px] left-1/2 -translate-x-1/2 w-[80px] md:w-[120px] h-[3.5px] md:h-[4px] rounded-full" style={{ background: "hsl(0 0% 100% / 0.15)" }} />
+                  </div>
+                </div>
+              </div>
             </>
           )}
         </TabsContent>
