@@ -3563,6 +3563,329 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                   </CardContent>
                 )}
               </Card>
+
+              {/* ═══ AI COMPETITIVE INTELLIGENCE REPORT ═══ */}
+              <Card className="crm-card border-purple-400/20">
+                <CardHeader className="pb-2 cursor-pointer" onClick={() => toggleSection("siteInsights")}>
+                  <CardTitle className="text-sm font-medium text-purple-400 flex items-center gap-2">
+                    <Brain className="h-4 w-4" /> AI Competitive Intelligence Report
+                    {siteInsights && <Badge variant="outline" className="text-[9px] border-purple-400/20 text-purple-400">Ready</Badge>}
+                    {!siteInsights && (
+                      <Button size="sm" variant="outline" className="ml-auto text-xs gap-1 border-purple-400/20 text-purple-400 hover:bg-purple-400/10 h-7"
+                        onClick={e => { e.stopPropagation(); generateSiteInsights(); }} disabled={siteInsightsLoading}>
+                        {siteInsightsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                        {siteInsightsLoading ? "Analyzing..." : "Generate Deep Intel"}
+                      </Button>
+                    )}
+                    {expandedSections.siteInsights ? <ChevronUp className="h-3.5 w-3.5 text-white/30 ml-auto" /> : <ChevronDown className="h-3.5 w-3.5 text-white/30 ml-auto" />}
+                  </CardTitle>
+                </CardHeader>
+                {expandedSections.siteInsights && (
+                  <CardContent>
+                    {siteInsightsLoading ? (
+                      <div className="text-center py-8">
+                        <Loader2 className="h-8 w-8 text-purple-400 mx-auto mb-3 animate-spin" />
+                        <p className="text-xs text-white/50">Deep-analyzing competitive position, vulnerabilities, and strategy...</p>
+                      </div>
+                    ) : siteInsights ? (
+                      <div className="space-y-4">
+                        {/* Executive Summary + Score */}
+                        <div className="flex gap-4">
+                          <div className="flex-shrink-0 w-20 h-20 rounded-xl bg-purple-500/10 border border-purple-400/20 flex flex-col items-center justify-center">
+                            <span className="text-2xl font-black text-purple-400">{siteInsights.competitiveScore || "?"}</span>
+                            <span className="text-[9px] text-purple-400/60">/ 100</span>
+                          </div>
+                          <div className="flex-1 space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <Badge className={`text-[9px] ${siteInsights.marketPosition?.tier === "leader" ? "bg-red-400/15 text-red-400" : siteInsights.marketPosition?.tier === "challenger" ? "bg-amber-400/15 text-amber-400" : "bg-emerald-400/15 text-emerald-400"}`}>
+                                {siteInsights.marketPosition?.tier?.toUpperCase() || "UNKNOWN"}
+                              </Badge>
+                              <Badge variant="outline" className={`text-[9px] ${siteInsights.riskAssessment?.overallThreat === "critical" || siteInsights.riskAssessment?.overallThreat === "high" ? "border-red-400/30 text-red-400" : "border-amber-400/30 text-amber-400"}`}>
+                                Threat: {siteInsights.riskAssessment?.overallThreat || "unknown"}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-white/70">{siteInsights.executiveSummary}</p>
+                            {siteInsights.marketPosition?.reasoning && <p className="text-[10px] text-white/40 italic">{siteInsights.marketPosition.reasoning}</p>}
+                          </div>
+                        </div>
+
+                        {/* Immediate Actions */}
+                        {(siteInsights.immediateActions || []).length > 0 && (
+                          <div className="p-3 rounded-lg bg-emerald-400/5 border border-emerald-400/15">
+                            <p className="text-xs font-medium text-emerald-400 mb-2 flex items-center gap-1"><Zap className="h-3.5 w-3.5" /> Do RIGHT NOW</p>
+                            <div className="space-y-2">
+                              {siteInsights.immediateActions.map((a: any, i: number) => (
+                                <div key={i} className="flex items-start gap-2.5 p-2 rounded-lg bg-white/[0.02]">
+                                  <div className={`mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold ${a.impact === "high" ? "bg-red-400/20 text-red-400" : "bg-amber-400/20 text-amber-400"}`}>{a.impact}</div>
+                                  <div className="flex-1 space-y-0.5">
+                                    <p className="text-xs font-medium text-white/80">{a.action}</p>
+                                    <p className="text-[10px] text-white/40">{a.details}</p>
+                                    <span className="text-[9px] text-white/30">⏱ {a.timeNeeded}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          {/* Strengths to Fear */}
+                          {(siteInsights.strengthsToFear || []).length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-xs font-medium text-red-400 flex items-center gap-1"><Shield className="h-3.5 w-3.5" /> Their Strengths (Fear These)</p>
+                              {siteInsights.strengthsToFear.map((s: any, i: number) => (
+                                <div key={i} className="p-2.5 rounded-lg bg-red-400/5 border border-red-400/15 space-y-1">
+                                  <p className="text-xs font-medium text-white/80">{s.strength}</p>
+                                  <p className="text-[10px] text-red-400/70">Impact: {s.impact}</p>
+                                  <p className="text-[10px] text-emerald-400">Counter: {s.counterStrategy}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Weaknesses to Exploit */}
+                          {(siteInsights.weaknessesToExploit || []).length > 0 && (
+                            <div className="space-y-2">
+                              <p className="text-xs font-medium text-amber-400 flex items-center gap-1"><Target className="h-3.5 w-3.5" /> Their Weaknesses (Exploit These)</p>
+                              {siteInsights.weaknessesToExploit.map((w: any, i: number) => (
+                                <div key={i} className="p-2.5 rounded-lg bg-amber-400/5 border border-amber-400/15 space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-xs font-medium text-white/80">{w.weakness}</p>
+                                    <Badge variant="outline" className={`text-[8px] ${w.severity === "critical" ? "border-red-400/30 text-red-400" : w.severity === "high" ? "border-amber-400/30 text-amber-400" : "border-white/10 text-white/40"}`}>{w.severity}</Badge>
+                                  </div>
+                                  <p className="text-[10px] text-amber-400/70">How: {w.exploitStrategy}</p>
+                                  <p className="text-[10px] text-emerald-400">Gain: {w.expectedGain}</p>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* SEO Opportunities */}
+                        {(siteInsights.seoOpportunities || []).length > 0 && (
+                          <div className="p-3 rounded-lg bg-[hsl(217,91%,60%)]/5 border border-[hsl(217,91%,60%)]/10">
+                            <p className="text-xs font-medium text-[hsl(217,91%,60%)] mb-2 flex items-center gap-1"><Search className="h-3.5 w-3.5" /> SEO Opportunities</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {siteInsights.seoOpportunities.map((o: any, i: number) => (
+                                <div key={i} className="p-2 rounded-lg bg-white/[0.02] space-y-1">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-xs text-white/80">{o.opportunity}</p>
+                                    <Badge variant="outline" className={`text-[8px] ${o.difficulty === "easy" ? "border-emerald-400/30 text-emerald-400" : o.difficulty === "hard" ? "border-red-400/30 text-red-400" : "border-amber-400/30 text-amber-400"}`}>{o.difficulty}</Badge>
+                                  </div>
+                                  <p className="text-[10px] text-white/50">{o.action}</p>
+                                  {o.expectedTraffic && <p className="text-[10px] text-emerald-400">Potential: {o.expectedTraffic}</p>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Content Strategy Intel */}
+                        {siteInsights.contentStrategy && (
+                          <div className="p-3 rounded-lg bg-pink-400/5 border border-pink-400/10">
+                            <p className="text-xs font-medium text-pink-400 mb-2 flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> Content Strategy Intel</p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40">Tone</p>
+                                <p className="text-xs text-white/80">{siteInsights.contentStrategy.toneAnalysis || "N/A"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40">Cadence</p>
+                                <p className="text-xs text-white/80">{siteInsights.contentStrategy.postingCadence || "N/A"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40">Formats</p>
+                                <p className="text-xs text-white/80">{(siteInsights.contentStrategy.recommendedFormats || []).join(", ") || "N/A"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40">Topics</p>
+                                <p className="text-xs text-white/80">{(siteInsights.contentStrategy.dominantTopics || []).join(", ") || "N/A"}</p>
+                              </div>
+                            </div>
+                            {(siteInsights.contentStrategy.contentGaps || []).length > 0 && (
+                              <div className="mt-2 flex flex-wrap gap-1.5">
+                                <span className="text-[10px] text-white/40">Content Gaps:</span>
+                                {siteInsights.contentStrategy.contentGaps.map((g: string, i: number) => (
+                                  <Badge key={i} variant="outline" className="text-[9px] border-pink-400/20 text-pink-400">{g}</Badge>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Marketing Intel */}
+                        {siteInsights.marketingIntel && (
+                          <div className="p-3 rounded-lg bg-amber-400/5 border border-amber-400/10">
+                            <p className="text-xs font-medium text-amber-400 mb-2 flex items-center gap-1"><Activity className="h-3.5 w-3.5" /> Marketing Intelligence</p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40">Channels</p>
+                                <p className="text-xs text-white/80">{(siteInsights.marketingIntel.channels || []).join(", ") || "N/A"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40">Ad Presence</p>
+                                <p className="text-xs text-white/80">{siteInsights.marketingIntel.adPresence || "N/A"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40">Funnel</p>
+                                <p className="text-xs text-white/80">{siteInsights.marketingIntel.funnelType || "N/A"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40">Email Strategy</p>
+                                <p className="text-xs text-white/80">{siteInsights.marketingIntel.emailStrategy || "N/A"}</p>
+                              </div>
+                              {(siteInsights.marketingIntel.ctas || []).length > 0 && (
+                                <div className="p-2 rounded-lg bg-white/[0.02] col-span-2">
+                                  <p className="text-[10px] text-white/40">CTA Patterns</p>
+                                  <div className="flex flex-wrap gap-1 mt-1">
+                                    {siteInsights.marketingIntel.ctas.map((c: string, i: number) => (
+                                      <Badge key={i} variant="outline" className="text-[9px] border-amber-400/20 text-amber-300">{c}</Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Audience Intel */}
+                        {siteInsights.audienceIntel && (
+                          <div className="p-3 rounded-lg bg-cyan-400/5 border border-cyan-400/10">
+                            <p className="text-xs font-medium text-cyan-400 mb-2 flex items-center gap-1"><Users className="h-3.5 w-3.5" /> Audience Intelligence</p>
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40">Primary Audience</p>
+                                <p className="text-xs text-white/80">{siteInsights.audienceIntel.primaryDemo || "N/A"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40">Secondary</p>
+                                <p className="text-xs text-white/80">{siteInsights.audienceIntel.secondaryDemo || "N/A"}</p>
+                              </div>
+                            </div>
+                            {(siteInsights.audienceIntel.underservedSegments || []).length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-[10px] text-emerald-400 mb-1">Underserved Segments You Can Target:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {siteInsights.audienceIntel.underservedSegments.map((s: string, i: number) => (
+                                    <Badge key={i} variant="outline" className="text-[9px] border-emerald-400/20 text-emerald-400">{s}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {(siteInsights.audienceIntel.acquisitionChannels || []).length > 0 && (
+                              <div className="mt-2">
+                                <p className="text-[10px] text-white/40 mb-1">Their Acquisition Channels:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {siteInsights.audienceIntel.acquisitionChannels.map((c: string, i: number) => (
+                                    <Badge key={i} variant="outline" className="text-[9px] border-cyan-400/20 text-cyan-300">{c}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Pricing Intel */}
+                        {siteInsights.pricingIntel && (
+                          <div className="p-3 rounded-lg bg-green-400/5 border border-green-400/10">
+                            <p className="text-xs font-medium text-green-400 mb-2 flex items-center gap-1"><DollarSign className="h-3.5 w-3.5" /> Pricing Intelligence</p>
+                            <p className="text-xs text-white/70 mb-2">Strategy: {siteInsights.pricingIntel.strategy || "N/A"}</p>
+                            {(siteInsights.pricingIntel.vulnerabilities || []).length > 0 && (
+                              <div className="mb-2">
+                                <p className="text-[10px] text-red-400 mb-1">Pricing Vulnerabilities:</p>
+                                {siteInsights.pricingIntel.vulnerabilities.map((v: string, i: number) => (
+                                  <p key={i} className="text-[10px] text-white/50 flex items-start gap-1 mb-0.5"><span className="text-red-400">•</span> {v}</p>
+                                ))}
+                              </div>
+                            )}
+                            {(siteInsights.pricingIntel.recommendations || []).length > 0 && (
+                              <div>
+                                <p className="text-[10px] text-emerald-400 mb-1">Your Pricing Strategy:</p>
+                                {siteInsights.pricingIntel.recommendations.map((r: string, i: number) => (
+                                  <p key={i} className="text-[10px] text-white/50 flex items-start gap-1 mb-0.5"><span className="text-emerald-400">•</span> {r}</p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Tech Advantages */}
+                        {(siteInsights.techAdvantages || []).length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium text-purple-400 flex items-center gap-1"><Code className="h-3.5 w-3.5" /> Tech Stack Advantages & Alternatives</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {siteInsights.techAdvantages.map((t: any, i: number) => (
+                                <div key={i} className="p-2 rounded-lg bg-purple-400/5 border border-purple-400/10 space-y-0.5">
+                                  <p className="text-xs font-medium text-white/80">{t.tech}</p>
+                                  <p className="text-[10px] text-white/50">Gives them: {t.advantage}</p>
+                                  <p className="text-[10px] text-purple-400">You should: {t.alternative}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Weekly Hit List */}
+                        {(siteInsights.weeklyHitList || []).length > 0 && (
+                          <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                            <p className="text-xs font-medium text-white/60 mb-2 flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> Weekly Action Plan to Beat Them</p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-1.5">
+                              {siteInsights.weeklyHitList.map((d: any, i: number) => (
+                                <div key={i} className="p-2 rounded-lg bg-white/[0.02] text-center space-y-1">
+                                  <Badge className={`text-[8px] ${d.priority === "high" ? "bg-red-400/15 text-red-400" : "bg-amber-400/15 text-amber-400"}`}>{d.day}</Badge>
+                                  <p className="text-[10px] text-white/70">{d.action}</p>
+                                  <p className="text-[8px] text-white/30">{d.target}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Long-term Plays */}
+                        {(siteInsights.longTermPlays || []).length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium text-[hsl(217,91%,60%)] flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" /> Long-term Strategic Plays</p>
+                            {siteInsights.longTermPlays.map((p: any, i: number) => (
+                              <div key={i} className="p-2.5 rounded-lg bg-[hsl(217,91%,60%)]/5 border border-[hsl(217,91%,60%)]/10 space-y-1">
+                                <p className="text-xs font-medium text-white/80">{p.play}</p>
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <span className="text-[10px] text-white/40">⏱ {p.timeline}</span>
+                                  <span className="text-[10px] text-white/40">💰 {p.investment}</span>
+                                  <span className="text-[10px] text-emerald-400">ROI: {p.expectedROI}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Risk Assessment */}
+                        {siteInsights.riskAssessment && (
+                          <div className={`p-3 rounded-lg border ${siteInsights.riskAssessment.overallThreat === "critical" || siteInsights.riskAssessment.overallThreat === "high" ? "bg-red-400/5 border-red-400/15" : "bg-amber-400/5 border-amber-400/15"}`}>
+                            <p className="text-xs font-medium text-white/60 mb-1">Risk Assessment</p>
+                            <p className="text-xs text-white/70">{siteInsights.riskAssessment.biggestRisk}</p>
+                            <p className="text-[10px] text-emerald-400 mt-1">Mitigation: {siteInsights.riskAssessment.mitigation}</p>
+                          </div>
+                        )}
+
+                        {/* Re-analyze */}
+                        <div className="flex items-center justify-end pt-2 border-t border-white/[0.04]">
+                          <Button size="sm" variant="ghost" className="h-6 text-[10px] text-purple-400/60 hover:text-purple-400" onClick={() => { setSiteInsights(null); generateSiteInsights(); }}>
+                            <RefreshCw className="h-3 w-3 mr-1" /> Re-analyze
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6">
+                        <Brain className="h-8 w-8 text-white/15 mx-auto mb-2" />
+                        <p className="text-xs text-white/40 mb-2">Deep AI analysis of competitive position, weaknesses, opportunities & strategy</p>
+                        <Button size="sm" className="bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 gap-1.5" onClick={generateSiteInsights} disabled={siteInsightsLoading}>
+                          <Sparkles className="h-3.5 w-3.5" /> Generate Competitive Intelligence
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                )}
+              </Card>
             </div>
           ) : (
             <Card className="crm-card">
