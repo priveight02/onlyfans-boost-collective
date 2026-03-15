@@ -1045,7 +1045,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
-        <TabsList className="bg-white/[0.03] border border-white/[0.05] p-1 rounded-xl h-auto gap-1 flex-wrap">
+        <TabsList className="bg-[hsl(222,47%,8%)]/80 backdrop-blur-xl border border-white/[0.06] p-1.5 rounded-2xl h-auto gap-1 flex-wrap shadow-[0_8px_32px_hsl(0,0%,0%/0.4),inset_0_1px_0_hsl(0,0%,100%/0.03)]">
           {[
             { value: "tracker", icon: Crosshair, label: "Tracker" },
             { value: "benchmarks", icon: BarChart3, label: "Benchmarks" },
@@ -1060,7 +1060,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
             { value: "analysis", icon: Globe, label: "Site Analysis" },
             { value: "export", icon: Download, label: "Export Report" },
           ].map(tab => (
-            <TabsTrigger key={tab.value} value={tab.value} className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium">
+            <TabsTrigger key={tab.value} value={tab.value} className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[hsl(217,91%,60%)]/15 data-[state=active]:to-[hsl(262,83%,58%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] data-[state=active]:shadow-[0_0_12px_hsl(217,91%,60%/0.15),inset_0_1px_0_hsl(0,0%,100%/0.06)] data-[state=active]:border data-[state=active]:border-[hsl(217,91%,60%)]/20 text-white/35 hover:text-white/50 hover:bg-white/[0.03] rounded-xl gap-1.5 text-xs font-medium transition-all duration-200">
               <tab.icon className="h-3.5 w-3.5" /> {tab.label}
             </TabsTrigger>
           ))}
@@ -1330,17 +1330,31 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {competitors.map(comp => (
+              {competitors.map(comp => {
+                const historyData = comp.metadata?.analysisHistory || [];
+                const threatPct = Math.min(comp.score, 100);
+                const circumference = 2 * Math.PI * 32;
+                const strokeDash = (threatPct / 100) * circumference;
+                const threatStroke = comp.score >= 70 ? "hsl(350,80%,55%)" : comp.score >= 40 ? "hsl(30,95%,60%)" : "hsl(150,60%,50%)";
+                const threatGlow = comp.score >= 70 ? "drop-shadow(0 0 6px hsl(350,80%,55%/0.4))" : comp.score >= 40 ? "drop-shadow(0 0 6px hsl(30,95%,60%/0.4))" : "drop-shadow(0 0 6px hsl(150,60%,50%/0.4))";
+                return (
                 <Card
                   key={comp.id}
-                  className={`crm-card cursor-pointer transition-all hover:border-white/10 ${selectedCompetitor === comp.id ? "ring-1 ring-[hsl(217,91%,60%)]/40" : ""}`}
+                  className={`crm-card cursor-pointer transition-all duration-300 hover:border-white/10 hover:shadow-[0_8px_32px_hsl(0,0%,0%/0.3)] hover:translate-y-[-2px] ${selectedCompetitor === comp.id ? "ring-1 ring-[hsl(217,91%,60%)]/40 shadow-[0_0_20px_hsl(217,91%,60%/0.08)]" : ""}`}
                   onClick={() => setSelectedCompetitor(comp.id)}
                 >
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center text-white font-bold text-sm border border-white/[0.06]">
-                          {comp.username[0]?.toUpperCase()}
+                        {/* SVG Threat Score Ring */}
+                        <div className="relative w-12 h-12 flex-shrink-0">
+                          <svg className="w-12 h-12 -rotate-90" viewBox="0 0 72 72" style={{ filter: threatGlow }}>
+                            <circle cx="36" cy="36" r="32" fill="none" stroke="hsl(0,0%,100%,0.04)" strokeWidth="3" />
+                            <circle cx="36" cy="36" r="32" fill="none" stroke={threatStroke} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${strokeDash} ${circumference}`} className="transition-all duration-1000" />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-[11px] font-black text-white">{comp.score}</span>
+                          </div>
                         </div>
                         <div>
                           <p className="text-white font-medium text-sm">@{comp.username}</p>
@@ -1368,7 +1382,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         { label: "Eng. Rate", value: `${comp.engagementRate}%` },
                         { label: "Growth", value: null },
                       ].map((m, i) => (
-                        <div key={i} className="text-center p-2 rounded-lg bg-white/[0.02]">
+                        <div key={i} className="text-center p-2 rounded-lg bg-white/[0.02] border border-white/[0.03]">
                           <p className="text-[10px] text-white/40">{m.label}</p>
                           {m.value !== null ? (
                             <p className="text-sm font-semibold text-white">{m.value}</p>
@@ -1383,19 +1397,51 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                     </div>
 
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="text-center p-2 rounded-lg bg-white/[0.02]">
+                      <div className="text-center p-2 rounded-lg bg-white/[0.02] border border-white/[0.03]">
                         <p className="text-[10px] text-white/40">Avg Likes</p>
                         <p className="text-sm font-semibold text-white">{fmtNum(comp.avgLikes)}</p>
                       </div>
-                      <div className="text-center p-2 rounded-lg bg-white/[0.02]">
+                      <div className="text-center p-2 rounded-lg bg-white/[0.02] border border-white/[0.03]">
                         <p className="text-[10px] text-white/40">Posts/Wk</p>
                         <p className="text-sm font-semibold text-white">{comp.postFrequency}</p>
                       </div>
-                      <div className="text-center p-2 rounded-lg bg-white/[0.02]">
+                      <div className="text-center p-2 rounded-lg bg-white/[0.02] border border-white/[0.03]">
                         <p className="text-[10px] text-white/40">Total Posts</p>
                         <p className="text-sm font-semibold text-white">{fmtNum(comp.posts)}</p>
                       </div>
                     </div>
+
+                    {/* Mini Sparkline */}
+                    {historyData.length >= 2 && (
+                      <div className="h-10 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={historyData.slice(-8).map((h: any, i: number) => ({ x: i, v: h.followers }))}>
+                            <defs>
+                              <linearGradient id={`spark-${comp.id}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="hsl(217,91%,60%)" stopOpacity={0.3} />
+                                <stop offset="100%" stopColor="hsl(217,91%,60%)" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <Area type="monotone" dataKey="v" stroke="hsl(217,91%,60%)" fill={`url(#spark-${comp.id})`} strokeWidth={1.5} dot={false} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    {/* Content Type Mini Bars */}
+                    {comp.contentTypes.length > 0 && (
+                      <div className="space-y-1">
+                        {comp.contentTypes.slice(0, 3).map((ct, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="text-[9px] text-white/30 w-14 truncate">{ct.type}</span>
+                            <div className="flex-1 h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${ct.pct}%`, background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                            </div>
+                            <span className="text-[9px] text-white/30 w-8 text-right">{ct.pct}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Expandable details */}
                     {expandedCard === comp.id && (
@@ -1458,7 +1504,8 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
             </>
           )}
@@ -1470,6 +1517,36 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
             <Card className="crm-card"><CardContent className="p-12 text-center"><p className="text-white/50">Add competitors first to see benchmarks</p></CardContent></Card>
           ) : (
             <>
+              {/* Power Rankings Leaderboard */}
+              <Card className="crm-card border-amber-400/15">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><Crown className="h-4 w-4" /> Power Rankings</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  {(() => {
+                    const allEntries = [
+                      ...(myStats ? [{ username: myStats.username, isMe: true, score: ((myStats.engagementRate * 10) + (myStats.growthRate * 5) + (myStats.followers / Math.max(...competitors.map(c => c.followers), 1) * 30) + (myStats.avgLikes / Math.max(...competitors.map(c => c.avgLikes), 1) * 20) + (myStats.postFrequency * 2)) }] : []),
+                      ...competitors.map(c => ({ username: c.username, isMe: false, score: ((c.engagementRate * 10) + (c.growthRate * 5) + (c.followers / Math.max(...competitors.map(x => x.followers), 1) * 30) + (c.avgLikes / Math.max(...competitors.map(x => x.avgLikes), 1) * 20) + (c.postFrequency * 2)) })),
+                    ].sort((a, b) => b.score - a.score);
+                    const maxScore = allEntries[0]?.score || 1;
+                    return allEntries.map((e, i) => (
+                      <div key={e.username} className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all ${e.isMe ? "bg-emerald-400/5 border-emerald-400/15" : "bg-white/[0.02] border-white/[0.04]"}`}>
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${i === 0 ? "bg-amber-400/15 text-amber-400" : i === 1 ? "bg-white/10 text-white/60" : i === 2 ? "bg-orange-400/10 text-orange-400/70" : "bg-white/[0.04] text-white/30"}`}>
+                          {i === 0 ? "👑" : `#${i + 1}`}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-sm font-medium ${e.isMe ? "text-emerald-400" : "text-white/80"}`}>@{e.username}</span>
+                            {e.isMe && <Badge className="bg-emerald-400/15 text-emerald-400 text-[8px]">YOU</Badge>}
+                          </div>
+                          <div className="h-2 rounded-full bg-white/[0.04] overflow-hidden">
+                            <div className={`h-full rounded-full transition-all duration-1000 ${e.isMe ? "bg-gradient-to-r from-emerald-500 to-emerald-400" : i === 0 ? "bg-gradient-to-r from-amber-500 to-amber-400" : "bg-gradient-to-r from-[hsl(217,91%,60%)] to-[hsl(262,83%,58%)]"}`} style={{ width: `${(e.score / maxScore) * 100}%` }} />
+                          </div>
+                        </div>
+                        <span className={`text-xs font-bold tabular-nums ${e.isMe ? "text-emerald-400" : "text-white/50"}`}>{Math.round(e.score)}</span>
+                      </div>
+                    ));
+                  })()}
+                </CardContent>
+              </Card>
                {/* Radar - includes user data */}
               <Card className="crm-card">
                 <CardHeader className="pb-2">
@@ -1879,8 +1956,15 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 <Card className="crm-card">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4 mb-4">
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center border border-white/[0.06]">
-                        <span className="text-xl font-bold text-white">{gapAnalysis.overallScore || "?"}</span>
+                      <div className="relative w-20 h-20 flex-shrink-0">
+                        <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80" style={{ filter: `drop-shadow(0 0 8px hsl(217,91%,60%,${(gapAnalysis.overallScore || 0) / 200}))` }}>
+                          <circle cx="40" cy="40" r="35" fill="none" stroke="hsl(0,0%,100%,0.04)" strokeWidth="4" />
+                          <circle cx="40" cy="40" r="35" fill="none" stroke="hsl(217,91%,60%)" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${((gapAnalysis.overallScore || 0) / 100) * (2 * Math.PI * 35)} ${2 * Math.PI * 35}`} className="transition-all duration-1000" />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className="text-xl font-black text-white">{gapAnalysis.overallScore || "?"}</span>
+                          <span className="text-[8px] text-white/30">/ 100</span>
+                        </div>
                       </div>
                       <div>
                         <p className="text-white font-medium">Opportunity Score</p>
@@ -2213,6 +2297,31 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
           {swotResult ? (
             <div className="space-y-4">
+              {/* SWOT Quadrant Score Visual */}
+              <Card className="crm-card">
+                <CardContent className="p-5">
+                  <div className="grid grid-cols-2 gap-0.5 max-w-md mx-auto">
+                    {[
+                      { key: "strengths", label: "S", fullLabel: "Strengths", color: "from-emerald-500/20 to-emerald-500/5", border: "border-emerald-400/20", text: "text-emerald-400" },
+                      { key: "weaknesses", label: "W", fullLabel: "Weaknesses", color: "from-red-400/20 to-red-400/5", border: "border-red-400/20", text: "text-red-400" },
+                      { key: "opportunities", label: "O", fullLabel: "Opportunities", color: "from-[hsl(217,91%,60%)]/20 to-[hsl(217,91%,60%)]/5", border: "border-[hsl(217,91%,60%)]/20", text: "text-[hsl(217,91%,60%)]" },
+                      { key: "threats", label: "T", fullLabel: "Threats", color: "from-amber-400/20 to-amber-400/5", border: "border-amber-400/20", text: "text-amber-400" },
+                    ].map((q) => {
+                      const items = (swotResult as any)[q.key] || [];
+                      const highCount = items.filter((i: any) => typeof i !== "string" && i.priority === "high").length;
+                      return (
+                        <div key={q.key} className={`p-4 rounded-xl bg-gradient-to-br ${q.color} border ${q.border} text-center space-y-1`}>
+                          <span className={`text-2xl font-black ${q.text}`}>{q.label}</span>
+                          <p className={`text-[10px] font-medium ${q.text}`}>{q.fullLabel}</p>
+                          <p className="text-lg font-bold text-white">{items.length}</p>
+                          {highCount > 0 && <Badge className="bg-red-400/15 text-red-400 text-[8px]">{highCount} critical</Badge>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Verdict + Top Action */}
               {(swotResult as any).overallVerdict && (
                 <Card className="crm-card border-[hsl(217,91%,60%)]/15">
@@ -3812,24 +3921,56 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                       </div>
                     ) : siteInsights ? (
                       <div className="space-y-4">
-                        {/* Executive Summary + Score */}
-                        <div className="flex gap-4">
-                          <div className="flex-shrink-0 w-20 h-20 rounded-xl bg-purple-500/10 border border-purple-400/20 flex flex-col items-center justify-center">
-                            <span className="text-2xl font-black text-purple-400">{siteInsights.competitiveScore || "?"}</span>
-                            <span className="text-[9px] text-purple-400/60">/ 100</span>
+                         {/* Executive Summary + Score Ring */}
+                        <div className="flex gap-4 items-start">
+                          <div className="flex-shrink-0 relative w-24 h-24">
+                            <svg className="w-24 h-24 -rotate-90" viewBox="0 0 96 96" style={{ filter: "drop-shadow(0 0 12px hsl(270,70%,60%,0.3))" }}>
+                              <circle cx="48" cy="48" r="42" fill="none" stroke="hsl(0,0%,100%,0.04)" strokeWidth="4" />
+                              <circle cx="48" cy="48" r="42" fill="none" stroke="url(#intelGrad)" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${((siteInsights.competitiveScore || 0) / 100) * (2 * Math.PI * 42)} ${2 * Math.PI * 42}`} className="transition-all duration-1000" />
+                              <defs>
+                                <linearGradient id="intelGrad" x1="0" y1="0" x2="1" y2="1">
+                                  <stop offset="0%" stopColor="hsl(262,83%,58%)" />
+                                  <stop offset="100%" stopColor="hsl(217,91%,60%)" />
+                                </linearGradient>
+                              </defs>
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                              <span className="text-2xl font-black text-white">{siteInsights.competitiveScore || "?"}</span>
+                              <span className="text-[8px] text-purple-400/60 font-medium">/ 100</span>
+                            </div>
                           </div>
                           <div className="flex-1 space-y-1.5">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <Badge className={`text-[9px] ${siteInsights.marketPosition?.tier === "leader" ? "bg-red-400/15 text-red-400" : siteInsights.marketPosition?.tier === "challenger" ? "bg-amber-400/15 text-amber-400" : "bg-emerald-400/15 text-emerald-400"}`}>
                                 {siteInsights.marketPosition?.tier?.toUpperCase() || "UNKNOWN"}
                               </Badge>
                               <Badge variant="outline" className={`text-[9px] ${siteInsights.riskAssessment?.overallThreat === "critical" || siteInsights.riskAssessment?.overallThreat === "high" ? "border-red-400/30 text-red-400" : "border-amber-400/30 text-amber-400"}`}>
                                 Threat: {siteInsights.riskAssessment?.overallThreat || "unknown"}
                               </Badge>
+                              {siteInsights.strengthsToFear && <Badge variant="outline" className="text-[9px] border-red-400/20 text-red-400/60">{(siteInsights.strengthsToFear || []).length} strengths</Badge>}
+                              {siteInsights.weaknessesToExploit && <Badge variant="outline" className="text-[9px] border-emerald-400/20 text-emerald-400/60">{(siteInsights.weaknessesToExploit || []).length} exploits</Badge>}
                             </div>
-                            <p className="text-xs text-white/70">{siteInsights.executiveSummary}</p>
+                            <p className="text-xs text-white/70 leading-relaxed">{siteInsights.executiveSummary}</p>
                             {siteInsights.marketPosition?.reasoning && <p className="text-[10px] text-white/40 italic">{siteInsights.marketPosition.reasoning}</p>}
                           </div>
+                        </div>
+
+                        {/* Intelligence Category Scores */}
+                        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                          {[
+                            { label: "SEO", count: (siteInsights.seoOpportunities || []).length, icon: "🔍", color: "text-[hsl(217,91%,60%)]" },
+                            { label: "Content", count: siteInsights.contentStrategy ? 1 : 0, icon: "📝", color: "text-pink-400" },
+                            { label: "Marketing", count: siteInsights.marketingIntel ? 1 : 0, icon: "📣", color: "text-amber-400" },
+                            { label: "Pricing", count: siteInsights.pricingIntel ? 1 : 0, icon: "💰", color: "text-green-400" },
+                            { label: "Audience", count: siteInsights.audienceIntel ? 1 : 0, icon: "👥", color: "text-cyan-400" },
+                            { label: "Tech", count: (siteInsights.techAdvantages || []).length, icon: "⚡", color: "text-purple-400" },
+                          ].map((cat, i) => (
+                            <div key={i} className="p-2 rounded-xl bg-white/[0.02] border border-white/[0.04] text-center">
+                              <span className="text-sm">{cat.icon}</span>
+                              <p className={`text-[10px] font-medium mt-0.5 ${cat.color}`}>{cat.label}</p>
+                              <p className="text-[10px] text-white/30">{cat.count > 0 ? "✓ Analyzed" : "—"}</p>
+                            </div>
+                          ))}
                         </div>
 
                         {/* Immediate Actions */}
