@@ -717,8 +717,29 @@ Be as accurate as possible. If you recognize the account, use real data. If not,
   const refreshCompetitor = async (comp: Competitor) => {
     setRefreshingId(comp.id);
     await performAction("competitor_refresh", async () => {
-      const aiReply = await callAI(
-        `You are a social media analytics expert. Provide UPDATED stats for the ${comp.platform} account @${comp.username}.
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const isInternet = comp.platform === "internet";
+      const refreshPrompt = isInternet
+        ? `You are an elite competitive intelligence analyst. Today is ${todayStr}. Provide UPDATED data for this competitor business/website.
+Website: ${comp.metadata?.websiteUrl || comp.username}
+Company: ${comp.displayName}
+Previous data: ${comp.followers} traffic/followers, ${comp.engagementRate}% engagement, DA: ${comp.metadata?.domainAuthority || "?"}.
+
+Return ONLY valid JSON with updated data as of today:
+{
+  "followers": <updated total reach/traffic number>,
+  "following": 0,
+  "posts": <content count>,
+  "engagementRate": <number>,
+  "avgLikes": <number>,
+  "avgComments": <number>,
+  "growthRate": <weekly growth %>,
+  "postFrequency": <content pieces/week>,
+  "topHashtags": ["keyword1","keyword2","keyword3","keyword4","keyword5"],
+  "score": <0-100 threat level>,
+  "recentTrend": "brief description of recent company/website trend"
+}`
+        : `You are a social media analytics expert. Today is ${todayStr}. Provide UPDATED stats for the ${comp.platform} account @${comp.username}.
 Their previous stats were: ${comp.followers} followers, ${comp.engagementRate}% engagement, ${comp.avgLikes} avg likes.
 
 Return ONLY valid JSON:
@@ -734,8 +755,9 @@ Return ONLY valid JSON:
   "topHashtags": ["tag1","tag2","tag3","tag4","tag5"],
   "score": <0-100 threat level>,
   "recentTrend": "brief description of recent trend"
-}`
-      );
+}`;
+
+      const aiReply = await callAI(refreshPrompt);
 
       let parsed: any;
       try {
