@@ -1613,7 +1613,93 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 </Card>
               )}
 
-              {/* Comparison Table */}
+              {/* Threat Score Distribution + Growth Rate Comparison */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Threat Score Distribution</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[220px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={[
+                            { name: "High Threat (70+)", value: competitors.filter(c => c.score >= 70).length, fill: "hsl(350,80%,55%)" },
+                            { name: "Moderate (40-69)", value: competitors.filter(c => c.score >= 40 && c.score < 70).length, fill: "hsl(30,95%,60%)" },
+                            { name: "Low Threat (<40)", value: competitors.filter(c => c.score < 40).length, fill: "hsl(150,60%,50%)" },
+                          ].filter(d => d.value > 0)} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                          </Pie>
+                          <Tooltip contentStyle={chartTooltipStyle} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Growth Rate Comparison (%/week)</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[220px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={[
+                          ...(myStats ? [{ name: `@${myStats.username} (You)`, growth: myStats.growthRate }] : []),
+                          ...competitors.map(c => ({ name: `@${c.username}`, growth: c.growthRate })),
+                        ]} barCategoryGap="25%">
+                          <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number) => `${v}%/wk`} />
+                          <Bar dataKey="growth" radius={[4, 4, 0, 0]} name="Growth %">
+                            {[...(myStats ? [myStats] : []), ...competitors].map((_, i) => (
+                              <Cell key={i} fill={i === 0 && myStats ? "hsl(150,60%,50%)" : PIE_COLORS[(myStats ? i - 1 : i) % PIE_COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Avg Likes + Avg Comments Comparison */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Avg Likes per Post</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[220px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={[
+                          ...(myStats ? [{ name: `@${myStats.username}`, likes: myStats.avgLikes }] : []),
+                          ...competitors.map(c => ({ name: `@${c.username}`, likes: c.avgLikes })),
+                        ]} barCategoryGap="25%">
+                          <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => fmtNum(v)} />
+                          <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number) => fmtNum(v)} />
+                          <Bar dataKey="likes" fill="hsl(262,83%,58%)" radius={[4, 4, 0, 0]} name="Avg Likes" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Avg Comments per Post</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[220px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={[
+                          ...(myStats ? [{ name: `@${myStats.username}`, comments: myStats.avgComments }] : []),
+                          ...competitors.map(c => ({ name: `@${c.username}`, comments: c.avgComments })),
+                        ]} barCategoryGap="25%">
+                          <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <Tooltip contentStyle={chartTooltipStyle} />
+                          <Bar dataKey="comments" fill="hsl(30,95%,60%)" radius={[4, 4, 0, 0]} name="Avg Comments" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Side-by-Side Comparison */}
               <Card className="crm-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Side-by-Side Comparison</CardTitle></CardHeader>
                 <CardContent>
