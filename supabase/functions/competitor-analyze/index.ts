@@ -562,11 +562,11 @@ const scrapeSocialProfiles = async (
     if (!handle) return;
 
     const key = platform.toLowerCase() === "x" ? "twitter" : platform.toLowerCase();
-    const merged: typeof results[string] = {};
+    const merged: ScrapedMetrics = {};
 
     // ── PRIMARY: Jina Reader → SocialBlade (renders JS, returns clean markdown) ──
     let sbUrl = "";
-    let sbParser: ((md: string) => typeof results[string]) | null = null;
+    let sbParser: ((md: string) => ScrapedMetrics) | null = null;
 
     if (key === "instagram") {
       sbUrl = `https://socialblade.com/instagram/user/${encodeURIComponent(handle)}`;
