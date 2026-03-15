@@ -237,6 +237,16 @@ const ContentCommandCenter = () => {
   const [showApprovalQueue, setShowApprovalQueue] = useState(false);
   const [generatingBatchCaptions, setGeneratingBatchCaptions] = useState(false);
 
+  // ── Push to Social Hub states ──
+  const [showPushToSocial, setShowPushToSocial] = useState(false);
+  const [pushPlatform, setPushPlatform] = useState("instagram");
+  const [pushAutoSchedule, setPushAutoSchedule] = useState(true);
+  const [pushAccounts, setPushAccounts] = useState<any[]>([]);
+  const [pushSelectedAccount, setPushSelectedAccount] = useState("");
+  const [pushCustomTimes, setPushCustomTimes] = useState("");
+  const [pushingToSocial, setPushingToSocial] = useState(false);
+  const [pushItemFilter, setPushItemFilter] = useState<"all_drafts" | "scheduled" | "competitor" | "selected">("all_drafts");
+
   // Create form
   const [formTitle, setFormTitle] = useState("");
   const [formPlatform, setFormPlatform] = useState("");
