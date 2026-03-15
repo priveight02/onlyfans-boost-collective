@@ -2896,6 +2896,25 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
             <Card className="crm-card"><CardContent className="p-12 text-center"><p className="text-white/50">Add competitors first</p></CardContent></Card>
           ) : (
             <>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-white/70">Social Intelligence</h2>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-[10px] gap-1.5 border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,60%)]/10 h-7 px-3"
+                  disabled={refreshingBreakdown}
+                  onClick={async () => {
+                    setContentRecs(null);
+                    // Trigger a full platform breakdown refresh for all competitors
+                    const refreshBtn = document.querySelector('[data-refresh-breakdown]') as HTMLButtonElement;
+                    if (refreshBtn) { refreshBtn.click(); }
+                    else { toast.success("Switch to Platform Performance tab and click Refresh Live first"); }
+                  }}
+                >
+                  <RefreshCw className={`h-3 w-3 ${refreshingBreakdown ? "animate-spin" : ""}`} />
+                  {refreshingBreakdown ? "Refreshing…" : "Refresh All"}
+                </Button>
+              </div>
               {/* Full-width Device Social Intelligence Panels — iPad on desktop, iPhone on mobile */}
               {competitors.map((comp) => {
                 const normalizeHandle = (value: unknown) => {
