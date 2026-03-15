@@ -3159,27 +3159,26 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== APPROVAL QUEUE DIALOG ========== */}
       <Dialog open={showApprovalQueue} onOpenChange={setShowApprovalQueue}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Content Approval Queue</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Content Approval Queue</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Review content before scheduling. Drafts → Submit for Review → Approve → Schedule.</p>
+          <p className="text-xs text-white/50">Review content before scheduling. Drafts · Submit for Review · Approve · Schedule.</p>
           <div className="space-y-3">
-            {/* Pending Review */}
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">📋 Pending Review ({approvalItems.length})</p>
+              <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Pending Review ({approvalItems.length})</p>
               {approvalItems.length === 0 ? (
-                <p className="text-xs text-muted-foreground/60 text-center py-4">No content awaiting review</p>
+                <p className="text-xs text-white/30 text-center py-4">No content awaiting review</p>
               ) : approvalItems.map(item => (
-                <Card key={item.id} className="bg-card/50 border-border mb-2">
+                <Card key={item.id} className="bg-white/[0.03] border-white/[0.06] mb-2">
                   <CardContent className="p-3">
                     <div className="flex items-center gap-2 mb-1">
                       <Badge variant="outline" className={`text-[9px] capitalize gap-0.5 ${platformConf(item.platform).color}`}>
                         {platformIcon(item.platform)} {item.platform}
                       </Badge>
-                      <span className="text-xs text-foreground flex-1 truncate">{item.title}</span>
+                      <span className="text-xs text-white flex-1 truncate">{item.title}</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground line-clamp-2 mb-2">{item.caption}</p>
+                    <p className="text-[10px] text-white/50 line-clamp-2 mb-2">{item.caption}</p>
                     <div className="flex gap-1.5">
                       <Button size="sm" onClick={() => approveContent(item.id)}
                         className="flex-1 text-[10px] h-6 bg-emerald-600 text-white">
@@ -3190,7 +3189,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                         <X className="h-2.5 w-2.5 mr-0.5" /> Reject
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => { setShowDetail(item); setShowApprovalQueue(false); }}
-                        className="text-[10px] h-6 border-border text-muted-foreground">
+                        className="text-[10px] h-6 border-white/[0.08] text-white/40">
                         <Eye className="h-2.5 w-2.5" />
                       </Button>
                     </div>
@@ -3198,12 +3197,11 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 </Card>
               ))}
             </div>
-            {/* Quick submit drafts */}
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">📝 Drafts to Submit</p>
+              <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Drafts to Submit</p>
               {items.filter(i => i.status === "draft").slice(0, 5).map(item => (
-                <div key={item.id} className="flex items-center gap-2 py-1 border-b border-border/30 last:border-0">
-                  <span className="text-[10px] text-foreground flex-1 truncate">{item.title}</span>
+                <div key={item.id} className="flex items-center gap-2 py-1 border-b border-white/[0.04] last:border-0">
+                  <span className="text-[10px] text-white flex-1 truncate">{item.title}</span>
                   <Badge variant="outline" className={`text-[8px] capitalize gap-0.5 ${platformConf(item.platform).color}`}>{item.platform}</Badge>
                   <Button size="sm" variant="outline" onClick={() => moveToReview(item.id)}
                     className="text-[9px] h-5 px-2 border-primary/20 text-primary">Submit</Button>
