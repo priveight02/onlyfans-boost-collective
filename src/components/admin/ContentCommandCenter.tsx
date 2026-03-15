@@ -2560,8 +2560,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                     <Target className="h-2.5 w-2.5" /> Best: {platformConf(formPlatform).bestTimes.slice(0, 3).join(", ")}
                   </p>
                 </div>
-                <div className="bg-muted/30 border border-border rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground flex items-center gap-1">
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-2">
+                  <p className="text-[9px] text-white/50 flex items-center gap-1">
                     <Image className="h-2.5 w-2.5" /> {platformConf(formPlatform).mediaSpecs}
                   </p>
                 </div>
