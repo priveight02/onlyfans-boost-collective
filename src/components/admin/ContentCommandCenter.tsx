@@ -2687,18 +2687,18 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               )}
               {/* Video Script display */}
               {videoScript && (
-                <div className="bg-muted/30 rounded-lg p-2 space-y-1.5">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">🎬 Video Script</p>
+                <div className="bg-white/[0.03] rounded-lg p-2 space-y-1.5">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider">Video Script</p>
                   <div className="bg-primary/10 rounded p-1.5"><p className="text-[10px] font-medium text-primary">Hook: {videoScript.hook}</p></div>
                   {videoScript.scenes?.map((s: any, i: number) => (
-                    <div key={i} className="bg-card/50 border border-border rounded p-1.5">
-                      <div className="flex justify-between"><span className="text-[9px] font-bold text-foreground">{s.timestamp}</span><span className="text-[8px] text-muted-foreground">{s.transition}</span></div>
-                      <p className="text-[9px] text-foreground/70">📹 {s.visual}</p>
-                      {s.text_overlay && <p className="text-[9px] text-primary/70">📝 {s.text_overlay}</p>}
-                      {s.narration && <p className="text-[9px] text-muted-foreground">🎤 {s.narration}</p>}
+                    <div key={i} className="bg-white/[0.04] border border-white/[0.06] rounded p-1.5">
+                      <div className="flex justify-between"><span className="text-[9px] font-bold text-white">{s.timestamp}</span><span className="text-[8px] text-white/40">{s.transition}</span></div>
+                      <p className="text-[9px] text-white/60">Visual: {s.visual}</p>
+                      {s.text_overlay && <p className="text-[9px] text-primary/70">Text: {s.text_overlay}</p>}
+                      {s.narration && <p className="text-[9px] text-white/40">Narration: {s.narration}</p>}
                     </div>
                   ))}
-                  <p className="text-[9px] text-muted-foreground">🎵 Music: {videoScript.music_mood} | CTA: {videoScript.cta}</p>
+                  <p className="text-[9px] text-white/40">Music: {videoScript.music_mood} · CTA: {videoScript.cta}</p>
                   <Button size="sm" variant="outline" onClick={() => { setFormCaption(videoScript.caption || ""); if (videoScript.hashtags) setFormHashtags(videoScript.hashtags.join(", ")); setVideoScript(null); toast.success("Script caption applied"); }}
                     className="text-[9px] h-5 w-full border-primary/20 text-primary">Use Script Caption</Button>
                 </div>
