@@ -1744,6 +1744,30 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             {generatingBatchCaptions ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
             Batch AI{batchProgress ? ` ${batchProgress.done}/${batchProgress.total}` : ""}
           </Button>
+          <Button size="sm" variant="outline" onClick={importCompetitorPlan} disabled={importingCompetitorPlan}
+            className="border-purple-500/20 text-purple-400 text-xs h-8">
+            {importingCompetitorPlan ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
+            Copy Plan
+          </Button>
+          <Button size="sm" variant="outline" onClick={importCompetitorHashtags} disabled={importingCompetitorHashtags}
+            className="border-cyan-500/20 text-cyan-400 text-xs h-8">
+            <Hash className="h-3.5 w-3.5 mr-1" /> Steal Tags
+          </Button>
+          <Button size="sm" variant="outline" onClick={analyzeCompetitorBestTimes} disabled={generatingBestTimes}
+            className="border-emerald-500/20 text-emerald-400 text-xs h-8">
+            {generatingBestTimes ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Clock className="h-3.5 w-3.5 mr-1" />}
+            Best Times
+          </Button>
+          <Button size="sm" variant="outline" onClick={generateSwotContent} disabled={generatingSwotContent}
+            className="border-amber-500/20 text-amber-400 text-xs h-8">
+            {generatingSwotContent ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Target className="h-3.5 w-3.5 mr-1" />}
+            SWOT Ideas
+          </Button>
+          <Button size="sm" variant="outline" onClick={generateGapContent} disabled={generatingGapContent}
+            className="border-pink-500/20 text-pink-400 text-xs h-8">
+            {generatingGapContent ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
+            Gap Fill
+          </Button>
           <Button size="sm" onClick={generateRandomPosts} disabled={generating}
             className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs h-8">
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Zap className="h-3.5 w-3.5 mr-1" />}
@@ -1754,6 +1778,22 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           </Button>
         </div>
       </div>
+
+      {/* Competitor Intel Sync Bar */}
+      {competitorProfiles.length > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-500/5 border border-purple-500/10">
+          <Brain className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+          <span className="text-[10px] text-white/50">Competitor Intel synced:</span>
+          <span className="text-[10px] font-semibold text-white/70">{competitorProfiles.length} competitors tracked</span>
+          <span className="text-[10px] text-white/30">·</span>
+          <span className="text-[10px] text-white/50">{[...new Set(competitorProfiles.flatMap(c => c.top_hashtags || []))].length} hashtags available</span>
+          <span className="text-[10px] text-white/30">·</span>
+          <span className="text-[10px] text-white/50">{[...new Set(competitorProfiles.map(c => c.platform))].length} platforms</span>
+          <Button size="sm" variant="ghost" onClick={loadCompetitorProfiles} className="ml-auto text-[9px] h-5 text-purple-400 hover:text-purple-300 px-2">
+            <RefreshCw className="h-2.5 w-2.5 mr-1" /> Refresh
+          </Button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-7">
