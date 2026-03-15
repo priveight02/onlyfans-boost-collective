@@ -2497,9 +2497,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== CREATE/EDIT DIALOG ========== */}
       <Dialog open={showCreate} onOpenChange={v => { if (!v) resetForm(); setShowCreate(v); }}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground">{editingId ? "Edit Content" : "Create Content"}</DialogTitle>
+            <DialogTitle className="text-white">{editingId ? "Edit Content" : "Create Content"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             {/* Platform selector */}
