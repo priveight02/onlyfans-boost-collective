@@ -3706,9 +3706,204 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                       </div>
                                     </div>
                                   )}
+                                  {/* ═══ 10 NEW COMPARISON CARDS ═══ */}
+                                  {bestPlatformByTotalViews && bestPlatformByTotalViews.key && bestPlatformByTotalViews.total > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByTotalViews.color}12`, border: `1px solid ${bestPlatformByTotalViews.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByTotalViews.color }}><img src={bestPlatformByTotalViews.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Total Views Leader</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByTotalViews.name} <span className="text-[hsl(217,91%,60%)] text-[9px]">{fmtNum(bestPlatformByTotalViews.total)}</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByAuthority && bestPlatformByAuthority.key && bestPlatformByAuthority.ratio > 1 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByAuthority.color}12`, border: `1px solid ${bestPlatformByAuthority.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByAuthority.color }}><img src={bestPlatformByAuthority.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Authority Ratio</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByAuthority.name} <span className="text-amber-400 text-[9px]">{bestPlatformByAuthority.ratio.toFixed(1)}x</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByVirality && bestPlatformByVirality.key && bestPlatformByVirality.score > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByVirality.color}12`, border: `1px solid ${bestPlatformByVirality.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByVirality.color }}><img src={bestPlatformByVirality.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Virality Score</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByVirality.name} <span className="text-[hsl(347,100%,58%)] text-[9px]">{bestPlatformByVirality.score.toFixed(2)}%</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByShares && bestPlatformByShares.key && bestPlatformByShares.avg > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByShares.color}12`, border: `1px solid ${bestPlatformByShares.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByShares.color }}><img src={bestPlatformByShares.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Most Shares/Post</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByShares.name} <span className="text-[hsl(262,83%,58%)] text-[9px]">{fmtNum(Math.round(bestPlatformByShares.avg))}</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByInteraction && bestPlatformByInteraction.key && bestPlatformByInteraction.avg > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByInteraction.color}12`, border: `1px solid ${bestPlatformByInteraction.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByInteraction.color }}><img src={bestPlatformByInteraction.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Interaction Density</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByInteraction.name} <span className="text-emerald-400 text-[9px]">{fmtNum(Math.round(bestPlatformByInteraction.avg))}/post</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByConversion && bestPlatformByConversion.key && bestPlatformByConversion.rate > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByConversion.color}12`, border: `1px solid ${bestPlatformByConversion.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByConversion.color }}><img src={bestPlatformByConversion.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">View→Like Conv.</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByConversion.name} <span className="text-amber-400 text-[9px]">{bestPlatformByConversion.rate.toFixed(1)}%</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByCommunity && bestPlatformByCommunity.key && bestPlatformByCommunity.ratio > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByCommunity.color}12`, border: `1px solid ${bestPlatformByCommunity.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByCommunity.color }}><img src={bestPlatformByCommunity.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Community Health</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByCommunity.name} <span className="text-[hsl(150,60%,50%)] text-[9px]">{bestPlatformByCommunity.ratio.toFixed(1)}%</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByViewGain && bestPlatformByViewGain.key && bestPlatformByViewGain.total > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByViewGain.color}12`, border: `1px solid ${bestPlatformByViewGain.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByViewGain.color }}><img src={bestPlatformByViewGain.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">30d View Gain</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByViewGain.name} <span className="text-[hsl(217,91%,60%)] text-[9px]">+{fmtNum(bestPlatformByViewGain.total)}</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByEfficiency && bestPlatformByEfficiency.key && bestPlatformByEfficiency.eff > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByEfficiency.color}12`, border: `1px solid ${bestPlatformByEfficiency.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByEfficiency.color }}><img src={bestPlatformByEfficiency.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Foll./Post Ratio</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByEfficiency.name} <span className="text-[hsl(262,83%,58%)] text-[9px]">{fmtNum(Math.round(bestPlatformByEfficiency.eff))}</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByLikeGain && bestPlatformByLikeGain.key && bestPlatformByLikeGain.total > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByLikeGain.color}12`, border: `1px solid ${bestPlatformByLikeGain.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByLikeGain.color }}><img src={bestPlatformByLikeGain.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">30d Like Gain</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByLikeGain.name} <span className="text-[hsl(347,100%,58%)] text-[9px]">+{fmtNum(bestPlatformByLikeGain.total)}</span></p>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
 
-                                {/* Platform cards */}
+                                {/* ═══ COPY SOCIAL MEDIA PLAN BUTTON ═══ */}
+                                <Button
+                                  size="sm"
+                                  className="w-full h-8 gap-2 text-[10px] font-bold bg-gradient-to-r from-[hsl(262,83%,58%)] to-[hsl(217,91%,60%)] hover:from-[hsl(262,83%,48%)] hover:to-[hsl(217,91%,50%)] text-white border-0"
+                                  disabled={copyingPlan}
+                                  onClick={async () => {
+                                    setCopyingPlan(true);
+                                    try {
+                                      // Build plan data from all platforms
+                                      const planData = platforms.map(([key, data]) => {
+                                        const cc = data.competitors;
+                                        const avgFreq = cc.reduce((s, c) => s + c.postFrequency, 0) / Math.max(cc.length, 1);
+                                        const avgLikes = Math.round(cc.reduce((s, c) => s + c.avgLikes, 0) / Math.max(cc.length, 1));
+                                        const avgComments = Math.round(cc.reduce((s, c) => s + c.avgComments, 0) / Math.max(cc.length, 1));
+                                        const avgEng = cc.reduce((s, c) => s + c.engagementRate, 0) / Math.max(cc.length, 1);
+                                        const topHashtags = [...new Set(cc.flatMap(c => {
+                                          const comp = competitors.find(comp => comp.username === c.username);
+                                          return comp?.topHashtags || [];
+                                        }))].slice(0, 10);
+                                        return {
+                                          platform: key,
+                                          name: data.name,
+                                          postsPerWeek: avgFreq,
+                                          avgLikes,
+                                          avgComments,
+                                          engagementRate: avgEng,
+                                          topHashtags,
+                                          competitors: cc.map(c => c.username),
+                                        };
+                                      });
+
+                                      // Use AI to generate a posting plan
+                                      const { data: { session } } = await supabase.auth.getSession();
+                                      const resp = await fetch(
+                                        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`,
+                                        {
+                                          method: "POST",
+                                          headers: {
+                                            "Content-Type": "application/json",
+                                            Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+                                          },
+                                          body: JSON.stringify({
+                                            messages: [
+                                              {
+                                                role: "system",
+                                                content: `You are a social media strategist. Generate a JSON array of content calendar entries that COPIES the competitor's posting routine. Each entry must have: title, platform (instagram/tiktok/twitter/youtube/facebook/threads), content_type (post/reel/story/video/thread), caption (with hashtags), scheduled_at (ISO date, spread across next 2 weeks from ${new Date().toISOString()}, at realistic posting times like 9am, 12pm, 3pm, 6pm, 9pm UTC), status "draft". Generate exactly ${Math.max(Math.round(planData.reduce((s, p) => s + p.postsPerWeek, 0) * 2), 10)} entries matching the competitor frequency per platform. Return ONLY a JSON array, no markdown.`,
+                                              },
+                                              {
+                                                role: "user",
+                                                content: `Competitor analysis data:\n${JSON.stringify(planData, null, 2)}\n\nGenerate the content calendar matching their posting frequency, times, and platform distribution.`,
+                                              },
+                                            ],
+                                            model: "google/gemini-2.5-flash",
+                                          }),
+                                        }
+                                      );
+
+                                      if (!resp.ok) throw new Error("AI generation failed");
+                                      const aiResult = await resp.json();
+                                      const content = aiResult?.choices?.[0]?.message?.content || aiResult?.content || "";
+
+                                      // Parse AI response
+                                      let entries: any[] = [];
+                                      try {
+                                        const cleaned = content.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+                                        const startIdx = cleaned.indexOf("[");
+                                        const endIdx = cleaned.lastIndexOf("]");
+                                        if (startIdx !== -1 && endIdx !== -1) {
+                                          entries = JSON.parse(cleaned.slice(startIdx, endIdx + 1));
+                                        }
+                                      } catch { /* parse error */ }
+
+                                      if (entries.length === 0) { toast.error("Failed to parse AI plan"); setCopyingPlan(false); return; }
+
+                                      // Insert into content_calendar
+                                      const userId = session?.user?.id;
+                                      const inserts = entries.map((e: any) => ({
+                                        title: String(e.title || "Copied Post").slice(0, 200),
+                                        platform: String(e.platform || "instagram").toLowerCase(),
+                                        content_type: String(e.content_type || "post"),
+                                        caption: String(e.caption || ""),
+                                        scheduled_at: e.scheduled_at || new Date(Date.now() + Math.random() * 14 * 86400000).toISOString(),
+                                        status: "draft",
+                                        created_by: userId,
+                                        hashtags: e.caption ? [...(e.caption.match(/#\w+/g) || [])].map((t: string) => t.replace("#", "")) : [],
+                                      }));
+
+                                      const { error } = await supabase.from("content_calendar").insert(inserts);
+                                      if (error) throw error;
+
+                                      toast.success(`🎯 ${entries.length} posts copied to Content Calendar!`, { description: "Go to /content to review and publish" });
+                                    } catch (err: any) {
+                                      console.error("Copy plan error:", err);
+                                      toast.error(err.message || "Failed to copy social media plan");
+                                    } finally {
+                                      setCopyingPlan(false);
+                                    }
+                                  }}
+                                >
+                                  {copyingPlan ? (
+                                    <><Loader2 className="h-3 w-3 animate-spin" /> AI is generating plan...</>
+                                  ) : (
+                                    <><Copy className="h-3 w-3" /> Copy Competitor's Social Media Plan to Content Calendar</>
+                                  )}
+                                </Button>
                                 {platforms.map(([key, data]) => {
                                   const cc = data.competitors;
                                   const n = cc.length;
