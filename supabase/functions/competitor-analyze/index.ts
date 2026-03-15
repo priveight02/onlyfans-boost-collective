@@ -1797,22 +1797,32 @@ STRICT OUTPUT RULES:
                   }
                   scrapedData = await scrapeSocialProfiles(scrapeable);
                   if (Object.keys(scrapedData).length > 0 || Object.keys(socialHandles).length > 0) {
-                    scrapeContext = "\n\n=== VERIFIED SOCIAL PROFILE DATA (scraped directly from platform pages - USE THESE EXACT NUMBERS for platformMetrics) ===\n";
+                    scrapeContext = "\n\n=== VERIFIED SOCIAL PROFILE DATA (scraped in real-time via multi-layer APIs - USE THESE EXACT NUMBERS) ===\n";
                     for (const [plat, data] of Object.entries(scrapedData)) {
                       const parts = [];
                       if (data.followers) parts.push(`followers: ${data.followers.toLocaleString()}`);
+                      if (data.following) parts.push(`following: ${data.following.toLocaleString()}`);
                       if (data.posts) parts.push(`posts: ${data.posts.toLocaleString()}`);
-                      if (data.description) parts.push(`bio: "${data.description.slice(0, 200)}"`);
-                      scrapeContext += `${plat}: ${parts.join(", ")}\n`;
+                      if (data.avgLikes) parts.push(`avgLikes: ${data.avgLikes.toLocaleString()}`);
+                      if (data.avgComments) parts.push(`avgComments: ${data.avgComments.toLocaleString()}`);
+                      if (data.avgViews) parts.push(`avgViews: ${data.avgViews.toLocaleString()}`);
+                      if (data.engagementRate) parts.push(`engagementRate: ${data.engagementRate.toFixed(2)}%`);
+                      if (data.totalLikes) parts.push(`totalLikes: ${data.totalLikes.toLocaleString()}`);
+                      if (data.totalViews) parts.push(`totalViews: ${data.totalViews.toLocaleString()}`);
+                      if (data.postFrequency) parts.push(`postFrequency: ${data.postFrequency.toFixed(1)}/week`);
+                      if (data.growthRate) parts.push(`growthRate30d: ${data.growthRate.toFixed(3)}%`);
+                      if (data.followerGain30d) parts.push(`followerGain30d: ${data.followerGain30d.toLocaleString()}`);
+                      if (data.description) parts.push(`bio: "${data.description.slice(0, 150)}"`);
+                      const sources = (data._sources || []).join(", ");
+                      scrapeContext += `${plat}: ${parts.join(", ")} [sources: ${sources}]\n`;
                     }
-                    // Include non-scrapeable platforms as presence-only
                     for (const [plat, handle] of Object.entries(socialHandles)) {
                       if (!scrapedData[plat]) {
                         scrapeContext += `${plat}: handle found = @${handle} (no detailed metrics scraped)\n`;
                       }
                     }
                     scrapeContext += "=== END VERIFIED DATA ===\n";
-                    scrapeContext += "IMPORTANT: Use the above VERIFIED follower counts in platformMetrics. Do NOT make up different numbers.\n";
+                    scrapeContext += "CRITICAL: Use the above VERIFIED numbers EXACTLY in platformMetrics. These are real-time scraped, not estimates.\n";
                     scrapeContext += `ALL DISCOVERED SOCIAL PLATFORMS: ${JSON.stringify(socialHandles)}\n`;
                     scrapeContext += "Include ALL discovered platforms in socialPresence even if no metrics were scraped.\n";
                   }
