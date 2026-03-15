@@ -344,9 +344,8 @@ const ContentCommandCenter = () => {
       try {
         const compSummary = competitorProfiles.map(c => `@${c.username} (${c.platform}): ${c.followers} followers, ${c.engagement_rate}% ER, ${c.post_frequency} posts/wk`).join("\n");
         const content = await callAI(`Based on competitive SWOT analysis, generate 8 content ideas exploiting competitor weaknesses.\n\nCompetitors:\n${compSummary}\n\nFor each: title, platform, content_type, caption (full), hashtags array, swot_angle (strength/weakness/opportunity/threat), strategy, viral_score 40-95.\n\nReturn ONLY a JSON array.`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const ideas = JSON.parse(jsonMatch[0]);
+        const ideas = safeParseJSON(content);
+        if (Array.isArray(ideas)) {
           for (const idea of ideas) { await supabase.from("content_calendar").insert({ title: idea.title, caption: idea.caption, platform: idea.platform || "instagram", content_type: idea.content_type || "post", hashtags: (idea.hashtags || []).map((h: string) => h.replace("#", "")), viral_score: idea.viral_score || 0, description: `SWOT: ${idea.swot_angle} · ${idea.strategy || ""}`, status: "draft", metadata: { source: "swot_analysis" } }); }
           toast.success(`${ideas.length} SWOT-driven content ideas created`);
         }
