@@ -2722,13 +2722,13 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 </div>
               )}
               {abVariants.length > 0 && (
-                <div className="space-y-1.5 bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">A/B Variants — click to use</p>
+                <div className="space-y-1.5 bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider">A/B Variants · click to use</p>
                   {abVariants.map((v, i) => (
                     <button key={i} onClick={() => { setFormCaption(v); setAbVariants([]); toast.success(`Variant ${String.fromCharCode(65 + i)} selected`); }}
-                      className="w-full text-left bg-card/50 border border-border rounded-lg p-2 hover:border-primary/30 transition-colors">
+                      className="w-full text-left bg-white/[0.04] border border-white/[0.06] rounded-lg p-2 hover:border-primary/30 transition-colors">
                       <span className="text-[9px] font-bold text-primary">Variant {String.fromCharCode(65 + i)}</span>
-                      <p className="text-[10px] text-foreground/70 line-clamp-3 mt-0.5">{v}</p>
+                      <p className="text-[10px] text-white/60 line-clamp-3 mt-0.5">{v}</p>
                     </button>
                   ))}
                 </div>
