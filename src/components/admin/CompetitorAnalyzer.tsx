@@ -1616,6 +1616,118 @@ RULES:
                   </div>
                 </CardContent>
               </Card>
+
+              {/* AI Content Recommendations */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2"><Brain className="h-4 w-4" /> AI Content Recommendations</CardTitle>
+                    <Button size="sm" variant="outline" className="text-xs gap-1 border-[hsl(262,83%,58%)]/20 text-[hsl(262,83%,58%)] hover:bg-[hsl(262,83%,58%)]/10 h-7" disabled={contentRecsLoading}
+                      onClick={async () => {
+                        setContentRecsLoading(true);
+                        try {
+                          const compData = competitors.map(c => `@${c.username}: ${c.followers} followers, ${c.engagementRate}% ER, top content: ${c.contentTypes.map(ct => `${ct.type}(${ct.pct}%)`).join(",")}, hashtags: ${c.topHashtags.slice(0,3).join(",")}, niche: ${c.metadata?.niche || "unknown"}`).join("\n");
+                          const myContext = myStats ? `\nMY STATS: @${myStats.username}: ${myStats.followers} followers, ${myStats.engagementRate}% ER, ${myStats.postFrequency} posts/wk` : "";
+                          const aiReply = await callAI(`Analyze these competitors' content and give me specific recommendations to outperform them.${myContext}\n\nCOMPETITORS:\n${compData}\n\nReturn ONLY valid JSON:\n{"contentPillars":[{"pillar":"name","description":"why","frequency":"posts/week","expectedEngagement":"X%"}],"hookFormulas":[{"formula":"the hook template","example":"concrete example","whyItWorks":"reason"}],"postingSchedule":{"bestDays":["Mon","Wed"],"bestTimes":["9am","7pm"],"reasoning":"why"},"contentCalendar":[{"day":"Monday","contentType":"Reel","topic":"specific topic","hashtags":["tag1","tag2"],"hookIdea":"specific hook"}],"stealableStrategies":[{"from":"@competitor","strategy":"what they do","howToAdapt":"how to do it better"}]}`);
+                          setContentRecs(parseJSON(aiReply));
+                          toast.success("Content recommendations generated");
+                        } catch (err: any) { toast.error(err?.message || "Failed"); }
+                        finally { setContentRecsLoading(false); }
+                      }}>
+                      {contentRecsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                      {contentRecsLoading ? "Analyzing..." : "Generate Recs"}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {contentRecsLoading ? (
+                    <div className="text-center py-6"><Loader2 className="h-6 w-6 text-[hsl(262,83%,58%)] mx-auto animate-spin" /><p className="text-xs text-white/40 mt-2">Analyzing competitor content patterns...</p></div>
+                  ) : contentRecs ? (
+                    <div className="space-y-4">
+                      {/* Content Pillars */}
+                      <div>
+                        <p className="text-xs font-medium text-white/50 mb-2">Content Pillars to Own</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {(contentRecs.contentPillars || []).map((p: any, i: number) => (
+                            <div key={i} className="p-2.5 rounded-lg bg-[hsl(262,83%,58%)]/5 border border-[hsl(262,83%,58%)]/15 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium text-white/80">{p.pillar}</span>
+                                <Badge variant="outline" className="text-[9px] border-[hsl(262,83%,58%)]/20 text-[hsl(262,83%,58%)]">{p.frequency}</Badge>
+                              </div>
+                              <p className="text-[10px] text-white/50">{p.description}</p>
+                              <p className="text-[10px] text-emerald-400">Expected: {p.expectedEngagement}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Hook Formulas */}
+                      <div>
+                        <p className="text-xs font-medium text-white/50 mb-2">Proven Hook Formulas</p>
+                        <div className="space-y-2">
+                          {(contentRecs.hookFormulas || []).map((h: any, i: number) => (
+                            <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1">
+                              <p className="text-xs font-medium text-amber-400">"{h.formula}"</p>
+                              <p className="text-[10px] text-white/60 italic">Example: {h.example}</p>
+                              <p className="text-[10px] text-white/40">{h.whyItWorks}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Posting Schedule */}
+                      {contentRecs.postingSchedule && (
+                        <div className="p-3 rounded-lg bg-[hsl(217,91%,60%)]/5 border border-[hsl(217,91%,60%)]/15">
+                          <p className="text-xs font-medium text-[hsl(217,91%,60%)] mb-1">Optimal Posting Schedule</p>
+                          <div className="flex gap-2 mb-1">
+                            {(contentRecs.postingSchedule.bestDays || []).map((d: string) => <Badge key={d} variant="outline" className="text-[9px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]">{d}</Badge>)}
+                            {(contentRecs.postingSchedule.bestTimes || []).map((t: string) => <Badge key={t} variant="outline" className="text-[9px] border-emerald-400/20 text-emerald-400">{t}</Badge>)}
+                          </div>
+                          <p className="text-[10px] text-white/40">{contentRecs.postingSchedule.reasoning}</p>
+                        </div>
+                      )}
+
+                      {/* Weekly Content Calendar */}
+                      {(contentRecs.contentCalendar || []).length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-white/50 mb-2">Weekly Content Calendar</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+                            {contentRecs.contentCalendar.map((day: any, i: number) => (
+                              <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <Badge className="bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)] text-[9px]">{day.day}</Badge>
+                                  <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{day.contentType}</Badge>
+                                </div>
+                                <p className="text-xs text-white/70">{day.topic}</p>
+                                <p className="text-[10px] text-amber-400/70">Hook: {day.hookIdea}</p>
+                                <div className="flex gap-1 flex-wrap">{(day.hashtags || []).map((t: string) => <span key={t} className="text-[9px] text-[hsl(217,91%,60%)]/50">#{t}</span>)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Stealable Strategies */}
+                      {(contentRecs.stealableStrategies || []).length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-white/50 mb-2">Strategies to Steal & Improve</p>
+                          {contentRecs.stealableStrategies.map((s: any, i: number) => (
+                            <div key={i} className="p-2.5 rounded-lg bg-amber-400/5 border border-amber-400/15 space-y-1 mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-white/70">From <span className="text-amber-400 font-medium">{s.from}</span></span>
+                              </div>
+                              <p className="text-[10px] text-white/60">They do: {s.strategy}</p>
+                              <p className="text-[10px] text-emerald-400">Your version: {s.howToAdapt}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-white/30 text-center py-4">Click "Generate Recs" for AI-powered content strategy based on competitor analysis</p>
+                  )}
+                </CardContent>
+              </Card>
             </>
           )}
         </TabsContent>
