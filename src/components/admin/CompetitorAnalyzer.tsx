@@ -1330,17 +1330,31 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {competitors.map(comp => (
+              {competitors.map(comp => {
+                const historyData = comp.metadata?.analysisHistory || [];
+                const threatPct = Math.min(comp.score, 100);
+                const circumference = 2 * Math.PI * 32;
+                const strokeDash = (threatPct / 100) * circumference;
+                const threatStroke = comp.score >= 70 ? "hsl(350,80%,55%)" : comp.score >= 40 ? "hsl(30,95%,60%)" : "hsl(150,60%,50%)";
+                const threatGlow = comp.score >= 70 ? "drop-shadow(0 0 6px hsl(350,80%,55%/0.4))" : comp.score >= 40 ? "drop-shadow(0 0 6px hsl(30,95%,60%/0.4))" : "drop-shadow(0 0 6px hsl(150,60%,50%/0.4))";
+                return (
                 <Card
                   key={comp.id}
-                  className={`crm-card cursor-pointer transition-all hover:border-white/10 ${selectedCompetitor === comp.id ? "ring-1 ring-[hsl(217,91%,60%)]/40" : ""}`}
+                  className={`crm-card cursor-pointer transition-all duration-300 hover:border-white/10 hover:shadow-[0_8px_32px_hsl(0,0%,0%/0.3)] hover:translate-y-[-2px] ${selectedCompetitor === comp.id ? "ring-1 ring-[hsl(217,91%,60%)]/40 shadow-[0_0_20px_hsl(217,91%,60%/0.08)]" : ""}`}
                   onClick={() => setSelectedCompetitor(comp.id)}
                 >
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center text-white font-bold text-sm border border-white/[0.06]">
-                          {comp.username[0]?.toUpperCase()}
+                        {/* SVG Threat Score Ring */}
+                        <div className="relative w-12 h-12 flex-shrink-0">
+                          <svg className="w-12 h-12 -rotate-90" viewBox="0 0 72 72" style={{ filter: threatGlow }}>
+                            <circle cx="36" cy="36" r="32" fill="none" stroke="hsl(0,0%,100%,0.04)" strokeWidth="3" />
+                            <circle cx="36" cy="36" r="32" fill="none" stroke={threatStroke} strokeWidth="3" strokeLinecap="round" strokeDasharray={`${strokeDash} ${circumference}`} className="transition-all duration-1000" />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-[11px] font-black text-white">{comp.score}</span>
+                          </div>
                         </div>
                         <div>
                           <p className="text-white font-medium text-sm">@{comp.username}</p>
@@ -1368,7 +1382,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         { label: "Eng. Rate", value: `${comp.engagementRate}%` },
                         { label: "Growth", value: null },
                       ].map((m, i) => (
-                        <div key={i} className="text-center p-2 rounded-lg bg-white/[0.02]">
+                        <div key={i} className="text-center p-2 rounded-lg bg-white/[0.02] border border-white/[0.03]">
                           <p className="text-[10px] text-white/40">{m.label}</p>
                           {m.value !== null ? (
                             <p className="text-sm font-semibold text-white">{m.value}</p>
@@ -1383,19 +1397,51 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                     </div>
 
                     <div className="grid grid-cols-3 gap-2">
-                      <div className="text-center p-2 rounded-lg bg-white/[0.02]">
+                      <div className="text-center p-2 rounded-lg bg-white/[0.02] border border-white/[0.03]">
                         <p className="text-[10px] text-white/40">Avg Likes</p>
                         <p className="text-sm font-semibold text-white">{fmtNum(comp.avgLikes)}</p>
                       </div>
-                      <div className="text-center p-2 rounded-lg bg-white/[0.02]">
+                      <div className="text-center p-2 rounded-lg bg-white/[0.02] border border-white/[0.03]">
                         <p className="text-[10px] text-white/40">Posts/Wk</p>
                         <p className="text-sm font-semibold text-white">{comp.postFrequency}</p>
                       </div>
-                      <div className="text-center p-2 rounded-lg bg-white/[0.02]">
+                      <div className="text-center p-2 rounded-lg bg-white/[0.02] border border-white/[0.03]">
                         <p className="text-[10px] text-white/40">Total Posts</p>
                         <p className="text-sm font-semibold text-white">{fmtNum(comp.posts)}</p>
                       </div>
                     </div>
+
+                    {/* Mini Sparkline */}
+                    {historyData.length >= 2 && (
+                      <div className="h-10 w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={historyData.slice(-8).map((h: any, i: number) => ({ x: i, v: h.followers }))}>
+                            <defs>
+                              <linearGradient id={`spark-${comp.id}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="hsl(217,91%,60%)" stopOpacity={0.3} />
+                                <stop offset="100%" stopColor="hsl(217,91%,60%)" stopOpacity={0} />
+                              </linearGradient>
+                            </defs>
+                            <Area type="monotone" dataKey="v" stroke="hsl(217,91%,60%)" fill={`url(#spark-${comp.id})`} strokeWidth={1.5} dot={false} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    {/* Content Type Mini Bars */}
+                    {comp.contentTypes.length > 0 && (
+                      <div className="space-y-1">
+                        {comp.contentTypes.slice(0, 3).map((ct, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <span className="text-[9px] text-white/30 w-14 truncate">{ct.type}</span>
+                            <div className="flex-1 h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+                              <div className="h-full rounded-full transition-all duration-700" style={{ width: `${ct.pct}%`, background: PIE_COLORS[i % PIE_COLORS.length] }} />
+                            </div>
+                            <span className="text-[9px] text-white/30 w-8 text-right">{ct.pct}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
 
                     {/* Expandable details */}
                     {expandedCard === comp.id && (
@@ -1458,7 +1504,8 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
             </>
           )}
