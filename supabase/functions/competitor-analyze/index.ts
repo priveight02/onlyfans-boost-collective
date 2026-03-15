@@ -638,8 +638,16 @@ serve(async (req) => {
 
         if (websiteUrl) {
           const extracted = normalizeSocialPresence(await extractSocialHandlesFromWebsite(websiteUrl));
-          // Keep existing valid handles, but fill any missing ones from live website scan.
-          socialPresence = { ...extracted, ...socialPresence };
+          // Keep valid existing handles, but never let null placeholders overwrite discovered handles.
+          const merged: Record<string, string | null> = { ...extracted };
+          for (const [platform, handle] of Object.entries(socialPresence)) {
+            if (typeof handle === "string" && handle.trim().length > 0) {
+              merged[platform] = handle;
+            } else if (!(platform in merged)) {
+              merged[platform] = null;
+            }
+          }
+          socialPresence = merged;
         }
 
         const platformMetrics: Record<string, ReturnType<typeof normalizePlatformMetric>> = {};
