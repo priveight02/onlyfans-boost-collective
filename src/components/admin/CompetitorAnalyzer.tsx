@@ -1517,6 +1517,36 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
             <Card className="crm-card"><CardContent className="p-12 text-center"><p className="text-white/50">Add competitors first to see benchmarks</p></CardContent></Card>
           ) : (
             <>
+              {/* Power Rankings Leaderboard */}
+              <Card className="crm-card border-amber-400/15">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><Crown className="h-4 w-4" /> Power Rankings</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  {(() => {
+                    const allEntries = [
+                      ...(myStats ? [{ username: myStats.username, isMe: true, score: ((myStats.engagementRate * 10) + (myStats.growthRate * 5) + (myStats.followers / Math.max(...competitors.map(c => c.followers), 1) * 30) + (myStats.avgLikes / Math.max(...competitors.map(c => c.avgLikes), 1) * 20) + (myStats.postFrequency * 2)) }] : []),
+                      ...competitors.map(c => ({ username: c.username, isMe: false, score: ((c.engagementRate * 10) + (c.growthRate * 5) + (c.followers / Math.max(...competitors.map(x => x.followers), 1) * 30) + (c.avgLikes / Math.max(...competitors.map(x => x.avgLikes), 1) * 20) + (c.postFrequency * 2)) })),
+                    ].sort((a, b) => b.score - a.score);
+                    const maxScore = allEntries[0]?.score || 1;
+                    return allEntries.map((e, i) => (
+                      <div key={e.username} className={`flex items-center gap-3 p-2.5 rounded-xl border transition-all ${e.isMe ? "bg-emerald-400/5 border-emerald-400/15" : "bg-white/[0.02] border-white/[0.04]"}`}>
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${i === 0 ? "bg-amber-400/15 text-amber-400" : i === 1 ? "bg-white/10 text-white/60" : i === 2 ? "bg-orange-400/10 text-orange-400/70" : "bg-white/[0.04] text-white/30"}`}>
+                          {i === 0 ? "👑" : `#${i + 1}`}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-sm font-medium ${e.isMe ? "text-emerald-400" : "text-white/80"}`}>@{e.username}</span>
+                            {e.isMe && <Badge className="bg-emerald-400/15 text-emerald-400 text-[8px]">YOU</Badge>}
+                          </div>
+                          <div className="h-2 rounded-full bg-white/[0.04] overflow-hidden">
+                            <div className={`h-full rounded-full transition-all duration-1000 ${e.isMe ? "bg-gradient-to-r from-emerald-500 to-emerald-400" : i === 0 ? "bg-gradient-to-r from-amber-500 to-amber-400" : "bg-gradient-to-r from-[hsl(217,91%,60%)] to-[hsl(262,83%,58%)]"}`} style={{ width: `${(e.score / maxScore) * 100}%` }} />
+                          </div>
+                        </div>
+                        <span className={`text-xs font-bold tabular-nums ${e.isMe ? "text-emerald-400" : "text-white/50"}`}>{Math.round(e.score)}</span>
+                      </div>
+                    ));
+                  })()}
+                </CardContent>
+              </Card>
                {/* Radar - includes user data */}
               <Card className="crm-card">
                 <CardHeader className="pb-2">
