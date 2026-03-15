@@ -3427,6 +3427,78 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         return avg > best.avg ? { key, name: data.name, avg, logo: data.logo, color: data.color } : best;
                       }, { key: "", name: "-", avg: 0, logo: "", color: "" }) : null;
 
+                      // ═══ 10 NEW COMPARISON METRICS ═══
+
+                      // Best platform by total views
+                      const bestPlatformByTotalViews = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const total = data.competitors.reduce((s, c) => s + c.totalViews, 0);
+                        return total > best.total ? { key, name: data.name, total, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", total: 0, logo: "", color: "" }) : null;
+
+                      // Best follower-to-following ratio (influencer authority)
+                      const bestPlatformByAuthority = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const totalF = data.competitors.reduce((s, c) => s + c.followers, 0);
+                        const totalFg = data.competitors.reduce((s, c) => s + c.following, 0);
+                        const ratio = totalFg > 0 ? totalF / totalFg : 0;
+                        return ratio > best.ratio ? { key, name: data.name, ratio, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", ratio: 0, logo: "", color: "" }) : null;
+
+                      // Best virality score (avgLikes/followers ratio)
+                      const bestPlatformByVirality = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const avgF = data.competitors.reduce((s, c) => s + c.followers, 0) / Math.max(data.competitors.length, 1);
+                        const avgL = data.competitors.reduce((s, c) => s + c.avgLikes, 0) / Math.max(data.competitors.length, 1);
+                        const score = avgF > 0 ? (avgL / avgF) * 100 : 0;
+                        return score > best.score ? { key, name: data.name, score, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", score: 0, logo: "", color: "" }) : null;
+
+                      // Best avg shares/retweets
+                      const bestPlatformByShares = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const avg = data.competitors.reduce((s, c) => s + c.avgShares, 0) / data.competitors.length;
+                        return avg > best.avg ? { key, name: data.name, avg, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", avg: 0, logo: "", color: "" }) : null;
+
+                      // Highest interaction density (likes+comments per post)
+                      const bestPlatformByInteraction = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const avg = data.competitors.reduce((s, c) => s + c.avgLikes + c.avgComments, 0) / data.competitors.length;
+                        return avg > best.avg ? { key, name: data.name, avg, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", avg: 0, logo: "", color: "" }) : null;
+
+                      // Highest view-to-like conversion
+                      const bestPlatformByConversion = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const avgV = data.competitors.reduce((s, c) => s + c.avgViews, 0) / Math.max(data.competitors.length, 1);
+                        const avgL = data.competitors.reduce((s, c) => s + c.avgLikes, 0) / Math.max(data.competitors.length, 1);
+                        const rate = avgV > 0 ? (avgL / avgV) * 100 : 0;
+                        return rate > best.rate ? { key, name: data.name, rate, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", rate: 0, logo: "", color: "" }) : null;
+
+                      // Best comment-to-like ratio (community health)
+                      const bestPlatformByCommunity = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const avgL = data.competitors.reduce((s, c) => s + c.avgLikes, 0) / Math.max(data.competitors.length, 1);
+                        const avgC = data.competitors.reduce((s, c) => s + c.avgComments, 0) / Math.max(data.competitors.length, 1);
+                        const ratio = avgL > 0 ? (avgC / avgL) * 100 : 0;
+                        return ratio > best.ratio ? { key, name: data.name, ratio, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", ratio: 0, logo: "", color: "" }) : null;
+
+                      // Highest view gain (30d)
+                      const bestPlatformByViewGain = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const total = data.competitors.reduce((s, c) => s + c.viewGain30d, 0);
+                        return total > best.total ? { key, name: data.name, total, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", total: 0, logo: "", color: "" }) : null;
+
+                      // Best content-per-follower efficiency
+                      const bestPlatformByEfficiency = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const avgP = data.competitors.reduce((s, c) => s + c.posts, 0) / Math.max(data.competitors.length, 1);
+                        const avgF = data.competitors.reduce((s, c) => s + c.followers, 0) / Math.max(data.competitors.length, 1);
+                        const eff = avgP > 0 && avgF > 0 ? avgF / avgP : 0;
+                        return eff > best.eff ? { key, name: data.name, eff, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", eff: 0, logo: "", color: "" }) : null;
+
+                      // Best like gain (30d)
+                      const bestPlatformByLikeGain = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const total = data.competitors.reduce((s, c) => s + c.likeGain30d, 0);
+                        return total > best.total ? { key, name: data.name, total, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", total: 0, logo: "", color: "" }) : null;
+
                       return (
                         <>
                           {/* Aggregate Social Presence */}
