@@ -122,6 +122,39 @@ const ThreadsAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToCo
   const [schedReplyControl, setSchedReplyControl] = useState("everyone");
   const [schedAiGenerating, setSchedAiGenerating] = useState(false);
 
+  // Import from Content Plan
+  const [showThreadsImportPlan, setShowThreadsImportPlan] = useState(false);
+  const [threadsPlanItems, setThreadsPlanItems] = useState<ContentPlanItem[]>([]);
+  const [threadsImportingPlan, setThreadsImportingPlan] = useState(false);
+  const [threadsImportAutoSchedule, setThreadsImportAutoSchedule] = useState(true);
+
+  const openThreadsImportPlan = async () => {
+    setShowThreadsImportPlan(true);
+    const items = await pullContentPlanForPlatform("threads");
+    setThreadsPlanItems(items);
+  };
+
+  const threadsImportFromPlan = async () => {
+    if (!selectedAccount || threadsPlanItems.length === 0) return;
+    setThreadsImportingPlan(true);
+    try {
+      const { created, errors } = await pushToSocialHub(threadsPlanItems, selectedAccount, threadsImportAutoSchedule, DEFAULT_BEST_TIMES.threads);
+      if (created > 0) {
+        toast.success(`${created} posts imported from Content Plan`);
+        const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "threads").order("created_at", { ascending: false }).limit(50);
+        if (data) setScheduledPosts(data);
+      }
+      if (errors.length > 0) toast.error(`${errors.length} failed`);
+      setShowThreadsImportPlan(false);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setThreadsImportingPlan(false); }
+  };
+
+  const threadsClonePost = async (id: string) => {
+    const newId = await cloneAsTemplate(id, "social_posts");
+    if (newId) toast.success("Cloned as template draft in Content Plan");
+    else toast.error("Clone failed");
+  };
   // Check connection
   useEffect(() => {
     if (!selectedAccount) { setThreadsConnected(false); return; }

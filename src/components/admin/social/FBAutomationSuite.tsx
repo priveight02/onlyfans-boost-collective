@@ -126,6 +126,39 @@ const FBAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
   const [fbSchedPostType, setFbSchedPostType] = useState<"text" | "photo" | "video">("text");
   const [fbSchedAiGenerating, setFbSchedAiGenerating] = useState(false);
 
+  // Import from Content Plan
+  const [showFbImportPlan, setShowFbImportPlan] = useState(false);
+  const [fbPlanItems, setFbPlanItems] = useState<ContentPlanItem[]>([]);
+  const [fbImportingPlan, setFbImportingPlan] = useState(false);
+  const [fbImportAutoSchedule, setFbImportAutoSchedule] = useState(true);
+
+  const openFbImportPlan = async () => {
+    setShowFbImportPlan(true);
+    const items = await pullContentPlanForPlatform("facebook");
+    setFbPlanItems(items);
+  };
+
+  const fbImportFromPlan = async () => {
+    if (!selectedAccount || fbPlanItems.length === 0) return;
+    setFbImportingPlan(true);
+    try {
+      const { created, errors } = await pushToSocialHub(fbPlanItems, selectedAccount, fbImportAutoSchedule, DEFAULT_BEST_TIMES.facebook);
+      if (created > 0) {
+        toast.success(`${created} posts imported from Content Plan`);
+        const { data } = await supabase.from("social_posts").select("*").eq("account_id", selectedAccount).eq("platform", "facebook").order("created_at", { ascending: false }).limit(50);
+        if (data) setFbScheduledPosts(data);
+      }
+      if (errors.length > 0) toast.error(`${errors.length} failed`);
+      setShowFbImportPlan(false);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setFbImportingPlan(false); }
+  };
+
+  const fbClonePost = async (id: string) => {
+    const newId = await cloneAsTemplate(id, "social_posts");
+    if (newId) toast.success("Cloned as template draft in Content Plan");
+    else toast.error("Clone failed");
+  };
   // Check connection
   useEffect(() => {
     if (!selectedAccount) { setFbConnected(false); return; }
