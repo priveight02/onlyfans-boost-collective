@@ -1226,12 +1226,12 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 <div className="space-y-1.5 w-[140px]">
                   <label className="text-xs font-medium text-white/50">Platform</label>
                   <select value={newPlatform} onChange={e => setNewPlatform(e.target.value)} className="h-10 w-full px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
+                    <option value="internet">🌐 Internet / Website</option>
                     <option value="instagram">Instagram</option>
                     <option value="tiktok">TikTok</option>
                     <option value="twitter">Twitter/X</option>
                     <option value="youtube">YouTube</option>
                     <option value="threads">Threads</option>
-                    <option value="internet">🌐 Internet / Website</option>
                   </select>
                 </div>
 
