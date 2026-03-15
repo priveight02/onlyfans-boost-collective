@@ -1831,15 +1831,15 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ═══ DRAFT STORAGE ═══ */}
       {draftItems.length > 0 && (
-        <Card className="bg-card/50 border-border">
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Edit2 className="h-4 w-4 text-amber-400" />
-                <h2 className="text-sm font-bold text-foreground">Draft Storage</h2>
+                <h2 className="text-sm font-bold text-white">Draft Storage</h2>
                 <Badge variant="outline" className="border-amber-500/20 text-amber-400 text-[10px]">{draftItems.length} drafts</Badge>
               </div>
-              <p className="text-[10px] text-muted-foreground">Ready to post — click to publish directly</p>
+              <p className="text-[10px] text-white/30">Ready to post · click to publish directly</p>
             </div>
             <div className="grid gap-2 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-h-[400px] overflow-y-auto">
               {draftItems.map(item => {
