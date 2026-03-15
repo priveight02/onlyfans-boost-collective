@@ -2882,16 +2882,16 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       </Dialog>
       {/* ========== THREAD BUILDER DIALOG ========== */}
       <Dialog open={showThreadBuilder} onOpenChange={setShowThreadBuilder}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Thread Builder</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Thread Builder</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Create multi-part threads for X/Twitter or Threads with AI assistance.</p>
+          <p className="text-xs text-white/50">Create multi-part threads for X/Twitter or Threads with AI assistance.</p>
           <div className="space-y-3">
-            <Input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Thread topic..." className="bg-card/50 border-border text-foreground text-xs" />
+            <Input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Thread topic..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs" />
             <Select value={formPlatform || "twitter"} onValueChange={v => setFormPlatform(v)}>
-              <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-popover border-border">
+              <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
                 <SelectItem value="twitter" className="text-xs">X / Twitter</SelectItem>
                 <SelectItem value="threads" className="text-xs">Threads</SelectItem>
               </SelectContent>
@@ -2903,13 +2903,13 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             {threadParts.length > 0 && threadParts[0] && (
               <div className="space-y-2">
                 {threadParts.map((part, i) => (
-                  <div key={i} className="bg-card/50 border border-border rounded-lg p-2">
+                  <div key={i} className="bg-white/[0.04] border border-white/[0.06] rounded-lg p-2">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[9px] font-bold text-primary">Part {i + 1}/{threadParts.length}</span>
-                      <span className="text-[9px] text-muted-foreground">{part.length} chars</span>
+                      <span className="text-[9px] text-white/40">{part.length} chars</span>
                     </div>
                     <Textarea value={part} onChange={e => { const n = [...threadParts]; n[i] = e.target.value; setThreadParts(n); }}
-                      className="bg-muted/30 border-border text-foreground text-xs min-h-[60px]" />
+                      className="bg-white/[0.03] border-white/[0.08] text-white text-xs min-h-[60px]" />
                   </div>
                 ))}
                 <Button onClick={publishThread} disabled={!connForPlatform(formPlatform || "twitter")}
