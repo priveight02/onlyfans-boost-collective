@@ -2786,9 +2786,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               <Select value={formPrivacy} onValueChange={setFormPrivacy}>
                 <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
-                  <SelectItem value="PUBLIC_TO_EVERYONE" className="text-xs">Public</SelectItem>
-                  <SelectItem value="MUTUAL_FOLLOW_FRIENDS" className="text-xs">Friends Only</SelectItem>
-                  <SelectItem value="SELF_ONLY" className="text-xs">Private</SelectItem>
+                  <SelectItem value="PUBLIC_TO_EVERYONE" className="text-xs text-white/70 focus:bg-white/[0.06] focus:text-white">Public</SelectItem>
+                  <SelectItem value="MUTUAL_FOLLOW_FRIENDS" className="text-xs text-white/70 focus:bg-white/[0.06] focus:text-white">Friends Only</SelectItem>
+                  <SelectItem value="SELF_ONLY" className="text-xs text-white/70 focus:bg-white/[0.06] focus:text-white">Private</SelectItem>
                 </SelectContent>
               </Select>
             )}
