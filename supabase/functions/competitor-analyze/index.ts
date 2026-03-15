@@ -8,6 +8,44 @@ const corsHeaders = {
 
 const RATE_LIMIT_MAX = 20;
 const NO_ESTIMATE_PATTERN = /\b(estimate|estimated|approx|approximately|around|about|projected|forecast|modeled|assumed|inferred)\b/i;
+
+/** Strip markdown fences and extract clean JSON from AI text responses */
+const cleanJsonResponse = (text: string): string => {
+  if (!text || typeof text !== "string") return text;
+  // Remove markdown code fences
+  let cleaned = text.replace(/```(?:json)?\s*/gi, "").replace(/```\s*/g, "").trim();
+  // Find JSON boundaries
+  const startIdx = cleaned.search(/[\{\[]/);
+  if (startIdx === -1) return cleaned;
+  const startChar = cleaned[startIdx];
+  const endChar = startChar === "{" ? "}" : "]";
+  // Find matching end using stack
+  const stack: string[] = [];
+  let inString = false;
+  let escape = false;
+  for (let i = startIdx; i < cleaned.length; i++) {
+    const ch = cleaned[i];
+    if (escape) { escape = false; continue; }
+    if (ch === "\\") { escape = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === "{" || ch === "[") stack.push(ch);
+    if (ch === "}" || ch === "]") {
+      stack.pop();
+      if (stack.length === 0) return cleaned.slice(startIdx, i + 1);
+    }
+  }
+  // Unbalanced - try to repair truncated JSON
+  let truncated = cleaned.slice(startIdx);
+  // Remove trailing commas
+  truncated = truncated.replace(/,\s*$/, "");
+  // Close open braces/brackets
+  while (stack.length > 0) {
+    const open = stack.pop();
+    truncated += open === "{" ? "}" : "]";
+  }
+  return truncated;
+};
 const UNVERIFIED_PATTERN = /\b(no verified data|not available|unknown|n\/a|unverified|insufficient data|no public data)\b/i;
 
 const sanitizeFinancialValue = (value: unknown): unknown => {
@@ -538,7 +576,10 @@ STRICT OUTPUT RULES:
         );
     }
 
-    return new Response(JSON.stringify({ reply, usage: { count: newCount, limit: RATE_LIMIT_MAX } }), {
+    // Always clean the reply to ensure valid JSON reaches the client
+    const cleanedReply = cleanJsonResponse(reply);
+    
+    return new Response(JSON.stringify({ reply: cleanedReply, usage: { count: newCount, limit: RATE_LIMIT_MAX } }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
