@@ -455,13 +455,27 @@ const ContentCommandCenter = () => {
       body: { messages: [{ role: "user", content: prompt }] },
     });
     if (error) throw error;
-    const text = typeof data === "string" ? data : new TextDecoder().decode(data);
+    // Handle various response types: string, ArrayBuffer, or already-parsed JSON
+    let text: string;
+    if (typeof data === "string") {
+      text = data;
+    } else if (data instanceof ArrayBuffer || (data && typeof data.byteLength === 'number')) {
+      text = new TextDecoder().decode(data as ArrayBuffer);
+    } else if (typeof data === "object" && data !== null) {
+      // Already parsed JSON from edge function
+      const choices = data.choices;
+      if (choices?.[0]?.message?.content) return choices[0].message.content;
+      if (choices?.[0]?.delta?.content) return choices[0].delta.content;
+      return JSON.stringify(data);
+    } else {
+      text = String(data);
+    }
     let content = "";
     for (const line of text.split("\n")) {
       if (!line.startsWith("data: ") || line.includes("[DONE]")) continue;
       try { const p = JSON.parse(line.slice(6)); content += p.choices?.[0]?.delta?.content || ""; } catch {}
     }
-    return content;
+    return content || text;
   };
 
   // ════════════════════════════════════════════════════════
@@ -2505,8 +2519,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             {/* Platform selector */}
             <div className="grid grid-cols-3 gap-2">
               <Select value={formPlatform} onValueChange={v => { setFormPlatform(v); setFormType(platformConf(v).supportedTypes[0] || "post"); setAbVariants([]); setSuggestedSlots([]); }}>
-                <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8"><SelectValue placeholder="Platform" /></SelectTrigger>
-                <SelectContent className="bg-popover border-border">
+                <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue placeholder="Platform" /></SelectTrigger>
+                <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
                   {availablePlatforms.map(p => (
                     <SelectItem key={p} value={p} className="text-xs capitalize">
                       {p}{connForPlatform(p) ? " ✓" : ""}
@@ -2515,16 +2529,16 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 </SelectContent>
               </Select>
               <Select value={formType} onValueChange={setFormType}>
-                <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-popover border-border">
+                <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
                   {(curPlatConf?.supportedTypes || CONTENT_TYPES).map(t => (
                     <SelectItem key={t} value={t} className="text-xs capitalize">{t.replace("_", " ")}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <Select value={formAccount} onValueChange={setFormAccount}>
-                <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8"><SelectValue placeholder="Creator" /></SelectTrigger>
-                <SelectContent className="bg-popover border-border">
+                <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue placeholder="Creator" /></SelectTrigger>
+                <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
                   <SelectItem value="none" className="text-xs">No creator</SelectItem>
                   {accounts.map(a => <SelectItem key={a.id} value={a.id} className="text-xs">{a.display_name || a.username}</SelectItem>)}
                 </SelectContent>
@@ -2546,8 +2560,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                     <Target className="h-2.5 w-2.5" /> Best: {platformConf(formPlatform).bestTimes.slice(0, 3).join(", ")}
                   </p>
                 </div>
-                <div className="bg-muted/30 border border-border rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground flex items-center gap-1">
+                <div className="bg-white/[0.03] border border-white/[0.06] rounded-lg p-2">
+                  <p className="text-[9px] text-white/50 flex items-center gap-1">
                     <Image className="h-2.5 w-2.5" /> {platformConf(formPlatform).mediaSpecs}
                   </p>
                 </div>
@@ -2557,37 +2571,37 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             {/* Platform presets */}
             {formPlatform && PLATFORM_PRESETS[formPlatform] && (
               <div className="flex gap-1.5 items-center flex-wrap">
-                <span className="text-[9px] text-muted-foreground"><Palette className="h-2.5 w-2.5 inline mr-0.5" />Quick:</span>
+                <span className="text-[9px] text-white/40"><Palette className="h-2.5 w-2.5 inline mr-0.5" />Quick:</span>
                 {PLATFORM_PRESETS[formPlatform].map((preset, i) => (
                   <Button key={i} size="sm" variant="outline" onClick={() => applyPreset(preset)}
-                    className="text-[9px] h-5 px-2 border-border text-muted-foreground">
+                    className="text-[9px] h-5 px-2 border-white/[0.08] text-white/50">
                     {preset.label}
                   </Button>
                 ))}
               </div>
             )}
 
-            <Input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Content title..." className="bg-card/50 border-border text-foreground text-xs" />
+            <Input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Content title..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs" />
 
             {/* Caption with AI rewrite + A/B Testing */}
             <div className="space-y-1">
               <div className="relative">
                 <Textarea value={formCaption} onChange={e => setFormCaption(e.target.value)}
                   placeholder={curPlatConf ? `${curPlatConf.captionLabel}...` : "Caption..."}
-                  className="bg-card/50 border-border text-foreground text-xs min-h-[80px]" />
+                  className="bg-white/[0.04] border-white/[0.08] text-white text-xs min-h-[80px]" />
                 {curPlatConf && (
-                  <span className={`absolute bottom-2 right-2 text-[9px] ${formCaption.length > curPlatConf.maxCaption ? "text-destructive" : "text-muted-foreground/40"}`}>
+                  <span className={`absolute bottom-2 right-2 text-[9px] ${formCaption.length > curPlatConf.maxCaption ? "text-destructive" : "text-white/30"}`}>
                     {formCaption.length}/{curPlatConf.maxCaption}
                   </span>
                 )}
               </div>
               {/* AI Rewrite buttons — expanded */}
               <div className="flex gap-1 items-center flex-wrap">
-                <span className="text-[9px] text-muted-foreground"><Wand2 className="h-2.5 w-2.5 inline mr-0.5" />AI:</span>
+                <span className="text-[9px] text-white/40"><Wand2 className="h-2.5 w-2.5 inline mr-0.5" />AI:</span>
                 {(["engaging", "viral", "professional", "casual", "storytelling", "controversial"] as const).map(style => (
                   <Button key={style} size="sm" variant="outline" disabled={rewritingCaption || !formCaption.trim()}
                     onClick={() => rewriteCaption(style)}
-                    className="text-[9px] h-5 px-1.5 border-border text-muted-foreground capitalize">
+                    className="text-[9px] h-5 px-1.5 border-white/[0.08] text-white/50 capitalize">
                     {rewritingCaption ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : style}
                   </Button>
                 ))}
@@ -2602,50 +2616,50 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               )}
               {/* A/B Testing */}
               <Button size="sm" variant="outline" onClick={generateABVariants} disabled={generatingAB || !formCaption.trim()}
-                className="text-[9px] h-5 px-2 border-border text-muted-foreground w-full">
+                className="text-[9px] h-5 px-2 border-white/[0.08] text-white/50 w-full">
                 {generatingAB ? <Loader2 className="h-2.5 w-2.5 animate-spin mr-1" /> : <Scissors className="h-2.5 w-2.5 mr-1" />}
                 Generate A/B Variants
               </Button>
               {/* NEW: Hook Generator + Translator + Tone + Video Script + Carousel + Storyboard */}
               <div className="flex gap-1 flex-wrap">
                 <Button size="sm" variant="outline" onClick={generateHooks} disabled={generatingHooks}
-                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  className="text-[9px] h-5 px-1.5 border-white/[0.08] text-white/50 flex-1">
                   {generatingHooks ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Lightbulb className="h-2.5 w-2.5 mr-0.5" />Hooks</>}
                 </Button>
                 <Button size="sm" variant="outline" onClick={analyzeTone} disabled={generatingToneAnalysis || !formCaption.trim()}
-                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  className="text-[9px] h-5 px-1.5 border-white/[0.08] text-white/50 flex-1">
                   {generatingToneAnalysis ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><BarChart3 className="h-2.5 w-2.5 mr-0.5" />Tone</>}
                 </Button>
                 <Button size="sm" variant="outline" onClick={generateVideoScript} disabled={generatingScript}
-                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  className="text-[9px] h-5 px-1.5 border-white/[0.08] text-white/50 flex-1">
                   {generatingScript ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Video className="h-2.5 w-2.5 mr-0.5" />Script</>}
                 </Button>
                 <Button size="sm" variant="outline" onClick={generateCarousel} disabled={generatingCarousel}
-                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  className="text-[9px] h-5 px-1.5 border-white/[0.08] text-white/50 flex-1">
                   {generatingCarousel ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Layers className="h-2.5 w-2.5 mr-0.5" />Carousel</>}
                 </Button>
                 <Button size="sm" variant="outline" onClick={generateStoryboard} disabled={generatingStoryboard}
-                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  className="text-[9px] h-5 px-1.5 border-white/[0.08] text-white/50 flex-1">
                   {generatingStoryboard ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Sparkle className="h-2.5 w-2.5 mr-0.5" />Board</>}
                 </Button>
               </div>
               {/* Translate row */}
               <div className="flex gap-1 items-center flex-wrap">
-                <span className="text-[9px] text-muted-foreground"><Globe className="h-2.5 w-2.5 inline mr-0.5" />Translate:</span>
+                <span className="text-[9px] text-white/40"><Globe className="h-2.5 w-2.5 inline mr-0.5" />Translate:</span>
                 {["Spanish", "French", "Portuguese", "German", "Japanese", "Arabic", "Hindi", "Korean"].map(lang => (
                   <Button key={lang} size="sm" variant="outline" onClick={() => translateCaption(lang)} disabled={translating || !formCaption.trim()}
-                    className="text-[9px] h-5 px-1.5 border-border text-muted-foreground">
+                    className="text-[9px] h-5 px-1.5 border-white/[0.08] text-white/50">
                     {translating ? <Loader2 className="h-2 w-2 animate-spin" /> : lang.slice(0, 2).toUpperCase()}
                   </Button>
                 ))}
               </div>
               {/* Hooks display */}
               {hooks.length > 0 && (
-                <div className="space-y-1 bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">🎣 Scroll-Stopping Hooks — click to prepend</p>
+                <div className="space-y-1 bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider">Scroll-Stopping Hooks · click to prepend</p>
                   {hooks.map((h, i) => (
                     <button key={i} onClick={() => { setFormCaption(h + "\n\n" + formCaption); setHooks([]); toast.success("Hook applied"); }}
-                      className="w-full text-left bg-card/50 border border-border rounded-lg p-1.5 hover:border-primary/30 transition-colors text-[10px] text-foreground/80">
+                      className="w-full text-left bg-white/[0.04] border border-white/[0.06] rounded-lg p-1.5 hover:border-primary/30 transition-colors text-[10px] text-white/70">
                       {h}
                     </button>
                   ))}
@@ -2653,13 +2667,13 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               )}
               {/* Tone Analysis display */}
               {toneAnalysis && (
-                <div className="bg-muted/30 rounded-lg p-2 space-y-1">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">📊 Tone Analysis</p>
+                <div className="bg-white/[0.03] rounded-lg p-2 space-y-1">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider">Tone Analysis</p>
                   <div className="grid grid-cols-4 gap-1">
-                    <div className="text-center"><p className="text-sm font-bold text-foreground">{toneAnalysis.scroll_stop_score}/10</p><p className="text-[8px] text-muted-foreground">Scroll Stop</p></div>
-                    <div className="text-center"><p className="text-sm font-bold text-foreground">{toneAnalysis.cta_strength}/10</p><p className="text-[8px] text-muted-foreground">CTA</p></div>
-                    <div className="text-center"><p className="text-sm font-bold text-foreground">{toneAnalysis.readability}/10</p><p className="text-[8px] text-muted-foreground">Readability</p></div>
-                    <div className="text-center"><p className="text-sm font-bold text-foreground capitalize">{toneAnalysis.tone}</p><p className="text-[8px] text-muted-foreground">Tone</p></div>
+                    <div className="text-center"><p className="text-sm font-bold text-white">{toneAnalysis.scroll_stop_score}/10</p><p className="text-[8px] text-white/40">Scroll Stop</p></div>
+                    <div className="text-center"><p className="text-sm font-bold text-white">{toneAnalysis.cta_strength}/10</p><p className="text-[8px] text-white/40">CTA</p></div>
+                    <div className="text-center"><p className="text-sm font-bold text-white">{toneAnalysis.readability}/10</p><p className="text-[8px] text-white/40">Readability</p></div>
+                    <div className="text-center"><p className="text-sm font-bold text-white capitalize">{toneAnalysis.tone}</p><p className="text-[8px] text-white/40">Tone</p></div>
                   </div>
                   {toneAnalysis.improvements?.length > 0 && (
                     <div className="mt-1">{toneAnalysis.improvements.map((tip: string, i: number) => (
@@ -2673,32 +2687,32 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               )}
               {/* Video Script display */}
               {videoScript && (
-                <div className="bg-muted/30 rounded-lg p-2 space-y-1.5">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">🎬 Video Script</p>
+                <div className="bg-white/[0.03] rounded-lg p-2 space-y-1.5">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider">Video Script</p>
                   <div className="bg-primary/10 rounded p-1.5"><p className="text-[10px] font-medium text-primary">Hook: {videoScript.hook}</p></div>
                   {videoScript.scenes?.map((s: any, i: number) => (
-                    <div key={i} className="bg-card/50 border border-border rounded p-1.5">
-                      <div className="flex justify-between"><span className="text-[9px] font-bold text-foreground">{s.timestamp}</span><span className="text-[8px] text-muted-foreground">{s.transition}</span></div>
-                      <p className="text-[9px] text-foreground/70">📹 {s.visual}</p>
-                      {s.text_overlay && <p className="text-[9px] text-primary/70">📝 {s.text_overlay}</p>}
-                      {s.narration && <p className="text-[9px] text-muted-foreground">🎤 {s.narration}</p>}
+                    <div key={i} className="bg-white/[0.04] border border-white/[0.06] rounded p-1.5">
+                      <div className="flex justify-between"><span className="text-[9px] font-bold text-white">{s.timestamp}</span><span className="text-[8px] text-white/40">{s.transition}</span></div>
+                      <p className="text-[9px] text-white/60">Visual: {s.visual}</p>
+                      {s.text_overlay && <p className="text-[9px] text-primary/70">Text: {s.text_overlay}</p>}
+                      {s.narration && <p className="text-[9px] text-white/40">Narration: {s.narration}</p>}
                     </div>
                   ))}
-                  <p className="text-[9px] text-muted-foreground">🎵 Music: {videoScript.music_mood} | CTA: {videoScript.cta}</p>
+                  <p className="text-[9px] text-white/40">Music: {videoScript.music_mood} · CTA: {videoScript.cta}</p>
                   <Button size="sm" variant="outline" onClick={() => { setFormCaption(videoScript.caption || ""); if (videoScript.hashtags) setFormHashtags(videoScript.hashtags.join(", ")); setVideoScript(null); toast.success("Script caption applied"); }}
                     className="text-[9px] h-5 w-full border-primary/20 text-primary">Use Script Caption</Button>
                 </div>
               )}
               {/* Carousel Slides display */}
               {carouselSlides.length > 0 && (
-                <div className="bg-muted/30 rounded-lg p-2 space-y-1.5">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">📱 Carousel Slides ({carouselSlides.length})</p>
+                <div className="bg-white/[0.03] rounded-lg p-2 space-y-1.5">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider">Carousel Slides ({carouselSlides.length})</p>
                   <div className="flex gap-1.5 overflow-x-auto pb-1">
                     {carouselSlides.map((slide, i) => (
-                      <div key={i} className="min-w-[140px] bg-card/50 border border-border rounded-lg p-2 flex-shrink-0">
+                      <div key={i} className="min-w-[140px] bg-white/[0.04] border border-white/[0.06] rounded-lg p-2 flex-shrink-0">
                         <p className="text-[8px] text-primary font-bold">Slide {i + 1}</p>
-                        <p className="text-[10px] font-medium text-foreground mt-0.5">{slide.title}</p>
-                        <p className="text-[9px] text-muted-foreground mt-0.5 line-clamp-3">{slide.body}</p>
+                        <p className="text-[10px] font-medium text-white mt-0.5">{slide.title}</p>
+                        <p className="text-[9px] text-white/40 mt-0.5 line-clamp-3">{slide.body}</p>
                         <p className="text-[8px] text-primary/60 mt-0.5">{slide.cta}</p>
                       </div>
                     ))}
@@ -2708,13 +2722,13 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 </div>
               )}
               {abVariants.length > 0 && (
-                <div className="space-y-1.5 bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">A/B Variants — click to use</p>
+                <div className="space-y-1.5 bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider">A/B Variants · click to use</p>
                   {abVariants.map((v, i) => (
                     <button key={i} onClick={() => { setFormCaption(v); setAbVariants([]); toast.success(`Variant ${String.fromCharCode(65 + i)} selected`); }}
-                      className="w-full text-left bg-card/50 border border-border rounded-lg p-2 hover:border-primary/30 transition-colors">
+                      className="w-full text-left bg-white/[0.04] border border-white/[0.06] rounded-lg p-2 hover:border-primary/30 transition-colors">
                       <span className="text-[9px] font-bold text-primary">Variant {String.fromCharCode(65 + i)}</span>
-                      <p className="text-[10px] text-foreground/70 line-clamp-3 mt-0.5">{v}</p>
+                      <p className="text-[10px] text-white/60 line-clamp-3 mt-0.5">{v}</p>
                     </button>
                   ))}
                 </div>
@@ -2722,14 +2736,14 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             </div>
 
             <Textarea value={formDesc} onChange={e => setFormDesc(e.target.value)}
-              placeholder="Internal notes..." className="bg-card/50 border-border text-foreground text-xs min-h-[40px]" />
+              placeholder="Internal notes..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs min-h-[40px]" />
 
             {/* Media Upload */}
             <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Media</label>
+              <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Media</label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {formExistingMedia.map((url, i) => (
-                  <div key={`e-${i}`} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
+                  <div key={`e-${i}`} className="relative w-16 h-16 rounded-lg overflow-hidden border border-white/[0.08]">
                     <img src={url} alt="" className="w-full h-full object-cover" />
                     <button onClick={() => removeExistingMedia(i)} className="absolute top-0.5 right-0.5 bg-black/70 rounded-full p-0.5"><X className="h-2.5 w-2.5 text-white" /></button>
                   </div>
@@ -2737,7 +2751,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 {formMediaPreviews.map((url, i) => (
                   <div key={`n-${i}`} className="relative w-16 h-16 rounded-lg overflow-hidden border border-primary/30">
                     {formMediaFiles[i]?.type.startsWith("video") ? (
-                      <div className="w-full h-full bg-muted/30 flex items-center justify-center"><Video className="h-5 w-5 text-muted-foreground" /></div>
+                      <div className="w-full h-full bg-white/[0.03] flex items-center justify-center"><Video className="h-5 w-5 text-white/40" /></div>
                     ) : (
                       <img src={url} alt="" className="w-full h-full object-cover" />
                     )}
@@ -2745,8 +2759,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   </div>
                 ))}
                 <button onClick={() => fileRef.current?.click()}
-                  className="w-16 h-16 rounded-lg border border-dashed border-border flex items-center justify-center hover:border-primary/50 transition-colors">
-                  <Upload className="h-4 w-4 text-muted-foreground" />
+                  className="w-16 h-16 rounded-lg border border-dashed border-white/[0.1] flex items-center justify-center hover:border-primary/50 transition-colors">
+                  <Upload className="h-4 w-4 text-white/40" />
                 </button>
               </div>
               <input ref={fileRef} type="file" accept="image/*,video/*" multiple onChange={handleMediaSelect} className="hidden" />
@@ -2755,23 +2769,23 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             {/* Platform-specific fields */}
             {curPlatConf?.fields.location && (
               <div className="relative">
-                <MapPin className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                <MapPin className="absolute left-2.5 top-2 h-3.5 w-3.5 text-white/40" />
                 <Input value={formLocation} onChange={e => setFormLocation(e.target.value)}
-                  placeholder="Add location..." className="bg-card/50 border-border text-foreground text-xs pl-8" />
+                  placeholder="Add location..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs pl-8" />
               </div>
             )}
             {curPlatConf?.fields.altText && (
               <Input value={formAltText} onChange={e => setFormAltText(e.target.value)}
-                placeholder="Alt text for accessibility..." className="bg-card/50 border-border text-foreground text-xs" />
+                placeholder="Alt text for accessibility..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs" />
             )}
             {curPlatConf?.fields.link && (
               <Input value={formLink} onChange={e => setFormLink(e.target.value)}
-                placeholder="Link URL..." className="bg-card/50 border-border text-foreground text-xs" />
+                placeholder="Link URL..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs" />
             )}
             {curPlatConf?.fields.privacy && (
               <Select value={formPrivacy} onValueChange={setFormPrivacy}>
-                <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-popover border-border">
+                <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
                   <SelectItem value="PUBLIC_TO_EVERYONE" className="text-xs">Public</SelectItem>
                   <SelectItem value="MUTUAL_FOLLOW_FRIENDS" className="text-xs">Friends Only</SelectItem>
                   <SelectItem value="SELF_ONLY" className="text-xs">Private</SelectItem>
@@ -2785,35 +2799,35 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 <div className="relative">
                   <Input value={formHashtags} onChange={e => setFormHashtags(e.target.value)}
                     placeholder={`Hashtags (comma-separated, max ${curPlatConf?.hashtagLimit || 30})...`}
-                    className="bg-card/50 border-border text-foreground text-xs pr-20" />
+                    className="bg-white/[0.04] border-white/[0.08] text-white text-xs pr-20" />
                   <Button size="sm" variant="outline" onClick={generateHashtags} disabled={generatingHashtags}
                     className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] h-6 px-2 border-primary/20 text-primary">
                     {generatingHashtags ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Hash className="h-2.5 w-2.5 mr-0.5" />AI</>}
                   </Button>
                 </div>
                 {formHashtags && (
-                  <p className="text-[9px] text-muted-foreground/50">
+                  <p className="text-[9px] text-white/30">
                     {formHashtags.split(",").filter(h => h.trim()).length} / {curPlatConf?.hashtagLimit || 30} hashtags
                   </p>
                 )}
               </div>
             )}
             <Input value={formCta} onChange={e => setFormCta(e.target.value)}
-              placeholder="Call to action..." className="bg-card/50 border-border text-foreground text-xs" />
+              placeholder="Call to action..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs" />
 
             {/* Schedule with Smart Scheduling */}
             <div className="space-y-1">
               <div className="flex gap-2">
                 <Input type="datetime-local" value={formSchedule} onChange={e => setFormSchedule(e.target.value)}
-                  className="bg-card/50 border-border text-foreground text-xs flex-1" />
+                  className="bg-white/[0.04] border-white/[0.08] text-white text-xs flex-1" />
                 <Button size="sm" variant="outline" onClick={suggestSchedule} disabled={smartScheduling}
                   className="text-[9px] h-10 px-2 border-primary/20 text-primary">
                   {smartScheduling ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Timer className="h-3 w-3 mr-0.5" />Smart</>}
                 </Button>
               </div>
               {suggestedSlots.length > 0 && (
-                <div className="flex gap-1 flex-wrap bg-muted/30 rounded-lg p-2">
-                  <span className="text-[9px] text-muted-foreground w-full mb-0.5">AI Suggested Slots:</span>
+                <div className="flex gap-1 flex-wrap bg-white/[0.03] rounded-lg p-2">
+                  <span className="text-[9px] text-white/40 w-full mb-0.5">AI Suggested Slots:</span>
                   {suggestedSlots.map((slot, i) => {
                     try {
                       const d = new Date(slot);
@@ -2832,12 +2846,12 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
             {/* Cross-post to other platforms */}
             {!editingId && formPlatform && (
-              <div className="bg-muted/30 rounded-lg p-2">
-                <p className="text-[9px] text-muted-foreground mb-1.5 flex items-center gap-1"><Copy className="h-2.5 w-2.5" /> Also create for:</p>
+              <div className="bg-white/[0.03] rounded-lg p-2">
+                <p className="text-[9px] text-white/40 mb-1.5 flex items-center gap-1"><Copy className="h-2.5 w-2.5" /> Also create for:</p>
                 <div className="flex gap-1.5 flex-wrap">
                   {availablePlatforms.filter(p => p !== formPlatform).map(p => (
                     <button key={p} onClick={() => setCrossPostPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])}
-                      className={`text-[10px] px-2 py-0.5 rounded-md border capitalize transition-colors ${crossPostPlatforms.includes(p) ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}>
+                      className={`text-[10px] px-2 py-0.5 rounded-md border capitalize transition-colors ${crossPostPlatforms.includes(p) ? "border-primary bg-primary/10 text-primary" : "border-white/[0.08] text-white/40 hover:border-primary/50"}`}>
                       {p}
                     </button>
                   ))}
@@ -2868,16 +2882,16 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       </Dialog>
       {/* ========== THREAD BUILDER DIALOG ========== */}
       <Dialog open={showThreadBuilder} onOpenChange={setShowThreadBuilder}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Thread Builder</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Thread Builder</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Create multi-part threads for X/Twitter or Threads with AI assistance.</p>
+          <p className="text-xs text-white/50">Create multi-part threads for X/Twitter or Threads with AI assistance.</p>
           <div className="space-y-3">
-            <Input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Thread topic..." className="bg-card/50 border-border text-foreground text-xs" />
+            <Input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Thread topic..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs" />
             <Select value={formPlatform || "twitter"} onValueChange={v => setFormPlatform(v)}>
-              <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8"><SelectValue /></SelectTrigger>
-              <SelectContent className="bg-popover border-border">
+              <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue /></SelectTrigger>
+              <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
                 <SelectItem value="twitter" className="text-xs">X / Twitter</SelectItem>
                 <SelectItem value="threads" className="text-xs">Threads</SelectItem>
               </SelectContent>
@@ -2889,13 +2903,13 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             {threadParts.length > 0 && threadParts[0] && (
               <div className="space-y-2">
                 {threadParts.map((part, i) => (
-                  <div key={i} className="bg-card/50 border border-border rounded-lg p-2">
+                  <div key={i} className="bg-white/[0.04] border border-white/[0.06] rounded-lg p-2">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-[9px] font-bold text-primary">Part {i + 1}/{threadParts.length}</span>
-                      <span className="text-[9px] text-muted-foreground">{part.length} chars</span>
+                      <span className="text-[9px] text-white/40">{part.length} chars</span>
                     </div>
                     <Textarea value={part} onChange={e => { const n = [...threadParts]; n[i] = e.target.value; setThreadParts(n); }}
-                      className="bg-muted/30 border-border text-foreground text-xs min-h-[60px]" />
+                      className="bg-white/[0.03] border-white/[0.08] text-white text-xs min-h-[60px]" />
                   </div>
                 ))}
                 <Button onClick={publishThread} disabled={!connForPlatform(formPlatform || "twitter")}
@@ -2910,20 +2924,20 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== CONTENT PILLARS DIALOG ========== */}
       <Dialog open={showPillars} onOpenChange={setShowPillars}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Target className="h-4 w-4 text-primary" /> Content Pillar Strategy</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Target className="h-4 w-4 text-primary" /> Content Pillar Strategy</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             {contentPillars.map((pillar, i) => (
-              <Card key={i} className="bg-card/50 border-border">
+              <Card key={i} className="bg-white/[0.03] border-white/[0.06]">
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between mb-1">
-                    <p className={`text-sm font-bold ${pillar.color || "text-foreground"}`}>{pillar.name}</p>
+                    <p className={`text-sm font-bold ${pillar.color || "text-white"}`}>{pillar.name}</p>
                     <Badge variant="outline" className="text-[9px] border-primary/20 text-primary">{pillar.percentage}%</Badge>
                   </div>
-                  <p className="text-[10px] text-muted-foreground mb-2">{pillar.description}</p>
-                  <p className="text-[9px] text-muted-foreground mb-1">📅 {pillar.posting_frequency} | Types: {pillar.content_types?.join(", ")}</p>
+                  <p className="text-[10px] text-white/50 mb-2">{pillar.description}</p>
+                  <p className="text-[9px] text-white/40 mb-1">{pillar.posting_frequency} · Types: {pillar.content_types?.join(", ")}</p>
                   <div className="space-y-0.5">
                     {pillar.example_topics?.map((topic: string, j: number) => (
                       <button key={j} onClick={() => { setFormTitle(topic); setFormCaption(topic); setShowPillars(false); setShowCreate(true); toast.success("Topic applied"); }}
@@ -2941,26 +2955,26 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== COMPETITOR INSPIRED DIALOG ========== */}
       <Dialog open={showCompetitorInspire} onOpenChange={setShowCompetitorInspire}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Eye className="h-4 w-4 text-primary" /> Competitor-Inspired Ideas</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Eye className="h-4 w-4 text-primary" /> Competitor-Inspired Ideas</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
             {competitorIdeas.map((idea, i) => (
-              <Card key={i} className="bg-card/50 border-border">
+              <Card key={i} className="bg-white/[0.03] border-white/[0.06]">
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-foreground">{idea.title}</p>
+                    <p className="text-sm font-medium text-white">{idea.title}</p>
                     <div className="flex gap-1">
-                      <Badge variant="outline" className={`text-[9px] ${idea.estimated_reach === "viral" ? "border-pink-500/20 text-pink-400" : idea.estimated_reach === "high" ? "border-emerald-500/20 text-emerald-400" : "border-border text-muted-foreground"}`}>
+                      <Badge variant="outline" className={`text-[9px] ${idea.estimated_reach === "viral" ? "border-pink-500/20 text-pink-400" : idea.estimated_reach === "high" ? "border-emerald-500/20 text-emerald-400" : "border-white/[0.08] text-white/40"}`}>
                         {idea.estimated_reach}
                       </Badge>
-                      <Badge variant="outline" className="text-[9px] border-border text-muted-foreground">{idea.difficulty}</Badge>
+                      <Badge variant="outline" className="text-[9px] border-white/[0.08] text-white/40">{idea.difficulty}</Badge>
                     </div>
                   </div>
                   <p className="text-[9px] text-blue-400/70 mb-1">Strategy: {idea.strategy}</p>
-                  <p className="text-[10px] text-muted-foreground line-clamp-2 mb-1">{idea.caption}</p>
-                  <p className="text-[9px] text-muted-foreground/60">💡 {idea.why_it_works}</p>
+                  <p className="text-[10px] text-white/50 line-clamp-2 mb-1">{idea.caption}</p>
+                  <p className="text-[9px] text-white/30">{idea.why_it_works}</p>
                   <Button size="sm" className="mt-1.5 text-[9px] h-5 bg-primary text-primary-foreground" onClick={() => {
                     applyTrendIdea({ ...idea, platform: idea.platform, viral_potential: idea.estimated_reach === "viral" ? 90 : 60 });
                   }}>
@@ -2975,24 +2989,24 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== STORYBOARD DIALOG ========== */}
       <Dialog open={showStoryboard} onOpenChange={setShowStoryboard}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Sparkle className="h-4 w-4 text-primary" /> Storyboard</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Sparkle className="h-4 w-4 text-primary" /> Storyboard</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
             {storyboardScenes.map((scene, i) => (
-              <div key={i} className="bg-card/50 border border-border rounded-lg p-3">
+              <div key={i} className="bg-white/[0.04] border border-white/[0.06] rounded-lg p-3">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs font-bold text-primary">Scene {scene.scene_number || i + 1}</span>
-                  <span className="text-[9px] text-muted-foreground">{scene.duration}</span>
+                  <span className="text-[9px] text-white/40">{scene.duration}</span>
                 </div>
-                <p className="text-[10px] text-foreground/80">📹 {scene.visual}</p>
-                {scene.text_overlay && <p className="text-[10px] text-primary/70">📝 {scene.text_overlay}</p>}
-                {scene.audio && <p className="text-[9px] text-muted-foreground">🎵 {scene.audio}</p>}
-                {scene.engagement && <p className="text-[9px] text-amber-400">✨ {scene.engagement}</p>}
+                <p className="text-[10px] text-white/70">Visual: {scene.visual}</p>
+                {scene.text_overlay && <p className="text-[10px] text-primary/70">Text: {scene.text_overlay}</p>}
+                {scene.audio && <p className="text-[9px] text-white/40">Audio: {scene.audio}</p>}
+                {scene.engagement && <p className="text-[9px] text-amber-400">{scene.engagement}</p>}
                 <div className="flex justify-between mt-1">
-                  <span className="text-[8px] text-muted-foreground/60">🎥 {scene.camera}</span>
-                  <span className="text-[8px] text-muted-foreground/60">→ {scene.transition}</span>
+                  <span className="text-[8px] text-white/30">Camera: {scene.camera}</span>
+                  <span className="text-[8px] text-white/30">Transition: {scene.transition}</span>
                 </div>
               </div>
             ))}
@@ -3002,18 +3016,18 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== CONTENT BRIEF DIALOG ========== */}
       <Dialog open={showContentBrief} onOpenChange={setShowContentBrief}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><FileText className="h-4 w-4 text-primary" /> AI Content Brief Generator</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><FileText className="h-4 w-4 text-primary" /> AI Content Brief Generator</DialogTitle>
           </DialogHeader>
           {!contentBrief ? (
             <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">Generate a comprehensive campaign brief with target audience, content mix, hashtag strategy, and auto-create all content pieces.</p>
+              <p className="text-xs text-white/50">Generate a comprehensive campaign brief with target audience, content mix, hashtag strategy, and auto-create all content pieces.</p>
               <Input value={briefTopic} onChange={e => setBriefTopic(e.target.value)}
-                placeholder="Campaign topic (e.g., 'Summer Launch', 'Brand Awareness')" className="bg-card/50 border-border text-foreground text-xs" />
+                placeholder="Campaign topic (e.g., 'Summer Launch', 'Brand Awareness')" className="bg-white/[0.04] border-white/[0.08] text-white text-xs" />
               <Select value={formPlatform || "instagram"} onValueChange={v => setFormPlatform(v)}>
-                <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8"><SelectValue placeholder="Primary Platform" /></SelectTrigger>
-                <SelectContent className="bg-popover border-border">
+                <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue placeholder="Primary Platform" /></SelectTrigger>
+                <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
                   {availablePlatforms.map(p => <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -3026,53 +3040,53 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           ) : (
             <div className="space-y-3">
               <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
-                <h3 className="text-sm font-bold text-foreground">{contentBrief.campaign_name}</h3>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Objective: {contentBrief.objective}</p>
+                <h3 className="text-sm font-bold text-white">{contentBrief.campaign_name}</h3>
+                <p className="text-[10px] text-white/50 mt-0.5">Objective: {contentBrief.objective}</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">🎯 Target Audience</p>
-                  <p className="text-[10px] text-foreground">{contentBrief.target_audience}</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">Target Audience</p>
+                  <p className="text-[10px] text-white">{contentBrief.target_audience}</p>
                 </div>
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">🎨 Visual Direction</p>
-                  <p className="text-[10px] text-foreground">{contentBrief.visual_direction}</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">Visual Direction</p>
+                  <p className="text-[10px] text-white">{contentBrief.visual_direction}</p>
                 </div>
               </div>
               {contentBrief.key_messages && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">💬 Key Messages</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">Key Messages</p>
                   {contentBrief.key_messages.map((msg: string, i: number) => (
-                    <p key={i} className="text-[10px] text-foreground">• {msg}</p>
+                    <p key={i} className="text-[10px] text-white">· {msg}</p>
                   ))}
                 </div>
               )}
               {contentBrief.content_mix && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">📋 Content Mix</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">Content Mix</p>
                   {contentBrief.content_mix.map((mix: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 text-[10px] text-foreground py-0.5">
-                      <Badge variant="outline" className="text-[8px] border-border text-muted-foreground capitalize">{mix.type}</Badge>
+                    <div key={i} className="flex items-center gap-2 text-[10px] text-white py-0.5">
+                      <Badge variant="outline" className="text-[8px] border-white/[0.08] text-white/40 capitalize">{mix.type}</Badge>
                       <span>×{mix.quantity}</span>
-                      <span className="text-muted-foreground">— {mix.description}</span>
+                      <span className="text-white/50">· {mix.description}</span>
                     </div>
                   ))}
                 </div>
               )}
               {contentBrief.hook_templates && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">🎣 Hook Templates</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">Hook Templates</p>
                   {contentBrief.hook_templates.map((h: string, i: number) => (
-                    <p key={i} className="text-[10px] text-foreground/80">"{h}"</p>
+                    <p key={i} className="text-[10px] text-white/70">"{h}"</p>
                   ))}
                 </div>
               )}
               {contentBrief.hashtag_strategy && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1"># Hashtag Strategy</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1"># Hashtag Strategy</p>
                   {Object.entries(contentBrief.hashtag_strategy).map(([cat, tags]: [string, any]) => (
                     <div key={cat} className="flex gap-1 items-center flex-wrap mt-0.5">
-                      <span className="text-[9px] text-muted-foreground capitalize w-16">{cat}:</span>
+                      <span className="text-[9px] text-white/40 capitalize w-16">{cat}:</span>
                       {(Array.isArray(tags) ? tags : []).map((t: string, i: number) => (
                         <span key={i} className="text-[9px] text-primary/70">#{t}</span>
                       ))}
@@ -3081,18 +3095,18 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 </div>
               )}
               {contentBrief.success_metrics && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">📊 Success Metrics</p>
-                  <p className="text-[10px] text-foreground">{typeof contentBrief.success_metrics === 'string' ? contentBrief.success_metrics : JSON.stringify(contentBrief.success_metrics)}</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">Success Metrics</p>
+                  <p className="text-[10px] text-white">{typeof contentBrief.success_metrics === 'string' ? contentBrief.success_metrics : JSON.stringify(contentBrief.success_metrics)}</p>
                 </div>
               )}
               <div className="flex gap-2">
                 <Button onClick={() => executeBrief(contentBrief)} disabled={generating}
                   className="flex-1 bg-primary text-primary-foreground text-xs">
                   {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Zap className="h-3.5 w-3.5 mr-1" />}
-                  Execute Brief → Create All Content
+                  Execute Brief · Create All Content
                 </Button>
-                <Button variant="outline" onClick={() => setContentBrief(null)} className="text-xs border-border text-muted-foreground">
+                <Button variant="outline" onClick={() => setContentBrief(null)} className="text-xs border-white/[0.08] text-white/50">
                   New Brief
                 </Button>
               </div>
@@ -3103,40 +3117,40 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== WEEKLY HEATMAP DIALOG ========== */}
       <Dialog open={showHeatmap} onOpenChange={setShowHeatmap}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-2xl">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Flame className="h-4 w-4 text-primary" /> Weekly Posting Heatmap</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Flame className="h-4 w-4 text-primary" /> Weekly Posting Heatmap</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Your posting density by day and hour — find gaps and optimize cadence.</p>
+          <p className="text-xs text-white/50">Your posting density by day and hour · find gaps and optimize cadence.</p>
           <div className="overflow-x-auto">
             <div className="min-w-[600px]">
               <div className="flex">
                 <div className="w-10" />
                 {heatmapData.hours.filter(h => h % 3 === 0).map(h => (
-                  <div key={h} className="flex-1 text-center text-[8px] text-muted-foreground">
+                  <div key={h} className="flex-1 text-center text-[8px] text-white/40">
                     {h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h-12}p`}
                   </div>
                 ))}
               </div>
               {heatmapData.days.map(day => (
                 <div key={day} className="flex items-center gap-0.5 mb-0.5">
-                  <span className="w-10 text-[9px] text-muted-foreground text-right pr-1">{day}</span>
+                  <span className="w-10 text-[9px] text-white/40 text-right pr-1">{day}</span>
                   {heatmapData.hours.map(h => {
                     const count = heatmapData.grid[`${day}-${h}`] || 0;
-                    const intensity = count === 0 ? "bg-muted/20" : count === 1 ? "bg-emerald-500/30" : count === 2 ? "bg-emerald-500/50" : "bg-emerald-500/80";
+                    const intensity = count === 0 ? "bg-white/[0.04]" : count === 1 ? "bg-emerald-500/30" : count === 2 ? "bg-emerald-500/50" : "bg-emerald-500/80";
                     return (
-                      <div key={h} className={`flex-1 h-5 rounded-sm ${intensity} border border-border/30`} title={`${day} ${h}:00 — ${count} posts`} />
+                      <div key={h} className={`flex-1 h-5 rounded-sm ${intensity} border border-white/[0.04]`} title={`${day} ${h}:00 · ${count} posts`} />
                     );
                   })}
                 </div>
               ))}
               <div className="flex items-center gap-2 mt-2 justify-end">
-                <span className="text-[8px] text-muted-foreground">Less</span>
-                <div className="h-3 w-3 rounded-sm bg-muted/20 border border-border/30" />
-                <div className="h-3 w-3 rounded-sm bg-emerald-500/30 border border-border/30" />
-                <div className="h-3 w-3 rounded-sm bg-emerald-500/50 border border-border/30" />
-                <div className="h-3 w-3 rounded-sm bg-emerald-500/80 border border-border/30" />
-                <span className="text-[8px] text-muted-foreground">More</span>
+                <span className="text-[8px] text-white/40">Less</span>
+                <div className="h-3 w-3 rounded-sm bg-white/[0.04] border border-white/[0.04]" />
+                <div className="h-3 w-3 rounded-sm bg-emerald-500/30 border border-white/[0.04]" />
+                <div className="h-3 w-3 rounded-sm bg-emerald-500/50 border border-white/[0.04]" />
+                <div className="h-3 w-3 rounded-sm bg-emerald-500/80 border border-white/[0.04]" />
+                <span className="text-[8px] text-white/40">More</span>
               </div>
             </div>
           </div>
@@ -3145,27 +3159,26 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== APPROVAL QUEUE DIALOG ========== */}
       <Dialog open={showApprovalQueue} onOpenChange={setShowApprovalQueue}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Content Approval Queue</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-primary" /> Content Approval Queue</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Review content before scheduling. Drafts → Submit for Review → Approve → Schedule.</p>
+          <p className="text-xs text-white/50">Review content before scheduling. Drafts · Submit for Review · Approve · Schedule.</p>
           <div className="space-y-3">
-            {/* Pending Review */}
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">📋 Pending Review ({approvalItems.length})</p>
+              <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Pending Review ({approvalItems.length})</p>
               {approvalItems.length === 0 ? (
-                <p className="text-xs text-muted-foreground/60 text-center py-4">No content awaiting review</p>
+                <p className="text-xs text-white/30 text-center py-4">No content awaiting review</p>
               ) : approvalItems.map(item => (
-                <Card key={item.id} className="bg-card/50 border-border mb-2">
+                <Card key={item.id} className="bg-white/[0.03] border-white/[0.06] mb-2">
                   <CardContent className="p-3">
                     <div className="flex items-center gap-2 mb-1">
                       <Badge variant="outline" className={`text-[9px] capitalize gap-0.5 ${platformConf(item.platform).color}`}>
                         {platformIcon(item.platform)} {item.platform}
                       </Badge>
-                      <span className="text-xs text-foreground flex-1 truncate">{item.title}</span>
+                      <span className="text-xs text-white flex-1 truncate">{item.title}</span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground line-clamp-2 mb-2">{item.caption}</p>
+                    <p className="text-[10px] text-white/50 line-clamp-2 mb-2">{item.caption}</p>
                     <div className="flex gap-1.5">
                       <Button size="sm" onClick={() => approveContent(item.id)}
                         className="flex-1 text-[10px] h-6 bg-emerald-600 text-white">
@@ -3176,7 +3189,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                         <X className="h-2.5 w-2.5 mr-0.5" /> Reject
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => { setShowDetail(item); setShowApprovalQueue(false); }}
-                        className="text-[10px] h-6 border-border text-muted-foreground">
+                        className="text-[10px] h-6 border-white/[0.08] text-white/40">
                         <Eye className="h-2.5 w-2.5" />
                       </Button>
                     </div>
@@ -3184,12 +3197,11 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 </Card>
               ))}
             </div>
-            {/* Quick submit drafts */}
             <div>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">📝 Drafts to Submit</p>
+              <p className="text-[10px] text-white/40 uppercase tracking-wider mb-1">Drafts to Submit</p>
               {items.filter(i => i.status === "draft").slice(0, 5).map(item => (
-                <div key={item.id} className="flex items-center gap-2 py-1 border-b border-border/30 last:border-0">
-                  <span className="text-[10px] text-foreground flex-1 truncate">{item.title}</span>
+                <div key={item.id} className="flex items-center gap-2 py-1 border-b border-white/[0.04] last:border-0">
+                  <span className="text-[10px] text-white flex-1 truncate">{item.title}</span>
                   <Badge variant="outline" className={`text-[8px] capitalize gap-0.5 ${platformConf(item.platform).color}`}>{item.platform}</Badge>
                   <Button size="sm" variant="outline" onClick={() => moveToReview(item.id)}
                     className="text-[9px] h-5 px-2 border-primary/20 text-primary">Submit</Button>
@@ -3202,30 +3214,30 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== HASHTAG BANK DIALOG ========== */}
       <Dialog open={showHashtagBank} onOpenChange={setShowHashtagBank}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-md">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Hash className="h-4 w-4 text-primary" /> Hashtag Bank</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Hash className="h-4 w-4 text-primary" /> Hashtag Bank</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Save and reuse your best hashtag sets across content.</p>
+          <p className="text-xs text-white/50">Save and reuse your best hashtag sets across content.</p>
           <div className="space-y-3">
             {formHashtags.trim() && (
               <div className="flex gap-1.5 items-center">
                 <Input value={newSetName} onChange={e => setNewSetName(e.target.value)}
-                  placeholder="Set name..." className="bg-card/50 border-border text-foreground text-xs flex-1" />
+                  placeholder="Set name..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs flex-1" />
                 <Button size="sm" onClick={saveHashtagSet} className="text-xs h-8 bg-primary text-primary-foreground">
                   <Plus className="h-3 w-3 mr-0.5" /> Save Current
                 </Button>
               </div>
             )}
             {hashtagSets.length === 0 ? (
-              <p className="text-xs text-muted-foreground/60 text-center py-6">No saved hashtag sets yet. Generate hashtags in the create dialog, then save them here.</p>
+              <p className="text-xs text-white/30 text-center py-6">No saved hashtag sets yet. Generate hashtags in the create dialog, then save them here.</p>
             ) : hashtagSets.map((set, i) => (
-              <Card key={i} className="bg-card/50 border-border">
+              <Card key={i} className="bg-white/[0.03] border-white/[0.06]">
                 <CardContent className="p-2">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-foreground">{set.name}</span>
+                    <span className="text-xs font-medium text-white">{set.name}</span>
                     <div className="flex gap-1">
-                      <Badge variant="outline" className="text-[8px] border-border text-muted-foreground capitalize">{set.platform}</Badge>
+                      <Badge variant="outline" className="text-[8px] border-white/[0.08] text-white/40 capitalize">{set.platform}</Badge>
                       <Button size="sm" variant="outline" onClick={() => applyHashtagSet(set)}
                         className="text-[9px] h-5 px-2 border-primary/20 text-primary">Use</Button>
                       <Button size="sm" variant="outline" onClick={() => setHashtagSets(prev => prev.filter((_, j) => j !== i))}
@@ -3234,7 +3246,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {set.tags.slice(0, 10).map((t, j) => <span key={j} className="text-[9px] text-primary/60">#{t}</span>)}
-                    {set.tags.length > 10 && <span className="text-[9px] text-muted-foreground">+{set.tags.length - 10}</span>}
+                    {set.tags.length > 10 && <span className="text-[9px] text-white/40">+{set.tags.length - 10}</span>}
                   </div>
                 </CardContent>
               </Card>
@@ -3245,11 +3257,11 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== CAPTION LIBRARY DIALOG ========== */}
       <Dialog open={showCaptionLibrary} onOpenChange={setShowCaptionLibrary}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" /> Caption Library</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" /> Caption Library</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Save your best captions for quick reuse. Click to apply.</p>
+          <p className="text-xs text-white/50">Save your best captions for quick reuse. Click to apply.</p>
           {formCaption.trim() && (
             <Button size="sm" variant="outline" onClick={() => saveCaptionToLibrary(formCaption, formPlatform || "all")}
               className="text-xs h-8 border-primary/20 text-primary w-full">
@@ -3258,20 +3270,20 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           )}
           <div className="space-y-2">
             {savedCaptions.length === 0 ? (
-              <p className="text-xs text-muted-foreground/60 text-center py-6">No saved captions yet. Write a great caption and save it here for reuse.</p>
+              <p className="text-xs text-white/30 text-center py-6">No saved captions yet. Write a great caption and save it here for reuse.</p>
             ) : savedCaptions.map(cap => (
-              <Card key={cap.id} className="bg-card/50 border-border hover:border-primary/30 transition-all cursor-pointer"
+              <Card key={cap.id} className="bg-white/[0.03] border-white/[0.06] hover:border-primary/30 transition-all cursor-pointer"
                 onClick={() => applySavedCaption(cap)}>
                 <CardContent className="p-2">
                   <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[10px] font-medium text-foreground">{cap.label}</span>
+                    <span className="text-[10px] font-medium text-white">{cap.label}</span>
                     <div className="flex gap-1 items-center">
-                      <Badge variant="outline" className="text-[8px] border-border text-muted-foreground capitalize">{cap.platform}</Badge>
+                      <Badge variant="outline" className="text-[8px] border-white/[0.08] text-white/40 capitalize">{cap.platform}</Badge>
                       <button onClick={(e) => { e.stopPropagation(); setSavedCaptions(prev => prev.filter(c => c.id !== cap.id)); }}
                         className="p-0.5 rounded hover:bg-destructive/15"><X className="h-2.5 w-2.5 text-destructive/50" /></button>
                     </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground line-clamp-3">{cap.text}</p>
+                  <p className="text-[10px] text-white/50 line-clamp-3">{cap.text}</p>
                 </CardContent>
               </Card>
             ))}
