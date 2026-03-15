@@ -3542,23 +3542,95 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                 </Button>
                               </div>
                               <div className="p-2.5 md:p-3 space-y-2">
-                                {/* Best platforms callout */}
-                                <div className="grid grid-cols-2 gap-2 mb-2">
+                                {/* Best platforms callout - 10 comparison categories */}
+                                <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5 mb-2">
                                   {bestPlatformByEng && bestPlatformByEng.key && (
-                                    <div className="p-2 rounded-lg flex items-center gap-2" style={{ background: `${bestPlatformByEng.color}12`, border: `1px solid ${bestPlatformByEng.color}25` }}>
-                                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 p-1.5" style={{ background: bestPlatformByEng.color }}><img src={bestPlatformByEng.logo} alt="" className="w-full h-full object-contain" /></div>
-                                      <div>
-                                        <p className="text-[8px] text-white/40">Highest Engagement</p>
-                                        <p className="text-[11px] font-bold text-white">{bestPlatformByEng.name} <span className="text-emerald-400 text-[10px]">{bestPlatformByEng.avgEng.toFixed(2)}%</span></p>
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByEng.color}12`, border: `1px solid ${bestPlatformByEng.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByEng.color }}><img src={bestPlatformByEng.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Highest Engagement</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByEng.name} <span className="text-emerald-400 text-[9px]">{bestPlatformByEng.avgEng.toFixed(2)}%</span></p>
                                       </div>
                                     </div>
                                   )}
                                   {bestPlatformByGrowth && bestPlatformByGrowth.key && (
-                                    <div className="p-2 rounded-lg flex items-center gap-2" style={{ background: `${bestPlatformByGrowth.color}12`, border: `1px solid ${bestPlatformByGrowth.color}25` }}>
-                                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 p-1.5" style={{ background: bestPlatformByGrowth.color }}><img src={bestPlatformByGrowth.logo} alt="" className="w-full h-full object-contain" /></div>
-                                      <div>
-                                        <p className="text-[8px] text-white/40">Fastest Growth</p>
-                                        <p className="text-[11px] font-bold text-white">{bestPlatformByGrowth.name} <span className="text-amber-400 text-[10px]">+{bestPlatformByGrowth.avgG.toFixed(2)}%/wk</span></p>
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByGrowth.color}12`, border: `1px solid ${bestPlatformByGrowth.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByGrowth.color }}><img src={bestPlatformByGrowth.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Fastest Growth</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByGrowth.name} <span className="text-amber-400 text-[9px]">+{bestPlatformByGrowth.avgG.toFixed(2)}%/wk</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByReach && bestPlatformByReach.key && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByReach.color}12`, border: `1px solid ${bestPlatformByReach.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByReach.color }}><img src={bestPlatformByReach.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Largest Audience</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByReach.name} <span className="text-[hsl(217,91%,60%)] text-[9px]">{fmtNum(bestPlatformByReach.total)}</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByContent && bestPlatformByContent.key && bestPlatformByContent.total > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByContent.color}12`, border: `1px solid ${bestPlatformByContent.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByContent.color }}><img src={bestPlatformByContent.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Most Content</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByContent.name} <span className="text-[hsl(262,83%,58%)] text-[9px]">{fmtNum(bestPlatformByContent.total)}</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByLikes && bestPlatformByLikes.key && bestPlatformByLikes.avg > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByLikes.color}12`, border: `1px solid ${bestPlatformByLikes.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByLikes.color }}><img src={bestPlatformByLikes.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Most Likes/Post</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByLikes.name} <span className="text-[hsl(347,100%,58%)] text-[9px]">{fmtNum(Math.round(bestPlatformByLikes.avg))}</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByViews && bestPlatformByViews.key && bestPlatformByViews.avg > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByViews.color}12`, border: `1px solid ${bestPlatformByViews.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByViews.color }}><img src={bestPlatformByViews.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Most Views/Post</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByViews.name} <span className="text-[hsl(217,91%,60%)] text-[9px]">{fmtNum(Math.round(bestPlatformByViews.avg))}</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByComments && bestPlatformByComments.key && bestPlatformByComments.avg > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByComments.color}12`, border: `1px solid ${bestPlatformByComments.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByComments.color }}><img src={bestPlatformByComments.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Most Comments</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByComments.name} <span className="text-[hsl(30,95%,60%)] text-[9px]">{fmtNum(Math.round(bestPlatformByComments.avg))}</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByFreq && bestPlatformByFreq.key && bestPlatformByFreq.avg > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByFreq.color}12`, border: `1px solid ${bestPlatformByFreq.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByFreq.color }}><img src={bestPlatformByFreq.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Most Active</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByFreq.name} <span className="text-[hsl(262,83%,58%)] text-[9px]">{bestPlatformByFreq.avg.toFixed(1)}/wk</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByTotalLikes && bestPlatformByTotalLikes.key && bestPlatformByTotalLikes.total > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByTotalLikes.color}12`, border: `1px solid ${bestPlatformByTotalLikes.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByTotalLikes.color }}><img src={bestPlatformByTotalLikes.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">Total Likes Leader</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByTotalLikes.name} <span className="text-[hsl(150,60%,50%)] text-[9px]">{fmtNum(bestPlatformByTotalLikes.total)}</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByGain && bestPlatformByGain.key && bestPlatformByGain.total > 0 && (
+                                    <div className="p-1.5 rounded-lg flex items-center gap-1.5" style={{ background: `${bestPlatformByGain.color}12`, border: `1px solid ${bestPlatformByGain.color}25` }}>
+                                      <div className="w-5 h-5 rounded flex items-center justify-center shrink-0 p-1" style={{ background: bestPlatformByGain.color }}><img src={bestPlatformByGain.logo} alt="" className="w-full h-full object-contain" /></div>
+                                      <div className="min-w-0">
+                                        <p className="text-[7px] text-white/40 truncate">30d Foll. Gain</p>
+                                        <p className="text-[10px] font-bold text-white truncate">{bestPlatformByGain.name} <span className="text-emerald-400 text-[9px]">+{fmtNum(bestPlatformByGain.total)}</span></p>
                                       </div>
                                     </div>
                                   )}
