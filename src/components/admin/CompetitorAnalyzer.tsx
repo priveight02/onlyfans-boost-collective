@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,13 +8,16 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Crosshair, Plus, Trash2, RefreshCw, TrendingUp, TrendingDown,
   BarChart3, Users, Hash, Zap, Brain, Target, ArrowUpRight, ArrowDownRight,
-  Loader2, Clock, AlertTriangle, Calendar, Search, Eye, Globe, Sparkles,
+  Loader2, Clock, AlertTriangle, Calendar as CalendarIcon, Search, Eye, Globe, Sparkles,
   Shield, Flame, Crown, Download, Copy, ChevronDown, ChevronUp, Star,
   Link, Lock, FileText, Image as ImageIcon, Code, Activity, CheckCircle, XCircle, ExternalLink,
   DollarSign, TrendingUp as TrendUp, Building2, Briefcase,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis,
