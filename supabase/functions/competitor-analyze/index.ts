@@ -398,19 +398,92 @@ STRICT OUTPUT RULES:
           reply = structData.choices?.[0]?.message?.content || "";
         }
       } else {
-        // Non-financial: single pass
+        // Non-financial: single pass with tool calling for reliable structured output
+        const isInternetAnalysis = prompt.includes("WEBSITE:") || prompt.includes("competitor business/website");
+        
+        const competitorTool = {
+          type: "function" as const,
+          function: {
+            name: "competitor_profile",
+            description: "Return structured competitor profile data.",
+            parameters: {
+              type: "object",
+              properties: {
+                displayName: { type: "string" },
+                companyDescription: { type: "string" },
+                industry: { type: "string" },
+                foundedYear: { type: "string" },
+                headquarters: { type: "string" },
+                teamSize: { type: "string" },
+                websiteTraffic: { type: "number" },
+                domainAuthority: { type: "number" },
+                socialPresence: {
+                  type: "object",
+                  properties: {
+                    instagram: { type: "string" },
+                    twitter: { type: "string" },
+                    linkedin: { type: "string" },
+                    tiktok: { type: "string" },
+                    youtube: { type: "string" },
+                  },
+                },
+                followers: { type: "number" },
+                following: { type: "number" },
+                posts: { type: "number" },
+                engagementRate: { type: "number" },
+                avgLikes: { type: "number" },
+                avgComments: { type: "number" },
+                growthRate: { type: "number" },
+                postFrequency: { type: "number" },
+                topHashtags: { type: "array", items: { type: "string" } },
+                contentTypes: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: { type: { type: "string" }, pct: { type: "number" } },
+                    required: ["type", "pct"],
+                  },
+                },
+                niche: { type: "string" },
+                revenueEstimate: { type: "string" },
+                pricingModel: { type: "string" },
+                mainProducts: { type: "array", items: { type: "string" } },
+                targetAudience: { type: "string" },
+                competitiveStrengths: { type: "array", items: { type: "string" } },
+                competitiveWeaknesses: { type: "array", items: { type: "string" } },
+                techStack: { type: "array", items: { type: "string" } },
+                seoKeywords: { type: "array", items: { type: "string" } },
+                fundingStatus: { type: "string" },
+                score: { type: "number" },
+                bestPostingTimes: { type: "array", items: { type: "string" } },
+                audienceDemo: { type: "string" },
+                contentStyle: { type: "string" },
+              },
+              required: ["displayName", "followers", "engagementRate", "score", "topHashtags", "contentTypes"],
+            },
+          },
+        };
+
+        const bodyPayload: any = {
+          model: "google/gemini-2.5-flash",
+          temperature: 0.3,
+          max_tokens: 3000,
+          messages: [
+            { role: "system", content: "You are a social media analytics and competitive intelligence expert. Return accurate, realistic data." },
+            { role: "user", content: prompt },
+          ],
+        };
+
+        // Use tool calling for internet competitors (larger schema) to guarantee structured output
+        if (isInternetAnalysis) {
+          bodyPayload.tools = [competitorTool];
+          bodyPayload.tool_choice = { type: "function", function: { name: "competitor_profile" } };
+        }
+
         const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
           headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            temperature: 0.3,
-            max_tokens: 1400,
-            messages: [
-              { role: "system", content: "You are a social media analytics and competitive intelligence expert. Always respond with ONLY valid JSON as requested. No markdown, no explanation, no code fences. Just raw JSON." },
-              { role: "user", content: prompt },
-            ],
-          }),
+          body: JSON.stringify(bodyPayload),
           signal: controller.signal,
         });
 
@@ -423,7 +496,19 @@ STRICT OUTPUT RULES:
         }
 
         const data = await response.json();
-        reply = data.choices?.[0]?.message?.content || "";
+        
+        // Check for tool call response first
+        const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+        if (toolCall?.function?.arguments) {
+          try {
+            const parsed = JSON.parse(toolCall.function.arguments);
+            reply = JSON.stringify(parsed);
+          } catch {
+            reply = toolCall.function.arguments;
+          }
+        } else {
+          reply = data.choices?.[0]?.message?.content || "";
+        }
       }
     } catch (fetchError: any) {
       if (fetchError?.name === "AbortError") {
