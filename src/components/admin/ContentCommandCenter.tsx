@@ -2813,7 +2813,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               </div>
             )}
             <Input value={formCta} onChange={e => setFormCta(e.target.value)}
-              placeholder="Call to action..." className="bg-card/50 border-border text-foreground text-xs" />
+              placeholder="Call to action..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs" />
 
             {/* Schedule with Smart Scheduling */}
             <div className="space-y-1">
