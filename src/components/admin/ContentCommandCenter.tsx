@@ -3204,7 +3204,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   <span className="text-[10px] text-white flex-1 truncate">{item.title}</span>
                   <Badge variant="outline" className={`text-[8px] capitalize gap-0.5 ${platformConf(item.platform).color}`}>{item.platform}</Badge>
                   <Button size="sm" variant="outline" onClick={() => moveToReview(item.id)}
-                    className="text-[9px] h-5 px-2 border-primary/20 text-primary">Submit</Button>
+                    className="text-[9px] h-5 px-2 border-primary/20 bg-primary/10 text-primary hover:bg-primary/20">Submit</Button>
                 </div>
               ))}
             </div>
