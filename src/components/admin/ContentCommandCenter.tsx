@@ -2433,9 +2433,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             <div className="flex gap-3 items-center">
               <span className="text-xs text-white/50">Parts:</span>
               {[3, 5, 7].map(n => (
-                <Button key={n} size="sm" variant={seriesCount === n ? "default" : "outline"}
+                <Button key={n} size="sm" variant="outline"
                   onClick={() => setSeriesCount(n)}
-                  className={`text-xs h-7 ${seriesCount === n ? "bg-primary text-primary-foreground" : "border-white/[0.06] text-white/50"}`}>
+                  className={`text-xs h-7 ${seriesCount === n ? "bg-primary/20 border-primary/40 text-primary font-bold" : "border-white/[0.06] bg-white/[0.03] text-white/50"}`}>
                   {n}
                 </Button>
               ))}
