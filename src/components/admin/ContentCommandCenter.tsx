@@ -2924,20 +2924,20 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== CONTENT PILLARS DIALOG ========== */}
       <Dialog open={showPillars} onOpenChange={setShowPillars}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Target className="h-4 w-4 text-primary" /> Content Pillar Strategy</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Target className="h-4 w-4 text-primary" /> Content Pillar Strategy</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             {contentPillars.map((pillar, i) => (
-              <Card key={i} className="bg-card/50 border-border">
+              <Card key={i} className="bg-white/[0.03] border-white/[0.06]">
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between mb-1">
-                    <p className={`text-sm font-bold ${pillar.color || "text-foreground"}`}>{pillar.name}</p>
+                    <p className={`text-sm font-bold ${pillar.color || "text-white"}`}>{pillar.name}</p>
                     <Badge variant="outline" className="text-[9px] border-primary/20 text-primary">{pillar.percentage}%</Badge>
                   </div>
-                  <p className="text-[10px] text-muted-foreground mb-2">{pillar.description}</p>
-                  <p className="text-[9px] text-muted-foreground mb-1">📅 {pillar.posting_frequency} | Types: {pillar.content_types?.join(", ")}</p>
+                  <p className="text-[10px] text-white/50 mb-2">{pillar.description}</p>
+                  <p className="text-[9px] text-white/40 mb-1">{pillar.posting_frequency} · Types: {pillar.content_types?.join(", ")}</p>
                   <div className="space-y-0.5">
                     {pillar.example_topics?.map((topic: string, j: number) => (
                       <button key={j} onClick={() => { setFormTitle(topic); setFormCaption(topic); setShowPillars(false); setShowCreate(true); toast.success("Topic applied"); }}
