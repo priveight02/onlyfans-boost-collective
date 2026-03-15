@@ -514,21 +514,208 @@ const scrapeSocialProfiles = async (
       }
       if (platform === "twitter") {
         // Try multiple Nitter instances for public data
-        const nitterInstances = ["nitter.net", "nitter.privacydev.net", "nitter.poast.org"];
+        const nitterInstances = ["nitter.net", "nitter.privacydev.net", "nitter.poast.org", "nitter.cz", "nitter.1d4.us"];
         for (const inst of nitterInstances) {
-          const html = await fetchWithTimeout(`https://${inst}/${handle}`, { ms: 6000, maxChars: 200000 });
-          if (html && html.length > 500) {
-            const fMatch = html.match(/([\d,.KMBkmb]+)\s*Followers/i);
-            if (fMatch) { const v = parseHumanNumber(fMatch[1]); if (v > 0) { out.followers = v; out._sources!.push(`nitter-${inst}`); } }
-            const twMatch = html.match(/([\d,.KMBkmb]+)\s*Tweets/i) || html.match(/([\d,.KMBkmb]+)\s*Posts/i);
-            if (twMatch) { const v = parseHumanNumber(twMatch[1]); if (v > 0) out.posts = v; }
-            const flwMatch = html.match(/([\d,.KMBkmb]+)\s*Following/i);
-            if (flwMatch) { const v = parseHumanNumber(flwMatch[1]); if (v > 0) out.following = v; }
-            if (out.followers) break;
-          }
+          try {
+            const html = await fetchWithTimeout(`https://${inst}/${handle}`, { ms: 6000, maxChars: 200000 });
+            if (html && html.length > 500) {
+              const fMatch = html.match(/([\d,.KMBkmb]+)\s*Followers/i);
+              if (fMatch) { const v = parseHumanNumber(fMatch[1]); if (v > 0) { out.followers = v; out._sources!.push(`nitter-${inst}`); } }
+              const twMatch = html.match(/([\d,.KMBkmb]+)\s*Tweets/i) || html.match(/([\d,.KMBkmb]+)\s*Posts/i);
+              if (twMatch) { const v = parseHumanNumber(twMatch[1]); if (v > 0) out.posts = v; }
+              const flwMatch = html.match(/([\d,.KMBkmb]+)\s*Following/i);
+              if (flwMatch) { const v = parseHumanNumber(flwMatch[1]); if (v > 0) out.following = v; }
+              if (out.followers) break;
+            }
+          } catch { continue; }
         }
       }
     } catch { /* noop */ }
+    return out;
+  };
+
+  // ═══════════════════════════════════════════════════════════
+  // DEDICATED TWITTER/X SCRAPER (multi-approach, aggressive)
+  // ═══════════════════════════════════════════════════════════
+
+  const fetchTwitterDedicated = async (handle: string): Promise<ScrapedMetrics> => {
+    const out: ScrapedMetrics = { _sources: [] };
+    console.log(`[SCRAPE][Twitter] Starting dedicated Twitter scraper for @${handle}`);
+
+    // Approach 1: Syndication API (public, no auth needed, works for most accounts)
+    try {
+      const syndicationUrl = `https://syndication.twitter.com/srv/timeline-profile/screen-name/${encodeURIComponent(handle)}`;
+      const html = await fetchWithTimeout(syndicationUrl, { ms: 10000, maxChars: 500000 });
+      if (html && html.length > 200) {
+        // Extract from embedded JSON in syndication HTML
+        const dataMatch = html.match(/window\.__INITIAL_PROPS__\s*=\s*(\{[\s\S]*?\});\s*<\/script>/i)
+          || html.match(/data-props="([^"]+)"/i);
+        if (dataMatch?.[1]) {
+          try {
+            let jsonStr = dataMatch[1];
+            if (jsonStr.includes("&quot;")) jsonStr = jsonStr.replace(/&quot;/g, '"').replace(/&amp;/g, "&");
+            const parsed = JSON.parse(jsonStr);
+            // Walk for user metrics
+            const walkTwitter = (obj: any, depth = 0) => {
+              if (!obj || typeof obj !== "object" || depth > 8) return;
+              if (Array.isArray(obj)) { obj.slice(0, 10).forEach(item => walkTwitter(item, depth + 1)); return; }
+              for (const [k, v] of Object.entries(obj)) {
+                const kl = k.toLowerCase();
+                if (typeof v === "number" && v > 0) {
+                  if ((kl === "followers_count" || kl === "followerscount") && !out.followers) out.followers = v;
+                  if ((kl === "friends_count" || kl === "friendscount" || kl === "following_count") && !out.following) out.following = v;
+                  if ((kl === "statuses_count" || kl === "statusescount" || kl === "tweet_count") && !out.posts) out.posts = v;
+                  if ((kl === "favourites_count" || kl === "likescount" || kl === "favorites_count") && !out.totalLikes) out.totalLikes = v;
+                  if ((kl === "media_count" || kl === "listed_count") && !out.posts && v > 10) out.posts = v;
+                }
+                if (typeof v === "string" && v.length > 10 && v.length < 300 && (kl === "description" || kl === "bio") && !out.description) out.description = v.slice(0, 200);
+                if (typeof v === "object") walkTwitter(v, depth + 1);
+              }
+            };
+            walkTwitter(parsed);
+            if (out.followers) { out._sources!.push("twitter-syndication-api"); console.log(`[SCRAPE][Twitter] Syndication API: followers=${out.followers}, posts=${out.posts}`); }
+          } catch { /* parse error */ }
+        }
+        // Regex fallback on syndication HTML
+        if (!out.followers) {
+          const deep = deepExtractFromHTML(html, "twitter");
+          if (deep.followers && deep.followers > 0) {
+            if (!out.followers) out.followers = deep.followers;
+            if (!out.following && deep.following) out.following = deep.following;
+            if (!out.posts && deep.posts) out.posts = deep.posts;
+            out._sources!.push("twitter-syndication-html");
+          }
+        }
+      }
+    } catch (e) { console.log(`[SCRAPE][Twitter] Syndication failed:`, e); }
+
+    // Approach 2: Twitter embeds API (works for public tweets count/followers)
+    if (!out.followers) {
+      try {
+        const embedHtml = await fetchWithTimeout(`https://publish.twitter.com/oembed?url=https://x.com/${encodeURIComponent(handle)}&omit_script=true`, { ms: 6000, maxChars: 50000, headers: { Accept: "application/json" } });
+        if (embedHtml) {
+          try {
+            const embedData = JSON.parse(embedHtml);
+            if (embedData?.author_name && !out.description) out.description = embedData.author_name;
+            out._sources!.push("twitter-oembed");
+          } catch { /* not JSON */ }
+        }
+      } catch { /* noop */ }
+    }
+
+    // Approach 3: Direct x.com page with deep HTML/JS extraction
+    if (!out.followers) {
+      try {
+        const xHtml = await fetchWithTimeout(`https://x.com/${encodeURIComponent(handle)}`, { ms: 10000, maxChars: 500000 });
+        if (xHtml && xHtml.length > 500) {
+          const deep = deepExtractFromHTML(xHtml, "twitter");
+          if (deep.followers && deep.followers > 0) {
+            if (!out.followers) out.followers = deep.followers;
+            if (!out.following && deep.following) out.following = deep.following;
+            if (!out.posts && deep.posts) out.posts = deep.posts;
+            if (!out.description && deep.description) out.description = deep.description;
+            out._sources!.push("twitter-xcom-html-js");
+          }
+          // Manual regex patterns specifically for X/Twitter
+          if (!out.followers) {
+            const fPatterns = [
+              /"followers_count"\s*:\s*(\d+)/i,
+              /"followersCount"\s*:\s*(\d+)/i,
+              /"normal_followers_count"\s*:\s*(\d+)/i,
+              /data-testid="[^"]*[Ff]ollow[^"]*"[^>]*>([\d,.KMBkmb]+)/i,
+              /([\d,.KMBkmb]+)\s*Followers/gi,
+            ];
+            for (const p of fPatterns) {
+              const m = xHtml.match(p);
+              if (m?.[1]) { const v = parseHumanNumber(m[1]); if (v > 0) { out.followers = v; out._sources!.push("twitter-xcom-regex"); break; } }
+            }
+          }
+          if (!out.posts) {
+            const pMatch = xHtml.match(/"statuses_count"\s*:\s*(\d+)/i) || xHtml.match(/([\d,.KMBkmb]+)\s*(?:posts|tweets)/i);
+            if (pMatch?.[1]) { const v = parseHumanNumber(pMatch[1]); if (v > 0) out.posts = v; }
+          }
+          if (!out.following) {
+            const fgMatch = xHtml.match(/"friends_count"\s*:\s*(\d+)/i) || xHtml.match(/([\d,.KMBkmb]+)\s*Following/i);
+            if (fgMatch?.[1]) { const v = parseHumanNumber(fgMatch[1]); if (v > 0) out.following = v; }
+          }
+        }
+      } catch { /* noop */ }
+    }
+
+    // Approach 4: twitter.com fallback (legacy URL still works sometimes)
+    if (!out.followers) {
+      try {
+        const twHtml = await fetchWithTimeout(`https://twitter.com/${encodeURIComponent(handle)}`, { ms: 8000, maxChars: 500000 });
+        if (twHtml && twHtml.length > 500) {
+          const deep = deepExtractFromHTML(twHtml, "twitter");
+          if (deep.followers) { out.followers = deep.followers; if (deep.following) out.following = deep.following; if (deep.posts) out.posts = deep.posts; out._sources!.push("twitter-legacy-html"); }
+        }
+      } catch { /* noop */ }
+    }
+
+    // Approach 5: Jina-rendered X page (renders JS)
+    if (!out.followers) {
+      try {
+        console.log(`[SCRAPE][Twitter] Trying Jina rendered page for @${handle}`);
+        const md = await fetchJina(`https://x.com/${handle}`);
+        if (md && md.length > 100) {
+          const fMatch = md.match(/([\d,.KMBkmb]+)\s*Followers/i);
+          if (fMatch) { const v = parseHumanNumber(fMatch[1]); if (v > 0) { out.followers = v; out._sources!.push("twitter-jina-xcom"); } }
+          const pMatch = md.match(/([\d,.KMBkmb]+)\s*(?:posts|tweets)/i);
+          if (pMatch && !out.posts) { const v = parseHumanNumber(pMatch[1]); if (v > 0) out.posts = v; }
+          const flwMatch = md.match(/([\d,.KMBkmb]+)\s*Following/i);
+          if (flwMatch && !out.following) { const v = parseHumanNumber(flwMatch[1]); if (v > 0) out.following = v; }
+          if (!out.description) {
+            const bio = md.match(/(?:bio|description)[:\s]*\n?\s*([^\n]{10,200})/i)?.[1];
+            if (bio) out.description = bio.trim().slice(0, 200);
+          }
+        }
+      } catch { /* noop */ }
+    }
+
+    // Approach 6: Third-party Twitter analytics scrapers
+    if (!out.followers) {
+      // Try social-searcher / tweetstats style services
+      const thirdPartyUrls = [
+        `https://www.socialstatus.io/api/twitter/${encodeURIComponent(handle)}`,
+        `https://www.speakrj.com/audit/report/${encodeURIComponent(handle)}/twitter`,
+      ];
+      for (const url of thirdPartyUrls) {
+        try {
+          const resp = await fetchWithTimeout(url, { ms: 6000, maxChars: 200000 });
+          if (resp && resp.length > 200) {
+            const fMatch = resp.match(/([\d,.KMBkmb]+)\s*(?:Followers|followers)/i);
+            if (fMatch) { const v = parseHumanNumber(fMatch[1]); if (v > 0) { out.followers = v; out._sources!.push("twitter-third-party"); break; } }
+          }
+        } catch { continue; }
+      }
+    }
+
+    // Extract engagement from recent tweets if we have followers
+    if (out.followers && out.followers > 0 && !out.engagementRate) {
+      // Try to get recent tweet engagement via syndication
+      try {
+        const timelineHtml = await fetchWithTimeout(`https://syndication.twitter.com/srv/timeline-profile/screen-name/${encodeURIComponent(handle)}?count=10`, { ms: 8000, maxChars: 500000 });
+        if (timelineHtml && timelineHtml.length > 500) {
+          const likeMatches = [...timelineHtml.matchAll(/"(?:favorite_count|likeCount)"\s*:\s*"?(\d+)/gi)].map(m => parseHumanNumber(m[1])).filter(n => n > 0).slice(0, 10);
+          const replyMatches = [...timelineHtml.matchAll(/"(?:reply_count|replyCount)"\s*:\s*"?(\d+)/gi)].map(m => parseHumanNumber(m[1])).filter(n => n >= 0).slice(0, 10);
+          const rtMatches = [...timelineHtml.matchAll(/"(?:retweet_count|retweetCount)"\s*:\s*"?(\d+)/gi)].map(m => parseHumanNumber(m[1])).filter(n => n >= 0).slice(0, 10);
+          const viewMatches = [...timelineHtml.matchAll(/"(?:views?_count|viewCount)"\s*:\s*"?(\d+)/gi)].map(m => parseHumanNumber(m[1])).filter(n => n > 0).slice(0, 10);
+          if (likeMatches.length >= 2) {
+            out.avgLikes = Math.round(likeMatches.reduce((a, b) => a + b, 0) / likeMatches.length);
+            out._sources!.push("twitter-syndication-engagement");
+          }
+          if (replyMatches.length >= 2) out.avgComments = Math.round(replyMatches.reduce((a, b) => a + b, 0) / replyMatches.length);
+          if (rtMatches.length >= 2) out.avgShares = Math.round(rtMatches.reduce((a, b) => a + b, 0) / rtMatches.length);
+          if (viewMatches.length >= 2) out.avgViews = Math.round(viewMatches.reduce((a, b) => a + b, 0) / viewMatches.length);
+          if (out.avgLikes && out.followers > 0) {
+            out.engagementRate = (((out.avgLikes || 0) + (out.avgComments || 0) + (out.avgShares || 0)) / out.followers) * 100;
+          }
+        }
+      } catch { /* noop */ }
+    }
+
+    console.log(`[SCRAPE][Twitter] Final for @${handle}: followers=${out.followers}, posts=${out.posts}, ER=${out.engagementRate?.toFixed(2)}%, sources=[${(out._sources || []).join(",")}]`);
     return out;
   };
 
@@ -979,6 +1166,11 @@ const scrapeSocialProfiles = async (
     }
     if (key === "instagram") {
       const l1 = await fetchInstagramGraphQL(handle);
+      mergeFrom(l1, true);
+    }
+    if (key === "twitter") {
+      // Dedicated multi-approach Twitter scraper (6 layers)
+      const l1 = await fetchTwitterDedicated(handle);
       mergeFrom(l1, true);
     }
     if (key === "github") {
