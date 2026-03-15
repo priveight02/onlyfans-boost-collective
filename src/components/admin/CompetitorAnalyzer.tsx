@@ -1140,6 +1140,18 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                   {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   {analyzing ? "Analyzing..." : "Add & Analyze"}
                 </Button>
+                {competitors.length >= 2 && (
+                  <Button variant="outline" className="gap-1.5 h-10 border-white/10 text-white/60 hover:text-white" disabled={analyzing || !!refreshingId}
+                    onClick={async () => {
+                      for (const comp of competitors) {
+                        await refreshCompetitor(comp);
+                      }
+                      toast.success(`All ${competitors.length} competitors refreshed`);
+                    }}>
+                    <RefreshCw className={`h-4 w-4 ${refreshingId ? "animate-spin" : ""}`} />
+                    Refresh All
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
