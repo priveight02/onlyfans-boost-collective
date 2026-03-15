@@ -711,16 +711,21 @@ Competitor stats:
 - Content Style: ${comp.metadata?.contentStyle || "unknown"}
 - Top Hashtags: ${comp.topHashtags.join(", ")}
 
-Return ONLY valid JSON with 4-5 specific, actionable items per category:
+Return ONLY valid JSON with 4-6 items per category. Each item must have "text" and "priority" (high/medium/low) and "action" (what to do about it):
 {
-  "strengths": ["specific strength 1", "..."],
-  "weaknesses": ["specific weakness 1", "..."],
-  "opportunities": ["specific opportunity 1", "..."],
-  "threats": ["specific threat 1", "..."]
+  "strengths": [{"text": "specific strength", "priority": "high", "action": "how to leverage this"}],
+  "weaknesses": [{"text": "specific weakness", "priority": "high", "action": "how to exploit this"}],
+  "opportunities": [{"text": "specific opportunity", "priority": "high", "action": "how to capitalize on this"}],
+  "threats": [{"text": "specific threat", "priority": "high", "action": "how to mitigate this"}],
+  "overallVerdict": "2-3 sentence overall competitive verdict",
+  "topAction": "The single most important action to take right now"
 }`
         );
         const parsed = parseJSON(aiReply);
         if (!parsed.strengths || !parsed.weaknesses) throw new Error("Incomplete SWOT");
+        // Normalize: support both old string[] and new {text,priority,action}[] format
+        const normalize = (arr: any[]) => arr.map((item: any) => typeof item === "string" ? { text: item, priority: "medium", action: "" } : item);
+        setSwotResult({ ...parsed, strengths: normalize(parsed.strengths), weaknesses: normalize(parsed.weaknesses), opportunities: normalize(parsed.opportunities), threats: normalize(parsed.threats) });
         setSwotResult(parsed);
         return true;
       } catch (err) {
@@ -1283,6 +1288,47 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               </CardContent>
             </Card>
           ) : (
+            <>
+              {/* Quick Summary Bar */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <Card className="crm-card"><CardContent className="p-3 text-center">
+                  <p className="text-[10px] text-white/40">Tracked</p>
+                  <p className="text-lg font-bold text-[hsl(217,91%,60%)]">{competitors.length}</p>
+                </CardContent></Card>
+                <Card className="crm-card"><CardContent className="p-3 text-center">
+                  <p className="text-[10px] text-white/40">Avg Followers</p>
+                  <p className="text-lg font-bold text-white">{fmtNum(Math.round(competitors.reduce((a, c) => a + c.followers, 0) / competitors.length))}</p>
+                </CardContent></Card>
+                <Card className="crm-card"><CardContent className="p-3 text-center">
+                  <p className="text-[10px] text-white/40">Avg Engagement</p>
+                  <p className="text-lg font-bold text-emerald-400">{(competitors.reduce((a, c) => a + c.engagementRate, 0) / competitors.length).toFixed(1)}%</p>
+                </CardContent></Card>
+                <Card className="crm-card"><CardContent className="p-3 text-center">
+                  <p className="text-[10px] text-white/40">High Threats</p>
+                  <p className="text-lg font-bold text-red-400">{competitors.filter(c => c.score >= 70).length}</p>
+                </CardContent></Card>
+                <Card className="crm-card"><CardContent className="p-3 text-center">
+                  <p className="text-[10px] text-white/40">Avg Growth</p>
+                  <p className={`text-lg font-bold ${competitors.reduce((a, c) => a + c.growthRate, 0) / competitors.length >= 0 ? "text-emerald-400" : "text-red-400"}`}>{(competitors.reduce((a, c) => a + c.growthRate, 0) / competitors.length).toFixed(1)}%/wk</p>
+                </CardContent></Card>
+              </div>
+
+              {/* Controls Row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 border-white/10 text-white/50 hover:text-white" disabled={refreshingId !== null}
+                    onClick={async () => {
+                      for (const comp of competitors) {
+                        await refreshCompetitor(comp);
+                      }
+                      toast.success("All competitors refreshed");
+                    }}>
+                    <RefreshCw className={`h-3 w-3 ${refreshingId ? "animate-spin" : ""}`} /> Refresh All
+                  </Button>
+                  <span className="text-[10px] text-white/25">{competitors.length} competitor{competitors.length !== 1 ? "s" : ""}</span>
+                </div>
+              </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {competitors.map(comp => (
                 <Card
@@ -1414,6 +1460,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 </Card>
               ))}
             </div>
+            </>
           )}
         </TabsContent>
 
@@ -1571,7 +1618,93 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 </Card>
               )}
 
-              {/* Comparison Table */}
+              {/* Threat Score Distribution + Growth Rate Comparison */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Threat Score Distribution</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[220px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={[
+                            { name: "High Threat (70+)", value: competitors.filter(c => c.score >= 70).length, fill: "hsl(350,80%,55%)" },
+                            { name: "Moderate (40-69)", value: competitors.filter(c => c.score >= 40 && c.score < 70).length, fill: "hsl(30,95%,60%)" },
+                            { name: "Low Threat (<40)", value: competitors.filter(c => c.score < 40).length, fill: "hsl(150,60%,50%)" },
+                          ].filter(d => d.value > 0)} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({ name, value }) => `${name}: ${value}`} labelLine={false}>
+                          </Pie>
+                          <Tooltip contentStyle={chartTooltipStyle} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Growth Rate Comparison (%/week)</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[220px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={[
+                          ...(myStats ? [{ name: `@${myStats.username} (You)`, growth: myStats.growthRate }] : []),
+                          ...competitors.map(c => ({ name: `@${c.username}`, growth: c.growthRate })),
+                        ]} barCategoryGap="25%">
+                          <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number) => `${v}%/wk`} />
+                          <Bar dataKey="growth" radius={[4, 4, 0, 0]} name="Growth %">
+                            {[...(myStats ? [myStats] : []), ...competitors].map((_, i) => (
+                              <Cell key={i} fill={i === 0 && myStats ? "hsl(150,60%,50%)" : PIE_COLORS[(myStats ? i - 1 : i) % PIE_COLORS.length]} />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Avg Likes + Avg Comments Comparison */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Avg Likes per Post</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[220px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={[
+                          ...(myStats ? [{ name: `@${myStats.username}`, likes: myStats.avgLikes }] : []),
+                          ...competitors.map(c => ({ name: `@${c.username}`, likes: c.avgLikes })),
+                        ]} barCategoryGap="25%">
+                          <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => fmtNum(v)} />
+                          <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number) => fmtNum(v)} />
+                          <Bar dataKey="likes" fill="hsl(262,83%,58%)" radius={[4, 4, 0, 0]} name="Avg Likes" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Avg Comments per Post</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[220px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={[
+                          ...(myStats ? [{ name: `@${myStats.username}`, comments: myStats.avgComments }] : []),
+                          ...competitors.map(c => ({ name: `@${c.username}`, comments: c.avgComments })),
+                        ]} barCategoryGap="25%">
+                          <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <Tooltip contentStyle={chartTooltipStyle} />
+                          <Bar dataKey="comments" fill="hsl(30,95%,60%)" radius={[4, 4, 0, 0]} name="Avg Comments" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Side-by-Side Comparison */}
               <Card className="crm-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Side-by-Side Comparison</CardTitle></CardHeader>
                 <CardContent>
@@ -1741,20 +1874,58 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
           {gapAnalysis ? (
             <div className="space-y-4">
-              {/* Overall score */}
-              <Card className="crm-card">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center border border-white/[0.06]">
-                      <span className="text-xl font-bold text-white">{gapAnalysis.overallScore || "?"}</span>
+              {/* Overall score + Opportunity Radar */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card className="crm-card">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center border border-white/[0.06]">
+                        <span className="text-xl font-bold text-white">{gapAnalysis.overallScore || "?"}</span>
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">Opportunity Score</p>
+                        <p className="text-xs text-white/50">{(gapAnalysis.overallScore || 0) >= 70 ? "High opportunity · many gaps to exploit" : (gapAnalysis.overallScore || 0) >= 40 ? "Moderate opportunity · some gaps available" : "Low opportunity · market is well-covered"}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white font-medium">Opportunity Score</p>
-                      <p className="text-xs text-white/50">{(gapAnalysis.overallScore || 0) >= 70 ? "High opportunity · many gaps to exploit" : (gapAnalysis.overallScore || 0) >= 40 ? "Moderate opportunity · some gaps available" : "Low opportunity · market is well-covered"}</p>
+                    {/* Quick gap counts */}
+                    <div className="grid grid-cols-4 gap-2">
+                      {[
+                        { label: "Hashtag", count: (gapAnalysis.hashtagGaps || []).length, color: "text-[hsl(217,91%,60%)]" },
+                        { label: "Topic", count: (gapAnalysis.topicGaps || []).length, color: "text-emerald-400" },
+                        { label: "Format", count: (gapAnalysis.contentFormatGaps || []).length, color: "text-amber-400" },
+                        { label: "Timing", count: (gapAnalysis.timingGaps || []).length, color: "text-[hsl(262,83%,58%)]" },
+                      ].map((g, i) => (
+                        <div key={i} className="text-center p-2 rounded-lg bg-white/[0.02]">
+                          <p className={`text-lg font-bold ${g.color}`}>{g.count}</p>
+                          <p className="text-[10px] text-white/40">{g.label} Gaps</p>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Opportunity Radar</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[220px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={[
+                          { metric: "Hashtags", value: Math.min((gapAnalysis.hashtagGaps || []).length * 20, 100) },
+                          { metric: "Topics", value: Math.min((gapAnalysis.topicGaps || []).length * 20, 100) },
+                          { metric: "Formats", value: Math.min((gapAnalysis.contentFormatGaps || []).length * 25, 100) },
+                          { metric: "Timing", value: Math.min((gapAnalysis.timingGaps || []).length * 25, 100) },
+                          { metric: "Overall", value: gapAnalysis.overallScore || 0 },
+                        ]}>
+                          <PolarGrid stroke="hsl(217 91% 60% / 0.08)" />
+                          <PolarAngleAxis dataKey="metric" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} />
+                          <PolarRadiusAxis tick={false} axisLine={false} />
+                          <Radar dataKey="value" stroke="hsl(217,91%,60%)" fill="hsl(217,91%,60%)" fillOpacity={0.2} strokeWidth={2} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Hashtag gaps */}
@@ -2041,29 +2212,67 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
           </Card>
 
           {swotResult ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {([
-                { key: "strengths" as const, label: "Strengths", colorClass: "text-emerald-400", dotClass: "bg-emerald-400", icon: Shield },
-                { key: "weaknesses" as const, label: "Weaknesses", colorClass: "text-red-400", dotClass: "bg-red-400", icon: TrendingDown },
-                { key: "opportunities" as const, label: "Opportunities", colorClass: "text-[hsl(217,91%,60%)]", dotClass: "bg-[hsl(217,91%,60%)]", icon: Zap },
-                { key: "threats" as const, label: "Threats", colorClass: "text-amber-400", dotClass: "bg-amber-400", icon: Flame },
-              ]).map(({ key, label, colorClass, dotClass, icon: Icon }) => (
-                <Card key={key} className="crm-card">
-                  <CardHeader className="pb-2">
-                    <CardTitle className={`text-sm font-medium flex items-center gap-2 ${colorClass}`}>
-                      <Icon className="h-4 w-4" /> {label}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {(swotResult[key] || []).map((item, i) => (
-                      <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                        <div className={`w-1.5 h-1.5 rounded-full mt-1.5 ${dotClass} flex-shrink-0`} />
-                        <p className="text-sm text-white/70">{item}</p>
+            <div className="space-y-4">
+              {/* Verdict + Top Action */}
+              {(swotResult as any).overallVerdict && (
+                <Card className="crm-card border-[hsl(217,91%,60%)]/15">
+                  <CardContent className="p-4 space-y-2">
+                    <p className="text-xs text-white/70">{(swotResult as any).overallVerdict}</p>
+                    {(swotResult as any).topAction && (
+                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-emerald-400/5 border border-emerald-400/15">
+                        <Zap className="h-3.5 w-3.5 text-emerald-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-[10px] text-emerald-400 font-bold uppercase">Top Priority Action</p>
+                          <p className="text-xs text-white/70">{(swotResult as any).topAction}</p>
+                        </div>
                       </div>
-                    ))}
+                    )}
                   </CardContent>
                 </Card>
-              ))}
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {([
+                  { key: "strengths" as const, label: "Strengths", colorClass: "text-emerald-400", borderClass: "border-emerald-400/15", bgClass: "bg-emerald-400", icon: Shield },
+                  { key: "weaknesses" as const, label: "Weaknesses", colorClass: "text-red-400", borderClass: "border-red-400/15", bgClass: "bg-red-400", icon: TrendingDown },
+                  { key: "opportunities" as const, label: "Opportunities", colorClass: "text-[hsl(217,91%,60%)]", borderClass: "border-[hsl(217,91%,60%)]/15", bgClass: "bg-[hsl(217,91%,60%)]", icon: Zap },
+                  { key: "threats" as const, label: "Threats", colorClass: "text-amber-400", borderClass: "border-amber-400/15", bgClass: "bg-amber-400", icon: Flame },
+                ]).map(({ key, label, colorClass, borderClass, bgClass, icon: Icon }) => (
+                  <Card key={key} className={`crm-card ${borderClass}`}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className={`text-sm font-medium flex items-center gap-2 ${colorClass}`}>
+                        <Icon className="h-4 w-4" /> {label}
+                        <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/30">{((swotResult as any)[key] || []).length} items</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {((swotResult as any)[key] || []).map((item: any, i: number) => (
+                        <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1.5">
+                          <div className="flex items-start gap-2">
+                            <div className={`w-1.5 h-1.5 rounded-full mt-1.5 ${bgClass} flex-shrink-0`} />
+                            <p className="text-sm text-white/70 flex-1">{typeof item === "string" ? item : item.text}</p>
+                            {typeof item !== "string" && item.priority && (
+                              <Badge variant="outline" className={`text-[9px] flex-shrink-0 ${item.priority === "high" ? "border-red-400/20 text-red-400" : item.priority === "medium" ? "border-amber-400/20 text-amber-400" : "border-white/10 text-white/40"}`}>{item.priority}</Badge>
+                            )}
+                          </div>
+                          {typeof item !== "string" && item.action && (
+                            <div className="flex items-start gap-1.5 ml-3.5">
+                              <ArrowUpRight className="h-3 w-3 text-emerald-400/60 mt-0.5 flex-shrink-0" />
+                              <p className="text-[10px] text-emerald-400/80">{item.action}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="flex justify-end">
+                <Button size="sm" variant="outline" className="text-xs gap-1 border-white/10 text-white/50" onClick={() => { navigator.clipboard.writeText(JSON.stringify(swotResult, null, 2)); toast.success("SWOT copied"); }}>
+                  <Copy className="h-3 w-3" /> Copy SWOT
+                </Button>
+              </div>
             </div>
           ) : !aiLoading ? (
             <Card className="crm-card">
