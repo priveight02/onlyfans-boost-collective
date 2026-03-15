@@ -254,6 +254,18 @@ const ContentCommandCenter = () => {
   const [importingCompetitorIntel, setImportingCompetitorIntel] = useState(false);
   const [distributingAll, setDistributingAll] = useState(false);
 
+  // ── Orchestration Dialog ──
+  const [showOrchestrate, setShowOrchestrate] = useState(false);
+  const [orchStep, setOrchStep] = useState<1 | 2 | 3>(1);
+  const [orchDetectedPlatforms, setOrchDetectedPlatforms] = useState<{ platform: string; count: number; hasAccount: boolean; accountId?: string; accountUsername?: string }[]>([]);
+  const [orchSelectedPlatforms, setOrchSelectedPlatforms] = useState<Set<string>>(new Set());
+  const [orchMode, setOrchMode] = useState<ExecutionMode>("manual");
+  const [orchItemFilter, setOrchItemFilter] = useState<"all" | "drafts" | "competitor">("all");
+  const [orchExecuting, setOrchExecuting] = useState(false);
+  const [orchResult, setOrchResult] = useState<OrchestrationResult | null>(null);
+  const [orchSyncDashboard, setOrchSyncDashboard] = useState<PlatformSyncStatus[]>([]);
+  const [orchLoadingPlatforms, setOrchLoadingPlatforms] = useState(false);
+
   // Create form
   const [formTitle, setFormTitle] = useState("");
   const [formPlatform, setFormPlatform] = useState("");
