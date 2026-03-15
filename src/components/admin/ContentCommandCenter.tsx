@@ -2759,8 +2759,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   </div>
                 ))}
                 <button onClick={() => fileRef.current?.click()}
-                  className="w-16 h-16 rounded-lg border border-dashed border-border flex items-center justify-center hover:border-primary/50 transition-colors">
-                  <Upload className="h-4 w-4 text-muted-foreground" />
+                  className="w-16 h-16 rounded-lg border border-dashed border-white/[0.1] flex items-center justify-center hover:border-primary/50 transition-colors">
+                  <Upload className="h-4 w-4 text-white/40" />
                 </button>
               </div>
               <input ref={fileRef} type="file" accept="image/*,video/*" multiple onChange={handleMediaSelect} className="hidden" />
