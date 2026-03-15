@@ -1264,8 +1264,6 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               )}
             </CardContent>
           </Card>
-            </CardContent>
-          </Card>
 
           {/* ─── ENTERPRISE / COMPANY PROFILE ─── */}
           <Card className="crm-card border-emerald-400/20">
