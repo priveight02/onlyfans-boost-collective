@@ -860,7 +860,7 @@ Respond ONLY with JSON array: [{"title":"", "caption":"", "content_type":"", "ha
           toast.success(`${parts.length}-part series "${seriesTitle}" created!`);
           setShowSeriesPlanner(false);
           setSeriesTitle("");
-        }
+        } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingSeries(false);
     });
