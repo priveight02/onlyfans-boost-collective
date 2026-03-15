@@ -3415,10 +3415,11 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
                                 {/* Platform cards */}
                                 {platforms.map(([key, data]) => {
-                                  const avgEng = data.competitors.reduce((s, c) => s + c.engagementRate, 0) / data.competitors.length;
-                                  const avgLikes = Math.round(data.competitors.reduce((s, c) => s + c.avgLikes, 0) / data.competitors.length);
-                                  const avgFreq = (data.competitors.reduce((s, c) => s + c.postFrequency, 0) / data.competitors.length).toFixed(1);
-                                  const avgGr = data.competitors.reduce((s, c) => s + c.growthRate, 0) / data.competitors.length;
+                                  const competitorCount = data.competitors.length;
+                                  const avgEng = competitorCount > 0 ? data.competitors.reduce((s, c) => s + c.engagementRate, 0) / competitorCount : 0;
+                                  const avgLikes = competitorCount > 0 ? Math.round(data.competitors.reduce((s, c) => s + c.avgLikes, 0) / competitorCount) : 0;
+                                  const avgFreq = competitorCount > 0 ? (data.competitors.reduce((s, c) => s + c.postFrequency, 0) / competitorCount).toFixed(1) : "0.0";
+                                  const avgGr = competitorCount > 0 ? data.competitors.reduce((s, c) => s + c.growthRate, 0) / competitorCount : 0;
                                   const totalReach = data.competitors.reduce((s, c) => s + c.followers, 0);
                                   const reachPct = totalFollowers > 0 ? ((totalReach / totalFollowers) * 100).toFixed(1) : "0";
                                   const maxPlatformReach = Math.max(...platforms.map(([, d]) => d.competitors.reduce((s, c) => s + c.followers, 0)));
