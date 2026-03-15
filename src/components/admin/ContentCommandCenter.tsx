@@ -1154,11 +1154,10 @@ Generate a comprehensive production brief with:
 - cta_options: 5 call-to-action variations
 
 Respond ONLY with JSON object.`);
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          setContentBrief(JSON.parse(jsonMatch[0]));
+        try {
+          setContentBrief(safeParseJSON(content));
           toast.success("Content brief generated — ready for execution");
-        }
+        } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingBrief(false);
     });
