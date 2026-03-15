@@ -524,7 +524,7 @@ STRICT OUTPUT RULES:
           temperature: 0.3,
           max_tokens: 3000,
           messages: [
-            { role: "system", content: "You are a social media analytics and competitive intelligence expert. Return accurate, realistic data." },
+            { role: "system", content: "You are a social media analytics and competitive intelligence expert. Return accurate, realistic data. IMPORTANT: For the platformMetrics field, provide REAL per-platform follower counts, engagement rates, average likes, post frequency, and growth rates for EACH social platform the competitor uses. Each platform should have DIFFERENT metrics reflecting its actual performance - do NOT copy the same numbers across platforms. Research actual follower counts per platform." },
             { role: "user", content: prompt },
           ],
         };
