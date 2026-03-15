@@ -2780,7 +2780,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             )}
             {curPlatConf?.fields.link && (
               <Input value={formLink} onChange={e => setFormLink(e.target.value)}
-                placeholder="Link URL..." className="bg-card/50 border-border text-foreground text-xs" />
+                placeholder="Link URL..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs" />
             )}
             {curPlatConf?.fields.privacy && (
               <Select value={formPrivacy} onValueChange={setFormPrivacy}>
