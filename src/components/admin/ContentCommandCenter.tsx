@@ -2955,13 +2955,13 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== COMPETITOR INSPIRED DIALOG ========== */}
       <Dialog open={showCompetitorInspire} onOpenChange={setShowCompetitorInspire}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Eye className="h-4 w-4 text-primary" /> Competitor-Inspired Ideas</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Eye className="h-4 w-4 text-primary" /> Competitor-Inspired Ideas</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
             {competitorIdeas.map((idea, i) => (
-              <Card key={i} className="bg-card/50 border-border">
+              <Card key={i} className="bg-white/[0.03] border-white/[0.06]">
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-sm font-medium text-foreground">{idea.title}</p>
