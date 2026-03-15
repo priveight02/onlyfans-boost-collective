@@ -690,6 +690,7 @@ Return ONLY valid JSON:
       };
       setCompetitors(prev => prev.map(c => c.id === comp.id ? updated : c));
       toast.success(`@${comp.username} refreshed`);
+      await refreshAIUsage();
       return true;
     });
     setRefreshingId(null);
