@@ -450,6 +450,13 @@ const CompetitorAnalyzer = ({
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [refreshingBreakdown, setRefreshingBreakdown] = useState(false);
   const [copyingPlan, setCopyingPlan] = useState(false);
+  const [copyingPlanFor, setCopyingPlanFor] = useState<string | null>(null); // per-competitor plan gen
+  // Generated plans: { competitorId: [{ id, entries, createdAt, label }] }
+  const [generatedPlans, setGeneratedPlans] = useState<Record<string, { id: string; entries: any[]; createdAt: string; label: string }[]>>(() => {
+    try { const s = localStorage.getItem("competitor_generated_plans"); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
+  const [selectedPlanIds, setSelectedPlanIds] = useState<Set<string>>(new Set());
+  const saveGeneratedPlans = (plans: Record<string, any[]>) => { setGeneratedPlans(plans); try { localStorage.setItem("competitor_generated_plans", JSON.stringify(plans)); } catch {} };
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [platformTimePeriods, setPlatformTimePeriods] = useState<Record<string, string>>({});
   const [platformCustomDates, setPlatformCustomDates] = useState<Record<string, Date[]>>({});
