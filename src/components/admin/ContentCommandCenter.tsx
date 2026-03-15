@@ -2231,7 +2231,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   <div className="flex gap-1.5 flex-wrap">
                     {availablePlatforms.filter(p => p !== showDetail.platform).map(p => (
                       <Button key={p} size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); duplicateForPlatform(showDetail, p); }}
-                        className="text-[10px] h-6 border-white/[0.06] text-white/50 capitalize">
+                        className="text-[10px] h-6 border-white/[0.06] bg-white/[0.03] text-white/50 hover:bg-white/[0.06] hover:text-white capitalize">
                         {platformIcon(p)} {p}
                       </Button>
                     ))}
