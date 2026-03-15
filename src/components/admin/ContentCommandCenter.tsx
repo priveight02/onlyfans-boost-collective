@@ -3911,7 +3911,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   <p className="text-[10px] text-white/30 mt-1">Items will be synced as drafts in each platform's content tab. You can edit, add media, and schedule manually.</p>
                 )}
                 {orchMode === "automated" && (
-                  <p className="text-[10px] text-white/30 mt-1">Items will be auto-scheduled at optimal posting hours and pushed to each platform's content tab ready for publishing.</p>
+                  <p className="text-[10px] text-white/30 mt-1">AI will auto-generate captions for items missing content, queue media generation tasks, auto-schedule at optimal posting hours, and push to each platform's content tab ready for publishing.</p>
                 )}
               </div>
 
