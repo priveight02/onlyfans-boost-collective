@@ -538,7 +538,7 @@ const CompetitorAnalyzer = ({
       const rows = await competitorRest.select(user.id);
       if (Array.isArray(rows) && rows.length) {
         setCompetitors(rows.map(mapRow));
-        if (!selectedCompetitor) setSelectedCompetitor(rows[0].id);
+        if (selectedCompetitors.length === 0) setSelectedCompetitors([rows[0].id]);
       }
     })();
   }, []);
