@@ -2304,9 +2304,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== TEMPLATES DIALOG ========== */}
       <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Content Templates</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Content Templates</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 max-h-[60vh] overflow-y-auto">
             {CONTENT_TEMPLATES.map((t, i) => (
