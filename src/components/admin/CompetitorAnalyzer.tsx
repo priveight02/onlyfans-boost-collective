@@ -483,6 +483,22 @@ const CompetitorAnalyzer = ({
   const [forecastResult, setForecastResult] = useState<any>(null);
   const [forecastLoading, setForecastLoading] = useState(false);
 
+  // Battle plan progress tracking (persisted in localStorage)
+  const [battlePlanChecks, setBattlePlanChecks] = useState<Record<string, boolean>>(() => {
+    try { const s = localStorage.getItem("competitor_battleplan_checks"); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
+  const toggleBattlePlanCheck = (key: string) => {
+    setBattlePlanChecks(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      localStorage.setItem("competitor_battleplan_checks", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Tracker sort/filter
+  const [trackerSort, setTrackerSort] = useState<"threat" | "followers" | "growth" | "engagement" | "recent">("threat");
+  const [trackerFilter, setTrackerFilter] = useState<string>("all");
+
   // Deep analysis section expansion
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     social: true, platforms: true, deepMetrics: false, security: false, performance: false, sensitive: false, financial: true, siteInsights: true,
