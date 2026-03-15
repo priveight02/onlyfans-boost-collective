@@ -2973,7 +2973,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                   <img
                                     src={getScreenshot(entry.previewUrl.replace("__screenshot__", ""))}
                                     alt={`${entry.platform} profile of @${entry.username}`}
-                                    className="h-full w-full object-cover object-top"
+                                    className={`h-full w-full object-cover origin-top ${getScreenshotZoomClass(entry.platform)}`}
                                     loading="lazy"
                                     decoding="async"
                                   />
