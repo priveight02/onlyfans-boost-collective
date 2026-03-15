@@ -781,9 +781,8 @@ Focus on:
 - Seasonal/timely content
 
 Respond ONLY with JSON array: [{"title":"", "caption":"", "content_type":"", "hashtags":[], "trend_source":"", "urgency":"", "viral_potential": number}]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const ideas = JSON.parse(jsonMatch[0]);
+        try {
+          const ideas = safeParseJSON(content);
           setTrendIdeas(ideas.map((i: any) => ({ ...i, platform: targetPlatform })));
           setShowTrends(true);
           toast.success(`${ideas.length} trending ideas for ${platformConf(targetPlatform).label}`);
