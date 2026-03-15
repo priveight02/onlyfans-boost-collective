@@ -5435,7 +5435,26 @@ Return ONLY valid JSON:
                     </Card>
                   )}
 
-                  {/* Milestones */}
+                  {/* Engagement Rate Forecast */}
+                  {(forecastResult.monthlyBreakdown || []).some((m: any) => m.engagement) && (
+                    <Card className="crm-card">
+                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-400 flex items-center gap-2"><Activity className="h-4 w-4" /> Engagement Rate Trajectory</CardTitle></CardHeader>
+                      <CardContent>
+                        <div className="h-[200px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={forecastResult.monthlyBreakdown}>
+                              <XAxis dataKey="month" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                              <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                              <Tooltip contentStyle={chartTooltipStyle} formatter={(v: any) => [`${v}%`, "Engagement"]} />
+                              <Line type="monotone" dataKey="engagement" stroke="hsl(150,60%,50%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(150,60%,50%)" }} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+
                   {(forecastResult.milestones || []).length > 0 && (
                     <Card className="crm-card">
                       <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><Star className="h-4 w-4" /> Milestone Projections</CardTitle></CardHeader>
