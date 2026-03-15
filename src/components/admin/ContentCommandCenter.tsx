@@ -3293,7 +3293,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== COMPETITOR BEST TIMES DIALOG ========== */}
       <Dialog open={showCompetitorBestTimes} onOpenChange={setShowCompetitorBestTimes}>
-        <DialogContent className="bg-popover border-border text-white max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2"><Clock className="h-4 w-4 text-emerald-400" /> Competitor Best Posting Times</DialogTitle>
           </DialogHeader>
