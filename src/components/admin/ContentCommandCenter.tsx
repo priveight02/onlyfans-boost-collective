@@ -2519,8 +2519,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             {/* Platform selector */}
             <div className="grid grid-cols-3 gap-2">
               <Select value={formPlatform} onValueChange={v => { setFormPlatform(v); setFormType(platformConf(v).supportedTypes[0] || "post"); setAbVariants([]); setSuggestedSlots([]); }}>
-                <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8"><SelectValue placeholder="Platform" /></SelectTrigger>
-                <SelectContent className="bg-popover border-border">
+                <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue placeholder="Platform" /></SelectTrigger>
+                <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
                   {availablePlatforms.map(p => (
                     <SelectItem key={p} value={p} className="text-xs capitalize">
                       {p}{connForPlatform(p) ? " ✓" : ""}
