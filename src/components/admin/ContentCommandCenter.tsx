@@ -526,6 +526,341 @@ Return ONLY a JSON array.`);
     });
   };
 
+  // ═══ INTER-TAB 6: Competitor Content Pillars Sync ═══
+  // Extracts content pillars from competitor data + generates pillar-specific posts for each connected platform
+  const syncContentPillarsFromCompetitors = async () => {
+    if (competitorProfiles.length === 0) { toast.error("No competitors tracked · Add competitors in Competitor Analyzer first"); return; }
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingPillarSync(true);
+      try {
+        const connectedPlatforms = connections.map(c => c.platform);
+        const compSummary = competitorProfiles.map(c => ({
+          username: c.username, platform: c.platform, followers: c.followers,
+          engagementRate: c.engagement_rate, contentTypes: c.content_types || [],
+          topHashtags: c.top_hashtags || [], postFrequency: c.post_frequency,
+        }));
+        const content = await callAI(`Analyze these competitors and extract their content pillars. Then generate 2 posts per pillar per connected platform.
+
+COMPETITORS: ${JSON.stringify(compSummary)}
+MY CONNECTED PLATFORMS: ${JSON.stringify(connectedPlatforms.length > 0 ? connectedPlatforms : ["instagram", "tiktok"])}
+
+For each competitor, identify 3-4 content pillars (e.g., education, entertainment, behind-the-scenes, promotion, community).
+Then for EACH pillar, generate 2 platform-specific posts optimized for each of my connected platforms.
+
+Return JSON array where each item has:
+{"title":"post title","platform":"my platform","content_type":"post|reel|story|tweet","caption":"FULL publish-ready caption with emojis and CTA","hashtags":["tag1","tag2"],"scheduled_at":"ISO date next 14 days","viral_score":50-95,"description":"Pillar: [pillar name] · Cloned from @[competitor]","content_pillar":"the pillar name"}
+Return ONLY a JSON array.`);
+        const entries = safeParseJSON(content);
+        if (Array.isArray(entries) && entries.length > 0) {
+          const { data: { user } } = await supabase.auth.getUser();
+          const inserts = entries.map((e: any) => ({
+            title: String(e.title || "Pillar Post").slice(0, 200),
+            platform: String(e.platform || "instagram").toLowerCase(),
+            content_type: String(e.content_type || "post"),
+            caption: String(e.caption || ""),
+            hashtags: Array.isArray(e.hashtags) ? e.hashtags.map((h: string) => h.replace("#", "")) : [],
+            scheduled_at: e.scheduled_at || new Date(Date.now() + Math.random() * 14 * 86400000).toISOString(),
+            status: "draft",
+            viral_score: e.viral_score || 0,
+            description: e.description || "Pillar-synced from competitors",
+            cta: e.content_pillar || null,
+            created_by: user?.id,
+            metadata: { source: "competitor_intel", pillar_sync: true, content_pillar: e.content_pillar },
+          }));
+          const { error } = await supabase.from("content_calendar").insert(inserts);
+          if (error) throw error;
+          await loadItems();
+          const pillars = [...new Set(entries.map((e: any) => e.content_pillar).filter(Boolean))];
+          toast.success(`${inserts.length} pillar posts created across ${pillars.length} pillars: ${pillars.join(", ")}`);
+        }
+      } catch (e: any) { toast.error(e.message || "Failed to sync content pillars"); }
+      setGeneratingPillarSync(false);
+    });
+  };
+
+  // ═══ INTER-TAB 7: Platform Coverage Audit ═══
+  // Cross-references competitor platforms vs your connected platforms to find coverage gaps
+  const runPlatformCoverageAudit = async () => {
+    setGeneratingCoverageAudit(true);
+    try {
+      const connectedPlatforms = new Set(connections.map(c => c.platform));
+      const competitorPlatforms: Record<string, Set<string>> = {};
+
+      for (const c of competitorProfiles) {
+        // Get platforms from competitor metadata
+        const meta = c.metadata || {};
+        const pm = meta.platformMetrics || {};
+        const sp = meta.socialPresence || {};
+
+        const platforms: string[] = [c.platform];
+        for (const p of Object.keys(pm)) platforms.push(p.toLowerCase());
+        for (const [p, handle] of Object.entries(sp)) {
+          if (handle) platforms.push(p.toLowerCase());
+        }
+
+        for (const p of platforms) {
+          if (!competitorPlatforms[p]) competitorPlatforms[p] = new Set();
+          competitorPlatforms[p].add(c.username);
+        }
+      }
+
+      const audit = Object.entries(competitorPlatforms).map(([platform, competitors]) => ({
+        platform,
+        competitorCount: competitors.size,
+        competitors: Array.from(competitors),
+        youHaveIt: connectedPlatforms.has(platform),
+        myContentCount: items.filter(i => i.platform === platform).length,
+        priority: !connectedPlatforms.has(platform) && competitors.size >= 2 ? "high" :
+                  !connectedPlatforms.has(platform) ? "medium" :
+                  items.filter(i => i.platform === platform).length === 0 ? "low" : "covered",
+      })).sort((a, b) => {
+        const p = { high: 0, medium: 1, low: 2, covered: 3 };
+        return (p[a.priority as keyof typeof p] || 3) - (p[b.priority as keyof typeof p] || 3);
+      });
+
+      setPlatformCoverageAudit(audit);
+      setShowCoverageAudit(true);
+      const gaps = audit.filter(a => !a.youHaveIt);
+      if (gaps.length > 0) toast.success(`Found ${gaps.length} platform gaps vs competitors`);
+      else toast.success("Full platform coverage — you're on all competitor platforms!");
+    } catch (e: any) { toast.error(e.message); }
+    setGeneratingCoverageAudit(false);
+  };
+
+  // ═══ INTER-TAB 8: Viral Score Benchmark ═══
+  // Compares your content viral scores against competitor engagement benchmarks
+  const runViralScoreBenchmark = () => {
+    if (competitorProfiles.length === 0) { toast.error("No competitors tracked yet"); return; }
+    const myItems = items.filter(i => i.viral_score > 0);
+    const myAvgViral = myItems.length > 0 ? Math.round(myItems.reduce((s, i) => s + (i.viral_score || 0), 0) / myItems.length) : 0;
+
+    const byPlatform: Record<string, { myAvg: number; myCount: number; compAvgER: number; compAvgLikes: number; compNames: string[] }> = {};
+    for (const item of myItems) {
+      if (!byPlatform[item.platform]) byPlatform[item.platform] = { myAvg: 0, myCount: 0, compAvgER: 0, compAvgLikes: 0, compNames: [] };
+      byPlatform[item.platform].myAvg += item.viral_score || 0;
+      byPlatform[item.platform].myCount++;
+    }
+    for (const p of Object.keys(byPlatform)) {
+      if (byPlatform[p].myCount > 0) byPlatform[p].myAvg = Math.round(byPlatform[p].myAvg / byPlatform[p].myCount);
+    }
+
+    // Pull competitor engagement as benchmark
+    for (const c of competitorProfiles) {
+      const p = c.platform;
+      if (!byPlatform[p]) byPlatform[p] = { myAvg: 0, myCount: 0, compAvgER: 0, compAvgLikes: 0, compNames: [] };
+      byPlatform[p].compAvgER = Math.max(byPlatform[p].compAvgER, c.engagement_rate || 0);
+      byPlatform[p].compAvgLikes = Math.max(byPlatform[p].compAvgLikes, c.avg_likes || 0);
+      byPlatform[p].compNames.push(`@${c.username}`);
+    }
+
+    const platformBenchmarks = Object.entries(byPlatform).map(([platform, data]) => ({
+      platform,
+      ...data,
+      compNames: [...new Set(data.compNames)],
+      gap: data.compAvgER > 0 ? Math.round((data.myAvg / 100) * data.compAvgER - data.compAvgER) : 0,
+      status: data.myAvg >= 75 ? "outperforming" : data.myAvg >= 50 ? "competitive" : data.myAvg >= 25 ? "below" : "critical",
+    }));
+
+    setViralBenchmark({
+      overallAvg: myAvgViral,
+      totalItems: myItems.length,
+      platforms: platformBenchmarks,
+      competitorAvgER: competitorProfiles.reduce((s, c) => s + (c.engagement_rate || 0), 0) / Math.max(competitorProfiles.length, 1),
+    });
+    setShowViralBenchmark(true);
+    toast.success(`Benchmark: Your avg viral score is ${myAvgViral}% across ${myItems.length} items`);
+  };
+
+  // ═══ INTER-TAB 9: Content Velocity Matcher ═══
+  // Matches competitor posting frequency and auto-fills schedule gaps
+  const matchContentVelocity = async () => {
+    if (competitorProfiles.length === 0) { toast.error("No competitors tracked yet"); return; }
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingVelocityMatch(true);
+      try {
+        // Calculate competitor avg posts/week per platform
+        const compFreq: Record<string, { total: number; count: number; names: string[] }> = {};
+        for (const c of competitorProfiles) {
+          const p = c.platform;
+          if (!compFreq[p]) compFreq[p] = { total: 0, count: 0, names: [] };
+          compFreq[p].total += c.post_frequency || 0;
+          compFreq[p].count++;
+          compFreq[p].names.push(c.username);
+        }
+
+        // Calculate my posts/week per platform (last 14 days)
+        const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString();
+        const myRecent = items.filter(i => i.created_at >= twoWeeksAgo);
+        const myFreq: Record<string, number> = {};
+        for (const i of myRecent) {
+          myFreq[i.platform] = (myFreq[i.platform] || 0) + 1;
+        }
+
+        // Find gaps
+        const gaps: { platform: string; compAvg: number; myRate: number; deficit: number }[] = [];
+        for (const [platform, data] of Object.entries(compFreq)) {
+          const compAvg = Math.round(data.total / data.count);
+          const myRate = Math.round((myFreq[platform] || 0) / 2); // per week from 2 weeks
+          if (compAvg > myRate) {
+            gaps.push({ platform, compAvg, myRate, deficit: compAvg - myRate });
+          }
+        }
+
+        if (gaps.length === 0) {
+          toast.success("Your posting velocity matches or exceeds competitors on all platforms!");
+          setGeneratingVelocityMatch(false);
+          return;
+        }
+
+        // Generate filler posts to close the gap
+        const totalNeeded = gaps.reduce((s, g) => s + Math.min(g.deficit * 2, 10), 0); // 2 weeks worth, max 10 per platform
+        const content = await callAI(`Generate ${totalNeeded} posts to fill content velocity gaps vs competitors.
+
+VELOCITY GAPS:
+${gaps.map(g => `${g.platform}: Competitors post ${g.compAvg}/week, I post ${g.myRate}/week (deficit: ${g.deficit}/week)`).join("\n")}
+
+COMPETITORS: ${competitorProfiles.map(c => `@${c.username} (${c.platform}): ${c.post_frequency} posts/wk, ${c.engagement_rate}% ER`).join(", ")}
+
+Generate posts spread across the next 2 weeks to close velocity gaps. Prioritize platforms with largest deficits. Each post must be PUBLISH-READY with full captions.
+
+Return JSON array: [{"title":"...","platform":"...","content_type":"post|reel|story|tweet","caption":"FULL publish-ready caption","hashtags":["tag1"],"scheduled_at":"ISO date","viral_score":50-95,"description":"Velocity gap filler — matching @competitor cadence"}]
+ONLY the JSON array.`);
+        const entries = safeParseJSON(content);
+        if (Array.isArray(entries) && entries.length > 0) {
+          const { data: { user } } = await supabase.auth.getUser();
+          const inserts = entries.map((e: any) => ({
+            title: String(e.title || "Velocity Fill").slice(0, 200),
+            platform: String(e.platform || "instagram").toLowerCase(),
+            content_type: String(e.content_type || "post"),
+            caption: String(e.caption || ""),
+            hashtags: Array.isArray(e.hashtags) ? e.hashtags.map((h: string) => h.replace("#", "")) : [],
+            scheduled_at: e.scheduled_at || new Date(Date.now() + Math.random() * 14 * 86400000).toISOString(),
+            status: "draft",
+            viral_score: e.viral_score || 0,
+            description: e.description || "Velocity gap filler",
+            created_by: user?.id,
+            metadata: { source: "competitor_intel", velocity_match: true },
+          }));
+          const { error } = await supabase.from("content_calendar").insert(inserts);
+          if (error) throw error;
+          await loadItems();
+          toast.success(`${inserts.length} posts created to match competitor velocity (${gaps.map(g => `${g.platform}: +${g.deficit}/wk`).join(", ")})`);
+        }
+      } catch (e: any) { toast.error(e.message || "Failed to match velocity"); }
+      setGeneratingVelocityMatch(false);
+    });
+  };
+
+  // ═══ INTER-TAB 10: Cross-Platform Repurpose Engine ═══
+  // Takes competitor-synced content and auto-repurposes for ALL connected platforms
+  const crossPlatformRepurpose = async () => {
+    if (competitorSyncedItems.length === 0) { toast.error("No competitor-synced content to repurpose · Import a plan first"); return; }
+    const connectedPlatforms = [...new Set(connections.map(c => c.platform))];
+    if (connectedPlatforms.length < 2) { toast.error("Connect at least 2 platforms to use cross-platform repurpose"); return; }
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingCrossRepurpose(true);
+      try {
+        // Take top 6 competitor-synced items (by viral score)
+        const topItems = [...competitorSyncedItems].sort((a, b) => (b.viral_score || 0) - (a.viral_score || 0)).slice(0, 6);
+        // For each item, repurpose to all connected platforms it's not already on
+        const allRepurposed: any[] = [];
+        for (const item of topItems) {
+          const targetPlatforms = connectedPlatforms.filter(p => p !== item.platform);
+          if (targetPlatforms.length === 0) continue;
+          const content = await callAI(`Repurpose this ${item.platform} post for ${targetPlatforms.join(", ")}.
+
+ORIGINAL (${item.platform}):
+Title: "${item.title}"
+Caption: "${item.caption}"
+Type: ${item.content_type}
+Hashtags: ${(item.hashtags || []).join(", ")}
+Viral Score: ${item.viral_score}
+
+For EACH target platform, adapt the content natively:
+${targetPlatforms.map(p => {
+  const conf = platformConf(p);
+  return `- ${conf.label}: ${conf.maxCaption} char max, ${conf.hashtagLimit} hashtags max, best types: ${conf.supportedTypes.join("/")}`;
+}).join("\n")}
+
+Return JSON array: [{"platform":"target platform","title":"adapted title","content_type":"native type","caption":"FULL adapted caption","hashtags":["tag1"],"viral_score":50-95}]
+ONLY JSON array.`);
+          try {
+            const adapted = safeParseJSON(content);
+            if (Array.isArray(adapted)) {
+              for (const a of adapted) {
+                allRepurposed.push({
+                  title: String(a.title || item.title).slice(0, 200),
+                  platform: String(a.platform || "instagram").toLowerCase(),
+                  content_type: String(a.content_type || "post"),
+                  caption: String(a.caption || ""),
+                  hashtags: Array.isArray(a.hashtags) ? a.hashtags.map((h: string) => h.replace("#", "")) : [],
+                  scheduled_at: new Date(Date.now() + Math.random() * 14 * 86400000).toISOString(),
+                  status: "draft",
+                  viral_score: a.viral_score || item.viral_score || 0,
+                  description: `Repurposed from ${item.platform} → ${a.platform}`,
+                  metadata: { source: "competitor_intel", repurposed_from: item.id, original_platform: item.platform },
+                });
+              }
+            }
+          } catch { /* skip individual parse errors */ }
+        }
+
+        if (allRepurposed.length > 0) {
+          const { error } = await supabase.from("content_calendar").insert(allRepurposed);
+          if (error) throw error;
+          await loadItems();
+          const byPlat = allRepurposed.reduce((a, i) => { a[i.platform] = (a[i.platform] || 0) + 1; return a; }, {} as Record<string, number>);
+          toast.success(`${allRepurposed.length} cross-platform posts created (${Object.entries(byPlat).map(([p, n]) => `${p}: ${n}`).join(", ")})`);
+        } else {
+          toast.info("No new repurposing opportunities found");
+        }
+      } catch (e: any) { toast.error(e.message || "Failed to repurpose content"); }
+      setGeneratingCrossRepurpose(false);
+    });
+  };
+
+  // ═══ INTER-TAB BONUS: Load Generated Plans from Content Intel ═══
+  const loadIntelPlans = async () => {
+    setLoadingIntelPlans(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/competitor_generated_plans?user_id=eq.${session.user.id}&order=created_at.desc`, {
+        headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.access_token}` },
+      });
+      const plans = await res.json();
+      if (Array.isArray(plans)) {
+        setGeneratedPlansFromIntel(plans);
+        setShowIntelPlans(true);
+        toast.success(`${plans.length} generated plans found from Content Intel`);
+      }
+    } catch { toast.error("Failed to load plans from Content Intel"); }
+    setLoadingIntelPlans(false);
+  };
+
+  const importIntelPlanToCalendar = async (plan: any) => {
+    const entries = Array.isArray(plan.entries) ? plan.entries : [];
+    if (entries.length === 0) { toast.error("Plan has no entries"); return; }
+    const { data: { user } } = await supabase.auth.getUser();
+    const inserts = entries.map((e: any) => ({
+      title: String(e.title || "Intel Plan Post").slice(0, 200),
+      platform: String(e.platform || "instagram").toLowerCase(),
+      content_type: String(e.content_type || "post"),
+      caption: String(e.caption || ""),
+      hashtags: Array.isArray(e.hashtags) ? e.hashtags.map((h: string) => h.replace("#", "")) : [],
+      scheduled_at: e.scheduled_at || new Date(Date.now() + Math.random() * 14 * 86400000).toISOString(),
+      status: "draft",
+      viral_score: e.viral_score || 0,
+      description: e.description || `From Intel plan: ${plan.label}`,
+      created_by: user?.id,
+      metadata: { source: "competitor_intel", intel_plan_id: plan.id, intel_plan_label: plan.label },
+    }));
+    const { error } = await supabase.from("content_calendar").insert(inserts);
+    if (error) { toast.error(error.message); return; }
+    await loadItems();
+    toast.success(`${inserts.length} posts imported from "${plan.label}"`);
+  };
+
   const availablePlatforms = useMemo(() => {
     const platforms = new Set<string>();
     connections.forEach(c => platforms.add(c.platform));
