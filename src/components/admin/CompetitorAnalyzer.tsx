@@ -2792,120 +2792,193 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
             <Card className="crm-card"><CardContent className="p-12 text-center"><p className="text-white/50">Add competitors first</p></CardContent></Card>
           ) : (
             <>
-              {/* Social Media Profile Previews */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {/* Real iPhone Social Media Profile Previews */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {competitors.map(comp => {
-                  const topType = comp.contentTypes.length > 0 ? comp.contentTypes.sort((a, b) => b.pct - a.pct)[0] : null;
+                  const topType = comp.contentTypes.length > 0 ? [...comp.contentTypes].sort((a, b) => b.pct - a.pct)[0] : null;
+                  const platformColor = comp.platform === "TikTok" ? "#fe2c55" : comp.platform === "Instagram" ? "#E1306C" : comp.platform === "Twitter" ? "#1DA1F2" : "hsl(var(--primary))";
                   return (
-                    <Card key={comp.id} className="crm-card overflow-hidden">
-                      <div className="relative">
-                        {/* Phone frame header */}
-                        <div className="bg-gradient-to-b from-white/[0.04] to-transparent px-4 pt-3 pb-2">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-2 h-2 rounded-full bg-red-400" />
-                              <div className="w-2 h-2 rounded-full bg-amber-400" />
-                              <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <div key={comp.id} className="flex flex-col items-center">
+                      {/* iPhone Frame */}
+                      <div
+                        className="relative w-[280px] rounded-[2.5rem] bg-[#000] overflow-hidden"
+                        style={{
+                          aspectRatio: "9/18",
+                          boxShadow: "0 0 0 3px #333, 0 0 0 5px #111, 0 20px 60px rgba(0,0,0,0.6), 0 0 60px hsl(var(--primary) / 0.06)",
+                        }}
+                      >
+                        {/* Dynamic Island */}
+                        <div className="absolute top-[6px] left-1/2 -translate-x-1/2 w-[80px] h-[20px] bg-black rounded-full z-40" />
+
+                        {/* Status bar */}
+                        <div className="absolute top-0 left-0 right-0 h-[40px] z-30 flex items-end justify-between px-6 pb-0.5">
+                          <span className="text-[9px] text-white font-semibold" style={{ fontFamily: "system-ui" }}>9:41</span>
+                          <div className="flex gap-[2px] items-center">
+                            <div className="flex gap-[1px] items-end h-[8px]">
+                              {[2.5, 4, 5.5, 7].map((h, i) => (
+                                <div key={i} className="w-[2.5px] rounded-[0.5px] bg-white" style={{ height: h }} />
+                              ))}
                             </div>
-                            <span className="text-[9px] text-white/30 font-mono">{comp.platform === "Internet" ? "website" : comp.platform.toLowerCase()}.com</span>
-                            <div className="w-10" />
-                          </div>
-                          {/* Profile section */}
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[hsl(262,83%,58%)] to-[hsl(217,91%,60%)] flex items-center justify-center text-white font-bold text-sm shrink-0">
-                              {comp.username.charAt(0).toUpperCase()}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-semibold text-white truncate">@{comp.username}</p>
-                              <p className="text-[10px] text-white/40">{comp.displayName || comp.metadata?.niche || "Creator"}</p>
-                            </div>
-                            <Badge className="bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)] text-[9px] border-0 shrink-0">Follow</Badge>
-                          </div>
-                          {/* Stats row */}
-                          <div className="grid grid-cols-3 gap-2 text-center mb-3">
-                            <div>
-                              <p className="text-sm font-bold text-white">{fmtNum(comp.posts)}</p>
-                              <p className="text-[9px] text-white/40">Posts</p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-white">{fmtNum(comp.followers)}</p>
-                              <p className="text-[9px] text-white/40">Followers</p>
-                            </div>
-                            <div>
-                              <p className="text-sm font-bold text-white">{fmtNum(comp.following)}</p>
-                              <p className="text-[9px] text-white/40">Following</p>
+                            <svg className="h-[9px] w-[12px] ml-[2px]" viewBox="0 0 16 12" fill="white"><path d="M8 9.6a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4zM3.76 7.04a5.92 5.92 0 018.48 0l-1.2 1.2a4.16 4.16 0 00-6.08 0l-1.2-1.2zM1.04 4.32a9.44 9.44 0 0113.92 0l-1.2 1.2a7.68 7.68 0 00-11.52 0l-1.2-1.2z"/></svg>
+                            <div className="w-[18px] h-[8px] border border-white/60 rounded-[2px] ml-[2px] relative">
+                              <div className="absolute inset-[1.5px] right-[2px] bg-white rounded-[0.5px]" />
+                              <div className="absolute -right-[2.5px] top-[2px] w-[1px] h-[4px] bg-white/60 rounded-r-[1px]" />
                             </div>
                           </div>
                         </div>
-                        {/* Content grid mockup */}
-                        <div className="px-3 pb-3">
-                          <div className="grid grid-cols-3 gap-0.5 rounded-lg overflow-hidden">
-                            {comp.contentTypes.length > 0 ? comp.contentTypes.slice(0, 6).map((ct, i) => (
-                              <div key={i} className="aspect-square relative" style={{ background: `linear-gradient(135deg, ${PIE_COLORS[i % PIE_COLORS.length]}33, ${PIE_COLORS[(i+1) % PIE_COLORS.length]}22)` }}>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                  {ct.type.toLowerCase().includes("reel") || ct.type.toLowerCase().includes("video") ? (
-                                    <Activity className="h-4 w-4 text-white/50 mb-0.5" />
-                                  ) : ct.type.toLowerCase().includes("story") ? (
-                                    <Clock className="h-4 w-4 text-white/50 mb-0.5" />
-                                  ) : (
-                                    <ImageIcon className="h-4 w-4 text-white/50 mb-0.5" />
-                                  )}
-                                  <span className="text-[8px] text-white/60 font-medium">{ct.type}</span>
-                                  <span className="text-[10px] text-white font-bold">{ct.pct}%</span>
+
+                        {/* App content */}
+                        <div className="absolute inset-0 pt-[40px] pb-[44px] flex flex-col bg-[#000]">
+                          {/* Profile header */}
+                          <div className="px-3 pt-2 pb-1">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-[11px] text-white/40 font-mono">{comp.platform === "Internet" ? comp.username : comp.platform.toLowerCase() + ".com"}</span>
+                            </div>
+                            <div className="flex items-center gap-2.5 mb-2.5">
+                              <div className="w-[44px] h-[44px] rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0" style={{ background: `linear-gradient(135deg, ${platformColor}, hsl(var(--primary)))` }}>
+                                {comp.username.charAt(0).toUpperCase()}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-[12px] font-semibold text-white truncate">@{comp.username}</p>
+                                <p className="text-[9px] text-white/40">{comp.displayName || comp.metadata?.niche || "Creator"}</p>
+                              </div>
+                              <div className="px-3 py-1 rounded-lg text-[9px] font-semibold text-white" style={{ background: platformColor }}>Follow</div>
+                            </div>
+                            {/* Stats */}
+                            <div className="grid grid-cols-3 gap-1 text-center mb-2.5">
+                              <div>
+                                <p className="text-[11px] font-bold text-white">{fmtNum(comp.posts)}</p>
+                                <p className="text-[8px] text-white/35">Posts</p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] font-bold text-white">{fmtNum(comp.followers)}</p>
+                                <p className="text-[8px] text-white/35">Followers</p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] font-bold text-white">{fmtNum(comp.following)}</p>
+                                <p className="text-[8px] text-white/35">Following</p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Content type breakdown - grid with icons */}
+                          <div className="px-3 mb-2">
+                            <div className="grid grid-cols-3 gap-2">
+                              {(comp.contentTypes.length > 0 ? comp.contentTypes.slice(0, 3) : [{ type: "Social Media Posts", pct: 60 }, { type: "Video Content", pct: 20 }, { type: "Blog/Articles", pct: 10 }]).map((ct, i) => (
+                                <div key={i} className="flex flex-col items-center py-2">
+                                  <div className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center mb-1">
+                                    {ct.type.toLowerCase().includes("video") || ct.type.toLowerCase().includes("reel") ? (
+                                      <Activity className="h-3.5 w-3.5 text-white/50" />
+                                    ) : ct.type.toLowerCase().includes("blog") || ct.type.toLowerCase().includes("article") ? (
+                                      <FileText className="h-3.5 w-3.5 text-white/50" />
+                                    ) : (
+                                      <ImageIcon className="h-3.5 w-3.5 text-white/50" />
+                                    )}
+                                  </div>
+                                  <span className="text-[7px] text-white/40 text-center leading-tight">{ct.type}</span>
+                                  <span className="text-[10px] font-bold text-white mt-0.5">{ct.pct}%</span>
                                 </div>
+                              ))}
+                            </div>
+                            {comp.contentTypes.length > 3 && (
+                              <div className="grid grid-cols-3 gap-2 mt-1">
+                                {comp.contentTypes.slice(3, 6).map((ct, i) => (
+                                  <div key={i} className="flex flex-col items-center py-2">
+                                    <div className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center mb-1">
+                                      <ImageIcon className="h-3.5 w-3.5 text-white/50" />
+                                    </div>
+                                    <span className="text-[7px] text-white/40 text-center leading-tight">{ct.type}</span>
+                                    <span className="text-[10px] font-bold text-white mt-0.5">{ct.pct}%</span>
+                                  </div>
+                                ))}
                               </div>
-                            )) : Array.from({ length: 6 }).map((_, i) => (
-                              <div key={i} className="aspect-square bg-white/[0.02] flex items-center justify-center">
-                                <ImageIcon className="h-4 w-4 text-white/10" />
-                              </div>
-                            ))}
+                            )}
                           </div>
-                          {/* Engagement bar */}
-                          <div className="mt-2 flex items-center gap-2">
-                            <div className="flex-1">
-                              <div className="flex justify-between text-[9px] mb-0.5">
-                                <span className="text-white/40">Engagement</span>
-                                <span className="text-emerald-400 font-medium">{comp.engagementRate}%</span>
+
+                          {/* Engagement & Growth bars */}
+                          <div className="px-3 mb-2">
+                            <div className="flex items-center justify-between text-[8px] mb-0.5">
+                              <span className="text-white/35">Engagement</span>
+                              <span className="text-emerald-400 font-semibold">{comp.engagementRate}%</span>
+                              <span className="text-white/35">Growth</span>
+                              <span className="font-semibold" style={{ color: platformColor }}>{comp.growthRate}%/wk</span>
+                            </div>
+                            <div className="flex gap-2">
+                              <div className="flex-1 h-[3px] rounded-full bg-white/[0.06] overflow-hidden">
+                                <div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.min(comp.engagementRate * 10, 100)}%` }} />
                               </div>
-                              <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
-                                <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400" style={{ width: `${Math.min(comp.engagementRate * 10, 100)}%` }} />
+                              <div className="flex-1 h-[3px] rounded-full bg-white/[0.06] overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${Math.min(comp.growthRate * 20, 100)}%`, background: platformColor }} />
                               </div>
                             </div>
-                            <div className="flex-1">
-                              <div className="flex justify-between text-[9px] mb-0.5">
-                                <span className="text-white/40">Growth</span>
-                                <span className="text-[hsl(217,91%,60%)] font-medium">{comp.growthRate}%/wk</span>
-                              </div>
-                              <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
-                                <div className="h-full rounded-full bg-gradient-to-r from-[hsl(217,91%,60%)] to-[hsl(262,83%,58%)]" style={{ width: `${Math.min(comp.growthRate * 20, 100)}%` }} />
-                              </div>
-                            </div>
                           </div>
-                          {/* Top hashtags as post caption preview */}
-                          {comp.topHashtags.length > 0 && (
-                            <div className="mt-2 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+
+                          {/* Post preview / hashtags */}
+                          <div className="px-3 flex-1 overflow-hidden">
+                            <div className="p-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
                               <div className="flex items-center gap-1.5 mb-1">
-                                <div className="w-4 h-4 rounded-full bg-gradient-to-br from-[hsl(262,83%,58%)] to-[hsl(217,91%,60%)] flex items-center justify-center">
-                                  <span className="text-[7px] text-white font-bold">{comp.username.charAt(0).toUpperCase()}</span>
+                                <div className="w-4 h-4 rounded-full flex items-center justify-center text-[6px] text-white font-bold" style={{ background: `linear-gradient(135deg, ${platformColor}, hsl(var(--primary)))` }}>
+                                  {comp.username.charAt(0).toUpperCase()}
                                 </div>
-                                <span className="text-[9px] text-white/70 font-medium">@{comp.username}</span>
-                                <span className="text-[8px] text-white/20">· {topType ? topType.type : "Post"}</span>
+                                <span className="text-[8px] text-white/60 font-medium">@{comp.username}</span>
+                                <span className="text-[7px] text-white/20">· {topType ? topType.type : "Post"}</span>
                               </div>
-                              <p className="text-[9px] text-[hsl(217,91%,60%)]/70 leading-relaxed">
-                                {comp.topHashtags.slice(0, 5).map(t => `#${t}`).join(" ")}
-                              </p>
-                              <div className="flex items-center gap-3 mt-1.5 pt-1.5 border-t border-white/[0.04]">
-                                <span className="text-[8px] text-white/30 flex items-center gap-0.5"><TrendingUp className="h-2.5 w-2.5" />{fmtNum(comp.avgLikes)}</span>
-                                <span className="text-[8px] text-white/30 flex items-center gap-0.5"><Hash className="h-2.5 w-2.5" />{fmtNum(comp.avgComments)}</span>
-                                <span className="text-[8px] text-white/30 flex items-center gap-0.5"><Zap className="h-2.5 w-2.5" />{comp.postFrequency}/wk</span>
+                              {comp.topHashtags.length > 0 ? (
+                                <p className="text-[9px] leading-relaxed" style={{ color: platformColor + "cc" }}>
+                                  {comp.topHashtags.slice(0, 5).map(t => `##${t}`).join(" ")}
+                                </p>
+                              ) : (
+                                <p className="text-[8px] text-white/20 italic">No hashtag data</p>
+                              )}
+                              <div className="flex items-center gap-2.5 mt-1.5 pt-1.5 border-t border-white/[0.04]">
+                                <span className="text-[7px] text-white/30 flex items-center gap-0.5"><TrendingUp className="h-2 w-2" />{fmtNum(comp.avgLikes)}</span>
+                                <span className="text-[7px] text-white/30 flex items-center gap-0.5"><Hash className="h-2 w-2" />{fmtNum(comp.avgComments)}</span>
+                                <span className="text-[7px] text-white/30 flex items-center gap-0.5"><Zap className="h-2 w-2" />{comp.postFrequency}/wk</span>
                               </div>
                             </div>
-                          )}
+                          </div>
                         </div>
+
+                        {/* Bottom nav bar */}
+                        <div className="absolute bottom-0 left-0 right-0 h-[44px] bg-black/95 z-20 flex items-center justify-around px-4 pt-0.5 pb-[4px] border-t border-white/[0.06]">
+                          {["Home", "Search", "＋", "Reels", "Profile"].map((label, i) => (
+                            <div key={i} className="flex flex-col items-center">
+                              {i === 2 ? (
+                                <div className="h-[22px] w-[22px] rounded-md border-[1.5px] border-white/70 flex items-center justify-center"><span className="text-white text-sm leading-none">+</span></div>
+                              ) : (
+                                <span className={`text-[7px] ${i === 4 ? "text-white font-bold" : "text-white/40"}`}>{label}</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Home indicator */}
+                        <div className="absolute bottom-[2px] left-1/2 -translate-x-1/2 w-[80px] h-[3px] bg-white/20 rounded-full z-50" />
                       </div>
-                    </Card>
+                    </div>
                   );
                 })}
+
+                {/* Empty state phone placeholders if less than 3 competitors */}
+                {competitors.length < 3 && Array.from({ length: 3 - competitors.length }).map((_, i) => (
+                  <div key={`empty-${i}`} className="flex flex-col items-center">
+                    <div
+                      className="relative w-[280px] rounded-[2.5rem] bg-[#000] overflow-hidden opacity-30"
+                      style={{
+                        aspectRatio: "9/18",
+                        boxShadow: "0 0 0 3px #222, 0 0 0 5px #111",
+                      }}
+                    >
+                      <div className="absolute top-[6px] left-1/2 -translate-x-1/2 w-[80px] h-[20px] bg-black rounded-full z-40" />
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                        <Plus className="h-8 w-8 text-white/20" />
+                        <span className="text-[10px] text-white/20 font-medium">Add competitor</span>
+                      </div>
+                      <div className="absolute bottom-0 left-0 right-0 h-[44px] bg-black/95 z-20 border-t border-white/[0.04]" />
+                      <div className="absolute bottom-[2px] left-1/2 -translate-x-1/2 w-[80px] h-[3px] bg-white/10 rounded-full z-50" />
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {/* Hashtag Overlap Matrix */}
