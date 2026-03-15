@@ -334,6 +334,8 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
     } else if (key === "twitter") {
       sources.push(
         { url: `https://nitter.net/${handle}` },
+        { url: `https://nitter.poast.org/${handle}` },
+        { url: `https://nitter.privacydev.net/${handle}` },
         { url: `https://socialblade.com/twitter/user/${encodeURIComponent(handle)}` },
       );
     } else if (key === "linkedin") {
