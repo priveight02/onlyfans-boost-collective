@@ -296,9 +296,8 @@ const ContentCommandCenter = () => {
         const compData = competitorProfiles.map(c => ({ username: c.username, platform: c.platform, followers: c.followers, engagementRate: c.engagement_rate, avgLikes: c.avg_likes, postFrequency: c.post_frequency, topHashtags: c.top_hashtags || [], contentTypes: c.content_types || [] }));
         const totalFreq = compData.reduce((s, c) => s + (c.postFrequency || 3), 0);
         const content = await callAI(`You are a social media strategist. Based on these real competitor profiles, generate a 2-week content calendar that COPIES their posting strategy exactly.\n\nCompetitor data:\n${JSON.stringify(compData, null, 2)}\n\nMatch their posting frequency, content types, top hashtags, and optimal times.\nGenerate ${Math.max(totalFreq * 2, 14)} entries.\nEach: {"title":"...", "platform":"instagram/tiktok/twitter/facebook/threads", "content_type":"post/reel/story/tweet", "caption":"full caption with emojis", "hashtags":["tag1"], "scheduled_at":"ISO date next 2 weeks", "viral_score": 40-90, "description":"Based on @competitor strategy"}\n\nReturn ONLY a JSON array.`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const entries = JSON.parse(jsonMatch[0]);
+        const entries = safeParseJSON(content);
+        if (Array.isArray(entries)) {
           for (const e of entries) {
             await supabase.from("content_calendar").insert({ title: String(e.title || "Competitor Strategy Post").slice(0, 200), platform: String(e.platform || "instagram").toLowerCase(), content_type: String(e.content_type || "post"), caption: String(e.caption || ""), hashtags: Array.isArray(e.hashtags) ? e.hashtags.map((h: string) => h.replace("#", "")) : [], scheduled_at: e.scheduled_at || new Date(Date.now() + Math.random() * 14 * 86400000).toISOString(), status: "draft", viral_score: e.viral_score || 0, description: e.description || "Imported from Competitor Intel", metadata: { source: "competitor_intel" } });
           }
@@ -330,8 +329,8 @@ const ContentCommandCenter = () => {
       try {
         const compData = competitorProfiles.map(c => ({ username: c.username, platform: c.platform, postFrequency: c.post_frequency, engagementRate: c.engagement_rate, followers: c.followers }));
         const content = await callAI(`Analyze these competitor profiles and determine optimal posting times.\n\nCompetitors: ${JSON.stringify(compData)}\n\nFor each platform: platform, best_hours (4-5 times like "9:00 AM"), best_days, frequency (posts/week), reasoning.\n\nReturn ONLY JSON array.`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) { setCompetitorBestTimes(JSON.parse(jsonMatch[0])); setShowCompetitorBestTimes(true); toast.success("Best posting times analyzed"); }
+        const parsed = safeParseJSON(content);
+        if (Array.isArray(parsed)) { setCompetitorBestTimes(parsed); setShowCompetitorBestTimes(true); toast.success("Best posting times analyzed"); }
       } catch (e: any) { toast.error(e.message); }
       setGeneratingBestTimes(false);
     });
@@ -345,9 +344,8 @@ const ContentCommandCenter = () => {
       try {
         const compSummary = competitorProfiles.map(c => `@${c.username} (${c.platform}): ${c.followers} followers, ${c.engagement_rate}% ER, ${c.post_frequency} posts/wk`).join("\n");
         const content = await callAI(`Based on competitive SWOT analysis, generate 8 content ideas exploiting competitor weaknesses.\n\nCompetitors:\n${compSummary}\n\nFor each: title, platform, content_type, caption (full), hashtags array, swot_angle (strength/weakness/opportunity/threat), strategy, viral_score 40-95.\n\nReturn ONLY a JSON array.`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const ideas = JSON.parse(jsonMatch[0]);
+        const ideas = safeParseJSON(content);
+        if (Array.isArray(ideas)) {
           for (const idea of ideas) { await supabase.from("content_calendar").insert({ title: idea.title, caption: idea.caption, platform: idea.platform || "instagram", content_type: idea.content_type || "post", hashtags: (idea.hashtags || []).map((h: string) => h.replace("#", "")), viral_score: idea.viral_score || 0, description: `SWOT: ${idea.swot_angle} · ${idea.strategy || ""}`, status: "draft", metadata: { source: "swot_analysis" } }); }
           toast.success(`${ideas.length} SWOT-driven content ideas created`);
         }
@@ -365,9 +363,8 @@ const ContentCommandCenter = () => {
         const myContent = items.slice(0, 20).map(i => `${i.platform}/${i.content_type}: "${i.title}"`).join("\n");
         const compSummary = competitorProfiles.map(c => `@${c.username} (${c.platform}): ${c.followers} followers, types: ${JSON.stringify(c.content_types || [])}`).join("\n");
         const content = await callAI(`Content gap analysis: Find what I'm MISSING vs competitors.\n\nMY CONTENT:\n${myContent || "No content yet"}\n\nCOMPETITORS:\n${compSummary}\n\nFind 6 gaps. Each: title, platform, content_type, caption, hashtags, gap_identified, competitor_doing_it, estimated_impact (high/medium/critical), viral_score 50-90.\n\nReturn ONLY JSON array.`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const ideas = JSON.parse(jsonMatch[0]);
+        const ideas = safeParseJSON(content);
+        if (Array.isArray(ideas)) {
           for (const idea of ideas) { await supabase.from("content_calendar").insert({ title: idea.title, caption: idea.caption, platform: idea.platform || "instagram", content_type: idea.content_type || "post", hashtags: (idea.hashtags || []).map((h: string) => h.replace("#", "")), viral_score: idea.viral_score || 0, description: `Gap: ${idea.gap_identified} · Impact: ${idea.estimated_impact}`, status: "draft", metadata: { source: "gap_analysis" } }); }
           toast.success(`${ideas.length} gap analysis posts created`);
         }
@@ -449,20 +446,42 @@ const ContentCommandCenter = () => {
     return urls;
   };
 
+  // ─── Safe JSON parser for AI responses ───
+  const safeParseJSON = (raw: string): any => {
+    // Strip markdown code fences
+    let cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "");
+    // Remove leading/trailing whitespace
+    cleaned = cleaned.trim();
+    // Try direct parse first
+    try { return JSON.parse(cleaned); } catch {}
+    // Try extracting array
+    const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (arrMatch) {
+      try { return JSON.parse(arrMatch[0]); } catch {}
+      // Fix trailing commas
+      try { return JSON.parse(arrMatch[0].replace(/,\s*([\]}])/g, "$1")); } catch {}
+    }
+    // Try extracting object
+    const objMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (objMatch) {
+      try { return JSON.parse(objMatch[0]); } catch {}
+      try { return JSON.parse(objMatch[0].replace(/,\s*([\]}])/g, "$1")); } catch {}
+    }
+    throw new Error("Could not parse AI response as JSON");
+  };
+
   // ─── Helper: call AI and parse streamed response ───
   const callAI = async (prompt: string): Promise<string> => {
     const { data, error } = await supabase.functions.invoke("agency-copilot", {
       body: { messages: [{ role: "user", content: prompt }] },
     });
     if (error) throw error;
-    // Handle various response types: string, ArrayBuffer, or already-parsed JSON
     let text: string;
     if (typeof data === "string") {
       text = data;
     } else if (data instanceof ArrayBuffer || (data && typeof data.byteLength === 'number')) {
       text = new TextDecoder().decode(data as ArrayBuffer);
     } else if (typeof data === "object" && data !== null) {
-      // Already parsed JSON from edge function
       const choices = data.choices;
       if (choices?.[0]?.message?.content) return choices[0].message.content;
       if (choices?.[0]?.delta?.content) return choices[0].delta.content;
@@ -544,13 +563,12 @@ Score breakdown:
 - Posting time optimization
 
 Respond with ONLY a JSON object: {"score": number, "tips": ["tip1", "tip2", "tip3"], "best_time": "HH:MM AM/PM", "hook_score": number, "cta_score": number, "hashtag_score": number}`);
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          const result = JSON.parse(jsonMatch[0]);
+        try {
+          const result = safeParseJSON(content);
           setPredictedScore(result.score || 0);
           const tips = result.tips || [];
           toast.success(`Score: ${result.score}/100 | Hook: ${result.hook_score || '?'} | CTA: ${result.cta_score || '?'}${tips[0] ? ` — ${tips[0]}` : ''}`);
-        }
+        } catch {}
       } catch (e: any) { toast.error(e.message); }
       setEngagementPredicting(false);
     });
@@ -610,12 +628,11 @@ Each variant should use a DIFFERENT angle:
 All must be complete, ready-to-post captions with emojis and CTAs.
 
 Respond ONLY with JSON array: ["variant A caption", "variant B caption", "variant C caption"]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const variants = JSON.parse(jsonMatch[0]);
+        try {
+          const variants = safeParseJSON(content);
           setAbVariants(variants);
           toast.success("3 A/B variants generated — pick the best one!");
-        }
+        } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingAB(false);
     });
@@ -764,13 +781,12 @@ Focus on:
 - Seasonal/timely content
 
 Respond ONLY with JSON array: [{"title":"", "caption":"", "content_type":"", "hashtags":[], "trend_source":"", "urgency":"", "viral_potential": number}]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const ideas = JSON.parse(jsonMatch[0]);
+        try {
+          const ideas = safeParseJSON(content);
           setTrendIdeas(ideas.map((i: any) => ({ ...i, platform: targetPlatform })));
           setShowTrends(true);
           toast.success(`${ideas.length} trending ideas for ${platformConf(targetPlatform).label}`);
-        }
+        } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingTrends(false);
     });
@@ -825,9 +841,8 @@ Make it a cohesive narrative arc:
 - Final part: Conclusion / big CTA
 
 Respond ONLY with JSON array: [{"title":"", "caption":"", "content_type":"", "hashtags":[], "part_number": number, "hook":"", "schedule_offset_days": number}]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const parts = JSON.parse(jsonMatch[0]);
+        try {
+          const parts = safeParseJSON(content);
           for (const part of parts) {
             const schedDate = addDays(new Date(), part.schedule_offset_days || 0);
             await supabase.from("content_calendar").insert({
@@ -845,7 +860,7 @@ Respond ONLY with JSON array: [{"title":"", "caption":"", "content_type":"", "ha
           toast.success(`${parts.length}-part series "${seriesTitle}" created!`);
           setShowSeriesPlanner(false);
           setSeriesTitle("");
-        }
+        } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingSeries(false);
     });
@@ -877,12 +892,11 @@ Consider:
 - Content type timing (${formType === "reel" || formType === "story" ? "video content performs better in evenings" : "posts perform well mid-day"})
 
 Respond ONLY with JSON array of ISO datetime strings for the next 7 days: ["2025-01-01T14:00:00", ...]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const slots = JSON.parse(jsonMatch[0]);
+        try {
+          const slots = safeParseJSON(content);
           setSuggestedSlots(slots);
           toast.success("Smart schedule suggestions ready");
-        }
+        } catch {}
       } catch (e: any) { toast.error(e.message); }
       setSmartScheduling(false);
     });
@@ -905,8 +919,7 @@ Rules:
 - Use pattern interrupts ("POV:", "Nobody talks about...", "Stop scrolling if...")
 - Platform-specific: ${platform === "tiktok" ? "TikTok hooks need to be punchy under 3 seconds" : platform === "twitter" ? "Tweet hooks must work standalone" : "Instagram hooks should pair with visuals"}
 Respond ONLY with JSON array: ["hook1", "hook2", "hook3", "hook4", "hook5"]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) { setHooks(JSON.parse(jsonMatch[0])); toast.success("5 scroll-stopping hooks generated"); }
+        try { setHooks(safeParseJSON(content)); toast.success("5 scroll-stopping hooks generated"); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingHooks(false);
     });
@@ -942,8 +955,7 @@ Topic: "${formCaption || formTitle || "trending content"}"
 Duration: ${platform === "tiktok" ? "15-60 seconds" : "30-90 seconds"}
 Structure: hook (first 3s text), scenes array [{timestamp, visual, narration, text_overlay, transition}], cta, music_mood, caption, hashtags array
 Respond ONLY with JSON: {"hook":"", "scenes":[{"timestamp":"0-3s", "visual":"", "narration":"", "text_overlay":"", "transition":""}], "cta":"", "music_mood":"", "caption":"", "hashtags":[]}`);
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) { setVideoScript(JSON.parse(jsonMatch[0])); toast.success("Video script generated"); }
+        try { setVideoScript(safeParseJSON(content)); toast.success("Video script generated"); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingScript(false);
     });
@@ -963,8 +975,7 @@ Respond ONLY with JSON: {"hook":"", "scenes":[{"timestamp":"0-3s", "visual":"", 
 Topic: "${formCaption || formTitle}"
 Rules: Part 1: Hook + "🧵👇". Parts 2-5: ONE insight each, max ${maxLen} chars. Part 6: Summary. Part 7: CTA.
 Respond ONLY with JSON array: ["Part 1", "Part 2", ...]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) { const parts = JSON.parse(jsonMatch[0]); setThreadParts(parts); toast.success(`${parts.length}-part thread generated`); }
+        try { const parts = safeParseJSON(content); setThreadParts(parts); toast.success(`${parts.length}-part thread generated`); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingThread(false);
     });
@@ -999,8 +1010,7 @@ Respond ONLY with JSON array: ["Part 1", "Part 2", ...]`);
 Topic: "${formCaption || formTitle || "value-driven content"}"
 Slide 1: Hook (curiosity + bold claim). Slides 2-8: ONE insight per slide. Slide 9: Summary. Slide 10: CTA.
 Respond ONLY with JSON array: [{"title":"", "body":"", "cta":""}]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) { const slides = JSON.parse(jsonMatch[0]); setCarouselSlides(slides); toast.success(`${slides.length}-slide carousel generated`); }
+        try { const slides = safeParseJSON(content); setCarouselSlides(slides); toast.success(`${slides.length}-slide carousel generated`); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingCarousel(false);
     });
@@ -1019,8 +1029,7 @@ Platforms: ${connPlatforms.join(", ") || "instagram, tiktok"}
 Existing content: ${items.length} posts
 For each: name (2-3 words), description, percentage (sum=100), content_types array, posting_frequency, example_topics (3), platforms array, color (text-pink-400/text-blue-400/text-emerald-400/text-amber-400/text-purple-400)
 Respond ONLY with JSON array: [{"name":"", "description":"", "percentage": number, "content_types":[], "posting_frequency":"", "example_topics":[], "platforms":[], "color":""}]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) { setContentPillars(JSON.parse(jsonMatch[0])); setShowPillars(true); toast.success("Content pillar strategy generated"); }
+        try { setContentPillars(safeParseJSON(content)); setShowPillars(true); toast.success("Content pillar strategy generated"); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingPillars(false);
     });
@@ -1038,8 +1047,7 @@ Respond ONLY with JSON array: [{"name":"", "description":"", "percentage": numbe
 ${competitorHandle ? `Inspired by: @${competitorHandle}` : "Based on current viral patterns"}
 For each: title, strategy, caption (full), content_type, hashtags[], why_it_works, difficulty (easy/medium/hard), estimated_reach (low/medium/high/viral)
 Respond ONLY with JSON array.`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) { setCompetitorIdeas(JSON.parse(jsonMatch[0]).map((i: any) => ({ ...i, platform }))); setShowCompetitorInspire(true); toast.success("Competitor-inspired ideas ready"); }
+        try { setCompetitorIdeas(safeParseJSON(content).map((i: any) => ({ ...i, platform }))); setShowCompetitorInspire(true); toast.success("Competitor-inspired ideas ready"); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingCompetitor(false);
     });
@@ -1091,8 +1099,7 @@ Respond ONLY with JSON array.`);
 Caption: "${formCaption}"
 Return: tone, readability (1-10), emotion, power_words (count), improvements (3 strings), cta_strength (1-10), scroll_stop_score (1-10), brand_safety (safe/edgy/risky)
 Respond ONLY with JSON.`);
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) { const a = JSON.parse(jsonMatch[0]); setToneAnalysis(a); toast.success(`Tone: ${a.tone} | Scroll-stop: ${a.scroll_stop_score}/10`); }
+        try { const a = safeParseJSON(content); setToneAnalysis(a); toast.success(`Tone: ${a.tone} | Scroll-stop: ${a.scroll_stop_score}/10`); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingToneAnalysis(false);
     });
@@ -1110,8 +1117,7 @@ Respond ONLY with JSON.`);
 Topic: "${formCaption || formTitle || "engaging content"}"
 For each scene: scene_number, duration, visual, text_overlay, audio, transition, engagement (interactive element), camera direction
 Respond ONLY with JSON array.`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) { const scenes = JSON.parse(jsonMatch[0]); setStoryboardScenes(scenes); setShowStoryboard(true); toast.success(`${scenes.length}-scene storyboard created`); }
+        try { const scenes = safeParseJSON(content); setStoryboardScenes(scenes); setShowStoryboard(true); toast.success(`${scenes.length}-scene storyboard created`); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingStoryboard(false);
     });
@@ -1148,11 +1154,10 @@ Generate a comprehensive production brief with:
 - cta_options: 5 call-to-action variations
 
 Respond ONLY with JSON object.`);
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) {
-          setContentBrief(JSON.parse(jsonMatch[0]));
+        try {
+          setContentBrief(safeParseJSON(content));
           toast.success("Content brief generated — ready for execution");
-        }
+        } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingBrief(false);
     });
@@ -1577,9 +1582,8 @@ For each, provide:
 Be creative! Include trending topics, engagement hooks, questions, controversial takes.
 
 Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_type":"...", "caption":"...", "hashtags":["..."], "cta":"...", "viral_score": number, "description":"...", "best_time":"..."}]`);
-        const arrMatch = content.match(/\[[\s\S]*\]/);
-        if (arrMatch) {
-          const ideas = JSON.parse(arrMatch[0]);
+        try {
+          const ideas = safeParseJSON(content);
           for (const idea of ideas) {
             await supabase.from("content_calendar").insert({
               title: idea.title, caption: idea.caption, platform: idea.platform || "instagram",
@@ -1590,7 +1594,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             });
           }
           toast.success(`${ideas.length} AI posts generated as drafts!`);
-        } else {
+        } catch {
           toast.error("AI didn't return valid content. Try again.");
         }
       } catch (e: any) { toast.error(e.message || "Generation failed"); }
@@ -1853,7 +1857,21 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 <h2 className="text-sm font-bold text-white">Draft Storage</h2>
                 <Badge variant="outline" className="border-amber-500/20 text-amber-400 text-[10px]">{draftItems.length} drafts</Badge>
               </div>
-              <p className="text-[10px] text-white/30">Ready to post · click to publish directly</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] text-white/30 mr-2">Ready to post · click to publish directly</p>
+                {draftItems.length > 0 && (
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    if (!confirm(`Delete all ${draftItems.length} drafts?`)) return;
+                    const ids = draftItems.map(d => d.id);
+                    const { error } = await supabase.from("content_calendar").delete().in("id", ids);
+                    if (error) toast.error(error.message);
+                    else toast.success(`${ids.length} drafts deleted`);
+                  }}
+                    className="text-[9px] h-6 px-2 border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20">
+                    <Trash2 className="h-2.5 w-2.5 mr-0.5" /> Delete All
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="grid gap-2 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-h-[400px] overflow-y-auto">
               {draftItems.map(item => {
@@ -1926,7 +1944,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                           <Edit2 className="h-2.5 w-2.5" />
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => deleteItem(item.id)}
-                          className="text-[10px] h-7 border-destructive/20 text-destructive">
+                          className="text-[10px] h-7 border-white/[0.08] bg-white/[0.03] text-white/50 hover:text-red-400 hover:border-red-500/30">
                           <Trash2 className="h-2.5 w-2.5" />
                         </Button>
                       </div>
@@ -1991,7 +2009,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("scheduled")} className="text-xs h-6 border-blue-500/20 text-blue-400">Schedule</Button>
           <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("draft")} className="text-xs h-6 border-amber-500/20 text-amber-400">→ Draft</Button>
           <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("archived")} className="text-xs h-6 border-white/[0.06] text-white/40">Archive</Button>
-          <Button size="sm" variant="outline" onClick={bulkDelete} className="text-xs h-6 border-destructive/20 text-destructive">
+          <Button size="sm" variant="outline" onClick={bulkDelete} className="text-xs h-6 border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20">
             <Trash2 className="h-3 w-3 mr-1" /> Delete
           </Button>
         </div>
