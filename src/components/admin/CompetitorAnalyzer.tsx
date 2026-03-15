@@ -1052,16 +1052,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
     threat: c.score,
   }));
 
-  // Wrap every AI call with pre-check + post-refresh
-  const guardedAI = async <T,>(fn: () => Promise<T>): Promise<T> => {
-    if (aiUsageCount >= RATE_LIMIT_MAX) {
-      toast.error(`Daily AI limit reached (${RATE_LIMIT_MAX}/day). Resets at midnight UTC.`);
-      throw new Error("Rate limit reached");
-    }
-    const result = await fn();
-    await refreshAIUsage();
-    return result;
-  };
+
 
   return (
     <div className="space-y-5">
