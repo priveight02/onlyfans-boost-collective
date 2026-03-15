@@ -2870,7 +2870,13 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
                 // No-key fallback screenshot only when platform refuses embedded rendering
                 // thum.io expects the target URL as a raw path segment (encoded slashes cause HTTP 400)
-                const getScreenshot = (url: string) => `https://image.thum.io/get/width/1200/crop/1200/noanimate/${url}`;
+                const getScreenshot = (url: string) => `https://image.thum.io/get/width/2000/crop/860/noanimate/${url}`;
+                const getScreenshotZoomClass = (platform: string) => {
+                  const p = platform.toLowerCase();
+                  if (p.includes("linkedin")) return "object-[center_16%] scale-[1.85] md:scale-[2]";
+                  if (p.includes("youtube")) return "object-[center_12%] scale-[1.55] md:scale-[1.7]";
+                  return "object-top scale-[1.3] md:scale-[1.4]";
+                };
 
                 return (
                   <div key={comp.id} className="w-full" style={{ contentVisibility: "auto", contain: "layout paint style" }}>
