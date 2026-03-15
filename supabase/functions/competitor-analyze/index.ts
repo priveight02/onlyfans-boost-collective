@@ -250,29 +250,31 @@ const financialTool = {
   },
 };
 
-/** Batch-scrape social profiles via Jina Reader → SocialBlade for accurate metrics */
-const scrapeSocialProfiles = async (
-  socialPresence: Record<string, string | null>,
-): Promise<Record<string, {
+/** Scraped platform metric shape */
+type ScrapedMetrics = {
   followers?: number;
+  following?: number;
   description?: string;
   posts?: number;
   engagementRate?: number;
   avgLikes?: number;
   avgComments?: number;
+  avgViews?: number;
+  avgShares?: number;
+  totalLikes?: number;
+  totalViews?: number;
   postFrequency?: number;
   growthRate?: number;
-}>> => {
-  const results: Record<string, {
-    followers?: number;
-    description?: string;
-    posts?: number;
-    engagementRate?: number;
-    avgLikes?: number;
-    avgComments?: number;
-    postFrequency?: number;
-    growthRate?: number;
-  }> = {};
+  followerGain30d?: number;
+  viewGain30d?: number;
+  likeGain30d?: number;
+};
+
+/** Batch-scrape social profiles via Jina Reader → SocialBlade for accurate metrics */
+const scrapeSocialProfiles = async (
+  socialPresence: Record<string, string | null>,
+): Promise<Record<string, ScrapedMetrics>> => {
+  const results: Record<string, ScrapedMetrics> = {};
 
   const fetchWithTimeout = async (
     url: string,
@@ -315,43 +317,46 @@ const scrapeSocialProfiles = async (
   };
 
   /** Parse SocialBlade markdown for Instagram metrics */
-  const parseInstagramSB = (md: string): typeof results[string] => {
-    const out: typeof results[string] = {};
+  const parseInstagramSB = (md: string): ScrapedMetrics => {
+    const out: ScrapedMetrics = {};
 
-    // Followers: look for the exact count (e.g. "297,845,351")
     const followersMatch = md.match(/followers\s*\n\s*([\d,]+)/i);
     if (followersMatch) out.followers = parseHumanNumber(followersMatch[1]);
 
-    // Media count
+    const followingMatch = md.match(/following\s*\n\s*([\d,]+)/i);
+    if (followingMatch) out.following = parseHumanNumber(followingMatch[1]);
+
     const mediaMatch = md.match(/media\s*count\s*\n\s*([\d,]+)/i);
     if (mediaMatch) out.posts = parseHumanNumber(mediaMatch[1]);
 
-    // Engagement rate
     const erMatch = md.match(/engagement\s*rate\s*\n\s*([\d.,]+%)/i);
     if (erMatch) {
       const er = parseFloat(erMatch[1].replace(/%/, ""));
       if (Number.isFinite(er)) out.engagementRate = er;
     }
 
-    // Average likes
     const likesMatch = md.match(/average\s*likes\s*\n\s*([\d,.\sKMBkmb]+)/i);
     if (likesMatch) {
       const v = parseHumanNumber(likesMatch[1].replace(/,/g, ""));
       if (v > 0) out.avgLikes = v;
     }
 
-    // Average comments
     const commentsMatch = md.match(/average\s*comments\s*\n\s*([\d,.\sKMBkmb]+)/i);
     if (commentsMatch) {
       const v = parseHumanNumber(commentsMatch[1].replace(/,/g, ""));
       if (v >= 0) out.avgComments = v;
     }
 
+    // Total likes from profile if available
+    const totalLikesMatch = md.match(/total\s*likes\s*\n\s*([\d,.KMBkmb]+)/i);
+    if (totalLikesMatch) out.totalLikes = parseHumanNumber(totalLikesMatch[1]);
+
     // Last 30 days: followerGain, followingGain, mediaGain
     const gains = extractLast30Row(md);
     if (gains.length >= 3) {
-      const followerGain = gains[0]; // can be negative
+      const followerGain = gains[0];
       const mediaGain = gains[2];
+      out.followerGain30d = followerGain;
       if (Number.isFinite(mediaGain) && mediaGain !== 0) {
         out.postFrequency = Math.abs((mediaGain / 30) * 7);
       }
@@ -364,23 +369,22 @@ const scrapeSocialProfiles = async (
   };
 
   /** Parse SocialBlade markdown for TikTok metrics */
-  const parseTikTokSB = (md: string): typeof results[string] => {
-    const out: typeof results[string] = {};
+  const parseTikTokSB = (md: string): ScrapedMetrics => {
+    const out: ScrapedMetrics = {};
 
-    // Followers
     const followersMatch = md.match(/followers\s*\n\s*([\d,.KMBkmb]+)/i);
     if (followersMatch) out.followers = parseHumanNumber(followersMatch[1]);
 
-    // Total likes
-    let totalLikes = 0;
-    const likesMatch = md.match(/likes\s*\n\s*([\d,.KMBkmb]+)/i);
-    if (likesMatch) totalLikes = parseHumanNumber(likesMatch[1]);
+    const followingMatch = md.match(/following\s*\n\s*([\d,.KMBkmb]+)/i);
+    if (followingMatch) out.following = parseHumanNumber(followingMatch[1]);
 
-    // Videos
+    let totalLikes = 0;
+    const likesMatch = md.match(/(?:total\s*)?likes\s*\n\s*([\d,.KMBkmb]+)/i);
+    if (likesMatch) { totalLikes = parseHumanNumber(likesMatch[1]); out.totalLikes = totalLikes; }
+
     const videosMatch = md.match(/videos\s*\n\s*([\d,.KMBkmb]+)/i);
     if (videosMatch) out.posts = parseHumanNumber(videosMatch[1]);
 
-    // Avg likes = total likes / total videos
     if (totalLikes > 0 && out.posts && out.posts > 0) {
       out.avgLikes = Math.round(totalLikes / out.posts);
     }
@@ -389,7 +393,10 @@ const scrapeSocialProfiles = async (
     const gains = extractLast30Row(md);
     if (gains.length >= 4) {
       const followerGain = gains[0];
+      const likesGain = gains[2];
       const videoGain = gains[3];
+      out.followerGain30d = followerGain;
+      out.likeGain30d = likesGain;
       if (Number.isFinite(videoGain) && videoGain !== 0) {
         out.postFrequency = Math.abs((videoGain / 30) * 7);
       }
@@ -398,7 +405,6 @@ const scrapeSocialProfiles = async (
       }
     }
 
-    // Derive ER from avg likes / followers
     if (out.avgLikes && out.followers && out.followers > 0) {
       out.engagementRate = (out.avgLikes / out.followers) * 100;
     }
@@ -407,22 +413,30 @@ const scrapeSocialProfiles = async (
   };
 
   /** Parse SocialBlade markdown for YouTube metrics */
-  const parseYouTubeSB = (md: string): typeof results[string] => {
-    const out: typeof results[string] = {};
+  const parseYouTubeSB = (md: string): ScrapedMetrics => {
+    const out: ScrapedMetrics = {};
 
-    // Subscribers
     const subMatch = md.match(/(?:subscribers?|subs?)\s*\n\s*([\d,.KMBkmb]+)/i);
     if (subMatch) out.followers = parseHumanNumber(subMatch[1]);
 
-    // Videos
     const vidMatch = md.match(/(?:videos?|uploads?)\s*\n\s*([\d,.KMBkmb]+)/i);
     if (vidMatch) out.posts = parseHumanNumber(vidMatch[1]);
 
-    // Last 30 days: subGain, viewGain, videoGain (YouTube format varies)
+    const viewsMatch = md.match(/(?:total\s*)?video\s*views?\s*\n\s*([\d,.KMBkmb]+)/i) || md.match(/views?\s*\n\s*([\d,.KMBkmb]+)/i);
+    if (viewsMatch) out.totalViews = parseHumanNumber(viewsMatch[1]);
+
+    // Derive avg views
+    if (out.totalViews && out.posts && out.posts > 0) {
+      out.avgViews = Math.round(out.totalViews / out.posts);
+    }
+
+    // Last 30 days
     const gains = extractLast30Row(md);
     if (gains.length >= 3) {
       const subGain = gains[0];
-      const videoGain = gains[gains.length - 1]; // last column is usually videos
+      out.followerGain30d = subGain;
+      if (gains.length >= 2) out.viewGain30d = gains[1];
+      const videoGain = gains[gains.length - 1];
       if (Number.isFinite(videoGain) && videoGain !== 0) {
         out.postFrequency = Math.abs((videoGain / 30) * 7);
       }
@@ -435,11 +449,14 @@ const scrapeSocialProfiles = async (
   };
 
   /** Parse SocialBlade markdown for Twitter/X metrics */
-  const parseTwitterSB = (md: string): typeof results[string] => {
-    const out: typeof results[string] = {};
+  const parseTwitterSB = (md: string): ScrapedMetrics => {
+    const out: ScrapedMetrics = {};
 
     const followersMatch = md.match(/followers\s*\n\s*([\d,.KMBkmb]+)/i);
     if (followersMatch) out.followers = parseHumanNumber(followersMatch[1]);
+
+    const followingMatch = md.match(/following\s*\n\s*([\d,.KMBkmb]+)/i);
+    if (followingMatch) out.following = parseHumanNumber(followingMatch[1]);
 
     const tweetsMatch = md.match(/(?:tweets?|posts?)\s*\n\s*([\d,.KMBkmb]+)/i);
     if (tweetsMatch) out.posts = parseHumanNumber(tweetsMatch[1]);
@@ -447,6 +464,7 @@ const scrapeSocialProfiles = async (
     const gains = extractLast30Row(md);
     if (gains.length >= 1) {
       const followerGain = gains[0];
+      out.followerGain30d = followerGain;
       if (out.followers && out.followers > 0) {
         out.growthRate = (followerGain / out.followers) * 100;
       }
@@ -456,8 +474,8 @@ const scrapeSocialProfiles = async (
   };
 
   /** Parse SocialBlade markdown for Facebook metrics */
-  const parseFacebookSB = (md: string): typeof results[string] => {
-    const out: typeof results[string] = {};
+  const parseFacebookSB = (md: string): ScrapedMetrics => {
+    const out: ScrapedMetrics = {};
 
     const followersMatch = md.match(/(?:total\s+page\s+likes|followers|page\s+likes)\s*\n\s*([\d,.KMBkmb]+)/i);
     if (followersMatch) out.followers = parseHumanNumber(followersMatch[1]);
@@ -468,6 +486,7 @@ const scrapeSocialProfiles = async (
     const gains = extractLast30Row(md);
     if (gains.length >= 1) {
       const followerGain = gains[0];
+      out.followerGain30d = followerGain;
       if (out.followers && out.followers > 0) {
         out.growthRate = (followerGain / out.followers) * 100;
       }
@@ -480,7 +499,7 @@ const scrapeSocialProfiles = async (
   const enrichYoutubeFromRecentVideos = async (
     handle: string,
     knownFollowers: number,
-    current: typeof results[string],
+    current: ScrapedMetrics,
   ) => {
     if (current.avgLikes && current.postFrequency && current.engagementRate) return current;
 
@@ -505,20 +524,24 @@ const scrapeSocialProfiles = async (
 
     const details = await Promise.allSettled(videos.map(async (v) => {
       const watch = await fetchWithTimeout(`https://www.youtube.com/watch?v=${v.id}`, { ms: 8000, maxChars: 500000 });
-      if (!watch) return { likes: 0, comments: 0 };
+      if (!watch) return { likes: 0, comments: 0, views: 0 };
       const likesRaw = watch.match(/"likeCount":"(\d+)"/i)?.[1] || "";
       const commentsRaw = watch.match(/"commentCount":"(\d+)"/i)?.[1] || "";
+      const viewsRaw = watch.match(/"viewCount":"(\d+)"/i)?.[1] || "";
       return {
         likes: parseHumanNumber(likesRaw),
         comments: parseHumanNumber(commentsRaw),
+        views: parseHumanNumber(viewsRaw),
       };
     }));
 
     const likes = details.map(d => d.status === "fulfilled" ? d.value.likes : 0).filter(n => n > 0);
     const comments = details.map(d => d.status === "fulfilled" ? d.value.comments : 0).filter(n => n > 0);
+    const views = details.map(d => d.status === "fulfilled" ? d.value.views : 0).filter(n => n > 0);
 
     if (!current.avgLikes && likes.length) current.avgLikes = Math.round(likes.reduce((a, b) => a + b, 0) / likes.length);
     if (!current.avgComments && comments.length) current.avgComments = Math.round(comments.reduce((a, b) => a + b, 0) / comments.length);
+    if (!current.avgViews && views.length) current.avgViews = Math.round(views.reduce((a, b) => a + b, 0) / views.length);
 
     if (!current.postFrequency && videos.length >= 2) {
       const first = new Date(videos[videos.length - 1].published).getTime();
@@ -539,11 +562,11 @@ const scrapeSocialProfiles = async (
     if (!handle) return;
 
     const key = platform.toLowerCase() === "x" ? "twitter" : platform.toLowerCase();
-    const merged: typeof results[string] = {};
+    const merged: ScrapedMetrics = {};
 
     // ── PRIMARY: Jina Reader → SocialBlade (renders JS, returns clean markdown) ──
     let sbUrl = "";
-    let sbParser: ((md: string) => typeof results[string]) | null = null;
+    let sbParser: ((md: string) => ScrapedMetrics) | null = null;
 
     if (key === "instagram") {
       sbUrl = `https://socialblade.com/instagram/user/${encodeURIComponent(handle)}`;
@@ -769,12 +792,20 @@ const normalizeSocialPresence = (input: Record<string, unknown>): Record<string,
 
 const normalizePlatformMetric = (metric: Record<string, unknown>) => ({
   followers: parseMetricNumber(metric?.followers),
+  following: parseMetricNumber(metric?.following),
   posts: parseMetricNumber(metric?.posts),
   engagementRate: parseMetricNumber(metric?.engagementRate),
   avgLikes: parseMetricNumber(metric?.avgLikes),
   avgComments: parseMetricNumber(metric?.avgComments),
+  avgViews: parseMetricNumber(metric?.avgViews),
+  avgShares: parseMetricNumber(metric?.avgShares),
+  totalLikes: parseMetricNumber(metric?.totalLikes),
+  totalViews: parseMetricNumber(metric?.totalViews),
   postFrequency: parseMetricNumber(metric?.postFrequency),
   growthRate: parseMetricNumber(metric?.growthRate),
+  followerGain30d: parseMetricNumber(metric?.followerGain30d),
+  viewGain30d: parseMetricNumber(metric?.viewGain30d),
+  likeGain30d: parseMetricNumber(metric?.likeGain30d),
 });
 
 /** Extract social handles from a website homepage */
@@ -921,25 +952,36 @@ serve(async (req) => {
             ? ((nextFollowers - prev.followers) / prev.followers) * 100
             : undefined;
 
+          const pickBetter = (scraped: number | undefined, prev: number, minVal = 0) =>
+            typeof scraped === "number" && Number.isFinite(scraped) && scraped > minVal ? scraped : prev;
+
           platformMetrics[key] = {
             ...prev,
             followers: nextFollowers,
+            following: pickBetter(scrapedData.following, prev.following),
             posts: nextPosts,
-            engagementRate: typeof scrapedData.engagementRate === "number" && Number.isFinite(scrapedData.engagementRate)
+            engagementRate: typeof scrapedData.engagementRate === "number" && Number.isFinite(scrapedData.engagementRate) && scrapedData.engagementRate > 0
               ? scrapedData.engagementRate
               : prev.engagementRate,
-            avgLikes: typeof scrapedData.avgLikes === "number" && scrapedData.avgLikes > 0
-              ? scrapedData.avgLikes
-              : prev.avgLikes,
-            avgComments: typeof scrapedData.avgComments === "number" && scrapedData.avgComments >= 0
+            avgLikes: pickBetter(scrapedData.avgLikes, prev.avgLikes),
+            avgComments: typeof scrapedData.avgComments === "number" && Number.isFinite(scrapedData.avgComments) && scrapedData.avgComments >= 0
               ? scrapedData.avgComments
               : prev.avgComments,
-            postFrequency: typeof scrapedData.postFrequency === "number" && scrapedData.postFrequency > 0
-              ? scrapedData.postFrequency
-              : prev.postFrequency,
+            avgViews: pickBetter(scrapedData.avgViews, prev.avgViews),
+            avgShares: pickBetter(scrapedData.avgShares, prev.avgShares),
+            totalLikes: pickBetter(scrapedData.totalLikes, prev.totalLikes),
+            totalViews: pickBetter(scrapedData.totalViews, prev.totalViews),
+            postFrequency: pickBetter(scrapedData.postFrequency, prev.postFrequency),
             growthRate: typeof scrapedData.growthRate === "number" && Number.isFinite(scrapedData.growthRate)
               ? scrapedData.growthRate
               : (derivedGrowth ?? prev.growthRate),
+            followerGain30d: typeof scrapedData.followerGain30d === "number" && Number.isFinite(scrapedData.followerGain30d)
+              ? scrapedData.followerGain30d
+              : prev.followerGain30d,
+            viewGain30d: pickBetter(scrapedData.viewGain30d, prev.viewGain30d),
+            likeGain30d: typeof scrapedData.likeGain30d === "number" && Number.isFinite(scrapedData.likeGain30d)
+              ? scrapedData.likeGain30d
+              : prev.likeGain30d,
           };
 
           if (platformMetrics[key].engagementRate <= 0 && platformMetrics[key].followers > 0 && platformMetrics[key].avgLikes > 0) {
