@@ -955,8 +955,7 @@ Topic: "${formCaption || formTitle || "trending content"}"
 Duration: ${platform === "tiktok" ? "15-60 seconds" : "30-90 seconds"}
 Structure: hook (first 3s text), scenes array [{timestamp, visual, narration, text_overlay, transition}], cta, music_mood, caption, hashtags array
 Respond ONLY with JSON: {"hook":"", "scenes":[{"timestamp":"0-3s", "visual":"", "narration":"", "text_overlay":"", "transition":""}], "cta":"", "music_mood":"", "caption":"", "hashtags":[]}`);
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) { setVideoScript(JSON.parse(jsonMatch[0])); toast.success("Video script generated"); }
+        try { setVideoScript(safeParseJSON(content)); toast.success("Video script generated"); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingScript(false);
     });
