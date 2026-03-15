@@ -5285,6 +5285,49 @@ Return ONLY valid JSON:
                     </CardContent>
                   </Card>
 
+                  {/* Direct Stat Comparison Table */}
+                  <Card className="crm-card">
+                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Raw Stat Comparison</CardTitle></CardHeader>
+                    <CardContent>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-white/[0.06]">
+                              <th className="text-left py-2 text-white/50 font-medium text-xs">Metric</th>
+                              <th className="text-center py-2 text-[hsl(217,91%,60%)] font-medium text-xs">@{h2hResult.usernameA}</th>
+                              <th className="text-center py-2 text-[hsl(262,83%,58%)] font-medium text-xs">@{h2hResult.usernameB}</th>
+                              <th className="text-center py-2 text-white/40 font-medium text-xs">Diff</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[
+                              { label: "Followers", a: h2hResult.statsA?.followers || 0, b: h2hResult.statsB?.followers || 0, fmt: fmtNum, higher: true },
+                              { label: "Engagement %", a: h2hResult.statsA?.engagementRate || 0, b: h2hResult.statsB?.engagementRate || 0, fmt: (v: number) => `${v}%`, higher: true },
+                              { label: "Avg Likes", a: h2hResult.statsA?.avgLikes || 0, b: h2hResult.statsB?.avgLikes || 0, fmt: (v: number) => v.toLocaleString(), higher: true },
+                              { label: "Avg Comments", a: h2hResult.statsA?.avgComments || 0, b: h2hResult.statsB?.avgComments || 0, fmt: (v: number) => v.toLocaleString(), higher: true },
+                              { label: "Growth/Wk", a: h2hResult.statsA?.growthRate || 0, b: h2hResult.statsB?.growthRate || 0, fmt: (v: number) => `${v >= 0 ? "+" : ""}${v}%`, higher: true },
+                              { label: "Posts/Wk", a: h2hResult.statsA?.postFrequency || 0, b: h2hResult.statsB?.postFrequency || 0, fmt: (v: number) => `${v}`, higher: true },
+                              { label: "Total Posts", a: h2hResult.statsA?.posts || 0, b: h2hResult.statsB?.posts || 0, fmt: (v: number) => v.toLocaleString(), higher: true },
+                              { label: "Like Rate", a: (h2hResult.statsA?.followers || 1) > 0 ? (h2hResult.statsA?.avgLikes || 0) / (h2hResult.statsA?.followers || 1) * 100 : 0, b: (h2hResult.statsB?.followers || 1) > 0 ? (h2hResult.statsB?.avgLikes || 0) / (h2hResult.statsB?.followers || 1) * 100 : 0, fmt: (v: number) => `${v.toFixed(2)}%`, higher: true },
+                            ].map((row, idx) => {
+                              const aWins = row.higher ? row.a > row.b : row.a < row.b;
+                              const bWins = row.higher ? row.b > row.a : row.b < row.a;
+                              const diff = row.b !== 0 ? ((row.a - row.b) / Math.abs(row.b) * 100).toFixed(0) : "—";
+                              return (
+                                <tr key={idx} className="border-b border-white/[0.03]">
+                                  <td className="py-2 text-white/50 text-xs">{row.label}</td>
+                                  <td className={`text-center py-2 text-xs font-medium ${aWins ? "text-emerald-400 font-bold" : "text-white/60"}`}>{row.fmt(row.a)}</td>
+                                  <td className={`text-center py-2 text-xs font-medium ${bWins ? "text-emerald-400 font-bold" : "text-white/60"}`}>{row.fmt(row.b)}</td>
+                                  <td className={`text-center py-2 text-[10px] ${Number(diff) > 0 ? "text-emerald-400" : Number(diff) < 0 ? "text-red-400" : "text-white/30"}`}>{diff !== "—" ? `${Number(diff) > 0 ? "+" : ""}${diff}%` : "—"}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   {/* Category Breakdown */}
                   <Card className="crm-card">
                     <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Category Breakdown</CardTitle></CardHeader>
