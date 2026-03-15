@@ -792,12 +792,20 @@ const normalizeSocialPresence = (input: Record<string, unknown>): Record<string,
 
 const normalizePlatformMetric = (metric: Record<string, unknown>) => ({
   followers: parseMetricNumber(metric?.followers),
+  following: parseMetricNumber(metric?.following),
   posts: parseMetricNumber(metric?.posts),
   engagementRate: parseMetricNumber(metric?.engagementRate),
   avgLikes: parseMetricNumber(metric?.avgLikes),
   avgComments: parseMetricNumber(metric?.avgComments),
+  avgViews: parseMetricNumber(metric?.avgViews),
+  avgShares: parseMetricNumber(metric?.avgShares),
+  totalLikes: parseMetricNumber(metric?.totalLikes),
+  totalViews: parseMetricNumber(metric?.totalViews),
   postFrequency: parseMetricNumber(metric?.postFrequency),
   growthRate: parseMetricNumber(metric?.growthRate),
+  followerGain30d: parseMetricNumber(metric?.followerGain30d),
+  viewGain30d: parseMetricNumber(metric?.viewGain30d),
+  likeGain30d: parseMetricNumber(metric?.likeGain30d),
 });
 
 /** Extract social handles from a website homepage */
