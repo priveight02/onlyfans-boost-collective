@@ -774,7 +774,8 @@ Previous data: ${comp.followers} traffic/followers, ${comp.engagementRate}% enga
 
 Return ONLY valid JSON with updated data as of today:
 {
-  "followers": <updated total reach/traffic number>,
+  "displayName": "company/brand name",
+  "followers": <updated total social following across all platforms as number>,
   "following": 0,
   "posts": <content count>,
   "engagementRate": <number>,
@@ -783,6 +784,16 @@ Return ONLY valid JSON with updated data as of today:
   "growthRate": <weekly growth %>,
   "postFrequency": <content pieces/week>,
   "topHashtags": ["keyword1","keyword2","keyword3","keyword4","keyword5"],
+  "contentTypes": [{"type":"Blog","pct":30},{"type":"Video","pct":25},{"type":"Social","pct":25},{"type":"Email","pct":20}],
+  "socialPresence": {"instagram": "handle or null", "twitter": "handle or null", "linkedin": "handle or null", "tiktok": "handle or null", "youtube": "handle or null", "facebook": "handle or null"},
+  "platformMetrics": {
+    "instagram": {"followers": <number>, "engagementRate": <number>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>},
+    "tiktok": {"followers": <number>, "engagementRate": <number>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>},
+    "twitter": {"followers": <number>, "engagementRate": <number>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>},
+    "youtube": {"followers": <number>, "engagementRate": <number>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>},
+    "linkedin": {"followers": <number>, "engagementRate": <number>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>},
+    "facebook": {"followers": <number>, "engagementRate": <number>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>}
+  },
   "score": <0-100 threat level>,
   "recentTrend": "brief description of recent company/website trend"
 }`
@@ -800,6 +811,10 @@ Return ONLY valid JSON:
   "growthRate": <weekly growth %>,
   "postFrequency": <posts/week>,
   "topHashtags": ["tag1","tag2","tag3","tag4","tag5"],
+  "socialPresence": {"instagram": "handle or null", "twitter": "handle or null", "linkedin": "handle or null", "tiktok": "handle or null", "youtube": "handle or null"},
+  "platformMetrics": {
+    "${comp.platform}": {"followers": <number>, "engagementRate": <number>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>}
+  },
   "score": <0-100 threat level>,
   "recentTrend": "brief description of recent trend"
 }`;
@@ -833,6 +848,8 @@ Return ONLY valid JSON:
         threat_score: parsed.score,
         metadata: {
           ...comp.metadata,
+          socialPresence: parsed.socialPresence || comp.metadata?.socialPresence,
+          platformMetrics: parsed.platformMetrics || comp.metadata?.platformMetrics,
           recentTrend: parsed.recentTrend,
           analysisHistory: [...prevHistory, { date: new Date().toISOString(), followers: parsed.followers, engagement: parsed.engagementRate }].slice(-20),
         },
@@ -861,6 +878,68 @@ Return ONLY valid JSON:
       return true;
     });
     setRefreshingId(null);
+  };
+
+  const refreshPlatformBreakdown = async () => {
+    const targets = competitors.filter(c => c.platform === "internet" || !!c.metadata?.socialPresence || !!c.metadata?.platformMetrics);
+    if (targets.length === 0) {
+      toast.error("No competitors with social profile data found");
+      return;
+    }
+
+    setRefreshingBreakdown(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("competitor-analyze", {
+        body: {
+          action: "batch_platform_refresh",
+          competitors: targets.map(c => ({
+            id: c.id,
+            followers: c.followers,
+            websiteUrl: c.metadata?.websiteUrl || null,
+            socialPresence: c.metadata?.socialPresence || {},
+            platformMetrics: c.metadata?.platformMetrics || {},
+          })),
+        },
+      });
+
+      if (error) throw new Error(error.message || "Refresh failed");
+      const results = Array.isArray(data?.results) ? data.results : [];
+      if (!results.length) throw new Error("No platform data returned");
+
+      const now = new Date().toISOString();
+      const byId = new Map(results.map((r: any) => [r.id, r]));
+
+      const nextCompetitors = competitors.map((c) => {
+        const fresh = byId.get(c.id);
+        if (!fresh) return c;
+        const prevHistory = c.metadata?.analysisHistory || [];
+        return {
+          ...c,
+          followers: typeof fresh.followers === "number" && fresh.followers > 0 ? fresh.followers : c.followers,
+          lastAnalyzed: now,
+          metadata: {
+            ...c.metadata,
+            socialPresence: fresh.socialPresence || c.metadata?.socialPresence,
+            platformMetrics: fresh.platformMetrics || c.metadata?.platformMetrics,
+            analysisHistory: [...prevHistory, { date: now, followers: typeof fresh.followers === "number" ? fresh.followers : c.followers, engagement: c.engagementRate }].slice(-20),
+          },
+        };
+      });
+
+      const changedRows = nextCompetitors.filter((c) => byId.has(c.id));
+      await Promise.all(changedRows.map((c) => competitorRest.update(c.id, {
+        followers: c.followers,
+        metadata: c.metadata,
+        last_analyzed_at: now,
+      })));
+
+      setCompetitors(nextCompetitors);
+      toast.success("Platform breakdown refreshed with live profile stats");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to refresh platform breakdown");
+    } finally {
+      setRefreshingBreakdown(false);
+    }
   };
 
   const runSwotAnalysis = async () => {
