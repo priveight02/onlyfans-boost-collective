@@ -1904,6 +1904,55 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
     else toast.error("Clone failed");
   };
 
+  // ═══ ORCHESTRATION – 3-Step Flow ═══
+  const openOrchestrate = async () => {
+    setShowOrchestrate(true);
+    setOrchStep(1);
+    setOrchResult(null);
+    setOrchLoadingPlatforms(true);
+    try {
+      const [platforms, dashboard] = await Promise.all([detectPlanPlatforms(), getSyncDashboard()]);
+      setOrchDetectedPlatforms(platforms);
+      setOrchSyncDashboard(dashboard);
+      // Auto-select all platforms with items
+      setOrchSelectedPlatforms(new Set(platforms.filter(p => p.count > 0).map(p => p.platform)));
+    } catch (e: any) { toast.error(e.message); }
+    finally { setOrchLoadingPlatforms(false); }
+  };
+
+  const toggleOrchPlatform = (platform: string) => {
+    setOrchSelectedPlatforms(prev => {
+      const next = new Set(prev);
+      if (next.has(platform)) next.delete(platform);
+      else next.add(platform);
+      return next;
+    });
+  };
+
+  const handleOrchExecute = async () => {
+    if (orchSelectedPlatforms.size === 0) { toast.error("Select at least one platform"); return; }
+    setOrchExecuting(true);
+    try {
+      const result = await orchestratePlanToPlatforms(
+        Array.from(orchSelectedPlatforms),
+        orchMode,
+        orchItemFilter === "all" ? "all" : orchItemFilter === "drafts" ? "drafts" : "competitor",
+        selectedItems.size > 0 ? Array.from(selectedItems) : undefined,
+      );
+      setOrchResult(result);
+      setOrchStep(3);
+
+      const totalMsg = `${result.total_created} posts pushed to ${result.platforms_processed.length} platform(s)`;
+      if (orchMode === "automated") {
+        toast.success(`${totalMsg} with auto-scheduling`);
+      } else {
+        toast.success(`${totalMsg} as drafts (manual mode)`);
+      }
+      await loadItems();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setOrchExecuting(false); }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
