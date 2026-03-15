@@ -2263,7 +2263,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 )}
                 {showDetail.status === "published" && (
                   <Button size="sm" variant="outline" onClick={() => quickRepost(showDetail)}
-                    className="border-amber-500/20 text-amber-400 text-xs h-9">
+                    className="border-amber-500/20 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-xs h-9">
                     <Repeat className="h-3 w-3 mr-1" /> Repost
                   </Button>
                 )}
