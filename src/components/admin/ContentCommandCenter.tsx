@@ -1853,7 +1853,21 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 <h2 className="text-sm font-bold text-white">Draft Storage</h2>
                 <Badge variant="outline" className="border-amber-500/20 text-amber-400 text-[10px]">{draftItems.length} drafts</Badge>
               </div>
-              <p className="text-[10px] text-white/30">Ready to post · click to publish directly</p>
+              <div className="flex items-center gap-1.5">
+                <p className="text-[10px] text-white/30 mr-2">Ready to post · click to publish directly</p>
+                {draftItems.length > 0 && (
+                  <Button size="sm" variant="outline" onClick={async () => {
+                    if (!confirm(`Delete all ${draftItems.length} drafts?`)) return;
+                    const ids = draftItems.map(d => d.id);
+                    const { error } = await supabase.from("content_calendar").delete().in("id", ids);
+                    if (error) toast.error(error.message);
+                    else toast.success(`${ids.length} drafts deleted`);
+                  }}
+                    className="text-[9px] h-6 px-2 border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20">
+                    <Trash2 className="h-2.5 w-2.5 mr-0.5" /> Delete All
+                  </Button>
+                )}
+              </div>
             </div>
             <div className="grid gap-2 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-h-[400px] overflow-y-auto">
               {draftItems.map(item => {
