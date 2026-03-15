@@ -2535,6 +2535,35 @@ ONLY the JSON array.`;
             {generatingGapContent ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
             Gap Fill
           </Button>
+          <Button size="sm" variant="outline" onClick={syncContentPillarsFromCompetitors} disabled={generatingPillarSync}
+            className="border-violet-500/20 text-violet-400 text-xs h-8">
+            {generatingPillarSync ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Target className="h-3.5 w-3.5 mr-1" />}
+            Pillar Sync
+          </Button>
+          <Button size="sm" variant="outline" onClick={runPlatformCoverageAudit} disabled={generatingCoverageAudit}
+            className="border-orange-500/20 text-orange-400 text-xs h-8">
+            {generatingCoverageAudit ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Globe className="h-3.5 w-3.5 mr-1" />}
+            Coverage Audit
+          </Button>
+          <Button size="sm" variant="outline" onClick={runViralScoreBenchmark}
+            className="border-rose-500/20 text-rose-400 text-xs h-8">
+            <TrendingUp className="h-3.5 w-3.5 mr-1" /> Viral Benchmark
+          </Button>
+          <Button size="sm" variant="outline" onClick={matchContentVelocity} disabled={generatingVelocityMatch}
+            className="border-teal-500/20 text-teal-400 text-xs h-8">
+            {generatingVelocityMatch ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Zap className="h-3.5 w-3.5 mr-1" />}
+            Velocity Match
+          </Button>
+          <Button size="sm" variant="outline" onClick={crossPlatformRepurpose} disabled={generatingCrossRepurpose}
+            className="border-indigo-500/20 text-indigo-400 text-xs h-8">
+            {generatingCrossRepurpose ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Repeat className="h-3.5 w-3.5 mr-1" />}
+            Cross-Repurpose
+          </Button>
+          <Button size="sm" variant="outline" onClick={loadIntelPlans} disabled={loadingIntelPlans}
+            className="border-sky-500/20 text-sky-400 text-xs h-8">
+            {loadingIntelPlans ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Brain className="h-3.5 w-3.5 mr-1" />}
+            Intel Plans
+          </Button>
           <Button size="sm" onClick={generateRandomPosts} disabled={generating}
             className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs h-8">
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Zap className="h-3.5 w-3.5 mr-1" />}
