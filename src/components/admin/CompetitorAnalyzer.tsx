@@ -402,15 +402,38 @@ const CompetitorAnalyzer = ({
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
-  // User's own stats for comparison
-  const [myStats, setMyStats] = useState<{
-    username: string; followers: number; engagementRate: number; avgLikes: number;
-    avgComments: number; growthRate: number; postFrequency: number; posts: number;
-  }>(() => {
-    try { const s = localStorage.getItem("competitor_my_stats"); return s ? JSON.parse(s) : null; } catch { return null; }
+  // Enterprise profile (50 fields) + toggle
+  const [enterpriseProfile, setEnterpriseProfile] = useState<Record<string, any>>(() => {
+    try { const s = localStorage.getItem("competitor_enterprise_profile"); return s ? JSON.parse(s) : {}; } catch { return {}; }
   });
-  const [showMyStatsForm, setShowMyStatsForm] = useState(false);
-  const saveMyStats = (stats: typeof myStats) => { setMyStats(stats); localStorage.setItem("competitor_my_stats", JSON.stringify(stats)); setShowMyStatsForm(false); toast.success("Your stats saved for comparison"); };
+  const [useEnterpriseContext, setUseEnterpriseContext] = useState(() => {
+    try { return localStorage.getItem("competitor_use_enterprise") === "true"; } catch { return false; }
+  });
+  const [showEnterpriseForm, setShowEnterpriseForm] = useState(false);
+  const [enterpriseSection, setEnterpriseSection] = useState<string | null>(null);
+
+  const saveEnterpriseProfile = (profile: Record<string, any>) => {
+    setEnterpriseProfile(profile);
+    localStorage.setItem("competitor_enterprise_profile", JSON.stringify(profile));
+    toast.success("Enterprise profile saved");
+  };
+  const toggleEnterpriseContext = (on: boolean) => {
+    setUseEnterpriseContext(on);
+    localStorage.setItem("competitor_use_enterprise", on ? "true" : "false");
+    toast.success(on ? "Enterprise data now used across all tabs" : "Enterprise data disabled across tabs");
+  };
+
+  // Derive myStats from enterprise profile for backward compat
+  const myStats = enterpriseProfile?.username ? {
+    username: enterpriseProfile.username || "me",
+    followers: parseFloat(enterpriseProfile.followers) || 0,
+    engagementRate: parseFloat(enterpriseProfile.engagementRate) || 0,
+    avgLikes: parseFloat(enterpriseProfile.avgLikes) || 0,
+    avgComments: parseFloat(enterpriseProfile.avgComments) || 0,
+    growthRate: parseFloat(enterpriseProfile.growthRate) || 0,
+    postFrequency: parseFloat(enterpriseProfile.postFrequency) || 0,
+    posts: parseFloat(enterpriseProfile.posts) || 0,
+  } : null;
 
   // Keyword search state
   const [keywordQuery, setKeywordQuery] = useState("");
