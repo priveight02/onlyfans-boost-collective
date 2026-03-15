@@ -568,7 +568,7 @@ Respond with ONLY a JSON object: {"score": number, "tips": ["tip1", "tip2", "tip
           setPredictedScore(result.score || 0);
           const tips = result.tips || [];
           toast.success(`Score: ${result.score}/100 | Hook: ${result.hook_score || '?'} | CTA: ${result.cta_score || '?'}${tips[0] ? ` — ${tips[0]}` : ''}`);
-        }
+        } catch {}
       } catch (e: any) { toast.error(e.message); }
       setEngagementPredicting(false);
     });
