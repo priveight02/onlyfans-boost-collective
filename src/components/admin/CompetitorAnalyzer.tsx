@@ -596,6 +596,7 @@ Be as accurate as possible. If you recognize the account, use real data. If not,
       return mapRow({ ...row, metadata: row.metadata });
     });
 
+    await refreshAIUsage();
     setAnalyzing(false);
     if (result) {
       setCompetitors(prev => [result, ...prev]);
