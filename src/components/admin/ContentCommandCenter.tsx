@@ -2307,8 +2307,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   <Edit2 className="h-3 w-3 mr-1" /> Edit
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => deleteItem(showDetail.id)}
-                  className="border-destructive/20 text-destructive hover:text-destructive text-xs h-9">
-                  <Trash2 className="h-3 w-3" />
+                  className="border-white/[0.08] text-white/50 hover:text-red-400 hover:border-red-500/30 text-xs h-9">
+                  <Trash2 className="h-3 w-3 mr-1" /> Delete
                 </Button>
               </div>
             </div>
@@ -2522,7 +2522,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue placeholder="Platform" /></SelectTrigger>
                 <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
                   {availablePlatforms.map(p => (
-                    <SelectItem key={p} value={p} className="text-xs capitalize">
+                    <SelectItem key={p} value={p} className="text-xs capitalize text-white/70 focus:bg-white/[0.06] focus:text-white">
                       {p}{connForPlatform(p) ? " ✓" : ""}
                     </SelectItem>
                   ))}
@@ -2532,15 +2532,15 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
                   {(curPlatConf?.supportedTypes || CONTENT_TYPES).map(t => (
-                    <SelectItem key={t} value={t} className="text-xs capitalize">{t.replace("_", " ")}</SelectItem>
+                    <SelectItem key={t} value={t} className="text-xs capitalize text-white/70 focus:bg-white/[0.06] focus:text-white">{t.replace("_", " ")}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <Select value={formAccount} onValueChange={setFormAccount}>
                 <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue placeholder="Creator" /></SelectTrigger>
                 <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
-                  <SelectItem value="none" className="text-xs">No creator</SelectItem>
-                  {accounts.map(a => <SelectItem key={a.id} value={a.id} className="text-xs">{a.display_name || a.username}</SelectItem>)}
+                  <SelectItem value="none" className="text-xs text-white/70 focus:bg-white/[0.06] focus:text-white">No creator</SelectItem>
+                  {accounts.map(a => <SelectItem key={a.id} value={a.id} className="text-xs text-white/70 focus:bg-white/[0.06] focus:text-white">{a.display_name || a.username}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -2786,9 +2786,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               <Select value={formPrivacy} onValueChange={setFormPrivacy}>
                 <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
-                  <SelectItem value="PUBLIC_TO_EVERYONE" className="text-xs">Public</SelectItem>
-                  <SelectItem value="MUTUAL_FOLLOW_FRIENDS" className="text-xs">Friends Only</SelectItem>
-                  <SelectItem value="SELF_ONLY" className="text-xs">Private</SelectItem>
+                  <SelectItem value="PUBLIC_TO_EVERYONE" className="text-xs text-white/70 focus:bg-white/[0.06] focus:text-white">Public</SelectItem>
+                  <SelectItem value="MUTUAL_FOLLOW_FRIENDS" className="text-xs text-white/70 focus:bg-white/[0.06] focus:text-white">Friends Only</SelectItem>
+                  <SelectItem value="SELF_ONLY" className="text-xs text-white/70 focus:bg-white/[0.06] focus:text-white">Private</SelectItem>
                 </SelectContent>
               </Select>
             )}
@@ -2892,8 +2892,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             <Select value={formPlatform || "twitter"} onValueChange={v => setFormPlatform(v)}>
               <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
-                <SelectItem value="twitter" className="text-xs">X / Twitter</SelectItem>
-                <SelectItem value="threads" className="text-xs">Threads</SelectItem>
+                <SelectItem value="twitter" className="text-xs text-white/70 focus:bg-white/[0.06] focus:text-white">X / Twitter</SelectItem>
+                <SelectItem value="threads" className="text-xs text-white/70 focus:bg-white/[0.06] focus:text-white">Threads</SelectItem>
               </SelectContent>
             </Select>
             <Button onClick={generateThread} disabled={generatingThread} className="w-full bg-primary text-primary-foreground text-xs">
@@ -3028,7 +3028,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               <Select value={formPlatform || "instagram"} onValueChange={v => setFormPlatform(v)}>
                 <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue placeholder="Primary Platform" /></SelectTrigger>
                 <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
-                  {availablePlatforms.map(p => <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>)}
+                  {availablePlatforms.map(p => <SelectItem key={p} value={p} className="text-xs capitalize text-white/70 focus:bg-white/[0.06] focus:text-white">{p}</SelectItem>)}
                 </SelectContent>
               </Select>
               <Button onClick={generateContentBrief} disabled={generatingBrief || !briefTopic.trim()}
