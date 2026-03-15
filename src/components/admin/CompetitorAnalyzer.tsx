@@ -3720,6 +3720,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                     { key: "monthly", label: "1M" },
                                     { key: "quarterly", label: "3M" },
                                     { key: "yearly", label: "1Y" },
+                                    { key: "alltime", label: "All" },
                                     { key: "custom", label: "Custom" },
                                   ];
 
