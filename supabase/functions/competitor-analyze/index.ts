@@ -369,23 +369,22 @@ const scrapeSocialProfiles = async (
   };
 
   /** Parse SocialBlade markdown for TikTok metrics */
-  const parseTikTokSB = (md: string): typeof results[string] => {
-    const out: typeof results[string] = {};
+  const parseTikTokSB = (md: string): ScrapedMetrics => {
+    const out: ScrapedMetrics = {};
 
-    // Followers
     const followersMatch = md.match(/followers\s*\n\s*([\d,.KMBkmb]+)/i);
     if (followersMatch) out.followers = parseHumanNumber(followersMatch[1]);
 
-    // Total likes
-    let totalLikes = 0;
-    const likesMatch = md.match(/likes\s*\n\s*([\d,.KMBkmb]+)/i);
-    if (likesMatch) totalLikes = parseHumanNumber(likesMatch[1]);
+    const followingMatch = md.match(/following\s*\n\s*([\d,.KMBkmb]+)/i);
+    if (followingMatch) out.following = parseHumanNumber(followingMatch[1]);
 
-    // Videos
+    let totalLikes = 0;
+    const likesMatch = md.match(/(?:total\s*)?likes\s*\n\s*([\d,.KMBkmb]+)/i);
+    if (likesMatch) { totalLikes = parseHumanNumber(likesMatch[1]); out.totalLikes = totalLikes; }
+
     const videosMatch = md.match(/videos\s*\n\s*([\d,.KMBkmb]+)/i);
     if (videosMatch) out.posts = parseHumanNumber(videosMatch[1]);
 
-    // Avg likes = total likes / total videos
     if (totalLikes > 0 && out.posts && out.posts > 0) {
       out.avgLikes = Math.round(totalLikes / out.posts);
     }
@@ -394,7 +393,10 @@ const scrapeSocialProfiles = async (
     const gains = extractLast30Row(md);
     if (gains.length >= 4) {
       const followerGain = gains[0];
+      const likesGain = gains[2];
       const videoGain = gains[3];
+      out.followerGain30d = followerGain;
+      out.likeGain30d = likesGain;
       if (Number.isFinite(videoGain) && videoGain !== 0) {
         out.postFrequency = Math.abs((videoGain / 30) * 7);
       }
@@ -403,7 +405,6 @@ const scrapeSocialProfiles = async (
       }
     }
 
-    // Derive ER from avg likes / followers
     if (out.avgLikes && out.followers && out.followers > 0) {
       out.engagementRate = (out.avgLikes / out.followers) * 100;
     }
