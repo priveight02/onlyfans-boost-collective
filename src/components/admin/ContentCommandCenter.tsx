@@ -25,6 +25,7 @@ import { useCreditAction } from "@/hooks/useCreditAction";
 import CreditCostBadge from "./CreditCostBadge";
 import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 import ContentSandbox from "./ContentSandbox";
+import { pushToSocialHub, pullContentPlanForPlatform, getConnectedAccounts, DEFAULT_BEST_TIMES } from "@/lib/contentSync";
 
 const CONTENT_TYPES = ["post", "story", "reel", "tweet", "promo", "teaser", "behind_scenes", "collab"];
 const STATUSES = ["draft", "planned", "scheduled", "published", "archived"];
