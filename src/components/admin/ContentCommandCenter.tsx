@@ -2231,7 +2231,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   <div className="flex gap-1.5 flex-wrap">
                     {availablePlatforms.filter(p => p !== showDetail.platform).map(p => (
                       <Button key={p} size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); duplicateForPlatform(showDetail, p); }}
-                        className="text-[10px] h-6 border-white/[0.06] text-white/50 capitalize">
+                        className="text-[10px] h-6 border-white/[0.06] bg-white/[0.03] text-white/50 hover:bg-white/[0.06] hover:text-white capitalize">
                         {platformIcon(p)} {p}
                       </Button>
                     ))}
@@ -2245,7 +2245,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   <div className="flex gap-1.5 flex-wrap">
                     {availablePlatforms.filter(p => p !== showDetail.platform).map(p => (
                       <Button key={p} size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); recycleContent(showDetail, p); }}
-                        className="text-[10px] h-6 border-white/[0.06] text-white/50 capitalize">
+                        className="text-[10px] h-6 border-white/[0.06] bg-white/[0.03] text-white/50 hover:bg-white/[0.06] hover:text-white capitalize">
                         {platformIcon(p)} {p}
                       </Button>
                     ))}
@@ -2257,19 +2257,19 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               <div className="flex gap-2 pt-2 border-t border-white/[0.06] flex-wrap">
                 {showDetail.status === "draft" && (
                   <Button size="sm" variant="outline" onClick={() => moveToReview(showDetail.id)}
-                    className="border-primary/20 text-primary text-xs h-9">
+                    className="border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 text-xs h-9">
                     <CheckCircle2 className="h-3 w-3 mr-1" /> Submit for Review
                   </Button>
                 )}
                 {showDetail.status === "published" && (
                   <Button size="sm" variant="outline" onClick={() => quickRepost(showDetail)}
-                    className="border-amber-500/20 text-amber-400 text-xs h-9">
+                    className="border-amber-500/20 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-xs h-9">
                     <Repeat className="h-3 w-3 mr-1" /> Repost
                   </Button>
                 )}
                 {showDetail.caption && (
                   <Button size="sm" variant="outline" onClick={() => saveCaptionToLibrary(showDetail.caption, showDetail.platform, showDetail.title)}
-                    className="border-white/[0.06] text-white/50 text-xs h-9">
+                    className="border-white/[0.06] bg-white/[0.03] text-white/50 hover:bg-white/[0.06] hover:text-white text-xs h-9">
                     <BookOpen className="h-3 w-3 mr-1" /> Save Caption
                   </Button>
                 )}
@@ -2303,11 +2303,11 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   </div>
                 )}
                 <Button size="sm" variant="outline" onClick={() => { setShowDetail(null); editItem(showDetail); }}
-                  className="border-white/[0.06] text-white/50 hover:text-white text-xs h-9">
+                  className="border-white/[0.06] bg-white/[0.03] text-white/50 hover:bg-white/[0.06] hover:text-white text-xs h-9">
                   <Edit2 className="h-3 w-3 mr-1" /> Edit
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => deleteItem(showDetail.id)}
-                  className="border-white/[0.08] text-white/50 hover:text-red-400 hover:border-red-500/30 text-xs h-9">
+                  className="border-white/[0.08] bg-white/[0.03] text-white/50 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10 text-xs h-9">
                   <Trash2 className="h-3 w-3 mr-1" /> Delete
                 </Button>
               </div>
@@ -3185,11 +3185,11 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                         <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" /> Approve
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => rejectContent(item.id)}
-                        className="flex-1 text-[10px] h-6 border-red-500/30 text-red-400">
+                        className="flex-1 text-[10px] h-6 border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20">
                         <X className="h-2.5 w-2.5 mr-0.5" /> Reject
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => { setShowDetail(item); setShowApprovalQueue(false); }}
-                        className="text-[10px] h-6 border-white/[0.08] text-white/40">
+                        className="text-[10px] h-6 border-white/[0.08] bg-white/[0.03] text-white/40 hover:bg-white/[0.06] hover:text-white">
                         <Eye className="h-2.5 w-2.5" />
                       </Button>
                     </div>
@@ -3204,7 +3204,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   <span className="text-[10px] text-white flex-1 truncate">{item.title}</span>
                   <Badge variant="outline" className={`text-[8px] capitalize gap-0.5 ${platformConf(item.platform).color}`}>{item.platform}</Badge>
                   <Button size="sm" variant="outline" onClick={() => moveToReview(item.id)}
-                    className="text-[9px] h-5 px-2 border-primary/20 text-primary">Submit</Button>
+                    className="text-[9px] h-5 px-2 border-primary/20 bg-primary/10 text-primary hover:bg-primary/20">Submit</Button>
                 </div>
               ))}
             </div>
