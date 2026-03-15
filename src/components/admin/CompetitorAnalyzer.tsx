@@ -1831,6 +1831,34 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 </CardContent>
               </Card>
 
+              {/* Engagement Efficiency - Likes per 1K followers */}
+              <Card className="crm-card border-cyan-400/15">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-cyan-400 flex items-center gap-2"><Zap className="h-4 w-4" /> Engagement Efficiency (Likes per 1K Followers)</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={[
+                        ...(myStats ? [{ name: `@${myStats.username} (You)`, efficiency: myStats.followers > 0 ? Math.round(myStats.avgLikes / myStats.followers * 1000) : 0, isMe: true }] : []),
+                        ...competitors.map(c => ({ name: `@${c.username}`, efficiency: c.followers > 0 ? Math.round(c.avgLikes / c.followers * 1000) : 0, isMe: false })),
+                      ].sort((a, b) => b.efficiency - a.efficiency)} barCategoryGap="20%">
+                        <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number) => `${v} likes/1K`} />
+                        <Bar dataKey="efficiency" radius={[4, 4, 0, 0]} name="Likes per 1K">
+                          {[
+                            ...(myStats ? [{ isMe: true }] : []),
+                            ...competitors.map(() => ({ isMe: false })),
+                          ].sort(() => 0).map((_, i) => (
+                            <Cell key={i} fill={i === 0 ? "hsl(150,60%,50%)" : PIE_COLORS[i % PIE_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <p className="text-[10px] text-white/30 text-center mt-2">Higher = more engagement per follower · best measure of true influence</p>
+                </CardContent>
+              </Card>
+
               {/* Follower comparison bar */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card className="crm-card">
@@ -1850,15 +1878,17 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 </Card>
 
                 <Card className="crm-card">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Engagement Rate Comparison</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Growth Rate vs Engagement</CardTitle></CardHeader>
                   <CardContent>
                     <div className="h-[220px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={getComparisonBarData()} barCategoryGap="25%">
                           <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
                           <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                          <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number) => `${v}%`} />
+                          <Tooltip contentStyle={chartTooltipStyle} />
                           <Bar dataKey="engagement" fill="hsl(150,60%,50%)" radius={[4, 4, 0, 0]} name="Engagement %" />
+                          <Bar dataKey="growth" fill="hsl(262,83%,58%)" radius={[4, 4, 0, 0]} name="Growth %/wk" />
+                          <Legend wrapperStyle={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
