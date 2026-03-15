@@ -3459,10 +3459,11 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                   // Time period logic
                                   const period = platformTimePeriods[key] || "monthly";
                                   const customDates = platformCustomDates[key] || [];
-                                  const periodLabel = period === "daily" ? "Day" : period === "weekly" ? "Week" : period === "monthly" ? "Month" : period === "quarterly" ? "Quarter" : period === "yearly" ? "Year" : `${customDates.length} day${customDates.length !== 1 ? "s" : ""}`;
+                                  const periodLabel = period === "daily" ? "Day" : period === "weekly" ? "Week" : period === "monthly" ? "Month" : period === "quarterly" ? "Quarter" : period === "yearly" ? "Year" : period === "alltime" ? "All Time" : `${customDates.length} day${customDates.length !== 1 ? "s" : ""}`;
                                   // Multiplier for 30d base data → selected period
-                                  const periodDays = period === "daily" ? 1 : period === "weekly" ? 7 : period === "monthly" ? 30 : period === "quarterly" ? 90 : period === "yearly" ? 365 : Math.max(customDates.length, 1);
-                                  const periodMul = periodDays / 30;
+                                  const periodDays = period === "daily" ? 1 : period === "weekly" ? 7 : period === "monthly" ? 30 : period === "quarterly" ? 90 : period === "yearly" ? 365 : period === "alltime" ? 0 : Math.max(customDates.length, 1);
+                                  const periodMul = period === "alltime" ? 1 : periodDays / 30;
+                                  const isAllTime = period === "alltime";
 
                                   // Core metrics
                                   const totalReach = sum(c => c.followers);
