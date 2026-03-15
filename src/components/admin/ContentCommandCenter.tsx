@@ -2892,8 +2892,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             <Select value={formPlatform || "twitter"} onValueChange={v => setFormPlatform(v)}>
               <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue /></SelectTrigger>
               <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
-                <SelectItem value="twitter" className="text-xs">X / Twitter</SelectItem>
-                <SelectItem value="threads" className="text-xs">Threads</SelectItem>
+                <SelectItem value="twitter" className="text-xs text-white/70 focus:bg-white/[0.06] focus:text-white">X / Twitter</SelectItem>
+                <SelectItem value="threads" className="text-xs text-white/70 focus:bg-white/[0.06] focus:text-white">Threads</SelectItem>
               </SelectContent>
             </Select>
             <Button onClick={generateThread} disabled={generatingThread} className="w-full bg-primary text-primary-foreground text-xs">
