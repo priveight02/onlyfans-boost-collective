@@ -2955,31 +2955,25 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
                               {/* Interactive preview */}
                               <div className="relative h-[240px] md:h-[320px] overflow-hidden bg-black/80">
-                                <object
-                                  data={entry.previewUrl}
-                                  type="text/html"
-                                  className="h-full w-full"
-                                  aria-label={`Interactive ${entry.platform} preview for @${entry.username}`}
-                                >
-                                  <div className="relative h-full w-full">
-                                    <img
-                                      src={getScreenshot(entry.url)}
-                                      alt={`${entry.platform} profile of @${entry.username}`}
-                                      className="h-full w-full object-cover object-top"
-                                      loading="lazy"
-                                      decoding="async"
-                                    />
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-3" style={{ background: `linear-gradient(135deg, ${entry.color}20, hsl(240 10% 4%) 70%)` }}>
-                                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${entry.color}, ${entry.color})` }}>
-                                        {entry.icon}
-                                      </div>
-                                      <p className="text-xs text-white/75 font-medium text-center">Interactive embed blocked by this platform</p>
-                                      <a href={entry.url} target="_blank" rel="noopener noreferrer" className="text-[9px] text-white/80 px-2 py-1 rounded-md bg-white/[0.12] hover:bg-white/[0.18] transition-colors">
-                                        Open live profile
-                                      </a>
-                                    </div>
+                                <iframe
+                                  src={entry.previewUrl}
+                                  className="h-full w-full border-0"
+                                  sandbox="allow-scripts allow-same-origin allow-popups"
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                  allow="encrypted-media"
+                                  title={`${entry.platform} preview for @${entry.username}`}
+                                  onError={(e) => { (e.target as HTMLIFrameElement).style.display = 'none'; const fb = (e.target as HTMLIFrameElement).nextElementSibling as HTMLElement; if (fb) fb.style.display = 'flex'; }}
+                                />
+                                <div className="absolute inset-0 flex-col items-center justify-center gap-3 p-3 hidden" style={{ background: `linear-gradient(135deg, ${entry.color}20, hsl(240 10% 4%) 70%)` }}>
+                                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${entry.color}, ${entry.color})` }}>
+                                    {entry.icon}
                                   </div>
-                                </object>
+                                  <p className="text-xs text-white/75 font-medium text-center">Interactive embed blocked by this platform</p>
+                                  <a href={entry.url} target="_blank" rel="noopener noreferrer" className="text-[9px] text-white/80 px-2 py-1 rounded-md bg-white/[0.12] hover:bg-white/[0.18] transition-colors">
+                                    Open live profile
+                                  </a>
+                                </div>
                                 <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
                               </div>
 
