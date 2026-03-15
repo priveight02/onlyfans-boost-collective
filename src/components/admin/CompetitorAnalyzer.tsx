@@ -3218,54 +3218,86 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         pinterest: { color: "hsl(348 91% 45%)", logo: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12.017 0C5.396 0 .029 5.367.029 11.987c0 5.079 3.158 9.417 7.618 11.162-.105-.949-.199-2.403.041-3.439.219-.937 1.406-5.957 1.406-5.957s-.359-.72-.359-1.781c0-1.668.967-2.914 2.171-2.914 1.023 0 1.518.769 1.518 1.69 0 1.029-.655 2.568-.994 3.995-.283 1.194.599 2.169 1.777 2.169 2.133 0 3.772-2.249 3.772-5.495 0-2.873-2.064-4.882-5.012-4.882-3.414 0-5.418 2.561-5.418 5.207 0 1.031.397 2.138.893 2.738a.36.36 0 0 1 .083.345l-.333 1.36c-.053.22-.174.267-.402.161-1.499-.698-2.436-2.889-2.436-4.649 0-3.785 2.75-7.262 7.929-7.262 4.163 0 7.398 2.967 7.398 6.931 0 4.136-2.607 7.464-6.227 7.464-1.216 0-2.359-.631-2.75-1.378l-.748 2.853c-.271 1.043-1.002 2.35-1.492 3.146C9.57 23.812 10.763 24 12.017 24c6.624 0 11.99-5.367 11.99-11.988C24.007 5.367 18.641 0 12.017 0z'/%3E%3C/svg%3E" },
                         snapchat: { color: "hsl(60 100% 50%)", logo: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='white'%3E%3Cpath d='M12.206.793c.99 0 4.347.276 5.93 3.821.529 1.193.403 3.219.299 4.847l-.003.06c-.012.18-.022.345-.03.51.075.045.203.09.401.09.3-.016.659-.12.879-.207.118-.046.235-.093.385-.093.282 0 .565.107.769.357.157.19.22.443.176.679-.044.257-.217.501-.512.636-.147.067-.329.122-.51.176-.254.074-.481.14-.657.24-.223.126-.357.314-.358.541 0 .037.006.075.018.113.062.205.264.485.516.764.576.645 1.399 1.401 1.399 2.333 0 1.127-1.335 2.127-3.964 2.976-.15.05-.248.1-.297.147-.037.035-.047.098-.047.13 0 .053.015.105.03.157.091.254.135.459.158.595.048.284.074.495.074.651 0 .404-.223.745-.648.98C16.312 20.28 15.452 20.5 14.75 20.5c-.24 0-.481-.028-.717-.087-.258-.063-.563-.144-.926-.23-.453-.107-.985-.229-1.529-.229-.54 0-1.032.112-1.514.24-.344.091-.677.182-.972.255A5.34 5.34 0 0 1 8.2 20.5c-.699 0-1.558-.22-2.555-.664-.425-.235-.648-.576-.648-.98 0-.156.026-.367.074-.651.023-.136.067-.341.158-.595a.714.714 0 0 0 .03-.157c0-.032-.011-.094-.048-.13-.049-.047-.147-.097-.296-.147C2.37 17.127 1.035 16.127 1.035 15c0-.932.823-1.688 1.399-2.333.252-.28.454-.56.516-.764a.307.307 0 0 0 .018-.113c0-.227-.135-.415-.358-.541-.176-.1-.403-.166-.657-.24a3.063 3.063 0 0 1-.51-.176c-.342-.157-.505-.412-.516-.7a.746.746 0 0 1 .176-.63c.204-.25.487-.357.769-.357.15 0 .267.047.385.093.22.087.579.207.879.207.198 0 .326-.045.401-.09a5.757 5.757 0 0 1-.03-.51l-.003-.06c-.104-1.628-.23-3.654.3-4.847C5.86 1.069 9.216.793 10.205.793h2.001z'/%3E%3C/svg%3E" },
                       };
+
+                      const invalidHandlePattern = /^(?:null|none|n\/a|na|unknown|handle(?:\s*or\s*null)?|not\s+available)$/i;
+                      const metricPlaceholderPattern = /^(?:nan|null|undefined|n\/a|na|none|unknown|not\s+available)$/i;
+                      const parseMetricValue = (value: unknown) => {
+                        if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+                        if (typeof value !== "string") return 0;
+                        const raw = value.trim();
+                        if (!raw || metricPlaceholderPattern.test(raw)) return 0;
+                        const compact = raw.replace(/,/g, "").replace(/%/g, "").replace(/\/(wk|week)/gi, "").replace(/per\s+week/gi, "").trim();
+                        const suffixMatch = compact.match(/^(-?[\d.]+)([KMBkmb])$/);
+                        if (suffixMatch) {
+                          const base = parseFloat(suffixMatch[1]);
+                          if (!Number.isFinite(base)) return 0;
+                          const suffix = suffixMatch[2].toUpperCase();
+                          if (suffix === "K") return base * 1_000;
+                          if (suffix === "M") return base * 1_000_000;
+                          if (suffix === "B") return base * 1_000_000_000;
+                        }
+                        const n = Number(compact);
+                        return Number.isFinite(n) ? n : 0;
+                      };
+                      const hasValidHandle = (value: unknown) => typeof value === "string" && value.trim().length > 0 && !invalidHandlePattern.test(value.trim());
+                      const normalizePlatformKey = (platform: string) => (platform || "").toLowerCase() === "x" ? "twitter" : (platform || "").toLowerCase();
+
                       competitors.forEach(c => {
-                        const social = c.metadata?.socialPresence || {};
-                        const perPlatform = c.metadata?.platformMetrics || {};
-                        Object.keys(social).forEach(plat => {
-                          const key = plat.toLowerCase();
-                          if (!platformDefs[key] || !social[plat]) return;
-                          if (!platformMap[key]) platformMap[key] = { name: key.charAt(0).toUpperCase() + key.slice(1), color: platformDefs[key].color, logo: platformDefs[key].logo, competitors: [] };
-                          // Use per-platform metrics only (no fake top-level fallback for internet competitors)
-                          const pm = perPlatform[key] || perPlatform[plat];
-                          const hasPlatformData = pm && typeof pm === "object" && (
-                            Number(pm.followers) > 0 ||
-                            Number(pm.engagementRate) > 0 ||
-                            Number(pm.avgLikes) > 0 ||
-                            Number(pm.postFrequency) > 0 ||
-                            Number(pm.growthRate) !== 0
-                          );
+                        const social = (c.metadata?.socialPresence || {}) as Record<string, unknown>;
+                        const perPlatform = (c.metadata?.platformMetrics || {}) as Record<string, any>;
+
+                        Object.entries(social).forEach(([plat, handle]) => {
+                          const key = normalizePlatformKey(plat);
+                          if (!platformDefs[key] || !hasValidHandle(handle)) return;
+
+                          const pm = perPlatform[key] || perPlatform[plat] || {};
+                          const normalized = {
+                            followers: parseMetricValue(pm?.followers),
+                            engagementRate: parseMetricValue(pm?.engagementRate),
+                            avgLikes: parseMetricValue(pm?.avgLikes),
+                            postFrequency: parseMetricValue(pm?.postFrequency),
+                            growthRate: parseMetricValue(pm?.growthRate),
+                          };
+
+                          const hasPlatformData = normalized.followers > 0 || normalized.engagementRate > 0 || normalized.avgLikes > 0 || normalized.postFrequency > 0 || normalized.growthRate !== 0;
                           if (!hasPlatformData) return;
 
-                          platformMap[key].competitors.push({
-                            username: c.username,
-                            followers: Number(pm.followers) || 0,
-                            engagementRate: Number(pm.engagementRate) || 0,
-                            avgLikes: Number(pm.avgLikes) || 0,
-                            postFrequency: Number(pm.postFrequency) || 0,
-                            growthRate: Number(pm.growthRate) || 0,
-                          });
-                        });
-                        // Also add from primary platform (fallback only for non-internet competitors)
-                        const primary = (c.platform || "").toLowerCase();
-                        if (platformDefs[primary] && !platformMap[primary]?.competitors.some(x => x.username === c.username)) {
-                          if (!platformMap[primary]) platformMap[primary] = { name: primary.charAt(0).toUpperCase() + primary.slice(1), color: platformDefs[primary].color, logo: platformDefs[primary].logo, competitors: [] };
-                          const pm = (c.metadata?.platformMetrics || {})[primary] || {};
-                          const usePrimaryFallback = c.platform !== "internet";
-                          const followers = Number(pm.followers) || (usePrimaryFallback ? c.followers : 0);
-                          if (followers > 0) {
-                            platformMap[primary].competitors.push({
-                              username: c.username,
-                              followers,
-                              engagementRate: Number(pm.engagementRate) || (usePrimaryFallback ? c.engagementRate : 0),
-                              avgLikes: Number(pm.avgLikes) || (usePrimaryFallback ? c.avgLikes : 0),
-                              postFrequency: Number(pm.postFrequency) || (usePrimaryFallback ? c.postFrequency : 0),
-                              growthRate: Number(pm.growthRate) || (usePrimaryFallback ? c.growthRate : 0),
-                            });
+                          if (!platformMap[key]) {
+                            platformMap[key] = { name: key.charAt(0).toUpperCase() + key.slice(1), color: platformDefs[key].color, logo: platformDefs[key].logo, competitors: [] };
                           }
+
+                          if (!platformMap[key].competitors.some(x => x.username === c.username)) {
+                            platformMap[key].competitors.push({ username: c.username, ...normalized });
+                          }
+                        });
+
+                        // Primary fallback only for non-internet competitors
+                        const primary = normalizePlatformKey(c.platform || "");
+                        if (!platformDefs[primary]) return;
+                        if (platformMap[primary]?.competitors.some(x => x.username === c.username)) return;
+
+                        const pm = perPlatform[primary] || {};
+                        const usePrimaryFallback = c.platform !== "internet";
+                        const followers = parseMetricValue(pm?.followers) || (usePrimaryFallback ? parseMetricValue(c.followers) : 0);
+                        if (followers <= 0) return;
+
+                        if (!platformMap[primary]) {
+                          platformMap[primary] = { name: primary.charAt(0).toUpperCase() + primary.slice(1), color: platformDefs[primary].color, logo: platformDefs[primary].logo, competitors: [] };
                         }
+
+                        platformMap[primary].competitors.push({
+                          username: c.username,
+                          followers,
+                          engagementRate: parseMetricValue(pm?.engagementRate) || (usePrimaryFallback ? parseMetricValue(c.engagementRate) : 0),
+                          avgLikes: parseMetricValue(pm?.avgLikes) || (usePrimaryFallback ? parseMetricValue(c.avgLikes) : 0),
+                          postFrequency: parseMetricValue(pm?.postFrequency) || (usePrimaryFallback ? parseMetricValue(c.postFrequency) : 0),
+                          growthRate: parseMetricValue(pm?.growthRate) || (usePrimaryFallback ? parseMetricValue(c.growthRate) : 0),
+                        });
                       });
 
-                      const platforms = Object.entries(platformMap).sort((a, b) => b[1].competitors.length - a[1].competitors.length);
+                      const platforms = Object.entries(platformMap)
+                        .filter(([, data]) => data.competitors.length > 0)
+                        .sort((a, b) => b[1].competitors.length - a[1].competitors.length);
                       const platformCount = platforms.length;
 
                       // Hashtag frequency map
