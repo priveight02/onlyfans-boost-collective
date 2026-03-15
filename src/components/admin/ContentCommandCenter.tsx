@@ -1804,8 +1804,14 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           <Button size="sm" onClick={() => { resetForm(); setShowCreate(true); }} className="bg-primary text-primary-foreground text-xs h-8">
             <Plus className="h-3.5 w-3.5 mr-1" /> Create
           </Button>
-        </div>
+        </div>}
       </div>
+
+      {/* ═══ SANDBOX MODE ═══ */}
+      {sandboxMode && <ContentSandbox items={items} onRefresh={loadItems} />}
+
+      {/* ═══ CONTENT MODE ═══ */}
+      {!sandboxMode && (<>
 
       {/* Competitor Intel Sync Bar */}
       {competitorProfiles.length > 0 && (
