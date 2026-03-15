@@ -2828,16 +2828,42 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               <Card className="crm-card border-amber-400/15">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><Target className="h-4 w-4" /> Weekly Goals</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    {(battlePlan.weeklyGoals || []).map((g: any, i: number) => (
-                      <div key={i} className="p-3 rounded-lg bg-amber-400/5 border border-amber-400/15 space-y-1">
-                        <p className="text-xs font-medium text-white/80">{g.goal}</p>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-[9px] border-amber-400/20 text-amber-400">{g.metric}</Badge>
-                          <span className="text-[10px] text-emerald-400 font-bold">{g.target}</span>
+                  {/* Progress bar */}
+                  {(() => {
+                    const totalGoals = (battlePlan.weeklyGoals || []).length;
+                    const checkedGoals = (battlePlan.weeklyGoals || []).filter((_: any, i: number) => battlePlanChecks[`goal-${i}`]).length;
+                    const pct = totalGoals > 0 ? Math.round((checkedGoals / totalGoals) * 100) : 0;
+                    return totalGoals > 0 ? (
+                      <div className="mb-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] text-white/40">Progress</span>
+                          <span className={`text-[10px] font-bold ${pct === 100 ? "text-emerald-400" : "text-amber-400"}`}>{checkedGoals}/{totalGoals} ({pct}%)</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+                          <div className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? "bg-emerald-400" : "bg-amber-400"}`} style={{ width: `${pct}%` }} />
                         </div>
                       </div>
-                    ))}
+                    ) : null;
+                  })()}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    {(battlePlan.weeklyGoals || []).map((g: any, i: number) => {
+                      const key = `goal-${i}`;
+                      const checked = battlePlanChecks[key];
+                      return (
+                        <div key={i} className={`p-3 rounded-lg border space-y-1 cursor-pointer transition-all ${checked ? "bg-emerald-400/10 border-emerald-400/25" : "bg-amber-400/5 border-amber-400/15"}`} onClick={() => toggleBattlePlanCheck(key)}>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${checked ? "bg-emerald-400 border-emerald-400" : "border-white/20"}`}>
+                              {checked && <CheckCircle className="h-3 w-3 text-white" />}
+                            </div>
+                            <p className={`text-xs font-medium ${checked ? "text-white/50 line-through" : "text-white/80"}`}>{g.goal}</p>
+                          </div>
+                          <div className="flex items-center gap-2 ml-6">
+                            <Badge variant="outline" className="text-[9px] border-amber-400/20 text-amber-400">{g.metric}</Badge>
+                            <span className="text-[10px] text-emerald-400 font-bold">{g.target}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
