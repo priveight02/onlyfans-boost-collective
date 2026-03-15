@@ -3127,30 +3127,30 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               <div className="flex">
                 <div className="w-10" />
                 {heatmapData.hours.filter(h => h % 3 === 0).map(h => (
-                  <div key={h} className="flex-1 text-center text-[8px] text-muted-foreground">
+                  <div key={h} className="flex-1 text-center text-[8px] text-white/40">
                     {h === 0 ? "12a" : h < 12 ? `${h}a` : h === 12 ? "12p" : `${h-12}p`}
                   </div>
                 ))}
               </div>
               {heatmapData.days.map(day => (
                 <div key={day} className="flex items-center gap-0.5 mb-0.5">
-                  <span className="w-10 text-[9px] text-muted-foreground text-right pr-1">{day}</span>
+                  <span className="w-10 text-[9px] text-white/40 text-right pr-1">{day}</span>
                   {heatmapData.hours.map(h => {
                     const count = heatmapData.grid[`${day}-${h}`] || 0;
-                    const intensity = count === 0 ? "bg-muted/20" : count === 1 ? "bg-emerald-500/30" : count === 2 ? "bg-emerald-500/50" : "bg-emerald-500/80";
+                    const intensity = count === 0 ? "bg-white/[0.04]" : count === 1 ? "bg-emerald-500/30" : count === 2 ? "bg-emerald-500/50" : "bg-emerald-500/80";
                     return (
-                      <div key={h} className={`flex-1 h-5 rounded-sm ${intensity} border border-border/30`} title={`${day} ${h}:00 — ${count} posts`} />
+                      <div key={h} className={`flex-1 h-5 rounded-sm ${intensity} border border-white/[0.04]`} title={`${day} ${h}:00 · ${count} posts`} />
                     );
                   })}
                 </div>
               ))}
               <div className="flex items-center gap-2 mt-2 justify-end">
-                <span className="text-[8px] text-muted-foreground">Less</span>
-                <div className="h-3 w-3 rounded-sm bg-muted/20 border border-border/30" />
-                <div className="h-3 w-3 rounded-sm bg-emerald-500/30 border border-border/30" />
-                <div className="h-3 w-3 rounded-sm bg-emerald-500/50 border border-border/30" />
-                <div className="h-3 w-3 rounded-sm bg-emerald-500/80 border border-border/30" />
-                <span className="text-[8px] text-muted-foreground">More</span>
+                <span className="text-[8px] text-white/40">Less</span>
+                <div className="h-3 w-3 rounded-sm bg-white/[0.04] border border-white/[0.04]" />
+                <div className="h-3 w-3 rounded-sm bg-emerald-500/30 border border-white/[0.04]" />
+                <div className="h-3 w-3 rounded-sm bg-emerald-500/50 border border-white/[0.04]" />
+                <div className="h-3 w-3 rounded-sm bg-emerald-500/80 border border-white/[0.04]" />
+                <span className="text-[8px] text-white/40">More</span>
               </div>
             </div>
           </div>
