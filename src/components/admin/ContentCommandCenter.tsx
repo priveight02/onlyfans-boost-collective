@@ -2011,19 +2011,51 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       </div>
 
       {/* Bulk action bar */}
-      {bulkMode && selectedItems.size > 0 && (
+      {bulkMode && (
         <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-lg p-2">
           <span className="text-xs text-primary font-medium">{selectedItems.size} selected</span>
           <Button size="sm" variant="outline" onClick={selectAll} className="text-xs h-6 border-white/[0.06] text-white/50">
             {selectedItems.size === filtered.length ? "Deselect All" : "Select All"}
           </Button>
           <div className="flex-1" />
-          <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("scheduled")} className="text-xs h-6 border-blue-500/20 text-blue-400">Schedule</Button>
-          <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("draft")} className="text-xs h-6 border-amber-500/20 text-amber-400">→ Draft</Button>
-          <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("archived")} className="text-xs h-6 border-white/[0.06] text-white/40">Archive</Button>
-          <Button size="sm" variant="outline" onClick={bulkDelete} className="text-xs h-6 border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20">
-            <Trash2 className="h-3 w-3 mr-1" /> Delete
-          </Button>
+          {selectedItems.size > 0 && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("scheduled")} className="text-xs h-6 border-blue-500/20 text-blue-400 hover:bg-blue-500/10">
+                <Clock className="h-3 w-3 mr-1" /> Schedule
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("published")} className="text-xs h-6 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10">
+                <Send className="h-3 w-3 mr-1" /> Publish
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("draft")} className="text-xs h-6 border-amber-500/20 text-amber-400 hover:bg-amber-500/10">→ Draft</Button>
+              <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("archived")} className="text-xs h-6 border-white/[0.06] text-white/40 hover:bg-white/[0.05]">Archive</Button>
+              <Button size="sm" variant="outline" onClick={async () => {
+                if (selectedItems.size === 0) return;
+                const itemsToDup = filtered.filter(i => selectedItems.has(i.id));
+                let count = 0;
+                for (const item of itemsToDup) {
+                  const { error } = await supabase.from("content_calendar").insert({
+                    title: `${item.title} (copy)`,
+                    caption: item.caption,
+                    content_type: item.content_type,
+                    platform: item.platform,
+                    hashtags: item.hashtags,
+                    status: "draft",
+                    created_by: item.created_by,
+                    account_id: item.account_id,
+                    metadata: item.metadata,
+                  });
+                  if (!error) count++;
+                }
+                toast.success(`${count} items duplicated as drafts`);
+                setSelectedItems(new Set());
+              }} className="text-xs h-6 border-white/[0.06] text-white/50 hover:bg-white/[0.05]">
+                <Copy className="h-3 w-3 mr-1" /> Duplicate
+              </Button>
+              <Button size="sm" variant="outline" onClick={bulkDelete} className="text-xs h-6 border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20">
+                <Trash2 className="h-3 w-3 mr-1" /> Delete
+              </Button>
+            </>
+          )}
         </div>
       )}
 
