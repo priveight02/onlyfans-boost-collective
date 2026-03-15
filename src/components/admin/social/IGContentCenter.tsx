@@ -85,6 +85,12 @@ const IGContentCenter = ({ selectedAccount: parentAccount, onNavigateToConnect, 
   const [abCaptions, setAbCaptions] = useState<{ a: string; b: string } | null>(null);
   const [abGenerating, setAbGenerating] = useState(false);
 
+  // Import from Content Plan
+  const [showImportPlan, setShowImportPlan] = useState(false);
+  const [planItems, setPlanItems] = useState<any[]>([]);
+  const [importingPlan, setImportingPlan] = useState(false);
+  const [importAutoSchedule, setImportAutoSchedule] = useState(true);
+
   // Schedule filter
   const [schedFilterStatus, setSchedFilterStatus] = useState<string>("all");
 
