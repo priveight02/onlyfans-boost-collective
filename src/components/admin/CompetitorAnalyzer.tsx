@@ -1140,6 +1140,18 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                   {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   {analyzing ? "Analyzing..." : "Add & Analyze"}
                 </Button>
+                {competitors.length >= 2 && (
+                  <Button variant="outline" className="gap-1.5 h-10 border-white/10 text-white/60 hover:text-white" disabled={analyzing || !!refreshingId}
+                    onClick={async () => {
+                      for (const comp of competitors) {
+                        await refreshCompetitor(comp);
+                      }
+                      toast.success(`All ${competitors.length} competitors refreshed`);
+                    }}>
+                    <RefreshCw className={`h-4 w-4 ${refreshingId ? "animate-spin" : ""}`} />
+                    Refresh All
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -1582,6 +1594,38 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                             <p className="text-xs text-white/70">{comp.metadata.recentTrend}</p>
                           </div>
                         )}
+                        {/* Engagement Efficiency */}
+                        <div className="p-2 rounded-lg bg-white/[0.02]">
+                          <p className="text-[10px] text-white/40 mb-1">Engagement Efficiency</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-[hsl(217,91%,60%)]">{comp.followers > 0 ? (comp.avgLikes / comp.followers * 100).toFixed(2) : 0}%</p>
+                              <p className="text-[8px] text-white/30">Like Rate</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-emerald-400">{comp.followers > 0 ? (comp.avgComments / comp.followers * 100).toFixed(3) : 0}%</p>
+                              <p className="text-[8px] text-white/30">Comment Rate</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-amber-400">{comp.postFrequency > 0 ? Math.round(comp.avgLikes * comp.postFrequency) : 0}</p>
+                              <p className="text-[8px] text-white/30">Weekly Impressions Est.</p>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Quick Notes */}
+                        <div className="p-2 rounded-lg bg-white/[0.02]">
+                          <p className="text-[10px] text-white/40 mb-1">Notes</p>
+                          <Textarea
+                            placeholder="Add private notes about this competitor..."
+                            className="text-xs bg-transparent border-white/[0.06] text-white/70 min-h-[48px] resize-none placeholder:text-white/20"
+                            defaultValue={comp.metadata?.notes || ""}
+                            onBlur={async (e) => {
+                              const notes = e.target.value.trim();
+                              await competitorRest.update(comp.id, { metadata: { ...comp.metadata, notes } });
+                              setCompetitors(prev => prev.map(c => c.id === comp.id ? { ...c, metadata: { ...c.metadata, notes } } : c));
+                            }}
+                          />
+                        </div>
                       </div>
                     )}
 
@@ -1787,6 +1831,34 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 </CardContent>
               </Card>
 
+              {/* Engagement Efficiency - Likes per 1K followers */}
+              <Card className="crm-card border-cyan-400/15">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-cyan-400 flex items-center gap-2"><Zap className="h-4 w-4" /> Engagement Efficiency (Likes per 1K Followers)</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={[
+                        ...(myStats ? [{ name: `@${myStats.username} (You)`, efficiency: myStats.followers > 0 ? Math.round(myStats.avgLikes / myStats.followers * 1000) : 0, isMe: true }] : []),
+                        ...competitors.map(c => ({ name: `@${c.username}`, efficiency: c.followers > 0 ? Math.round(c.avgLikes / c.followers * 1000) : 0, isMe: false })),
+                      ].sort((a, b) => b.efficiency - a.efficiency)} barCategoryGap="20%">
+                        <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number) => `${v} likes/1K`} />
+                        <Bar dataKey="efficiency" radius={[4, 4, 0, 0]} name="Likes per 1K">
+                          {[
+                            ...(myStats ? [{ isMe: true }] : []),
+                            ...competitors.map(() => ({ isMe: false })),
+                          ].sort(() => 0).map((_, i) => (
+                            <Cell key={i} fill={i === 0 ? "hsl(150,60%,50%)" : PIE_COLORS[i % PIE_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <p className="text-[10px] text-white/30 text-center mt-2">Higher = more engagement per follower · best measure of true influence</p>
+                </CardContent>
+              </Card>
+
               {/* Follower comparison bar */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card className="crm-card">
@@ -1806,15 +1878,17 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 </Card>
 
                 <Card className="crm-card">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Engagement Rate Comparison</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Growth Rate vs Engagement</CardTitle></CardHeader>
                   <CardContent>
                     <div className="h-[220px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={getComparisonBarData()} barCategoryGap="25%">
                           <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
                           <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                          <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number) => `${v}%`} />
+                          <Tooltip contentStyle={chartTooltipStyle} />
                           <Bar dataKey="engagement" fill="hsl(150,60%,50%)" radius={[4, 4, 0, 0]} name="Engagement %" />
+                          <Bar dataKey="growth" fill="hsl(262,83%,58%)" radius={[4, 4, 0, 0]} name="Growth %/wk" />
+                          <Legend wrapperStyle={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -5241,6 +5315,49 @@ Return ONLY valid JSON:
                     </CardContent>
                   </Card>
 
+                  {/* Direct Stat Comparison Table */}
+                  <Card className="crm-card">
+                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Raw Stat Comparison</CardTitle></CardHeader>
+                    <CardContent>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-white/[0.06]">
+                              <th className="text-left py-2 text-white/50 font-medium text-xs">Metric</th>
+                              <th className="text-center py-2 text-[hsl(217,91%,60%)] font-medium text-xs">@{h2hResult.usernameA}</th>
+                              <th className="text-center py-2 text-[hsl(262,83%,58%)] font-medium text-xs">@{h2hResult.usernameB}</th>
+                              <th className="text-center py-2 text-white/40 font-medium text-xs">Diff</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {[
+                              { label: "Followers", a: h2hResult.statsA?.followers || 0, b: h2hResult.statsB?.followers || 0, fmt: fmtNum, higher: true },
+                              { label: "Engagement %", a: h2hResult.statsA?.engagementRate || 0, b: h2hResult.statsB?.engagementRate || 0, fmt: (v: number) => `${v}%`, higher: true },
+                              { label: "Avg Likes", a: h2hResult.statsA?.avgLikes || 0, b: h2hResult.statsB?.avgLikes || 0, fmt: (v: number) => v.toLocaleString(), higher: true },
+                              { label: "Avg Comments", a: h2hResult.statsA?.avgComments || 0, b: h2hResult.statsB?.avgComments || 0, fmt: (v: number) => v.toLocaleString(), higher: true },
+                              { label: "Growth/Wk", a: h2hResult.statsA?.growthRate || 0, b: h2hResult.statsB?.growthRate || 0, fmt: (v: number) => `${v >= 0 ? "+" : ""}${v}%`, higher: true },
+                              { label: "Posts/Wk", a: h2hResult.statsA?.postFrequency || 0, b: h2hResult.statsB?.postFrequency || 0, fmt: (v: number) => `${v}`, higher: true },
+                              { label: "Total Posts", a: h2hResult.statsA?.posts || 0, b: h2hResult.statsB?.posts || 0, fmt: (v: number) => v.toLocaleString(), higher: true },
+                              { label: "Like Rate", a: (h2hResult.statsA?.followers || 1) > 0 ? (h2hResult.statsA?.avgLikes || 0) / (h2hResult.statsA?.followers || 1) * 100 : 0, b: (h2hResult.statsB?.followers || 1) > 0 ? (h2hResult.statsB?.avgLikes || 0) / (h2hResult.statsB?.followers || 1) * 100 : 0, fmt: (v: number) => `${v.toFixed(2)}%`, higher: true },
+                            ].map((row, idx) => {
+                              const aWins = row.higher ? row.a > row.b : row.a < row.b;
+                              const bWins = row.higher ? row.b > row.a : row.b < row.a;
+                              const diff = row.b !== 0 ? ((row.a - row.b) / Math.abs(row.b) * 100).toFixed(0) : "—";
+                              return (
+                                <tr key={idx} className="border-b border-white/[0.03]">
+                                  <td className="py-2 text-white/50 text-xs">{row.label}</td>
+                                  <td className={`text-center py-2 text-xs font-medium ${aWins ? "text-emerald-400 font-bold" : "text-white/60"}`}>{row.fmt(row.a)}</td>
+                                  <td className={`text-center py-2 text-xs font-medium ${bWins ? "text-emerald-400 font-bold" : "text-white/60"}`}>{row.fmt(row.b)}</td>
+                                  <td className={`text-center py-2 text-[10px] ${Number(diff) > 0 ? "text-emerald-400" : Number(diff) < 0 ? "text-red-400" : "text-white/30"}`}>{diff !== "—" ? `${Number(diff) > 0 ? "+" : ""}${diff}%` : "—"}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+
                   {/* Category Breakdown */}
                   <Card className="crm-card">
                     <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Category Breakdown</CardTitle></CardHeader>
@@ -5438,6 +5555,9 @@ Return ONLY valid JSON:
                         <p className="text-sm font-medium text-white">@{forecastResult.username} Growth Forecast</p>
                       </div>
                       <p className="text-xs text-white/70">{forecastResult.trendAnalysis}</p>
+                      {forecastResult.competitorComparison && (
+                        <p className="text-[10px] text-[hsl(217,91%,60%)]/70 mt-2 p-2 rounded-lg bg-[hsl(217,91%,60%)]/5 border border-[hsl(217,91%,60%)]/10">{forecastResult.competitorComparison}</p>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -5448,18 +5568,47 @@ Return ONLY valid JSON:
                       { label: "90 Days", data: forecastResult.projections?.ninetyDays },
                       { label: "6 Months", data: forecastResult.projections?.sixMonths },
                       { label: "1 Year", data: forecastResult.projections?.oneYear },
-                    ].map((p, i) => (
-                      <Card key={i} className="crm-card">
-                        <CardContent className="p-3 text-center space-y-1">
-                          <p className="text-[10px] text-white/40">{p.label}</p>
-                          <p className="text-lg font-bold text-[hsl(217,91%,60%)]">{fmtNum(p.data?.followers || 0)}</p>
-                          <p className="text-[10px] text-white/50">followers</p>
-                          <p className="text-[10px] text-emerald-400">{p.data?.engagementRate}% ER</p>
-                          <p className="text-[10px] text-white/30">{fmtNum(p.data?.totalLikes || 0)} total likes</p>
-                        </CardContent>
-                      </Card>
-                    ))}
+                    ].map((p, i) => {
+                      const growthPct = forecastResult.currentFollowers > 0 ? (((p.data?.followers || 0) - forecastResult.currentFollowers) / forecastResult.currentFollowers * 100).toFixed(0) : "0";
+                      return (
+                        <Card key={i} className="crm-card">
+                          <CardContent className="p-3 text-center space-y-1">
+                            <p className="text-[10px] text-white/40">{p.label}</p>
+                            <p className="text-lg font-bold text-[hsl(217,91%,60%)]">{fmtNum(p.data?.followers || 0)}</p>
+                            <p className="text-[10px] text-emerald-400">+{growthPct}% growth</p>
+                            <p className="text-[10px] text-white/50">{p.data?.engagementRate}% ER</p>
+                            <p className="text-[10px] text-white/30">{fmtNum(p.data?.totalLikes || 0)} total likes</p>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
+
+                  {/* Best/Worst Case Scenarios */}
+                  {(forecastResult.bestCaseScenario || forecastResult.worstCaseScenario) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {forecastResult.bestCaseScenario && (
+                        <Card className="crm-card border-emerald-400/15">
+                          <CardContent className="p-4 space-y-2">
+                            <p className="text-xs font-medium text-emerald-400 flex items-center gap-1.5">🚀 Best Case Scenario</p>
+                            <p className="text-xl font-black text-emerald-400">{fmtNum(forecastResult.bestCaseScenario.followers || 0)} <span className="text-xs font-normal text-white/40">followers</span></p>
+                            <p className="text-[10px] text-white/60">{forecastResult.bestCaseScenario.timeline}</p>
+                            <p className="text-[10px] text-emerald-400/70">Requires: {forecastResult.bestCaseScenario.requirements}</p>
+                          </CardContent>
+                        </Card>
+                      )}
+                      {forecastResult.worstCaseScenario && (
+                        <Card className="crm-card border-red-400/15">
+                          <CardContent className="p-4 space-y-2">
+                            <p className="text-xs font-medium text-red-400 flex items-center gap-1.5">⚠️ Worst Case Scenario</p>
+                            <p className="text-xl font-black text-red-400">{fmtNum(forecastResult.worstCaseScenario.followers || 0)} <span className="text-xs font-normal text-white/40">followers</span></p>
+                            <p className="text-[10px] text-white/60">{forecastResult.worstCaseScenario.timeline}</p>
+                            <p className="text-[10px] text-red-400/70">Warning: {forecastResult.worstCaseScenario.warning}</p>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  )}
 
                   {/* Growth Chart */}
                   {(forecastResult.monthlyBreakdown || []).length > 0 && (
@@ -5799,6 +5948,65 @@ Return ONLY valid JSON:
                   toast.success("Summary copied to clipboard");
                 }}>
                   <Copy className="h-4 w-4" /> Copy Summary
+                </Button>
+
+                {/* HTML Report Export */}
+                <Button variant="outline" className="gap-1.5 border-amber-400/20 text-amber-400 hover:bg-amber-400/10" onClick={() => {
+                  const css = `body{font-family:system-ui,-apple-system,sans-serif;background:#0a0e1a;color:#e2e8f0;padding:40px;max-width:900px;margin:0 auto}h1{background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:28px}h2{color:#60a5fa;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;margin-top:32px}h3{color:#a78bfa;font-size:14px}.card{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;margin:12px 0}.stat{display:inline-block;padding:8px 16px;background:rgba(59,130,246,0.08);border-radius:8px;margin:4px;font-size:13px}.stat b{color:#60a5fa}.good{color:#34d399}.bad{color:#f87171}.warn{color:#fbbf24}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.04)}th{color:rgba(255,255,255,0.4);font-weight:500}.footer{margin-top:48px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);color:rgba(255,255,255,0.3);font-size:11px}`;
+                  let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Competitive Intelligence Report</title><style>${css}</style></head><body>`;
+                  html += `<h1>🎯 Competitive Intelligence Report</h1><p style="color:rgba(255,255,255,0.4)">Generated: ${new Date().toLocaleString()}</p>`;
+                  
+                  if (enterpriseProfile?.companyName) {
+                    html += `<div class="card"><h3>My Enterprise</h3><p><b>${enterpriseProfile.companyName}</b>${enterpriseProfile.industry ? ` · ${enterpriseProfile.industry}` : ""}</p>`;
+                    if (myStats) html += `<p>@${myStats.username} · ${fmtNum(myStats.followers)} followers · ${myStats.engagementRate}% ER</p>`;
+                    html += `</div>`;
+                  }
+
+                  if (competitors.length) {
+                    html += `<h2>👥 Tracked Competitors (${competitors.length})</h2><table><tr><th>Account</th><th>Platform</th><th>Followers</th><th>ER%</th><th>Growth</th><th>Threat</th></tr>`;
+                    competitors.forEach(c => {
+                      const tc = c.score >= 70 ? "bad" : c.score >= 40 ? "warn" : "good";
+                      html += `<tr><td><b>@${c.username}</b></td><td>${c.platform}</td><td>${fmtNum(c.followers)}</td><td>${c.engagementRate}%</td><td class="${c.growthRate >= 0 ? "good" : "bad"}">${c.growthRate >= 0 ? "+" : ""}${c.growthRate}%</td><td class="${tc}">${c.score}/100</td></tr>`;
+                    });
+                    html += `</table>`;
+                  }
+
+                  if (siteInsights) {
+                    html += `<h2>🧠 AI Competitive Intelligence</h2><div class="card"><p><b>Score:</b> <span class="${(siteInsights.competitiveScore || 0) >= 60 ? "good" : "warn"}">${siteInsights.competitiveScore}/100</span> · <b>Position:</b> ${siteInsights.marketPosition?.tier || "?"}</p><p>${siteInsights.executiveSummary || ""}</p></div>`;
+                  }
+
+                  if (forecastResult) {
+                    html += `<h2>📈 Growth Forecast: @${forecastResult.username}</h2><div class="card"><p><b>Trend:</b> <span class="${forecastResult.currentTrend === "accelerating" ? "good" : forecastResult.currentTrend === "declining" ? "bad" : "warn"}">${forecastResult.currentTrend}</span></p><p>${forecastResult.trendAnalysis || ""}</p>`;
+                    html += `<div style="display:flex;gap:8px;margin-top:12px">`;
+                    [{ l: "30 Days", d: forecastResult.projections?.thirtyDays },{ l: "90 Days", d: forecastResult.projections?.ninetyDays },{ l: "6 Months", d: forecastResult.projections?.sixMonths },{ l: "1 Year", d: forecastResult.projections?.oneYear }].forEach(p => {
+                      html += `<div class="stat"><b>${fmtNum(p.d?.followers || 0)}</b><br><span style="font-size:10px;color:rgba(255,255,255,0.4)">${p.l}</span></div>`;
+                    });
+                    html += `</div></div>`;
+                  }
+
+                  if (swotResult) {
+                    html += `<h2>🎯 SWOT Analysis</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
+                    [{ k: "strengths", l: "Strengths", c: "good" },{ k: "weaknesses", l: "Weaknesses", c: "bad" },{ k: "opportunities", l: "Opportunities", c: "" },{ k: "threats", l: "Threats", c: "warn" }].forEach(q => {
+                      const items = (swotResult as any)[q.k] || [];
+                      html += `<div class="card"><h3 class="${q.c}">${q.l} (${items.length})</h3><ul>`;
+                      items.forEach((it: any) => { html += `<li style="font-size:12px;margin:4px 0">${typeof it === "string" ? it : it.text || it}</li>`; });
+                      html += `</ul></div>`;
+                    });
+                    html += `</div>`;
+                  }
+
+                  html += `<div class="footer">Generated by Uplyze Competitor Analyzer · ${new Date().toISOString()}</div></body></html>`;
+
+                  const blob = new Blob([html], { type: "text/html" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `competitive-intel-${new Date().toISOString().slice(0, 10)}.html`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast.success("HTML report exported — open in any browser");
+                }}>
+                  <FileText className="h-4 w-4" /> Export HTML Report
                 </Button>
               </div>
             </CardContent>
