@@ -3895,20 +3895,23 @@ Return ONLY a valid JSON array. No markdown, no explanations.`,
                                       // Insert into content_calendar
                                       const userId = session?.user?.id;
                                       const inserts = entries.map((e: any) => ({
-                                        title: String(e.title || "Copied Post").slice(0, 200),
+                                        title: String(e.title || "Cloned Post").slice(0, 200),
                                         platform: String(e.platform || "instagram").toLowerCase(),
                                         content_type: String(e.content_type || "post"),
                                         caption: String(e.caption || ""),
                                         scheduled_at: e.scheduled_at || new Date(Date.now() + Math.random() * 14 * 86400000).toISOString(),
                                         status: "draft",
                                         created_by: userId,
-                                        hashtags: e.caption ? [...(e.caption.match(/#\w+/g) || [])].map((t: string) => t.replace("#", "")) : [],
+                                        viral_score: e.viral_score || 0,
+                                        description: e.description || "Cloned from competitor strategy",
+                                        hashtags: Array.isArray(e.hashtags) ? e.hashtags.map((t: string) => t.replace("#", "")) : e.caption ? [...(e.caption.match(/#\w+/g) || [])].map((t: string) => t.replace("#", "")) : [],
+                                        metadata: { source: "competitor_intel", cloned_from: "content_intel_tab", cloned_at: new Date().toISOString(), competitor_handles: planData.flatMap(p => p.competitors) },
                                       }));
 
                                       const { error } = await supabase.from("content_calendar").insert(inserts);
                                       if (error) throw error;
 
-                                      toast.success(`🎯 ${entries.length} posts copied to Content Calendar!`, { description: "Go to /content to review and publish" });
+                                      toast.success(`🎯 ${entries.length} posts cloned to Content Calendar!`, { description: "Go to /content to review, edit, and push to platform tabs" });
                                     } catch (err: any) {
                                       console.error("Copy plan error:", err);
                                       toast.error(err.message || "Failed to copy social media plan");
