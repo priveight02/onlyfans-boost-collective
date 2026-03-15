@@ -2174,29 +2174,67 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
           </Card>
 
           {swotResult ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {([
-                { key: "strengths" as const, label: "Strengths", colorClass: "text-emerald-400", dotClass: "bg-emerald-400", icon: Shield },
-                { key: "weaknesses" as const, label: "Weaknesses", colorClass: "text-red-400", dotClass: "bg-red-400", icon: TrendingDown },
-                { key: "opportunities" as const, label: "Opportunities", colorClass: "text-[hsl(217,91%,60%)]", dotClass: "bg-[hsl(217,91%,60%)]", icon: Zap },
-                { key: "threats" as const, label: "Threats", colorClass: "text-amber-400", dotClass: "bg-amber-400", icon: Flame },
-              ]).map(({ key, label, colorClass, dotClass, icon: Icon }) => (
-                <Card key={key} className="crm-card">
-                  <CardHeader className="pb-2">
-                    <CardTitle className={`text-sm font-medium flex items-center gap-2 ${colorClass}`}>
-                      <Icon className="h-4 w-4" /> {label}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {(swotResult[key] || []).map((item, i) => (
-                      <div key={i} className="flex items-start gap-2 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
-                        <div className={`w-1.5 h-1.5 rounded-full mt-1.5 ${dotClass} flex-shrink-0`} />
-                        <p className="text-sm text-white/70">{item}</p>
+            <div className="space-y-4">
+              {/* Verdict + Top Action */}
+              {(swotResult as any).overallVerdict && (
+                <Card className="crm-card border-[hsl(217,91%,60%)]/15">
+                  <CardContent className="p-4 space-y-2">
+                    <p className="text-xs text-white/70">{(swotResult as any).overallVerdict}</p>
+                    {(swotResult as any).topAction && (
+                      <div className="flex items-start gap-2 p-2.5 rounded-lg bg-emerald-400/5 border border-emerald-400/15">
+                        <Zap className="h-3.5 w-3.5 text-emerald-400 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="text-[10px] text-emerald-400 font-bold uppercase">Top Priority Action</p>
+                          <p className="text-xs text-white/70">{(swotResult as any).topAction}</p>
+                        </div>
                       </div>
-                    ))}
+                    )}
                   </CardContent>
                 </Card>
-              ))}
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {([
+                  { key: "strengths" as const, label: "Strengths", colorClass: "text-emerald-400", borderClass: "border-emerald-400/15", bgClass: "bg-emerald-400", icon: Shield },
+                  { key: "weaknesses" as const, label: "Weaknesses", colorClass: "text-red-400", borderClass: "border-red-400/15", bgClass: "bg-red-400", icon: TrendingDown },
+                  { key: "opportunities" as const, label: "Opportunities", colorClass: "text-[hsl(217,91%,60%)]", borderClass: "border-[hsl(217,91%,60%)]/15", bgClass: "bg-[hsl(217,91%,60%)]", icon: Zap },
+                  { key: "threats" as const, label: "Threats", colorClass: "text-amber-400", borderClass: "border-amber-400/15", bgClass: "bg-amber-400", icon: Flame },
+                ]).map(({ key, label, colorClass, borderClass, bgClass, icon: Icon }) => (
+                  <Card key={key} className={`crm-card ${borderClass}`}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className={`text-sm font-medium flex items-center gap-2 ${colorClass}`}>
+                        <Icon className="h-4 w-4" /> {label}
+                        <Badge variant="outline" className="ml-auto text-[9px] border-white/10 text-white/30">{((swotResult as any)[key] || []).length} items</Badge>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      {((swotResult as any)[key] || []).map((item: any, i: number) => (
+                        <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1.5">
+                          <div className="flex items-start gap-2">
+                            <div className={`w-1.5 h-1.5 rounded-full mt-1.5 ${bgClass} flex-shrink-0`} />
+                            <p className="text-sm text-white/70 flex-1">{typeof item === "string" ? item : item.text}</p>
+                            {typeof item !== "string" && item.priority && (
+                              <Badge variant="outline" className={`text-[9px] flex-shrink-0 ${item.priority === "high" ? "border-red-400/20 text-red-400" : item.priority === "medium" ? "border-amber-400/20 text-amber-400" : "border-white/10 text-white/40"}`}>{item.priority}</Badge>
+                            )}
+                          </div>
+                          {typeof item !== "string" && item.action && (
+                            <div className="flex items-start gap-1.5 ml-3.5">
+                              <ArrowUpRight className="h-3 w-3 text-emerald-400/60 mt-0.5 flex-shrink-0" />
+                              <p className="text-[10px] text-emerald-400/80">{item.action}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+
+              <div className="flex justify-end">
+                <Button size="sm" variant="outline" className="text-xs gap-1 border-white/10 text-white/50" onClick={() => { navigator.clipboard.writeText(JSON.stringify(swotResult, null, 2)); toast.success("SWOT copied"); }}>
+                  <Copy className="h-3 w-3" /> Copy SWOT
+                </Button>
+              </div>
             </div>
           ) : !aiLoading ? (
             <Card className="crm-card">
