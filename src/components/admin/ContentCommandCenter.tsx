@@ -2769,9 +2769,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             {/* Platform-specific fields */}
             {curPlatConf?.fields.location && (
               <div className="relative">
-                <MapPin className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
+                <MapPin className="absolute left-2.5 top-2 h-3.5 w-3.5 text-white/40" />
                 <Input value={formLocation} onChange={e => setFormLocation(e.target.value)}
-                  placeholder="Add location..." className="bg-card/50 border-border text-foreground text-xs pl-8" />
+                  placeholder="Add location..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs pl-8" />
               </div>
             )}
             {curPlatConf?.fields.altText && (
