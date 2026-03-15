@@ -2597,11 +2597,11 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               </div>
               {/* AI Rewrite buttons — expanded */}
               <div className="flex gap-1 items-center flex-wrap">
-                <span className="text-[9px] text-muted-foreground"><Wand2 className="h-2.5 w-2.5 inline mr-0.5" />AI:</span>
+                <span className="text-[9px] text-white/40"><Wand2 className="h-2.5 w-2.5 inline mr-0.5" />AI:</span>
                 {(["engaging", "viral", "professional", "casual", "storytelling", "controversial"] as const).map(style => (
                   <Button key={style} size="sm" variant="outline" disabled={rewritingCaption || !formCaption.trim()}
                     onClick={() => rewriteCaption(style)}
-                    className="text-[9px] h-5 px-1.5 border-border text-muted-foreground capitalize">
+                    className="text-[9px] h-5 px-1.5 border-white/[0.08] text-white/50 capitalize">
                     {rewritingCaption ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : style}
                   </Button>
                 ))}
