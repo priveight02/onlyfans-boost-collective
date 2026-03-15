@@ -2532,7 +2532,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue /></SelectTrigger>
                 <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
                   {(curPlatConf?.supportedTypes || CONTENT_TYPES).map(t => (
-                    <SelectItem key={t} value={t} className="text-xs capitalize">{t.replace("_", " ")}</SelectItem>
+                    <SelectItem key={t} value={t} className="text-xs capitalize text-white/70 focus:bg-white/[0.06] focus:text-white">{t.replace("_", " ")}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
