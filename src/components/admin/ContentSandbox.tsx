@@ -303,47 +303,74 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [locked, setLocked] = useState(true);
   const [zoomSpeed, setZoomSpeed] = useState(1);
 
+  const HISTORY_KEY = STORAGE_KEY + "_history";
   const undoStack = useRef<SandboxSnapshot[]>([]);
   const redoStack = useRef<SandboxSnapshot[]>([]);
   const strokesRef = useRef(strokes);
   useEffect(() => { strokesRef.current = strokes; }, [strokes]);
+
+  const persistHistory = useCallback(() => {
+    try {
+      const payload = JSON.stringify({ undo: undoStack.current, redo: redoStack.current });
+      // Only persist if under ~4MB to avoid quota issues
+      if (payload.length < 4_000_000) {
+        localStorage.setItem(HISTORY_KEY, payload);
+      } else {
+        // Trim oldest undo entries until it fits
+        const trimmed = { undo: undoStack.current.slice(-40), redo: redoStack.current.slice(-20) };
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(trimmed));
+      }
+    } catch { /* storage full – silently skip */ }
+  }, [HISTORY_KEY]);
 
   const pushUndo = useCallback(() => {
     undoStack.current.push({ elements: clone(elsRef.current), strokes: clone(strokesRef.current) });
     if (undoStack.current.length > MAX_UNDO) undoStack.current.shift();
     redoStack.current = [];
     setDirty(true);
-  }, []);
+    persistHistory();
+  }, [persistHistory]);
 
   const undo = useCallback(() => {
     if (!undoStack.current.length) return;
     redoStack.current.push({ elements: clone(elsRef.current), strokes: clone(strokesRef.current) });
     const s = undoStack.current.pop()!;
     setElements(s.elements); setStrokes(s.strokes); setDirty(true);
-  }, []);
+    persistHistory();
+  }, [persistHistory]);
 
   const redo = useCallback(() => {
     if (!redoStack.current.length) return;
     undoStack.current.push({ elements: clone(elsRef.current), strokes: clone(strokesRef.current) });
     const s = redoStack.current.pop()!;
     setElements(s.elements); setStrokes(s.strokes); setDirty(true);
-  }, []);
+    persistHistory();
+  }, [persistHistory]);
 
   const save = useCallback(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 7, elements: elsRef.current, strokes: strokesRef.current }));
+    persistHistory();
     setDirty(false); setLastSaved(new Date());
-  }, []);
+  }, [persistHistory]);
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return;
-      const p = JSON.parse(raw);
-      setElements(Array.isArray(p?.elements) ? p.elements : []);
-      setStrokes(Array.isArray(p?.strokes) ? p.strokes : []);
+      if (raw) {
+        const p = JSON.parse(raw);
+        setElements(Array.isArray(p?.elements) ? p.elements : []);
+        setStrokes(Array.isArray(p?.strokes) ? p.strokes : []);
+      }
+      // Restore full undo/redo history from previous sessions
+      const histRaw = localStorage.getItem(HISTORY_KEY);
+      if (histRaw) {
+        const h = JSON.parse(histRaw);
+        if (Array.isArray(h?.undo)) undoStack.current = h.undo;
+        if (Array.isArray(h?.redo)) redoStack.current = h.redo;
+      }
       setLastSaved(new Date());
     } catch { /* noop */ }
-  }, []);
+  }, [HISTORY_KEY]);
 
   useEffect(() => {
     if (!dirty) return;
