@@ -346,6 +346,25 @@ const IGContentCenter = ({ selectedAccount: parentAccount, onNavigateToConnect, 
     setScheduledPosts(prev => prev.filter(p => p.id !== id));
   };
 
+  // Import from Content Plan
+  const openImportPlan = async () => {
+    setShowImportPlan(true);
+    const items = await pullContentPlanForPlatform("instagram");
+    setPlanItems(items);
+  };
+
+  const importFromPlan = async () => {
+    if (!selectedAccount || planItems.length === 0) return;
+    setImportingPlan(true);
+    try {
+      const { created, errors } = await pushToSocialHub(planItems, selectedAccount, importAutoSchedule, DEFAULT_BEST_TIMES.instagram);
+      if (created > 0) { toast.success(`${created} posts imported from Content Plan`); loadScheduledPosts(); }
+      if (errors.length > 0) toast.error(`${errors.length} failed`);
+      setShowImportPlan(false);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setImportingPlan(false); }
+  };
+
   const ConnectIGCTA = () => (
     <Card className="bg-gradient-to-r from-pink-500/5 to-purple-500/5 border-pink-500/20 backdrop-blur-sm">
       <CardContent className="p-6 text-center space-y-3">
