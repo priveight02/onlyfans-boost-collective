@@ -499,7 +499,7 @@ const scrapeSocialProfiles = async (
   const enrichYoutubeFromRecentVideos = async (
     handle: string,
     knownFollowers: number,
-    current: typeof results[string],
+    current: ScrapedMetrics,
   ) => {
     if (current.avgLikes && current.postFrequency && current.engagementRate) return current;
 
@@ -524,20 +524,24 @@ const scrapeSocialProfiles = async (
 
     const details = await Promise.allSettled(videos.map(async (v) => {
       const watch = await fetchWithTimeout(`https://www.youtube.com/watch?v=${v.id}`, { ms: 8000, maxChars: 500000 });
-      if (!watch) return { likes: 0, comments: 0 };
+      if (!watch) return { likes: 0, comments: 0, views: 0 };
       const likesRaw = watch.match(/"likeCount":"(\d+)"/i)?.[1] || "";
       const commentsRaw = watch.match(/"commentCount":"(\d+)"/i)?.[1] || "";
+      const viewsRaw = watch.match(/"viewCount":"(\d+)"/i)?.[1] || "";
       return {
         likes: parseHumanNumber(likesRaw),
         comments: parseHumanNumber(commentsRaw),
+        views: parseHumanNumber(viewsRaw),
       };
     }));
 
     const likes = details.map(d => d.status === "fulfilled" ? d.value.likes : 0).filter(n => n > 0);
     const comments = details.map(d => d.status === "fulfilled" ? d.value.comments : 0).filter(n => n > 0);
+    const views = details.map(d => d.status === "fulfilled" ? d.value.views : 0).filter(n => n > 0);
 
     if (!current.avgLikes && likes.length) current.avgLikes = Math.round(likes.reduce((a, b) => a + b, 0) / likes.length);
     if (!current.avgComments && comments.length) current.avgComments = Math.round(comments.reduce((a, b) => a + b, 0) / comments.length);
+    if (!current.avgViews && views.length) current.avgViews = Math.round(views.reduce((a, b) => a + b, 0) / views.length);
 
     if (!current.postFrequency && videos.length >= 2) {
       const first = new Date(videos[videos.length - 1].published).getTime();
