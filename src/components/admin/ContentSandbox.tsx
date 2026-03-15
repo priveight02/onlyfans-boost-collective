@@ -57,7 +57,8 @@ type InteractionState =
   | { type: "pan"; originClient: Point; originViewport: Viewport }
   | { type: "draw"; tool: "pen" | "eraser"; color: string; size: number; points: Point[] }
   | { type: "drag"; anchor: Point; originPositions: Record<string, Point> }
-  | { type: "resize"; elementId: string; anchor: Point; originRect: Pick<SandboxElement, "x" | "y" | "width" | "height"> };
+  | { type: "resize"; elementId: string; anchor: Point; originRect: Pick<SandboxElement, "x" | "y" | "width" | "height"> }
+  | { type: "marquee"; origin: Point; current: Point };
 
 interface SandboxSnapshot { elements: SandboxElement[]; strokes: SandboxStroke[]; }
 
