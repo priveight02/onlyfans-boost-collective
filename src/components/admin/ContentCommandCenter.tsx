@@ -2806,7 +2806,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   </Button>
                 </div>
                 {formHashtags && (
-                  <p className="text-[9px] text-muted-foreground/50">
+                  <p className="text-[9px] text-white/30">
                     {formHashtags.split(",").filter(h => h.trim()).length} / {curPlatConf?.hashtagLimit || 30} hashtags
                   </p>
                 )}
