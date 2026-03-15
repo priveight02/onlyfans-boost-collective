@@ -2854,10 +2854,10 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 // If no social data found, create entries from competitor username + platform context
                 if (platformEntries.length === 0) {
                   const p = (comp.platform || "").toLowerCase();
-                  if (p === "instagram" || p === "internet") pushEntry("Instagram", comp.username, "hsl(330 81% 55%)", "IG", (u) => `https://www.instagram.com/${u}/`);
-                  if (p === "tiktok" || p === "internet") pushEntry("TikTok", comp.username, "hsl(347 100% 58%)", "TT", (u) => `https://www.tiktok.com/@${u}`);
+                  if (p === "instagram" || p === "internet") pushEntry("Instagram", comp.username, "hsl(330 81% 55%)", "IG", (u) => `https://www.instagram.com/${u}/`, (u) => `https://www.instagram.com/${u}/embed/`);
+                  if (p === "tiktok" || p === "internet") pushEntry("TikTok", comp.username, "hsl(347 100% 58%)", "TT", (u) => `https://www.tiktok.com/@${u}`, (u) => `https://www.tiktok.com/embed/@${u}`);
                   if (p === "twitter" || p === "internet" || p === "x") pushEntry("X / Twitter", comp.username, "hsl(203 89% 53%)", "X", (u) => `https://x.com/${u}`, (u) => `https://nitter.net/${u}`);
-                  if (p === "youtube" || p === "internet") pushEntry("YouTube", comp.username, "hsl(0 100% 50%)", "YT", (u) => `https://www.youtube.com/@${u}`);
+                  if (p === "youtube" || p === "internet") pushEntry("YouTube", comp.username, "hsl(0 100% 50%)", "YT", (u) => `https://www.youtube.com/@${u}`, (u) => `https://www.youtube.com/embed?listType=user_uploads&list=${u}`);
                   if (p === "linkedin" || p === "internet") pushEntry("LinkedIn", comp.username, "hsl(210 90% 40%)", "LI", (u) => `https://www.linkedin.com/company/${u}`);
                 }
 
