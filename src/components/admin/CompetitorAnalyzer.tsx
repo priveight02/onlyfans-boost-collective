@@ -446,6 +446,14 @@ const CompetitorAnalyzer = ({
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [refreshingBreakdown, setRefreshingBreakdown] = useState(false);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
+  const [platformTimePeriods, setPlatformTimePeriods] = useState<Record<string, string>>({});
+  const [platformCustomDates, setPlatformCustomDates] = useState<Record<string, Date[]>>({});
+  const setPlatformPeriod = (platformKey: string, period: string) => {
+    setPlatformTimePeriods(prev => ({ ...prev, [platformKey]: period }));
+  };
+  const setPlatformDates = (platformKey: string, dates: Date[]) => {
+    setPlatformCustomDates(prev => ({ ...prev, [platformKey]: dates }));
+  };
 
   // Enterprise profile (50 fields) + toggle
   const [enterpriseProfile, setEnterpriseProfile] = useState<Record<string, any>>(() => {
