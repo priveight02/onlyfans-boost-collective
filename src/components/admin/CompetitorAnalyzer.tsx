@@ -3119,31 +3119,49 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                       const totalTraffic = competitors.reduce((s, c) => s + (c.metadata?.websiteTraffic || 0), 0);
                       const avgDA = competitors.length > 0 ? Math.round(competitors.reduce((s, c) => s + (c.metadata?.domainAuthority || 0), 0) / competitors.length) : 0;
 
-                      // Per-platform breakdown from socialPresence data
-                      const platformMap: Record<string, { name: string; color: string; icon: string; competitors: { username: string; followers: number; engagementRate: number; avgLikes: number; postFrequency: number; growthRate: number }[] }> = {};
-                      const platformDefs: Record<string, { color: string; icon: string }> = {
-                        instagram: { color: "hsl(330 81% 55%)", icon: "IG" },
-                        tiktok: { color: "hsl(347 100% 58%)", icon: "TT" },
-                        twitter: { color: "hsl(203 89% 53%)", icon: "X" },
-                        youtube: { color: "hsl(0 100% 50%)", icon: "YT" },
-                        linkedin: { color: "hsl(210 90% 40%)", icon: "LI" },
-                        facebook: { color: "hsl(221 83% 53%)", icon: "FB" },
-                        pinterest: { color: "hsl(348 91% 45%)", icon: "PI" },
-                        snapchat: { color: "hsl(60 100% 50%)", icon: "SC" },
+                      // Per-platform breakdown from socialPresence + platformMetrics data
+                      const platformMap: Record<string, { name: string; color: string; logo: string; competitors: { username: string; followers: number; engagementRate: number; avgLikes: number; postFrequency: number; growthRate: number }[] }> = {};
+                      const platformDefs: Record<string, { color: string; logo: string }> = {
+                        instagram: { color: "hsl(330 81% 55%)", logo: "https://cdn.simpleicons.org/instagram/E4405F" },
+                        tiktok: { color: "hsl(347 100% 58%)", logo: "https://cdn.simpleicons.org/tiktok/ffffff" },
+                        twitter: { color: "hsl(0 0% 100%)", logo: "https://cdn.simpleicons.org/x/ffffff" },
+                        youtube: { color: "hsl(0 100% 50%)", logo: "https://cdn.simpleicons.org/youtube/FF0000" },
+                        linkedin: { color: "hsl(210 90% 40%)", logo: "https://cdn.simpleicons.org/linkedin/0A66C2" },
+                        facebook: { color: "hsl(221 83% 53%)", logo: "https://cdn.simpleicons.org/facebook/1877F2" },
+                        pinterest: { color: "hsl(348 91% 45%)", logo: "https://cdn.simpleicons.org/pinterest/BD081C" },
+                        snapchat: { color: "hsl(60 100% 50%)", logo: "https://cdn.simpleicons.org/snapchat/FFFC00" },
                       };
                       competitors.forEach(c => {
                         const social = c.metadata?.socialPresence || {};
+                        const perPlatform = c.metadata?.platformMetrics || {};
                         Object.keys(social).forEach(plat => {
                           const key = plat.toLowerCase();
                           if (!platformDefs[key] || !social[plat]) return;
-                          if (!platformMap[key]) platformMap[key] = { name: key.charAt(0).toUpperCase() + key.slice(1), color: platformDefs[key].color, icon: platformDefs[key].icon, competitors: [] };
-                          platformMap[key].competitors.push({ username: c.username, followers: c.followers, engagementRate: c.engagementRate, avgLikes: c.avgLikes, postFrequency: c.postFrequency, growthRate: c.growthRate });
+                          if (!platformMap[key]) platformMap[key] = { name: key.charAt(0).toUpperCase() + key.slice(1), color: platformDefs[key].color, logo: platformDefs[key].logo, competitors: [] };
+                          // Use per-platform metrics if available, otherwise fall back to top-level
+                          const pm = perPlatform[key] || perPlatform[plat] || {};
+                          platformMap[key].competitors.push({
+                            username: c.username,
+                            followers: pm.followers ?? c.followers,
+                            engagementRate: pm.engagementRate ?? c.engagementRate,
+                            avgLikes: pm.avgLikes ?? c.avgLikes,
+                            postFrequency: pm.postFrequency ?? c.postFrequency,
+                            growthRate: pm.growthRate ?? c.growthRate,
+                          });
                         });
                         // Also add from primary platform
                         const primary = (c.platform || "").toLowerCase();
                         if (platformDefs[primary] && !platformMap[primary]?.competitors.some(x => x.username === c.username)) {
-                          if (!platformMap[primary]) platformMap[primary] = { name: primary.charAt(0).toUpperCase() + primary.slice(1), color: platformDefs[primary].color, icon: platformDefs[primary].icon, competitors: [] };
-                          platformMap[primary].competitors.push({ username: c.username, followers: c.followers, engagementRate: c.engagementRate, avgLikes: c.avgLikes, postFrequency: c.postFrequency, growthRate: c.growthRate });
+                          if (!platformMap[primary]) platformMap[primary] = { name: primary.charAt(0).toUpperCase() + primary.slice(1), color: platformDefs[primary].color, logo: platformDefs[primary].logo, competitors: [] };
+                          const pm = (c.metadata?.platformMetrics || {})[primary] || {};
+                          platformMap[primary].competitors.push({
+                            username: c.username,
+                            followers: pm.followers ?? c.followers,
+                            engagementRate: pm.engagementRate ?? c.engagementRate,
+                            avgLikes: pm.avgLikes ?? c.avgLikes,
+                            postFrequency: pm.postFrequency ?? c.postFrequency,
+                            growthRate: pm.growthRate ?? c.growthRate,
+                          });
                         }
                       });
 
