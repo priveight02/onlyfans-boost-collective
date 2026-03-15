@@ -2005,7 +2005,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("scheduled")} className="text-xs h-6 border-blue-500/20 text-blue-400">Schedule</Button>
           <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("draft")} className="text-xs h-6 border-amber-500/20 text-amber-400">→ Draft</Button>
           <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("archived")} className="text-xs h-6 border-white/[0.06] text-white/40">Archive</Button>
-          <Button size="sm" variant="outline" onClick={bulkDelete} className="text-xs h-6 border-destructive/20 text-destructive">
+          <Button size="sm" variant="outline" onClick={bulkDelete} className="text-xs h-6 border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20">
             <Trash2 className="h-3 w-3 mr-1" /> Delete
           </Button>
         </div>
