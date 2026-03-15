@@ -628,9 +628,8 @@ Each variant should use a DIFFERENT angle:
 All must be complete, ready-to-post captions with emojis and CTAs.
 
 Respond ONLY with JSON array: ["variant A caption", "variant B caption", "variant C caption"]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const variants = JSON.parse(jsonMatch[0]);
+        try {
+          const variants = safeParseJSON(content);
           setAbVariants(variants);
           toast.success("3 A/B variants generated — pick the best one!");
         }
