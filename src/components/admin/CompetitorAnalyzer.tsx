@@ -1966,7 +1966,6 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                           <span className="text-[8px] text-white/30">/ 100</span>
                         </div>
                       </div>
-                      </div>
                       <div>
                         <p className="text-white font-medium">Opportunity Score</p>
                         <p className="text-xs text-white/50">{(gapAnalysis.overallScore || 0) >= 70 ? "High opportunity · many gaps to exploit" : (gapAnalysis.overallScore || 0) >= 40 ? "Moderate opportunity · some gaps available" : "Low opportunity · market is well-covered"}</p>
