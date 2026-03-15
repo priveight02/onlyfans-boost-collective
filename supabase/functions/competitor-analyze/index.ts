@@ -952,25 +952,36 @@ serve(async (req) => {
             ? ((nextFollowers - prev.followers) / prev.followers) * 100
             : undefined;
 
+          const pickBetter = (scraped: number | undefined, prev: number, minVal = 0) =>
+            typeof scraped === "number" && Number.isFinite(scraped) && scraped > minVal ? scraped : prev;
+
           platformMetrics[key] = {
             ...prev,
             followers: nextFollowers,
+            following: pickBetter(scrapedData.following, prev.following),
             posts: nextPosts,
-            engagementRate: typeof scrapedData.engagementRate === "number" && Number.isFinite(scrapedData.engagementRate)
+            engagementRate: typeof scrapedData.engagementRate === "number" && Number.isFinite(scrapedData.engagementRate) && scrapedData.engagementRate > 0
               ? scrapedData.engagementRate
               : prev.engagementRate,
-            avgLikes: typeof scrapedData.avgLikes === "number" && scrapedData.avgLikes > 0
-              ? scrapedData.avgLikes
-              : prev.avgLikes,
-            avgComments: typeof scrapedData.avgComments === "number" && scrapedData.avgComments >= 0
+            avgLikes: pickBetter(scrapedData.avgLikes, prev.avgLikes),
+            avgComments: typeof scrapedData.avgComments === "number" && Number.isFinite(scrapedData.avgComments) && scrapedData.avgComments >= 0
               ? scrapedData.avgComments
               : prev.avgComments,
-            postFrequency: typeof scrapedData.postFrequency === "number" && scrapedData.postFrequency > 0
-              ? scrapedData.postFrequency
-              : prev.postFrequency,
+            avgViews: pickBetter(scrapedData.avgViews, prev.avgViews),
+            avgShares: pickBetter(scrapedData.avgShares, prev.avgShares),
+            totalLikes: pickBetter(scrapedData.totalLikes, prev.totalLikes),
+            totalViews: pickBetter(scrapedData.totalViews, prev.totalViews),
+            postFrequency: pickBetter(scrapedData.postFrequency, prev.postFrequency),
             growthRate: typeof scrapedData.growthRate === "number" && Number.isFinite(scrapedData.growthRate)
               ? scrapedData.growthRate
               : (derivedGrowth ?? prev.growthRate),
+            followerGain30d: typeof scrapedData.followerGain30d === "number" && Number.isFinite(scrapedData.followerGain30d)
+              ? scrapedData.followerGain30d
+              : prev.followerGain30d,
+            viewGain30d: pickBetter(scrapedData.viewGain30d, prev.viewGain30d),
+            likeGain30d: typeof scrapedData.likeGain30d === "number" && Number.isFinite(scrapedData.likeGain30d)
+              ? scrapedData.likeGain30d
+              : prev.likeGain30d,
           };
 
           if (platformMetrics[key].engagementRate <= 0 && platformMetrics[key].followers > 0 && platformMetrics[key].avgLikes > 0) {
