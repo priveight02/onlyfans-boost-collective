@@ -1132,34 +1132,96 @@ RULES:
             <Card className="crm-card"><CardContent className="p-12 text-center"><p className="text-white/50">Add competitors first to see benchmarks</p></CardContent></Card>
           ) : (
             <>
-              {/* Radar */}
+               {/* Radar - includes user data */}
               <Card className="crm-card">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-white/60">Performance Radar · All Competitors</CardTitle>
+                  <CardTitle className="text-sm font-medium text-white/60">Performance Radar {myStats ? "· You vs Competitors" : "· All Competitors"}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="h-[320px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart data={[
-                        { metric: "Engagement", ...Object.fromEntries(competitors.map(c => [c.username, Math.min(c.engagementRate * 10, 100)])) },
-                        { metric: "Growth", ...Object.fromEntries(competitors.map(c => [c.username, Math.min(Math.max(c.growthRate * 15 + 50, 0), 100)])) },
-                        { metric: "Frequency", ...Object.fromEntries(competitors.map(c => [c.username, Math.min(c.postFrequency * 10, 100)])) },
-                        { metric: "Reach", ...Object.fromEntries(competitors.map(c => [c.username, Math.min((c.followers / Math.max(...competitors.map(x => x.followers))) * 100, 100)])) },
-                        { metric: "Community", ...Object.fromEntries(competitors.map(c => [c.username, Math.min(c.avgComments * 1.5, 100)])) },
-                        { metric: "Virality", ...Object.fromEntries(competitors.map(c => [c.username, Math.min(c.avgLikes / Math.max(...competitors.map(x => x.avgLikes)) * 100, 100)])) },
-                      ]}>
-                        <PolarGrid stroke="hsl(217 91% 60% / 0.08)" />
-                        <PolarAngleAxis dataKey="metric" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} />
-                        <PolarRadiusAxis tick={false} axisLine={false} />
-                        {competitors.map((c, i) => (
-                          <Radar key={c.id} name={`@${c.username}`} dataKey={c.username} stroke={PIE_COLORS[i % PIE_COLORS.length]} fill={PIE_COLORS[i % PIE_COLORS.length]} fillOpacity={0.1} strokeWidth={2} />
-                        ))}
-                        <Legend wrapperStyle={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }} />
-                      </RadarChart>
+                      {(() => {
+                        const allEntries = [...competitors.map(c => ({ key: c.username, followers: c.followers, engagementRate: c.engagementRate, postFrequency: c.postFrequency, avgComments: c.avgComments, avgLikes: c.avgLikes, growthRate: c.growthRate }))];
+                        if (myStats) allEntries.push({ key: myStats.username, followers: myStats.followers, engagementRate: myStats.engagementRate, postFrequency: myStats.postFrequency, avgComments: myStats.avgComments, avgLikes: myStats.avgLikes, growthRate: myStats.growthRate });
+                        const maxFollowers = Math.max(...allEntries.map(e => e.followers), 1);
+                        const maxLikes = Math.max(...allEntries.map(e => e.avgLikes), 1);
+                        return (
+                          <RadarChart data={[
+                            { metric: "Engagement", ...Object.fromEntries(allEntries.map(e => [e.key, Math.min(e.engagementRate * 10, 100)])) },
+                            { metric: "Growth", ...Object.fromEntries(allEntries.map(e => [e.key, Math.min(Math.max(e.growthRate * 15 + 50, 0), 100)])) },
+                            { metric: "Frequency", ...Object.fromEntries(allEntries.map(e => [e.key, Math.min(e.postFrequency * 10, 100)])) },
+                            { metric: "Reach", ...Object.fromEntries(allEntries.map(e => [e.key, Math.min((e.followers / maxFollowers) * 100, 100)])) },
+                            { metric: "Community", ...Object.fromEntries(allEntries.map(e => [e.key, Math.min(e.avgComments * 1.5, 100)])) },
+                            { metric: "Virality", ...Object.fromEntries(allEntries.map(e => [e.key, Math.min(e.avgLikes / maxLikes * 100, 100)])) },
+                          ]}>
+                            <PolarGrid stroke="hsl(217 91% 60% / 0.08)" />
+                            <PolarAngleAxis dataKey="metric" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} />
+                            <PolarRadiusAxis tick={false} axisLine={false} />
+                            {myStats && (
+                              <Radar name={`@${myStats.username} (You)`} dataKey={myStats.username} stroke="hsl(150,60%,50%)" fill="hsl(150,60%,50%)" fillOpacity={0.15} strokeWidth={3} strokeDasharray="0" />
+                            )}
+                            {competitors.map((c, i) => (
+                              <Radar key={c.id} name={`@${c.username}`} dataKey={c.username} stroke={PIE_COLORS[i % PIE_COLORS.length]} fill={PIE_COLORS[i % PIE_COLORS.length]} fillOpacity={0.1} strokeWidth={2} />
+                            ))}
+                            <Legend wrapperStyle={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }} />
+                          </RadarChart>
+                        );
+                      })()}
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Win/Loss Summary */}
+              {myStats && (
+                <Card className="crm-card border-emerald-400/15">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-400 flex items-center gap-2"><Crown className="h-4 w-4" /> Your Competitive Standing</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                      {competitors.map(comp => {
+                        const wins = [
+                          myStats.followers > comp.followers,
+                          myStats.engagementRate > comp.engagementRate,
+                          myStats.avgLikes > comp.avgLikes,
+                          myStats.growthRate > comp.growthRate,
+                          myStats.postFrequency > comp.postFrequency,
+                        ].filter(Boolean).length;
+                        const total = 5;
+                        const pct = Math.round((wins / total) * 100);
+                        return (
+                          <div key={comp.id} className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-medium text-white/80">vs @{comp.username}</span>
+                              <Badge variant="outline" className={`text-[9px] ${pct >= 60 ? "border-emerald-400/30 text-emerald-400" : pct >= 40 ? "border-amber-400/30 text-amber-400" : "border-red-400/30 text-red-400"}`}>
+                                {pct >= 60 ? "Winning" : pct >= 40 ? "Close" : "Behind"} · {wins}/{total}
+                              </Badge>
+                            </div>
+                            <div className="w-full bg-white/[0.06] rounded-full h-1.5">
+                              <div className={`h-1.5 rounded-full transition-all ${pct >= 60 ? "bg-emerald-400" : pct >= 40 ? "bg-amber-400" : "bg-red-400"}`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <div className="grid grid-cols-5 gap-1 text-center">
+                              {[
+                                { l: "Reach", w: myStats.followers > comp.followers },
+                                { l: "Eng.", w: myStats.engagementRate > comp.engagementRate },
+                                { l: "Likes", w: myStats.avgLikes > comp.avgLikes },
+                                { l: "Growth", w: myStats.growthRate > comp.growthRate },
+                                { l: "Freq.", w: myStats.postFrequency > comp.postFrequency },
+                              ].map((m, i) => (
+                                <div key={i} className="space-y-0.5">
+                                  <div className={`h-4 w-4 mx-auto rounded-full flex items-center justify-center ${m.w ? "bg-emerald-400/20" : "bg-red-400/20"}`}>
+                                    {m.w ? <ArrowUpRight className="h-2.5 w-2.5 text-emerald-400" /> : <ArrowDownRight className="h-2.5 w-2.5 text-red-400" />}
+                                  </div>
+                                  <p className="text-[8px] text-white/30">{m.l}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Follower comparison bar */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
