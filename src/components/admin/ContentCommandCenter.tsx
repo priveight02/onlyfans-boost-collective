@@ -2581,7 +2581,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               </div>
             )}
 
-            <Input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Content title..." className="bg-card/50 border-border text-foreground text-xs" />
+            <Input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Content title..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs" />
 
             {/* Caption with AI rewrite + A/B Testing */}
             <div className="space-y-1">
