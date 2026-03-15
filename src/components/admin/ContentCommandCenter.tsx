@@ -896,7 +896,7 @@ Respond ONLY with JSON array of ISO datetime strings for the next 7 days: ["2025
           const slots = safeParseJSON(content);
           setSuggestedSlots(slots);
           toast.success("Smart schedule suggestions ready");
-        }
+        } catch {}
       } catch (e: any) { toast.error(e.message); }
       setSmartScheduling(false);
     });
