@@ -2962,9 +2962,9 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
                               {/* Interactive preview */}
                               <div className="relative h-[240px] md:h-[320px] overflow-hidden bg-black/80">
-                                {entry.platform === "LinkedIn" ? (
+                                {entry.previewUrl.startsWith("__screenshot__") ? (
                                   <img
-                                    src={entry.previewUrl}
+                                    src={getScreenshot(entry.previewUrl.replace("__screenshot__", ""))}
                                     alt={`${entry.platform} profile of @${entry.username}`}
                                     className="h-full w-full object-cover object-top"
                                     loading="lazy"
