@@ -1042,6 +1042,17 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
     threat: c.score,
   }));
 
+  // Wrap every AI call with pre-check + post-refresh
+  const guardedAI = async <T,>(fn: () => Promise<T>): Promise<T> => {
+    if (aiUsageCount >= RATE_LIMIT_MAX) {
+      toast.error(`Daily AI limit reached (${RATE_LIMIT_MAX}/day). Resets at midnight UTC.`);
+      throw new Error("Rate limit reached");
+    }
+    const result = await fn();
+    await refreshAIUsage();
+    return result;
+  };
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -1049,7 +1060,14 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
           <h1 className="text-lg font-semibold text-white font-heading">Competitor Analyzer</h1>
           <p className="text-sm text-white/50 mt-0.5">AI-powered competitive intelligence · track, benchmark, and outperform</p>
         </div>
-        <CreditCostBadge cost="5-15" variant="header" label="per action" />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+            <Brain className="h-3.5 w-3.5 text-[hsl(217,91%,60%)]" />
+            <span className="text-xs text-white/50">AI Calls:</span>
+            <span className={`text-xs font-bold ${aiUsageCount >= RATE_LIMIT_MAX ? "text-red-400" : aiUsageCount >= 15 ? "text-amber-400" : "text-emerald-400"}`}>{aiUsageCount}/{RATE_LIMIT_MAX}</span>
+          </div>
+          <CreditCostBadge cost="5-15" variant="header" label="per action" />
+        </div>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
