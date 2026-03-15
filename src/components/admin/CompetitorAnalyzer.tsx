@@ -483,6 +483,22 @@ const CompetitorAnalyzer = ({
   const [forecastResult, setForecastResult] = useState<any>(null);
   const [forecastLoading, setForecastLoading] = useState(false);
 
+  // Battle plan progress tracking (persisted in localStorage)
+  const [battlePlanChecks, setBattlePlanChecks] = useState<Record<string, boolean>>(() => {
+    try { const s = localStorage.getItem("competitor_battleplan_checks"); return s ? JSON.parse(s) : {}; } catch { return {}; }
+  });
+  const toggleBattlePlanCheck = (key: string) => {
+    setBattlePlanChecks(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      localStorage.setItem("competitor_battleplan_checks", JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Tracker sort/filter
+  const [trackerSort, setTrackerSort] = useState<"threat" | "followers" | "growth" | "engagement" | "recent">("threat");
+  const [trackerFilter, setTrackerFilter] = useState<string>("all");
+
   // Deep analysis section expansion
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     social: true, platforms: true, deepMetrics: false, security: false, performance: false, sensitive: false, financial: true, siteInsights: true,
@@ -1346,7 +1362,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               </div>
 
               {/* Controls Row */}
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 border-white/10 text-white/50 hover:text-white" disabled={refreshingId !== null}
                     onClick={async () => {
@@ -1358,11 +1374,46 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                     <RefreshCw className={`h-3 w-3 ${refreshingId ? "animate-spin" : ""}`} /> Refresh All
                   </Button>
                   <span className="text-[10px] text-white/25">{competitors.length} competitor{competitors.length !== 1 ? "s" : ""}</span>
+                  {/* Stale data warning */}
+                  {competitors.some(c => {
+                    const hrs = (Date.now() - new Date(c.lastAnalyzed).getTime()) / 3600000;
+                    return hrs > 168; // 7 days
+                  }) && (
+                    <Badge variant="outline" className="text-[9px] border-amber-400/20 text-amber-400 animate-pulse">
+                      ⚠ {competitors.filter(c => (Date.now() - new Date(c.lastAnalyzed).getTime()) / 3600000 > 168).length} stale
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Sort */}
+                  <select value={trackerSort} onChange={e => setTrackerSort(e.target.value as any)} className="h-7 px-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/60 text-[10px] focus:outline-none">
+                    <option value="threat">Sort: Threat</option>
+                    <option value="followers">Sort: Followers</option>
+                    <option value="growth">Sort: Growth</option>
+                    <option value="engagement">Sort: Engagement</option>
+                    <option value="recent">Sort: Recent</option>
+                  </select>
+                  {/* Platform filter */}
+                  <select value={trackerFilter} onChange={e => setTrackerFilter(e.target.value)} className="h-7 px-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/60 text-[10px] focus:outline-none">
+                    <option value="all">All Platforms</option>
+                    {[...new Set(competitors.map(c => c.platform))].map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
                 </div>
               </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {competitors.map(comp => {
+              {competitors
+                .filter(c => trackerFilter === "all" || c.platform === trackerFilter)
+                .sort((a, b) => {
+                  switch (trackerSort) {
+                    case "followers": return b.followers - a.followers;
+                    case "growth": return b.growthRate - a.growthRate;
+                    case "engagement": return b.engagementRate - a.engagementRate;
+                    case "recent": return new Date(b.lastAnalyzed).getTime() - new Date(a.lastAnalyzed).getTime();
+                    default: return b.score - a.score;
+                  }
+                })
+                .map(comp => {
                 const historyData = comp.metadata?.analysisHistory || [];
                 const threatPct = Math.min(comp.score, 100);
                 const circumference = 2 * Math.PI * 32;
@@ -1442,6 +1493,21 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         <p className="text-sm font-semibold text-white">{fmtNum(comp.posts)}</p>
                       </div>
                     </div>
+
+                    {/* Freshness Indicator */}
+                    {(() => {
+                      const hrs = (Date.now() - new Date(comp.lastAnalyzed).getTime()) / 3600000;
+                      const label = hrs < 1 ? "Just now" : hrs < 24 ? `${Math.round(hrs)}h ago` : hrs < 168 ? `${Math.round(hrs / 24)}d ago` : `${Math.round(hrs / 168)}w ago`;
+                      const color = hrs < 24 ? "text-emerald-400/60" : hrs < 168 ? "text-amber-400/60" : "text-red-400/60";
+                      return (
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[9px] ${color} flex items-center gap-1`}>
+                            <Clock className="h-2.5 w-2.5" /> {label}
+                          </span>
+                          {hrs > 168 && <span className="text-[8px] text-red-400/40">needs refresh</span>}
+                        </div>
+                      );
+                    })()}
 
                     {/* Mini Sparkline */}
                     {historyData.length >= 2 && (
@@ -1669,6 +1735,57 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                   </CardContent>
                 </Card>
               )}
+
+              {/* ═══ POWER RANKINGS LEADERBOARD ═══ */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><Crown className="h-4 w-4" /> Power Rankings Leaderboard</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {(() => {
+                      const ranked = [...competitors].map(c => {
+                        // Weighted composite score
+                        const maxF = Math.max(...competitors.map(x => x.followers), 1);
+                        const maxL = Math.max(...competitors.map(x => x.avgLikes), 1);
+                        const maxG = Math.max(...competitors.map(x => Math.abs(x.growthRate)), 1);
+                        const fScore = (c.followers / maxF) * 25;
+                        const eScore = Math.min(c.engagementRate / 10, 1) * 25;
+                        const lScore = (c.avgLikes / maxL) * 25;
+                        const gScore = (Math.max(c.growthRate, 0) / maxG) * 25;
+                        const power = Math.round(fScore + eScore + lScore + gScore);
+                        return { ...c, power };
+                      }).sort((a, b) => b.power - a.power);
+                      return ranked.map((c, i) => (
+                        <div key={c.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${i === 0 ? "bg-amber-400/10 border-amber-400/20 shadow-[0_0_15px_hsl(45,100%,50%,0.05)]" : i === 1 ? "bg-white/[0.03] border-white/[0.08]" : "bg-white/[0.02] border-white/[0.04]"}`}>
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${i === 0 ? "bg-amber-400 text-black" : i === 1 ? "bg-white/20 text-white" : i === 2 ? "bg-orange-400/30 text-orange-300" : "bg-white/[0.06] text-white/40"}`}>
+                            {i + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-white truncate">@{c.username}</span>
+                              <Badge variant="outline" className="text-[8px] border-white/10 text-white/40">{c.platform}</Badge>
+                            </div>
+                            <div className="flex items-center gap-3 mt-0.5">
+                              <span className="text-[10px] text-white/40">{fmtNum(c.followers)} fol</span>
+                              <span className="text-[10px] text-white/40">{c.engagementRate}% ER</span>
+                              <span className={`text-[10px] ${c.growthRate >= 0 ? "text-emerald-400/60" : "text-red-400/60"}`}>{c.growthRate >= 0 ? "+" : ""}{c.growthRate}%/wk</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-lg font-black ${i === 0 ? "text-amber-400" : "text-white/70"}`}>{c.power}</p>
+                            <p className="text-[8px] text-white/30">power</p>
+                          </div>
+                          <div className="w-16">
+                            <div className="h-2 rounded-full bg-white/[0.05] overflow-hidden">
+                              <div className={`h-full rounded-full transition-all ${i === 0 ? "bg-amber-400" : i === 1 ? "bg-white/30" : "bg-white/15"}`} style={{ width: `${c.power}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                  <p className="text-[9px] text-white/25 text-center mt-3">Weighted: 25% Reach · 25% Engagement · 25% Likes · 25% Growth</p>
+                </CardContent>
+              </Card>
 
               {/* Follower comparison bar */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -2762,16 +2879,42 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               <Card className="crm-card border-amber-400/15">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><Target className="h-4 w-4" /> Weekly Goals</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    {(battlePlan.weeklyGoals || []).map((g: any, i: number) => (
-                      <div key={i} className="p-3 rounded-lg bg-amber-400/5 border border-amber-400/15 space-y-1">
-                        <p className="text-xs font-medium text-white/80">{g.goal}</p>
-                        <div className="flex items-center gap-2">
-                          <Badge variant="outline" className="text-[9px] border-amber-400/20 text-amber-400">{g.metric}</Badge>
-                          <span className="text-[10px] text-emerald-400 font-bold">{g.target}</span>
+                  {/* Progress bar */}
+                  {(() => {
+                    const totalGoals = (battlePlan.weeklyGoals || []).length;
+                    const checkedGoals = (battlePlan.weeklyGoals || []).filter((_: any, i: number) => battlePlanChecks[`goal-${i}`]).length;
+                    const pct = totalGoals > 0 ? Math.round((checkedGoals / totalGoals) * 100) : 0;
+                    return totalGoals > 0 ? (
+                      <div className="mb-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] text-white/40">Progress</span>
+                          <span className={`text-[10px] font-bold ${pct === 100 ? "text-emerald-400" : "text-amber-400"}`}>{checkedGoals}/{totalGoals} ({pct}%)</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+                          <div className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? "bg-emerald-400" : "bg-amber-400"}`} style={{ width: `${pct}%` }} />
                         </div>
                       </div>
-                    ))}
+                    ) : null;
+                  })()}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    {(battlePlan.weeklyGoals || []).map((g: any, i: number) => {
+                      const key = `goal-${i}`;
+                      const checked = battlePlanChecks[key];
+                      return (
+                        <div key={i} className={`p-3 rounded-lg border space-y-1 cursor-pointer transition-all ${checked ? "bg-emerald-400/10 border-emerald-400/25" : "bg-amber-400/5 border-amber-400/15"}`} onClick={() => toggleBattlePlanCheck(key)}>
+                          <div className="flex items-center gap-2">
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${checked ? "bg-emerald-400 border-emerald-400" : "border-white/20"}`}>
+                              {checked && <CheckCircle className="h-3 w-3 text-white" />}
+                            </div>
+                            <p className={`text-xs font-medium ${checked ? "text-white/50 line-through" : "text-white/80"}`}>{g.goal}</p>
+                          </div>
+                          <div className="flex items-center gap-2 ml-6">
+                            <Badge variant="outline" className="text-[9px] border-amber-400/20 text-amber-400">{g.metric}</Badge>
+                            <span className="text-[10px] text-emerald-400 font-bold">{g.target}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -2780,9 +2923,14 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               <Card className="crm-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-400 flex items-center gap-2"><Zap className="h-4 w-4" /> Quick Wins (Do Now)</CardTitle></CardHeader>
                 <CardContent className="space-y-2">
-                  {(battlePlan.quickWins || []).map((w: any, i: number) => (
-                    <div key={i} className="flex items-start gap-3 p-2.5 rounded-lg bg-emerald-400/5 border border-emerald-400/15">
-                      <div className={`mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold ${w.impact === "high" ? "bg-red-400/20 text-red-400" : "bg-amber-400/20 text-amber-400"}`}>{w.impact}</div>
+                  {(battlePlan.quickWins || []).map((w: any, i: number) => {
+                    const key = `qw-${i}`;
+                    const checked = battlePlanChecks[key];
+                    return (
+                    <div key={i} className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${checked ? "bg-emerald-400/10 border-emerald-400/20" : "bg-emerald-400/5 border-emerald-400/15"}`} onClick={() => toggleBattlePlanCheck(key)}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5 ${checked ? "bg-emerald-400 border-emerald-400" : "border-white/20"}`}>
+                        {checked && <CheckCircle className="h-3 w-3 text-white" />}
+                      </div>
                       <div className="flex-1 space-y-0.5">
                         <p className="text-xs font-medium text-white/80">{w.action}</p>
                         <div className="flex items-center gap-3">
@@ -2791,7 +2939,8 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </CardContent>
               </Card>
 
@@ -4986,7 +5135,12 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         {myStats && <option value="me">@{myStats.username} (You)</option>}
                       </select>
                     </div>
-                    <div className="flex items-center pt-5"><span className="text-lg text-white/20 font-bold">VS</span></div>
+                    <div className="flex flex-col items-center pt-5 gap-1">
+                      <span className="text-lg text-white/20 font-bold">VS</span>
+                      <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-white/20 hover:text-white/60" onClick={() => { const tmp = h2hCompA; setH2hCompA(h2hCompB); setH2hCompB(tmp); }} title="Swap">
+                        <RefreshCw className="h-3 w-3" />
+                      </Button>
+                    </div>
                     <div className="flex-1 min-w-[180px] space-y-1.5">
                       <label className="text-xs font-medium text-white/50">Competitor B</label>
                       <select value={h2hCompB || ""} onChange={e => setH2hCompB(e.target.value)} className="w-full h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
@@ -5332,7 +5486,26 @@ Return ONLY valid JSON:
                     </Card>
                   )}
 
-                  {/* Milestones */}
+                  {/* Engagement Rate Forecast */}
+                  {(forecastResult.monthlyBreakdown || []).some((m: any) => m.engagement) && (
+                    <Card className="crm-card">
+                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-400 flex items-center gap-2"><Activity className="h-4 w-4" /> Engagement Rate Trajectory</CardTitle></CardHeader>
+                      <CardContent>
+                        <div className="h-[200px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={forecastResult.monthlyBreakdown}>
+                              <XAxis dataKey="month" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                              <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => `${v}%`} />
+                              <Tooltip contentStyle={chartTooltipStyle} formatter={(v: any) => [`${v}%`, "Engagement"]} />
+                              <Line type="monotone" dataKey="engagement" stroke="hsl(150,60%,50%)" strokeWidth={2} dot={{ r: 3, fill: "hsl(150,60%,50%)" }} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+
                   {(forecastResult.milestones || []).length > 0 && (
                     <Card className="crm-card">
                       <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><Star className="h-4 w-4" /> Milestone Projections</CardTitle></CardHeader>
@@ -5552,11 +5725,62 @@ Return ONLY valid JSON:
                   URL.revokeObjectURL(url);
                   toast.success("Report exported as Markdown");
                 }}>
-                  <Download className="h-4 w-4" /> Export as Markdown
+                  <Download className="h-4 w-4" /> Export Markdown
+                </Button>
+
+                {/* CSV Export */}
+                <Button variant="outline" className="gap-1.5 border-emerald-400/20 text-emerald-400 hover:bg-emerald-400/10" onClick={() => {
+                  if (!competitors.length) { toast.error("No competitors to export"); return; }
+                  const headers = ["Username", "Platform", "Followers", "Engagement Rate %", "Avg Likes", "Avg Comments", "Growth/Wk %", "Posts/Wk", "Total Posts", "Threat Score", "Niche", "Top Hashtags", "Last Analyzed"];
+                  const rows = competitors.map(c => [
+                    `@${c.username}`, c.platform, c.followers, c.engagementRate, c.avgLikes, c.avgComments,
+                    c.growthRate, c.postFrequency, c.posts, c.score, c.metadata?.niche || "",
+                    c.topHashtags.join(";"), new Date(c.lastAnalyzed).toLocaleDateString(),
+                  ]);
+                  const csv = [headers.join(","), ...rows.map(r => r.map(v => `"${v}"`).join(","))].join("\n");
+                  const blob = new Blob([csv], { type: "text/csv" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `competitors-${new Date().toISOString().slice(0, 10)}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast.success("CSV exported");
+                }}>
+                  <Download className="h-4 w-4" /> Export CSV
+                </Button>
+
+                {/* JSON Export */}
+                <Button variant="outline" className="gap-1.5 border-[hsl(262,83%,58%)]/20 text-[hsl(262,83%,58%)] hover:bg-[hsl(262,83%,58%)]/10" onClick={() => {
+                  const data = {
+                    exportedAt: new Date().toISOString(),
+                    enterprise: enterpriseProfile || null,
+                    competitors: competitors.map(c => ({
+                      username: c.username, platform: c.platform, followers: c.followers,
+                      engagementRate: c.engagementRate, avgLikes: c.avgLikes, avgComments: c.avgComments,
+                      growthRate: c.growthRate, postFrequency: c.postFrequency, posts: c.posts,
+                      score: c.score, niche: c.metadata?.niche, topHashtags: c.topHashtags,
+                    })),
+                    swot: swotResult || null,
+                    gapAnalysis: gapAnalysis || null,
+                    siteInsights: siteInsights || null,
+                    financialData: financialData || null,
+                    battlePlan: battlePlan || null,
+                    forecast: forecastResult || null,
+                  };
+                  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `competitor-intel-${new Date().toISOString().slice(0, 10)}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast.success("Full data exported as JSON");
+                }}>
+                  <Download className="h-4 w-4" /> Export JSON
                 </Button>
 
                 <Button variant="outline" className="gap-1.5 border-white/10 text-white/60 hover:text-white" onClick={() => {
-                  // Copy to clipboard
                   const sections: string[] = [];
                   sections.push(`📊 COMPETITIVE INTELLIGENCE REPORT — ${new Date().toLocaleDateString()}`);
                   if (competitors.length) {
