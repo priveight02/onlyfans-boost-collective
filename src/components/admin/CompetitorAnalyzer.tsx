@@ -322,6 +322,16 @@ const CompetitorAnalyzer = ({
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
+  // User's own stats for comparison
+  const [myStats, setMyStats] = useState<{
+    username: string; followers: number; engagementRate: number; avgLikes: number;
+    avgComments: number; growthRate: number; postFrequency: number; posts: number;
+  }>(() => {
+    try { const s = localStorage.getItem("competitor_my_stats"); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
+  const [showMyStatsForm, setShowMyStatsForm] = useState(false);
+  const saveMyStats = (stats: typeof myStats) => { setMyStats(stats); localStorage.setItem("competitor_my_stats", JSON.stringify(stats)); setShowMyStatsForm(false); toast.success("Your stats saved for comparison"); };
+
   // Keyword search state
   const [keywordQuery, setKeywordQuery] = useState("");
   const [keywordPlatform, setKeywordPlatform] = useState("instagram");
@@ -343,9 +353,21 @@ const CompetitorAnalyzer = ({
   const [financialData, setFinancialData] = useState<any>(null);
   const [financialLoading, setFinancialLoading] = useState(false);
 
+  // Battle plan state
+  const [battlePlan, setBattlePlan] = useState<any>(null);
+  const [battlePlanLoading, setBattlePlanLoading] = useState(false);
+
+  // Content recommendations state
+  const [contentRecs, setContentRecs] = useState<any>(null);
+  const [contentRecsLoading, setContentRecsLoading] = useState(false);
+
+  // Site AI insights state
+  const [siteInsights, setSiteInsights] = useState<any>(null);
+  const [siteInsightsLoading, setSiteInsightsLoading] = useState(false);
+
   // Deep analysis section expansion
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    social: true, platforms: true, deepMetrics: false, security: false, performance: false, sensitive: false, financial: true,
+    social: true, platforms: true, deepMetrics: false, security: false, performance: false, sensitive: false, financial: true, siteInsights: true,
   });
   const toggleSection = (key: string) => setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
 
