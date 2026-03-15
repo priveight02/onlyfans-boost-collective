@@ -528,12 +528,21 @@ const CompetitorAnalyzer = ({
   }, []);
 
   const addCompetitor = async () => {
-    const username = newUsername.trim().replace(/^@/, "");
-    if (!username) return;
+    const isInternet = newPlatform === "internet";
+    const username = isInternet ? (newCompetitorKeywords.trim() || newCompetitorUrl.trim().replace(/^https?:\/\//, "").replace(/\/.*$/, "")) : newUsername.trim().replace(/^@/, "");
+    const url = isInternet ? newCompetitorUrl.trim() : "";
+    const keywords = isInternet ? newCompetitorKeywords.trim() : "";
+
+    if (!isInternet && !username) return;
+    if (isInternet && !url) { toast.error("Enter a competitor website URL"); return; }
 
     // Check for duplicate
-    if (competitors.some(c => c.username.toLowerCase() === username.toLowerCase() && c.platform === newPlatform)) {
+    if (!isInternet && competitors.some(c => c.username.toLowerCase() === username.toLowerCase() && c.platform === newPlatform)) {
       toast.error(`@${username} is already being tracked on ${newPlatform}`);
+      return;
+    }
+    if (isInternet && competitors.some(c => c.platform === "internet" && c.metadata?.websiteUrl && c.metadata.websiteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "") === url.replace(/^https?:\/\//, "").replace(/\/$/, ""))) {
+      toast.error(`This website is already being tracked`);
       return;
     }
 
@@ -542,8 +551,52 @@ const CompetitorAnalyzer = ({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not logged in");
 
-      const aiReply = await callAI(
-        `You are a social media analytics expert. Analyze the ${newPlatform} account @${username} and provide realistic estimated statistics based on what you know about this account or similar accounts in that niche.
+      const todayStr = new Date().toISOString().slice(0, 10);
+
+      const prompt = isInternet
+        ? `You are an elite competitive intelligence analyst. Today is ${todayStr}. Analyze this competitor business/website and provide comprehensive data.
+
+WEBSITE: ${url}
+COMPETITOR NAME/KEYWORDS: ${keywords || "not provided — infer from website"}
+
+Research this website/company and provide the MOST UP TO DATE data as of today ${todayStr}. Use the website URL and keywords to identify the exact competitor.
+
+IMPORTANT: Return ONLY a valid JSON object, no markdown, no explanation:
+{
+  "displayName": "company/brand name",
+  "companyDescription": "1-2 sentence description of what they do",
+  "industry": "their industry/niche",
+  "foundedYear": "year founded or estimate",
+  "headquarters": "city, country",
+  "teamSize": "estimated team size range",
+  "websiteTraffic": "estimated monthly visitors as number",
+  "domainAuthority": <number 0-100>,
+  "socialPresence": {"instagram": "handle or null", "twitter": "handle or null", "linkedin": "handle or null", "tiktok": "handle or null", "youtube": "handle or null"},
+  "followers": <total social following across platforms as number>,
+  "following": 0,
+  "posts": <estimated total content pieces>,
+  "engagementRate": <number 0.5-15, average social engagement rate>,
+  "avgLikes": <average likes across platforms>,
+  "avgComments": <average comments>,
+  "growthRate": <number -5 to 15, estimated weekly traffic/social growth %>,
+  "postFrequency": <content pieces per week>,
+  "topHashtags": ["keyword1", "keyword2", "keyword3", "keyword4", "keyword5"],
+  "contentTypes": [{"type":"Blog","pct":30},{"type":"Video","pct":25},{"type":"Social","pct":25},{"type":"Email","pct":20}],
+  "niche": "their specific niche",
+  "revenueEstimate": "estimated ARR/revenue range",
+  "pricingModel": "freemium/subscription/one-time/etc",
+  "mainProducts": ["product1", "product2"],
+  "targetAudience": "who they target",
+  "competitiveStrengths": ["strength1", "strength2", "strength3"],
+  "competitiveWeaknesses": ["weakness1", "weakness2"],
+  "techStack": ["tech1", "tech2", "tech3"],
+  "seoKeywords": ["keyword1", "keyword2", "keyword3"],
+  "fundingStatus": "bootstrapped/seed/series A/etc or unknown",
+  "score": <number 0-100, competitive threat level>
+}
+
+Be as accurate as possible using your knowledge. If you recognize the company, use real data. Estimates must be clearly realistic.`
+        : `You are a social media analytics expert. Today is ${todayStr}. Analyze the ${newPlatform} account @${username} and provide realistic estimated statistics based on what you know about this account or similar accounts in that niche. All data must reflect the MOST CURRENT state as of ${todayStr}.
 
 IMPORTANT: Return ONLY a valid JSON object, no markdown, no explanation. The JSON must have these exact keys:
 {
@@ -565,11 +618,11 @@ IMPORTANT: Return ONLY a valid JSON object, no markdown, no explanation. The JSO
   "score": <number 0-100, competitive threat level>
 }
 
-Be as accurate as possible. If you recognize the account, use real data. If not, estimate based on the username and platform norms.`
-      );
+Be as accurate as possible. If you recognize the account, use real data. If not, estimate based on the username and platform norms.`;
 
       let parsed: any;
       try {
+        const aiReply = await callAI(prompt);
         parsed = parseJSON(aiReply);
       } catch {
         toast.error("AI analysis failed to return valid data. Please try again.");
@@ -577,35 +630,60 @@ Be as accurate as possible. If you recognize the account, use real data. If not,
       }
 
       // Validate critical fields
-      if (!parsed.followers || typeof parsed.followers !== "number") {
+      if (!parsed.followers && !isInternet) {
         toast.error("AI returned invalid data. Please try again.");
         throw new Error("Invalid AI response data");
       }
 
       const id = crypto.randomUUID();
-      const row = {
+      const competitorName = isInternet 
+        ? (parsed.displayName || keywords || url.replace(/^https?:\/\//, "").replace(/\/.*$/, ""))
+        : (parsed.displayName || username);
+
+      const row: Record<string, any> = {
         id,
         user_id: user.id,
-        username,
+        username: isInternet ? competitorName.toLowerCase().replace(/[^a-z0-9_-]/g, "_").slice(0, 50) : username,
         platform: newPlatform,
-        display_name: parsed.displayName || username,
-        followers: parsed.followers,
+        display_name: competitorName,
+        followers: parsed.followers || parsed.websiteTraffic || 0,
         following: parsed.following || 0,
         posts: parsed.posts || 0,
-        engagement_rate: parsed.engagementRate,
-        avg_likes: parsed.avgLikes,
-        avg_comments: parsed.avgComments,
-        growth_rate: parsed.growthRate,
-        post_frequency: parsed.postFrequency,
-        top_hashtags: parsed.topHashtags || [],
+        engagement_rate: parsed.engagementRate || 0,
+        avg_likes: parsed.avgLikes || 0,
+        avg_comments: parsed.avgComments || 0,
+        growth_rate: parsed.growthRate || 0,
+        post_frequency: parsed.postFrequency || 0,
+        top_hashtags: parsed.topHashtags || parsed.seoKeywords || [],
         content_types: parsed.contentTypes || [],
-        threat_score: parsed.score,
+        threat_score: parsed.score || 50,
         metadata: {
-          niche: parsed.niche,
-          bestPostingTimes: parsed.bestPostingTimes,
-          audienceDemo: parsed.audienceDemo,
-          contentStyle: parsed.contentStyle,
-          analysisHistory: [{ date: new Date().toISOString(), followers: parsed.followers, engagement: parsed.engagementRate }],
+          ...(isInternet ? {
+            websiteUrl: url.startsWith("http") ? url : `https://${url}`,
+            competitorKeywords: keywords,
+            companyDescription: parsed.companyDescription,
+            industry: parsed.industry,
+            foundedYear: parsed.foundedYear,
+            headquarters: parsed.headquarters,
+            teamSize: parsed.teamSize,
+            websiteTraffic: parsed.websiteTraffic,
+            domainAuthority: parsed.domainAuthority,
+            socialPresence: parsed.socialPresence,
+            revenueEstimate: parsed.revenueEstimate,
+            pricingModel: parsed.pricingModel,
+            mainProducts: parsed.mainProducts,
+            targetAudience: parsed.targetAudience,
+            competitiveStrengths: parsed.competitiveStrengths,
+            competitiveWeaknesses: parsed.competitiveWeaknesses,
+            techStack: parsed.techStack,
+            fundingStatus: parsed.fundingStatus,
+          } : {
+            niche: parsed.niche,
+            bestPostingTimes: parsed.bestPostingTimes,
+            audienceDemo: parsed.audienceDemo,
+            contentStyle: parsed.contentStyle,
+          }),
+          analysisHistory: [{ date: new Date().toISOString(), followers: parsed.followers || parsed.websiteTraffic || 0, engagement: parsed.engagementRate || 0 }],
         },
         last_analyzed_at: new Date().toISOString(),
       };
@@ -619,8 +697,10 @@ Be as accurate as possible. If you recognize the account, use real data. If not,
     if (result) {
       setCompetitors(prev => [result, ...prev]);
       setNewUsername("");
+      setNewCompetitorUrl("");
+      setNewCompetitorKeywords("");
       if (!selectedCompetitor) setSelectedCompetitor(result.id);
-      toast.success(`@${result.username} analyzed and added`);
+      toast.success(isInternet ? `${result.displayName} analyzed and added` : `@${result.username} analyzed and added`);
     }
   };
 
