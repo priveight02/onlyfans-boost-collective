@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { exportSandboxToDrafts } from "@/lib/contentSync";
+import { exportSandboxToDrafts, pushSandboxDirectToPlatforms, getConnectedAccounts, DEFAULT_BEST_TIMES, type ExecutionMode } from "@/lib/contentSync";
 
 /* ─── Types ─── */
 type Tool = "select" | "pan" | "pen" | "eraser" | "text" | "note" | "rectangle" | "ellipse" | "triangle" | "diamond" | "arrow";
