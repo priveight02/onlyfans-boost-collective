@@ -359,7 +359,7 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
 const parseHumanNumber = (s: string): number => {
   if (!s) return 0;
   const cleaned = s.replace(/[\s,]/g, "").trim();
-  const multiplierMatch = cleaned.match(/^([\d.]+)([KMBkmb]?)$/);
+  const multiplierMatch = cleaned.match(/^(-?[\d.]+)([KMBkmb]?)$/);
   if (!multiplierMatch) return parseInt(cleaned) || 0;
   const num = parseFloat(multiplierMatch[1]);
   const suffix = multiplierMatch[2].toUpperCase();
@@ -368,6 +368,73 @@ const parseHumanNumber = (s: string): number => {
   if (suffix === "B") return Math.round(num * 1000000000);
   return Math.round(num);
 };
+
+const HANDLE_PLACEHOLDER_PATTERN = /^(?:null|none|n\/a|na|unknown|handle(?:\s*or\s*null)?|not\s+available)$/i;
+const METRIC_PLACEHOLDER_PATTERN = /^(?:nan|null|undefined|n\/a|na|none|unknown|not\s+available)$/i;
+
+const normalizePlatformKey = (platform: string): string => {
+  const key = String(platform || "").trim().toLowerCase();
+  if (key === "x") return "twitter";
+  return key;
+};
+
+const parseMetricNumber = (value: unknown): number => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value !== "string") return 0;
+
+  const raw = value.trim();
+  if (!raw || METRIC_PLACEHOLDER_PATTERN.test(raw)) return 0;
+
+  const compact = raw
+    .replace(/,/g, "")
+    .replace(/%/g, "")
+    .replace(/\/(wk|week)/gi, "")
+    .replace(/per\s+week/gi, "")
+    .trim();
+
+  if (/^-?[\d.]+[KMBkmb]$/.test(compact)) return parseHumanNumber(compact);
+
+  const asNumber = Number(compact);
+  return Number.isFinite(asNumber) ? asNumber : 0;
+};
+
+const normalizeSocialHandleValue = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const raw = value.trim();
+  if (!raw || HANDLE_PLACEHOLDER_PATTERN.test(raw)) return null;
+
+  const urlMatch = raw.match(/(?:instagram\.com|tiktok\.com\/@?|twitter\.com|x\.com|linkedin\.com\/company|youtube\.com\/(?:@|channel\/|c\/)|facebook\.com)\/([a-zA-Z0-9_.-]+)/i);
+  const extracted = urlMatch?.[1] || raw;
+
+  const cleaned = extracted
+    .replace(/^@/, "")
+    .replace(/[/?#].*$/, "")
+    .trim();
+
+  if (!cleaned || HANDLE_PLACEHOLDER_PATTERN.test(cleaned)) return null;
+  return cleaned;
+};
+
+const normalizeSocialPresence = (input: Record<string, unknown>): Record<string, string | null> => {
+  const out: Record<string, string | null> = {};
+  for (const [platform, handle] of Object.entries(input || {})) {
+    const key = normalizePlatformKey(platform);
+    if (!key) continue;
+    const normalizedHandle = normalizeSocialHandleValue(handle);
+    out[key] = normalizedHandle;
+  }
+  return out;
+};
+
+const normalizePlatformMetric = (metric: Record<string, unknown>) => ({
+  followers: parseMetricNumber(metric?.followers),
+  posts: parseMetricNumber(metric?.posts),
+  engagementRate: parseMetricNumber(metric?.engagementRate),
+  avgLikes: parseMetricNumber(metric?.avgLikes),
+  avgComments: parseMetricNumber(metric?.avgComments),
+  postFrequency: parseMetricNumber(metric?.postFrequency),
+  growthRate: parseMetricNumber(metric?.growthRate),
+});
 
 /** Extract social handles from a website homepage */
 const extractSocialHandlesFromWebsite = async (websiteUrl: string): Promise<Record<string, string>> => {
@@ -464,39 +531,52 @@ serve(async (req) => {
     const runBatchPlatformRefresh = async (items: any[]) => {
       const results = await Promise.all(items.map(async (item: any) => {
         const websiteUrl = item?.websiteUrl ? String(item.websiteUrl) : "";
-        const existingPresence = (item?.socialPresence && typeof item.socialPresence === "object") ? item.socialPresence : {};
-        const existingMetrics = (item?.platformMetrics && typeof item.platformMetrics === "object") ? item.platformMetrics : {};
 
-        let socialPresence: Record<string, string | null> = { ...existingPresence };
-        const hasAnyHandle = Object.values(socialPresence).some(Boolean);
+        const existingPresenceRaw = (item?.socialPresence && typeof item.socialPresence === "object")
+          ? item.socialPresence as Record<string, unknown>
+          : {};
+        const existingMetricsRaw = (item?.platformMetrics && typeof item.platformMetrics === "object")
+          ? item.platformMetrics as Record<string, unknown>
+          : {};
 
-        if (!hasAnyHandle && websiteUrl) {
-          const extracted = await extractSocialHandlesFromWebsite(websiteUrl);
-          socialPresence = { ...socialPresence, ...extracted };
+        let socialPresence = normalizeSocialPresence(existingPresenceRaw);
+
+        if (websiteUrl) {
+          const extracted = normalizeSocialPresence(await extractSocialHandlesFromWebsite(websiteUrl));
+          // Keep existing valid handles, but fill any missing ones from live website scan.
+          socialPresence = { ...extracted, ...socialPresence };
+        }
+
+        const platformMetrics: Record<string, ReturnType<typeof normalizePlatformMetric>> = {};
+        for (const [platform, metric] of Object.entries(existingMetricsRaw)) {
+          const key = normalizePlatformKey(platform);
+          if (!key || !metric || typeof metric !== "object") continue;
+          platformMetrics[key] = normalizePlatformMetric(metric as Record<string, unknown>);
         }
 
         const scraped = await scrapeSocialProfiles(socialPresence);
-        const platformMetrics: Record<string, any> = { ...existingMetrics };
 
         for (const [platform, scrapedData] of Object.entries(scraped)) {
-          const prev = platformMetrics[platform] || {};
-          platformMetrics[platform] = {
+          const key = normalizePlatformKey(platform);
+          if (!key) continue;
+          const prev = normalizePlatformMetric((platformMetrics[key] || {}) as Record<string, unknown>);
+
+          platformMetrics[key] = {
             ...prev,
-            followers: scrapedData.followers ?? prev.followers ?? 0,
-            posts: scrapedData.posts ?? prev.posts ?? 0,
-            engagementRate: prev.engagementRate ?? 0,
-            avgLikes: prev.avgLikes ?? 0,
-            avgComments: prev.avgComments ?? 0,
-            postFrequency: prev.postFrequency ?? 0,
-            growthRate: prev.growthRate ?? 0,
+            followers: typeof scrapedData.followers === "number" && scrapedData.followers > 0
+              ? scrapedData.followers
+              : prev.followers,
+            posts: typeof scrapedData.posts === "number" && scrapedData.posts >= 0
+              ? scrapedData.posts
+              : prev.posts,
           };
         }
 
-        const followers = Object.values(platformMetrics).reduce((sum: number, pm: any) => sum + (Number(pm?.followers) || 0), 0);
+        const followers = Object.values(platformMetrics).reduce((sum: number, pm) => sum + parseMetricNumber(pm?.followers), 0);
 
         return {
           id: item?.id,
-          followers: followers > 0 ? followers : (Number(item?.followers) || 0),
+          followers: followers > 0 ? followers : parseMetricNumber(item?.followers),
           socialPresence,
           platformMetrics,
           scrapedPlatforms: Object.keys(scraped),
