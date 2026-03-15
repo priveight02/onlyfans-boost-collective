@@ -3178,14 +3178,14 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                       // Best platform by engagement
                       const bestPlatformByEng = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
                         const avgEng = data.competitors.reduce((s, c) => s + c.engagementRate, 0) / data.competitors.length;
-                        return avgEng > best.avgEng ? { key, name: data.name, avgEng, icon: data.icon, color: data.color } : best;
-                      }, { key: "", name: "-", avgEng: 0, icon: "", color: "" }) : null;
+                        return avgEng > best.avgEng ? { key, name: data.name, avgEng, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", avgEng: 0, logo: "", color: "" }) : null;
 
                       // Best platform by growth
                       const bestPlatformByGrowth = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
                         const avgG = data.competitors.reduce((s, c) => s + c.growthRate, 0) / data.competitors.length;
-                        return avgG > best.avgG ? { key, name: data.name, avgG, icon: data.icon, color: data.color } : best;
-                      }, { key: "", name: "-", avgG: 0, icon: "", color: "" }) : null;
+                        return avgG > best.avgG ? { key, name: data.name, avgG, logo: data.logo, color: data.color } : best;
+                      }, { key: "", name: "-", avgG: 0, logo: "", color: "" }) : null;
 
                       return (
                         <>
