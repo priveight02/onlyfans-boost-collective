@@ -3253,10 +3253,20 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                           const pm = perPlatform[key] || perPlatform[plat] || {};
                           const normalized = {
                             followers: parseMetricValue(pm?.followers),
+                            following: parseMetricValue(pm?.following),
+                            posts: parseMetricValue(pm?.posts),
                             engagementRate: parseMetricValue(pm?.engagementRate),
                             avgLikes: parseMetricValue(pm?.avgLikes),
+                            avgComments: parseMetricValue(pm?.avgComments),
+                            avgViews: parseMetricValue(pm?.avgViews),
+                            avgShares: parseMetricValue(pm?.avgShares),
+                            totalLikes: parseMetricValue(pm?.totalLikes),
+                            totalViews: parseMetricValue(pm?.totalViews),
                             postFrequency: parseMetricValue(pm?.postFrequency),
                             growthRate: parseMetricValue(pm?.growthRate),
+                            followerGain30d: parseMetricValue(pm?.followerGain30d),
+                            viewGain30d: parseMetricValue(pm?.viewGain30d),
+                            likeGain30d: parseMetricValue(pm?.likeGain30d),
                           };
 
                           const hasPlatformData = normalized.followers > 0 || normalized.engagementRate > 0 || normalized.avgLikes > 0 || normalized.postFrequency > 0 || normalized.growthRate !== 0;
@@ -3288,10 +3298,20 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         platformMap[primary].competitors.push({
                           username: c.username,
                           followers,
+                          following: parseMetricValue(pm?.following),
+                          posts: parseMetricValue(pm?.posts) || (usePrimaryFallback ? parseMetricValue(c.posts) : 0),
                           engagementRate: parseMetricValue(pm?.engagementRate) || (usePrimaryFallback ? parseMetricValue(c.engagementRate) : 0),
                           avgLikes: parseMetricValue(pm?.avgLikes) || (usePrimaryFallback ? parseMetricValue(c.avgLikes) : 0),
+                          avgComments: parseMetricValue(pm?.avgComments) || (usePrimaryFallback ? parseMetricValue(c.avgComments) : 0),
+                          avgViews: parseMetricValue(pm?.avgViews),
+                          avgShares: parseMetricValue(pm?.avgShares),
+                          totalLikes: parseMetricValue(pm?.totalLikes),
+                          totalViews: parseMetricValue(pm?.totalViews),
                           postFrequency: parseMetricValue(pm?.postFrequency) || (usePrimaryFallback ? parseMetricValue(c.postFrequency) : 0),
                           growthRate: parseMetricValue(pm?.growthRate) || (usePrimaryFallback ? parseMetricValue(c.growthRate) : 0),
+                          followerGain30d: parseMetricValue(pm?.followerGain30d),
+                          viewGain30d: parseMetricValue(pm?.viewGain30d),
+                          likeGain30d: parseMetricValue(pm?.likeGain30d),
                         });
                       });
 
