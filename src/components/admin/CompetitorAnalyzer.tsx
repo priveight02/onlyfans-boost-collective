@@ -5084,7 +5084,12 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         {myStats && <option value="me">@{myStats.username} (You)</option>}
                       </select>
                     </div>
-                    <div className="flex items-center pt-5"><span className="text-lg text-white/20 font-bold">VS</span></div>
+                    <div className="flex flex-col items-center pt-5 gap-1">
+                      <span className="text-lg text-white/20 font-bold">VS</span>
+                      <Button size="sm" variant="ghost" className="h-5 w-5 p-0 text-white/20 hover:text-white/60" onClick={() => { const tmp = h2hCompA; setH2hCompA(h2hCompB); setH2hCompB(tmp); }} title="Swap">
+                        <RefreshCw className="h-3 w-3" />
+                      </Button>
+                    </div>
                     <div className="flex-1 min-w-[180px] space-y-1.5">
                       <label className="text-xs font-medium text-white/50">Competitor B</label>
                       <select value={h2hCompB || ""} onChange={e => setH2hCompB(e.target.value)} className="w-full h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
