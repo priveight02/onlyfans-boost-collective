@@ -28,6 +28,12 @@ import ContentSandbox from "./ContentSandbox";
 
 const CONTENT_TYPES = ["post", "story", "reel", "tweet", "promo", "teaser", "behind_scenes", "collab"];
 const STATUSES = ["draft", "planned", "scheduled", "published", "archived"];
+const COMPETITOR_SYNC_SOURCES = ["competitor_intel", "swot_analysis", "gap_analysis"] as const;
+
+const getContentSource = (item: any) => {
+  const source = item?.metadata?.source;
+  return typeof source === "string" ? source : "";
+};
 
 const PLATFORM_CONFIG: Record<string, {
   label: string;
