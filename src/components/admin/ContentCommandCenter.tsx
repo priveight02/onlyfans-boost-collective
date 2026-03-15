@@ -1676,12 +1676,12 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <h1 className="text-lg font-bold text-white flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" /> Content Command Center
             </h1>
             <CreditCostBadge cost="3-5" variant="header" label="per content" />
           </div>
-          <p className="text-xs text-muted-foreground">Create, schedule, and publish across all platforms</p>
+          <p className="text-xs text-white/30 mt-0.5">Create, schedule, and publish across all platforms</p>
         </div>
         <div className="flex gap-1.5 flex-wrap">
           <Button size="sm" variant="outline" onClick={() => setShowContentBrief(true)}
