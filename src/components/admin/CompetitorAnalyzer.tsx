@@ -3253,7 +3253,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                 <div className="grid grid-cols-2 gap-2 mb-2">
                                   {bestPlatformByEng && bestPlatformByEng.key && (
                                     <div className="p-2 rounded-lg flex items-center gap-2" style={{ background: `${bestPlatformByEng.color}12`, border: `1px solid ${bestPlatformByEng.color}25` }}>
-                                      <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black text-white shrink-0" style={{ background: bestPlatformByEng.color }}>{bestPlatformByEng.icon}</div>
+                                      <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 p-1.5" style={{ background: bestPlatformByEng.color }}><img src={bestPlatformByEng.logo} alt="" className="w-full h-full object-contain" /></div>
                                       <div>
                                         <p className="text-[8px] text-white/40">Highest Engagement</p>
                                         <p className="text-[11px] font-bold text-white">{bestPlatformByEng.name} <span className="text-emerald-400 text-[10px]">{bestPlatformByEng.avgEng.toFixed(2)}%</span></p>
