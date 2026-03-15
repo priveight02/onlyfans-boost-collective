@@ -952,31 +952,81 @@ const normalizePlatformMetric = (metric: Record<string, unknown>) => ({
 const extractSocialHandlesFromWebsite = async (websiteUrl: string): Promise<Record<string, string>> => {
   const handles: Record<string, string> = {};
   const normalizeHandle = (raw: string) => raw.replace(/^@/, "").replace(/[/?#].*$/, "").trim();
-  const excludeHandles = new Set(["share", "sharer", "intent", "hashtag", "search", "home", "watch", "channel", "embed", "privacy", "terms", "help", "login", "signup", "about", "explore", "settings", "p", "reel", "stories", "live", "company", "in", "pages", "groups", "events", "marketplace"]);
+  const excludeHandles = new Set(["share", "sharer", "intent", "hashtag", "search", "home", "watch", "channel", "embed", "privacy", "terms", "help", "login", "signup", "about", "explore", "settings", "p", "reel", "stories", "live", "company", "in", "pages", "groups", "events", "marketplace", "jobs", "feed", "notifications", "messages", "ads", "create", "profile", "tag", "direct", "accounts", "oauth", "api", "developers", "policies", "legal"]);
   const isValidHandle = (h: string) => {
     const clean = normalizeHandle(h);
-    return clean.length >= 2 && clean.length <= 60 && !excludeHandles.has(clean.toLowerCase()) && !/^[\d]+$/.test(clean);
+    return clean.length >= 2 && clean.length <= 60 && !excludeHandles.has(clean.toLowerCase()) && !/^[\d]+$/.test(clean) && !/^[a-f0-9]{32,}$/i.test(clean);
   };
 
   const extractFromHtml = (html: string) => {
-    // Core 6 platforms
-    const ig = html.match(/(?:instagram\.com|instagr\.am)\/([a-zA-Z0-9_.]{2,30})(?:[/?#]|$)/i)?.[1];
-    if (ig && isValidHandle(ig) && !handles.instagram) handles.instagram = normalizeHandle(ig);
+    // Core 6 platforms - multiple regex patterns for each
+    const igPatterns = [
+      /(?:instagram\.com|instagr\.am)\/([a-zA-Z0-9_.]{2,30})(?:[/?#]|$)/gi,
+      /href=["'][^"']*instagram\.com\/([a-zA-Z0-9_.]{2,30})/gi,
+    ];
+    for (const p of igPatterns) {
+      for (const m of html.matchAll(p)) {
+        if (m[1] && isValidHandle(m[1]) && !handles.instagram) { handles.instagram = normalizeHandle(m[1]); break; }
+      }
+      if (handles.instagram) break;
+    }
 
-    const tt = html.match(/tiktok\.com\/@?([a-zA-Z0-9_.]{2,30})(?:[/?#]|$)/i)?.[1];
-    if (tt && isValidHandle(tt) && !handles.tiktok) handles.tiktok = normalizeHandle(tt);
+    const ttPatterns = [
+      /tiktok\.com\/@?([a-zA-Z0-9_.]{2,30})(?:[/?#]|$)/gi,
+      /href=["'][^"']*tiktok\.com\/@?([a-zA-Z0-9_.]{2,30})/gi,
+    ];
+    for (const p of ttPatterns) {
+      for (const m of html.matchAll(p)) {
+        if (m[1] && isValidHandle(m[1]) && !handles.tiktok) { handles.tiktok = normalizeHandle(m[1]); break; }
+      }
+      if (handles.tiktok) break;
+    }
 
-    const tw = html.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]{1,15})(?:[/?#]|$)/i)?.[1];
-    if (tw && isValidHandle(tw) && !handles.twitter) handles.twitter = normalizeHandle(tw);
+    const twPatterns = [
+      /(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]{1,15})(?:[/?#]|$)/gi,
+      /href=["'][^"']*(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]{1,15})/gi,
+    ];
+    for (const p of twPatterns) {
+      for (const m of html.matchAll(p)) {
+        if (m[1] && isValidHandle(m[1]) && !handles.twitter) { handles.twitter = normalizeHandle(m[1]); break; }
+      }
+      if (handles.twitter) break;
+    }
 
-    const yt = html.match(/youtube\.com\/(?:@|channel\/|c\/)?([a-zA-Z0-9_-]{2,50})(?:[/?#]|$)/i)?.[1];
-    if (yt && isValidHandle(yt) && !handles.youtube) handles.youtube = normalizeHandle(yt);
+    const ytPatterns = [
+      /youtube\.com\/(?:@|channel\/|c\/)?([a-zA-Z0-9_-]{2,50})(?:[/?#]|$)/gi,
+      /href=["'][^"']*youtube\.com\/(?:@|channel\/|c\/)?([a-zA-Z0-9_-]{2,50})/gi,
+      /youtu\.be\/([a-zA-Z0-9_-]{2,50})/gi,
+    ];
+    for (const p of ytPatterns) {
+      for (const m of html.matchAll(p)) {
+        if (m[1] && isValidHandle(m[1]) && !handles.youtube) { handles.youtube = normalizeHandle(m[1]); break; }
+      }
+      if (handles.youtube) break;
+    }
 
-    const li = html.match(/linkedin\.com\/(?:company|in)\/([a-zA-Z0-9_-]{2,50})(?:[/?#]|$)/i)?.[1];
-    if (li && isValidHandle(li) && !handles.linkedin) handles.linkedin = normalizeHandle(li);
+    const liPatterns = [
+      /linkedin\.com\/(?:company|in|school)\/([a-zA-Z0-9_-]{2,50})(?:[/?#]|$)/gi,
+      /href=["'][^"']*linkedin\.com\/(?:company|in|school)\/([a-zA-Z0-9_-]{2,50})/gi,
+    ];
+    for (const p of liPatterns) {
+      for (const m of html.matchAll(p)) {
+        if (m[1] && isValidHandle(m[1]) && !handles.linkedin) { handles.linkedin = normalizeHandle(m[1]); break; }
+      }
+      if (handles.linkedin) break;
+    }
 
-    const fb = html.match(/facebook\.com\/([a-zA-Z0-9_.]{2,50})(?:[/?#]|$)/i)?.[1];
-    if (fb && isValidHandle(fb) && !handles.facebook) handles.facebook = normalizeHandle(fb);
+    const fbPatterns = [
+      /facebook\.com\/([a-zA-Z0-9_.]{2,50})(?:[/?#]|$)/gi,
+      /fb\.com\/([a-zA-Z0-9_.]{2,50})(?:[/?#]|$)/gi,
+      /href=["'][^"']*facebook\.com\/([a-zA-Z0-9_.]{2,50})/gi,
+    ];
+    for (const p of fbPatterns) {
+      for (const m of html.matchAll(p)) {
+        if (m[1] && isValidHandle(m[1]) && !handles.facebook) { handles.facebook = normalizeHandle(m[1]); break; }
+      }
+      if (handles.facebook) break;
+    }
 
     // Extended platforms
     const pin = html.match(/pinterest\.com\/([a-zA-Z0-9_]{2,30})(?:[/?#]|$)/i)?.[1];
@@ -1005,6 +1055,40 @@ const extractSocialHandlesFromWebsite = async (websiteUrl: string): Promise<Reco
 
     const telegram = html.match(/t\.me\/([a-zA-Z0-9_]{2,32})(?:[/?#]|$)/i)?.[1];
     if (telegram && isValidHandle(telegram) && !handles.telegram) handles.telegram = normalizeHandle(telegram);
+
+    // Additional platforms
+    const tumblr = html.match(/([a-zA-Z0-9_-]+)\.tumblr\.com/i)?.[1];
+    if (tumblr && isValidHandle(tumblr) && !handles.tumblr) handles.tumblr = normalizeHandle(tumblr);
+
+    const vimeo = html.match(/vimeo\.com\/([a-zA-Z0-9_-]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (vimeo && isValidHandle(vimeo) && !handles.vimeo) handles.vimeo = normalizeHandle(vimeo);
+
+    const medium = html.match(/medium\.com\/@?([a-zA-Z0-9_.]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (medium && isValidHandle(medium) && !handles.medium) handles.medium = normalizeHandle(medium);
+
+    const github = html.match(/github\.com\/([a-zA-Z0-9_-]{2,40})(?:[/?#]|$)/i)?.[1];
+    if (github && isValidHandle(github) && !handles.github) handles.github = normalizeHandle(github);
+
+    const clubhouse = html.match(/(?:joinclubhouse|clubhouse)\.com\/@?([a-zA-Z0-9_.]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (clubhouse && isValidHandle(clubhouse) && !handles.clubhouse) handles.clubhouse = normalizeHandle(clubhouse);
+
+    const mastodon = html.match(/(?:mastodon\.social|mstdn\.social)\/@([a-zA-Z0-9_]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (mastodon && isValidHandle(mastodon) && !handles.mastodon) handles.mastodon = normalizeHandle(mastodon);
+
+    const bluesky = html.match(/bsky\.app\/profile\/([a-zA-Z0-9_.-]{2,60})(?:[/?#]|$)/i)?.[1];
+    if (bluesky && !handles.bluesky) handles.bluesky = bluesky;
+
+    const soundcloud = html.match(/soundcloud\.com\/([a-zA-Z0-9_-]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (soundcloud && isValidHandle(soundcloud) && !handles.soundcloud) handles.soundcloud = normalizeHandle(soundcloud);
+
+    const patreon = html.match(/patreon\.com\/([a-zA-Z0-9_]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (patreon && isValidHandle(patreon) && !handles.patreon) handles.patreon = normalizeHandle(patreon);
+
+    const dribbble = html.match(/dribbble\.com\/([a-zA-Z0-9_]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (dribbble && isValidHandle(dribbble) && !handles.dribbble) handles.dribbble = normalizeHandle(dribbble);
+
+    const behance = html.match(/behance\.net\/([a-zA-Z0-9_]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (behance && isValidHandle(behance) && !handles.behance) handles.behance = normalizeHandle(behance);
   };
 
   try {
@@ -1017,24 +1101,39 @@ const extractSocialHandlesFromWebsite = async (websiteUrl: string): Promise<Reco
     });
     clearTimeout(tid);
     if (res.ok) {
-      const html = (await res.text()).slice(0, 200000);
+      const html = (await res.text()).slice(0, 250000);
       extractFromHtml(html);
     }
   } catch { /* noop */ }
 
-  // 2) If we found fewer than 3 platforms, also try Jina (renders JS, catches dynamically loaded links)
-  if (Object.keys(handles).length < 3) {
+  // 2) ALWAYS also try Jina (renders JS, catches dynamically loaded links and footer links)
+  try {
+    const jinaCtrl = new AbortController();
+    const jinaTid = setTimeout(() => jinaCtrl.abort(), 15000);
+    const jinaRes = await fetch(`https://r.jina.ai/${websiteUrl}`, {
+      signal: jinaCtrl.signal,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; ContentAnalyzer/1.0)" },
+    });
+    clearTimeout(jinaTid);
+    if (jinaRes.ok) {
+      const md = (await jinaRes.text()).slice(0, 250000);
+      extractFromHtml(md);
+    }
+  } catch { /* noop */ }
+
+  // 3) Also try common subpages where social links live (about, contact, footer)
+  const subpages = ["/about", "/contact", "/links"];
+  const baseUrl = websiteUrl.replace(/\/$/, "");
+  for (const sub of subpages) {
+    if (Object.keys(handles).length >= 6) break; // already found enough
     try {
-      const jinaCtrl = new AbortController();
-      const jinaTid = setTimeout(() => jinaCtrl.abort(), 12000);
-      const jinaRes = await fetch(`https://r.jina.ai/${websiteUrl}`, {
-        signal: jinaCtrl.signal,
+      const sp = await fetch(`https://r.jina.ai/${baseUrl}${sub}`, {
+        signal: AbortSignal.timeout(8000),
         headers: { "User-Agent": "Mozilla/5.0 (compatible; ContentAnalyzer/1.0)" },
       });
-      clearTimeout(jinaTid);
-      if (jinaRes.ok) {
-        const md = (await jinaRes.text()).slice(0, 200000);
-        extractFromHtml(md);
+      if (sp.ok) {
+        const txt = (await sp.text()).slice(0, 100000);
+        extractFromHtml(txt);
       }
     } catch { /* noop */ }
   }
