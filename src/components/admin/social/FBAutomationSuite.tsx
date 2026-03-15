@@ -899,7 +899,12 @@ const FBAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
         <TabsContent value="schedule" className="space-y-4 mt-4">
           <div className="flex items-center justify-between">
             <h3 className="text-base font-bold text-foreground flex items-center gap-2"><Calendar className="h-5 w-5 text-blue-400" />Schedule Manager</h3>
-            <Badge variant="outline" className="text-[10px] border-blue-500/20 text-blue-400">{fbScheduledPosts.filter(p => p.status === "scheduled").length}/50</Badge>
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={openFbImportPlan}>
+                <FolderOpen className="h-3 w-3" /> Import from Plan
+              </Button>
+              <Badge variant="outline" className="text-[10px] border-blue-500/20 text-blue-400">{fbScheduledPosts.filter(p => p.status === "scheduled").length}/50</Badge>
+            </div>
           </div>
           <Card className="bg-white/[0.03] border-blue-500/20 backdrop-blur-sm">
             <CardContent className="p-5 space-y-4">
