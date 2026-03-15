@@ -3106,27 +3106,302 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         </div>
                       </div>
                     </div>
-                    {/* Posting Velocity */}
-                    <div className="mt-3 rounded-xl overflow-hidden" style={{ background: "hsl(0 0% 100% / 0.02)", border: "1px solid hsl(0 0% 100% / 0.05)" }}>
-                      <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid hsl(0 0% 100% / 0.04)", background: "hsl(0 0% 100% / 0.01)" }}>
-                        <Activity className="h-3.5 w-3.5 text-white/40" />
-                        <span className="text-[10px] md:text-[11px] font-semibold text-white/60">Posting Velocity vs Engagement</span>
-                      </div>
-                      <div className="p-2.5 md:p-3 space-y-2">
-                        {[...(myStats?[{...myStats,isMe:true}]:[]),...competitors.map(c=>({...c,isMe:false}))].sort((a,b)=>b.engagementRate-a.engagementRate).map((entry,i)=>{const maxEng=Math.max(...competitors.map(c=>c.engagementRate),myStats?.engagementRate||0);const maxFreq=Math.max(...competitors.map(c=>c.postFrequency),myStats?.postFrequency||0);return(<div key={entry.username} className={`p-2.5 rounded-xl border ${entry.isMe?"bg-emerald-400/5 border-emerald-400/20":"bg-white/[0.02] border-white/[0.04]"}`}><div className="flex items-center gap-3"><div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${entry.isMe?"bg-emerald-400/15 text-emerald-400":"bg-gradient-to-br from-[hsl(262,83%,58%)]/20 to-[hsl(217,91%,60%)]/20 text-white/70"}`}>{i+1}</div><div className="flex-1 min-w-0"><div className="flex items-center gap-2 mb-1"><span className={`text-[10px] font-medium ${entry.isMe?"text-emerald-400":"text-white/80"}`}>@{entry.username}</span>{entry.isMe&&<Badge className="bg-emerald-400/15 text-emerald-400 text-[7px] border-0">YOU</Badge>}</div><div className="grid grid-cols-2 gap-2"><div><div className="flex justify-between text-[8px] mb-0.5"><span className="text-white/40">Engagement</span><span className="text-emerald-400 font-medium">{entry.engagementRate}%</span></div><div className="h-1 rounded-full bg-white/[0.04] overflow-hidden"><div className="h-full rounded-full bg-emerald-400/60" style={{width:`${maxEng>0?(entry.engagementRate/maxEng)*100:0}%`}}/></div></div><div><div className="flex justify-between text-[8px] mb-0.5"><span className="text-white/40">Posts/Week</span><span className="text-[hsl(262,83%,58%)] font-medium">{entry.postFrequency}</span></div><div className="h-1 rounded-full bg-white/[0.04] overflow-hidden"><div className="h-full rounded-full bg-[hsl(262,83%,58%)]/60" style={{width:`${maxFreq>0?(entry.postFrequency/maxFreq)*100:0}%`}}/></div></div></div></div><div className="text-right shrink-0"><p className="text-[8px] text-white/30">Efficiency</p><p className="text-xs font-bold text-white/80">{entry.postFrequency>0?(entry.engagementRate/entry.postFrequency).toFixed(2):"0"}</p><p className="text-[7px] text-white/30">ER/post</p></div></div></div>);})}
-                        <p className="text-[9px] text-white/30 text-center mt-1">Higher frequency doesn't always mean higher engagement</p>
-                      </div>
-                    </div>
-                    {/* Content Dominance */}
-                    <div className="mt-3 rounded-xl overflow-hidden" style={{ background: "hsl(262 83% 58% / 0.03)", border: "1px solid hsl(262 83% 58% / 0.12)" }}>
-                      <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid hsl(262 83% 58% / 0.08)", background: "hsl(262 83% 58% / 0.02)" }}>
-                        <Crown className="h-3.5 w-3.5 text-[hsl(262,83%,58%)]" />
-                        <span className="text-[10px] md:text-[11px] font-semibold text-[hsl(262,83%,58%)]">Content Dominance Scorecard</span>
-                      </div>
-                      <div className="p-2.5 md:p-3 space-y-2">
-                        {(()=>{const entries=competitors.map(c=>{const ds=Math.min(c.contentTypes.length*25,100);const hs=Math.min(c.topHashtags.length*20,100);const vs=Math.min(c.postFrequency*15,100);const es=Math.min(c.engagementRate*12,100);const total=Math.round((ds+hs+vs+es)/4);return{username:c.username,ds,hs,vs,es,total};}).sort((a,b)=>b.total-a.total);const max=entries[0]?.total||1;return entries.map((e,i)=>(<div key={e.username} className="flex items-center gap-2.5 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]"><div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[10px] font-bold ${i===0?"bg-[hsl(262,83%,58%)]/15 text-[hsl(262,83%,58%)]":"bg-white/[0.04] text-white/30"}`}>{i+1}</div><div className="flex-1 min-w-0"><div className="flex items-center gap-1.5 mb-1"><span className="text-[10px] font-medium text-white/80">@{e.username}</span><div className="flex gap-0.5"><Badge variant="outline" className="text-[6px] border-white/10 text-white/30 px-1">Div:{e.ds}</Badge><Badge variant="outline" className="text-[6px] border-white/10 text-white/30 px-1">Tags:{e.hs}</Badge><Badge variant="outline" className="text-[6px] border-white/10 text-white/30 px-1">Vel:{e.vs}</Badge><Badge variant="outline" className="text-[6px] border-white/10 text-white/30 px-1">Eng:{e.es}</Badge></div></div><div className="h-1 rounded-full bg-white/[0.04] overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-[hsl(262,83%,58%)] to-[hsl(217,91%,60%)] transition-all duration-700" style={{width:`${(e.total/max)*100}%`}}/></div></div><span className="text-xs font-bold text-[hsl(262,83%,58%)] tabular-nums">{e.total}</span></div>));})()}
-                      </div>
-                    </div>
+                    {/* ═══ TOTAL SOCIAL PRESENCE OVERVIEW ═══ */}
+                    {(() => {
+                      // Aggregate stats across all competitors
+                      const totalFollowers = competitors.reduce((s, c) => s + c.followers, 0);
+                      const totalPosts = competitors.reduce((s, c) => s + c.posts, 0);
+                      const totalAvgLikes = competitors.reduce((s, c) => s + c.avgLikes, 0);
+                      const totalAvgComments = competitors.reduce((s, c) => s + c.avgComments, 0);
+                      const avgEngagement = competitors.length > 0 ? competitors.reduce((s, c) => s + c.engagementRate, 0) / competitors.length : 0;
+                      const avgGrowth = competitors.length > 0 ? competitors.reduce((s, c) => s + c.growthRate, 0) / competitors.length : 0;
+                      const totalTraffic = competitors.reduce((s, c) => s + (c.metadata?.websiteTraffic || 0), 0);
+                      const avgDA = competitors.length > 0 ? Math.round(competitors.reduce((s, c) => s + (c.metadata?.domainAuthority || 0), 0) / competitors.length) : 0;
+
+                      // Per-platform breakdown from socialPresence data
+                      const platformMap: Record<string, { name: string; color: string; icon: string; competitors: { username: string; followers: number; engagementRate: number; avgLikes: number; postFrequency: number; growthRate: number }[] }> = {};
+                      const platformDefs: Record<string, { color: string; icon: string }> = {
+                        instagram: { color: "hsl(330 81% 55%)", icon: "IG" },
+                        tiktok: { color: "hsl(347 100% 58%)", icon: "TT" },
+                        twitter: { color: "hsl(203 89% 53%)", icon: "X" },
+                        youtube: { color: "hsl(0 100% 50%)", icon: "YT" },
+                        linkedin: { color: "hsl(210 90% 40%)", icon: "LI" },
+                        facebook: { color: "hsl(221 83% 53%)", icon: "FB" },
+                        pinterest: { color: "hsl(348 91% 45%)", icon: "PI" },
+                        snapchat: { color: "hsl(60 100% 50%)", icon: "SC" },
+                      };
+                      competitors.forEach(c => {
+                        const social = c.metadata?.socialPresence || {};
+                        Object.keys(social).forEach(plat => {
+                          const key = plat.toLowerCase();
+                          if (!platformDefs[key] || !social[plat]) return;
+                          if (!platformMap[key]) platformMap[key] = { name: key.charAt(0).toUpperCase() + key.slice(1), color: platformDefs[key].color, icon: platformDefs[key].icon, competitors: [] };
+                          platformMap[key].competitors.push({ username: c.username, followers: c.followers, engagementRate: c.engagementRate, avgLikes: c.avgLikes, postFrequency: c.postFrequency, growthRate: c.growthRate });
+                        });
+                        // Also add from primary platform
+                        const primary = (c.platform || "").toLowerCase();
+                        if (platformDefs[primary] && !platformMap[primary]?.competitors.some(x => x.username === c.username)) {
+                          if (!platformMap[primary]) platformMap[primary] = { name: primary.charAt(0).toUpperCase() + primary.slice(1), color: platformDefs[primary].color, icon: platformDefs[primary].icon, competitors: [] };
+                          platformMap[primary].competitors.push({ username: c.username, followers: c.followers, engagementRate: c.engagementRate, avgLikes: c.avgLikes, postFrequency: c.postFrequency, growthRate: c.growthRate });
+                        }
+                      });
+
+                      const platforms = Object.entries(platformMap).sort((a, b) => b[1].competitors.length - a[1].competitors.length);
+                      const platformCount = platforms.length;
+
+                      // Hashtag frequency map
+                      const hashtagFreq: Record<string, number> = {};
+                      competitors.forEach(c => c.topHashtags.forEach(tag => { hashtagFreq[tag] = (hashtagFreq[tag] || 0) + 1; }));
+                      const sortedHashtags = Object.entries(hashtagFreq).sort((a, b) => b[1] - a[1]);
+                      const topHashtags = sortedHashtags.slice(0, 10);
+                      const maxHashtagCount = topHashtags[0]?.[1] || 1;
+
+                      // Best platform by engagement
+                      const bestPlatformByEng = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const avgEng = data.competitors.reduce((s, c) => s + c.engagementRate, 0) / data.competitors.length;
+                        return avgEng > best.avgEng ? { key, name: data.name, avgEng, icon: data.icon, color: data.color } : best;
+                      }, { key: "", name: "-", avgEng: 0, icon: "", color: "" }) : null;
+
+                      // Best platform by growth
+                      const bestPlatformByGrowth = platforms.length > 0 ? platforms.reduce((best, [key, data]) => {
+                        const avgG = data.competitors.reduce((s, c) => s + c.growthRate, 0) / data.competitors.length;
+                        return avgG > best.avgG ? { key, name: data.name, avgG, icon: data.icon, color: data.color } : best;
+                      }, { key: "", name: "-", avgG: 0, icon: "", color: "" }) : null;
+
+                      return (
+                        <>
+                          {/* Aggregate Social Presence */}
+                          <div className="mt-3 rounded-xl overflow-hidden" style={{ background: "hsl(0 0% 100% / 0.02)", border: "1px solid hsl(0 0% 100% / 0.05)" }}>
+                            <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid hsl(217 91% 60% / 0.08)", background: "hsl(217 91% 60% / 0.02)" }}>
+                              <Users className="h-3.5 w-3.5 text-[hsl(217,91%,60%)]" />
+                              <span className="text-[10px] md:text-[11px] font-semibold text-[hsl(217,91%,60%)]">Total Social Presence</span>
+                              <Badge variant="outline" className="ml-auto text-[7px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]">{competitors.length} competitor{competitors.length !== 1 ? "s" : ""} · {platformCount} platform{platformCount !== 1 ? "s" : ""}</Badge>
+                            </div>
+                            <div className="p-2.5 md:p-3">
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                                <div className="p-2.5 rounded-lg text-center" style={{ background: "hsl(217 91% 60% / 0.06)", border: "1px solid hsl(217 91% 60% / 0.12)" }}>
+                                  <p className="text-[8px] text-white/40 mb-0.5">Total Reach</p>
+                                  <p className="text-base md:text-lg font-black text-white">{fmtNum(totalFollowers)}</p>
+                                  <p className="text-[8px] text-[hsl(217,91%,60%)]">combined followers</p>
+                                </div>
+                                <div className="p-2.5 rounded-lg text-center" style={{ background: "hsl(150 60% 50% / 0.06)", border: "1px solid hsl(150 60% 50% / 0.12)" }}>
+                                  <p className="text-[8px] text-white/40 mb-0.5">Avg Engagement</p>
+                                  <p className="text-base md:text-lg font-black text-emerald-400">{avgEngagement.toFixed(2)}%</p>
+                                  <p className="text-[8px] text-emerald-400/70">across all</p>
+                                </div>
+                                <div className="p-2.5 rounded-lg text-center" style={{ background: "hsl(262 83% 58% / 0.06)", border: "1px solid hsl(262 83% 58% / 0.12)" }}>
+                                  <p className="text-[8px] text-white/40 mb-0.5">Total Content</p>
+                                  <p className="text-base md:text-lg font-black text-[hsl(262,83%,58%)]">{fmtNum(totalPosts)}</p>
+                                  <p className="text-[8px] text-[hsl(262,83%,58%)]/70">posts published</p>
+                                </div>
+                                <div className="p-2.5 rounded-lg text-center" style={{ background: "hsl(30 95% 60% / 0.06)", border: "1px solid hsl(30 95% 60% / 0.12)" }}>
+                                  <p className="text-[8px] text-white/40 mb-0.5">Avg Growth</p>
+                                  <p className="text-base md:text-lg font-black text-amber-400">{avgGrowth >= 0 ? "+" : ""}{avgGrowth.toFixed(2)}%</p>
+                                  <p className="text-[8px] text-amber-400/70">per week</p>
+                                </div>
+                              </div>
+                              {/* Secondary metrics row */}
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                                <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                  <p className="text-[8px] text-white/35">Avg Likes/Post</p>
+                                  <p className="text-sm font-bold text-white">{fmtNum(competitors.length > 0 ? Math.round(totalAvgLikes / competitors.length) : 0)}</p>
+                                </div>
+                                <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                  <p className="text-[8px] text-white/35">Avg Comments/Post</p>
+                                  <p className="text-sm font-bold text-white">{fmtNum(competitors.length > 0 ? Math.round(totalAvgComments / competitors.length) : 0)}</p>
+                                </div>
+                                <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                  <p className="text-[8px] text-white/35">Est. Monthly Traffic</p>
+                                  <p className="text-sm font-bold text-white">{totalTraffic > 0 ? fmtNum(totalTraffic) : "N/A"}</p>
+                                </div>
+                                <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                  <p className="text-[8px] text-white/35">Avg Domain Authority</p>
+                                  <p className="text-sm font-bold text-white">{avgDA > 0 ? avgDA + "/100" : "N/A"}</p>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* ═══ PER-PLATFORM PERFORMANCE BREAKDOWN ═══ */}
+                          {platforms.length > 0 && (
+                            <div className="mt-3 rounded-xl overflow-hidden" style={{ background: "hsl(0 0% 100% / 0.02)", border: "1px solid hsl(0 0% 100% / 0.05)" }}>
+                              <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid hsl(0 0% 100% / 0.04)", background: "hsl(0 0% 100% / 0.01)" }}>
+                                <BarChart3 className="h-3.5 w-3.5 text-white/40" />
+                                <span className="text-[10px] md:text-[11px] font-semibold text-white/60">Platform Performance Breakdown</span>
+                              </div>
+                              <div className="p-2.5 md:p-3 space-y-2">
+                                {/* Best platforms callout */}
+                                <div className="grid grid-cols-2 gap-2 mb-2">
+                                  {bestPlatformByEng && bestPlatformByEng.key && (
+                                    <div className="p-2 rounded-lg flex items-center gap-2" style={{ background: `${bestPlatformByEng.color}12`, border: `1px solid ${bestPlatformByEng.color}25` }}>
+                                      <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black text-white shrink-0" style={{ background: bestPlatformByEng.color }}>{bestPlatformByEng.icon}</div>
+                                      <div>
+                                        <p className="text-[8px] text-white/40">Highest Engagement</p>
+                                        <p className="text-[11px] font-bold text-white">{bestPlatformByEng.name} <span className="text-emerald-400 text-[10px]">{bestPlatformByEng.avgEng.toFixed(2)}%</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                  {bestPlatformByGrowth && bestPlatformByGrowth.key && (
+                                    <div className="p-2 rounded-lg flex items-center gap-2" style={{ background: `${bestPlatformByGrowth.color}12`, border: `1px solid ${bestPlatformByGrowth.color}25` }}>
+                                      <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black text-white shrink-0" style={{ background: bestPlatformByGrowth.color }}>{bestPlatformByGrowth.icon}</div>
+                                      <div>
+                                        <p className="text-[8px] text-white/40">Fastest Growth</p>
+                                        <p className="text-[11px] font-bold text-white">{bestPlatformByGrowth.name} <span className="text-amber-400 text-[10px]">+{bestPlatformByGrowth.avgG.toFixed(2)}%/wk</span></p>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Platform cards */}
+                                {platforms.map(([key, data]) => {
+                                  const avgEng = data.competitors.reduce((s, c) => s + c.engagementRate, 0) / data.competitors.length;
+                                  const avgLikes = Math.round(data.competitors.reduce((s, c) => s + c.avgLikes, 0) / data.competitors.length);
+                                  const avgFreq = (data.competitors.reduce((s, c) => s + c.postFrequency, 0) / data.competitors.length).toFixed(1);
+                                  const avgGr = data.competitors.reduce((s, c) => s + c.growthRate, 0) / data.competitors.length;
+                                  const totalReach = data.competitors.reduce((s, c) => s + c.followers, 0);
+                                  const reachPct = totalFollowers > 0 ? ((totalReach / totalFollowers) * 100).toFixed(1) : "0";
+                                  const maxPlatformReach = Math.max(...platforms.map(([, d]) => d.competitors.reduce((s, c) => s + c.followers, 0)));
+                                  const barWidth = maxPlatformReach > 0 ? (totalReach / maxPlatformReach) * 100 : 0;
+
+                                  return (
+                                    <div key={key} className="p-2.5 rounded-xl border border-white/[0.04] bg-white/[0.015] hover:border-white/[0.08] transition-all">
+                                      <div className="flex items-center gap-2.5 mb-2">
+                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black text-white shrink-0" style={{ background: data.color }}>{data.icon}</div>
+                                        <div className="flex-1 min-w-0">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-[11px] font-semibold text-white">{data.name}</span>
+                                            <Badge variant="outline" className="text-[7px] border-white/10 text-white/40">{data.competitors.length} competitor{data.competitors.length !== 1 ? "s" : ""}</Badge>
+                                            <span className="text-[9px] text-white/30 ml-auto">{reachPct}% of total reach</span>
+                                          </div>
+                                          <div className="h-1 rounded-full bg-white/[0.04] overflow-hidden mt-1">
+                                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${barWidth}%`, background: `linear-gradient(90deg, ${data.color}, ${data.color}88)` }} />
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="grid grid-cols-5 gap-1.5">
+                                        <div className="p-1.5 rounded-md bg-white/[0.02] text-center">
+                                          <p className="text-[7px] text-white/30">Reach</p>
+                                          <p className="text-[10px] font-bold text-white">{fmtNum(totalReach)}</p>
+                                        </div>
+                                        <div className="p-1.5 rounded-md bg-white/[0.02] text-center">
+                                          <p className="text-[7px] text-white/30">Avg ER</p>
+                                          <p className="text-[10px] font-bold text-emerald-400">{avgEng.toFixed(2)}%</p>
+                                        </div>
+                                        <div className="p-1.5 rounded-md bg-white/[0.02] text-center">
+                                          <p className="text-[7px] text-white/30">Avg Likes</p>
+                                          <p className="text-[10px] font-bold text-white">{fmtNum(avgLikes)}</p>
+                                        </div>
+                                        <div className="p-1.5 rounded-md bg-white/[0.02] text-center">
+                                          <p className="text-[7px] text-white/30">Frequency</p>
+                                          <p className="text-[10px] font-bold text-[hsl(262,83%,58%)]">{avgFreq}/wk</p>
+                                        </div>
+                                        <div className="p-1.5 rounded-md bg-white/[0.02] text-center">
+                                          <p className="text-[7px] text-white/30">Growth</p>
+                                          <p className={`text-[10px] font-bold ${avgGr >= 0 ? "text-emerald-400" : "text-red-400"}`}>{avgGr >= 0 ? "+" : ""}{avgGr.toFixed(2)}%</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* ═══ HASHTAG PERFORMANCE INDEX ═══ */}
+                          {topHashtags.length > 0 && (
+                            <div className="mt-3 rounded-xl overflow-hidden" style={{ background: "hsl(262 83% 58% / 0.03)", border: "1px solid hsl(262 83% 58% / 0.12)" }}>
+                              <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid hsl(262 83% 58% / 0.08)", background: "hsl(262 83% 58% / 0.02)" }}>
+                                <Hash className="h-3.5 w-3.5 text-[hsl(262,83%,58%)]" />
+                                <span className="text-[10px] md:text-[11px] font-semibold text-[hsl(262,83%,58%)]">Hashtag Performance Index</span>
+                                <Badge variant="outline" className="ml-auto text-[7px] border-[hsl(262,83%,58%)]/20 text-[hsl(262,83%,58%)]">{sortedHashtags.length} unique tags</Badge>
+                              </div>
+                              <div className="p-2.5 md:p-3 space-y-1.5">
+                                {topHashtags.map(([tag, count], i) => {
+                                  const usedBy = competitors.filter(c => c.topHashtags.includes(tag));
+                                  const avgEngOfUsers = usedBy.length > 0 ? usedBy.reduce((s, c) => s + c.engagementRate, 0) / usedBy.length : 0;
+                                  const avgFollowersOfUsers = usedBy.length > 0 ? Math.round(usedBy.reduce((s, c) => s + c.followers, 0) / usedBy.length) : 0;
+                                  const barW = (count / maxHashtagCount) * 100;
+                                  return (
+                                    <div key={tag} className="flex items-center gap-2 p-1.5 rounded-lg bg-white/[0.015] hover:bg-white/[0.03] transition-colors">
+                                      <span className="text-[9px] text-white/25 w-4 text-right font-mono">{i + 1}</span>
+                                      <div className="flex items-center gap-1 min-w-[90px]">
+                                        <Hash className="h-2.5 w-2.5 text-[hsl(262,83%,58%)]/60" />
+                                        <span className="text-[10px] font-medium text-white/80 truncate">{tag.replace("#", "")}</span>
+                                      </div>
+                                      <div className="flex-1 h-1.5 rounded-full bg-white/[0.03] overflow-hidden">
+                                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${barW}%`, background: "linear-gradient(90deg, hsl(262 83% 58%), hsl(217 91% 60%))" }} />
+                                      </div>
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <span className="text-[8px] text-white/40">{count}/{competitors.length}</span>
+                                        <span className="text-[8px] text-emerald-400">{avgEngOfUsers.toFixed(1)}% ER</span>
+                                        <span className="text-[8px] text-white/30">{fmtNum(avgFollowersOfUsers)} avg reach</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                                {sortedHashtags.length > 10 && (
+                                  <p className="text-[8px] text-white/25 text-center mt-1">+ {sortedHashtags.length - 10} more hashtags tracked</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* ═══ TRAFFIC & AUTHORITY INSIGHTS ═══ */}
+                          {competitors.some(c => c.metadata?.websiteTraffic || c.metadata?.domainAuthority) && (
+                            <div className="mt-3 rounded-xl overflow-hidden" style={{ background: "hsl(0 0% 100% / 0.02)", border: "1px solid hsl(0 0% 100% / 0.05)" }}>
+                              <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid hsl(0 0% 100% / 0.04)", background: "hsl(0 0% 100% / 0.01)" }}>
+                                <Globe className="h-3.5 w-3.5 text-[hsl(217,91%,60%)]" />
+                                <span className="text-[10px] md:text-[11px] font-semibold text-white/60">Traffic & Authority Insights</span>
+                              </div>
+                              <div className="p-2.5 md:p-3 space-y-2">
+                                {competitors.filter(c => c.metadata?.websiteTraffic || c.metadata?.domainAuthority).map((c, i) => {
+                                  const traffic = c.metadata?.websiteTraffic || 0;
+                                  const da = c.metadata?.domainAuthority || 0;
+                                  const maxTraffic = Math.max(...competitors.map(x => x.metadata?.websiteTraffic || 0));
+                                  const trafficBar = maxTraffic > 0 ? (traffic / maxTraffic) * 100 : 0;
+                                  const socialToWeb = traffic > 0 ? ((c.followers / traffic) * 100).toFixed(1) : "N/A";
+                                  return (
+                                    <div key={c.id} className="p-2.5 rounded-xl border border-white/[0.04] bg-white/[0.015]">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <div className="flex items-center gap-2">
+                                          <div className={`w-6 h-6 rounded-lg flex items-center justify-center text-[9px] font-bold ${i === 0 ? "bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)]" : "bg-white/[0.04] text-white/30"}`}>{i + 1}</div>
+                                          <span className="text-[10px] font-medium text-white/80">@{c.username}</span>
+                                          {c.metadata?.websiteUrl && <span className="text-[8px] text-white/25 truncate max-w-[140px]">{c.metadata.websiteUrl}</span>}
+                                        </div>
+                                        <div className="flex items-center gap-1.5">
+                                          {da > 0 && (
+                                            <div className="px-1.5 py-0.5 rounded text-[8px] font-bold" style={{ background: da >= 80 ? "hsl(150 60% 50% / 0.12)" : da >= 50 ? "hsl(30 95% 60% / 0.12)" : "hsl(0 0% 100% / 0.04)", color: da >= 80 ? "hsl(150 60% 60%)" : da >= 50 ? "hsl(30 95% 60%)" : "hsl(0 0% 100% / 0.5)" }}>DA {da}/100</div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="grid grid-cols-3 gap-2">
+                                        <div>
+                                          <div className="flex justify-between text-[8px] mb-0.5">
+                                            <span className="text-white/35">Monthly Traffic</span>
+                                            <span className="text-[hsl(217,91%,60%)] font-medium">{traffic > 0 ? fmtNum(traffic) : "N/A"}</span>
+                                          </div>
+                                          <div className="h-1 rounded-full bg-white/[0.04] overflow-hidden">
+                                            <div className="h-full rounded-full bg-[hsl(217,91%,60%)]/50 transition-all duration-700" style={{ width: `${trafficBar}%` }} />
+                                          </div>
+                                        </div>
+                                        <div className="text-center">
+                                          <p className="text-[7px] text-white/30">Social:Web Ratio</p>
+                                          <p className="text-[10px] font-bold text-white">{socialToWeb}{socialToWeb !== "N/A" ? "x" : ""}</p>
+                                        </div>
+                                        <div className="text-center">
+                                          <p className="text-[7px] text-white/30">Followers per DA</p>
+                                          <p className="text-[10px] font-bold text-white">{da > 0 ? fmtNum(Math.round(c.followers / da)) : "N/A"}</p>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                     {/* AI Recs */}
                     <div className="mt-3 rounded-xl overflow-hidden" style={{ background: "hsl(0 0% 100% / 0.02)", border: "1px solid hsl(0 0% 100% / 0.05)" }}>
                       <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: "1px solid hsl(0 0% 100% / 0.04)", background: "hsl(0 0% 100% / 0.01)" }}>
