@@ -452,11 +452,63 @@ const CompetitorAnalyzer = ({
   const [copyingPlan, setCopyingPlan] = useState(false);
   const [copyingPlanFor, setCopyingPlanFor] = useState<string | null>(null); // per-competitor plan gen
   // Generated plans: { competitorId: [{ id, entries, createdAt, label }] }
-  const [generatedPlans, setGeneratedPlans] = useState<Record<string, { id: string; entries: any[]; createdAt: string; label: string }[]>>(() => {
-    try { const s = localStorage.getItem("competitor_generated_plans"); return s ? JSON.parse(s) : {}; } catch { return {}; }
-  });
+  const [generatedPlans, setGeneratedPlans] = useState<Record<string, { id: string; entries: any[]; createdAt: string; label: string }[]>>({});
   const [selectedPlanIds, setSelectedPlanIds] = useState<Set<string>>(new Set());
-  const saveGeneratedPlans = (plans: Record<string, any[]>) => { setGeneratedPlans(plans); try { localStorage.setItem("competitor_generated_plans", JSON.stringify(plans)); } catch {} };
+  const [plansLoaded, setPlansLoaded] = useState(false);
+
+  // Load plans from database on mount
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setPlansLoaded(true); return; }
+      const res = await fetch(`${SUPA_URL}/rest/v1/competitor_generated_plans?user_id=eq.${user.id}&order=created_at.desc`, {
+        headers: { apikey: SUPA_KEY, Authorization: `Bearer ${await getAuthHeader()}` },
+      });
+      const rows = await res.json();
+      if (Array.isArray(rows)) {
+        const grouped: Record<string, any[]> = {};
+        rows.forEach((r: any) => {
+          const key = r.competitor_key || "all";
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push({ id: r.id, entries: r.entries || [], createdAt: r.created_at, label: r.label });
+        });
+        setGeneratedPlans(grouped);
+      }
+      setPlansLoaded(true);
+    })();
+  }, []);
+
+  const saveGeneratedPlans = (plans: Record<string, any[]>) => { setGeneratedPlans(plans); };
+  const dbInsertPlan = async (competitorKey: string, plan: { id: string; entries: any[]; createdAt: string; label: string }) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await fetch(`${SUPA_URL}/rest/v1/competitor_generated_plans`, {
+      method: "POST",
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${await getAuthHeader()}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ id: plan.id, user_id: user.id, competitor_key: competitorKey, label: plan.label, entries: plan.entries, created_at: plan.createdAt }),
+    });
+  };
+  const dbDeletePlan = async (planId: string) => {
+    await fetch(`${SUPA_URL}/rest/v1/competitor_generated_plans?id=eq.${planId}`, {
+      method: "DELETE",
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${await getAuthHeader()}` },
+    });
+  };
+  const dbDeleteAllPlans = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await fetch(`${SUPA_URL}/rest/v1/competitor_generated_plans?user_id=eq.${user.id}`, {
+      method: "DELETE",
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${await getAuthHeader()}` },
+    });
+  };
+  const dbUpdatePlan = async (planId: string, plan: { entries: any[]; label: string; createdAt: string }) => {
+    await fetch(`${SUPA_URL}/rest/v1/competitor_generated_plans?id=eq.${planId}`, {
+      method: "PATCH",
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${await getAuthHeader()}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ entries: plan.entries, label: plan.label, created_at: plan.createdAt }),
+    });
+  };
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [platformTimePeriods, setPlatformTimePeriods] = useState<Record<string, string>>({});
   const [platformCustomDates, setPlatformCustomDates] = useState<Record<string, Date[]>>({});
