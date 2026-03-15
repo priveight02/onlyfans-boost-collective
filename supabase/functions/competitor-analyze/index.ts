@@ -463,6 +463,23 @@ STRICT OUTPUT RULES:
                     linkedin: { type: "string" },
                     tiktok: { type: "string" },
                     youtube: { type: "string" },
+                    facebook: { type: "string" },
+                  },
+                },
+                platformMetrics: {
+                  type: "object",
+                  description: "Per-platform follower counts, engagement rates, avg likes, post frequency, and growth rates. Keys are platform names (instagram, tiktok, twitter, youtube, linkedin, facebook). Only include platforms the competitor actually uses.",
+                  additionalProperties: {
+                    type: "object",
+                    properties: {
+                      followers: { type: "number", description: "Follower/subscriber count on this specific platform" },
+                      engagementRate: { type: "number", description: "Average engagement rate on this platform as percentage" },
+                      avgLikes: { type: "number", description: "Average likes per post on this platform" },
+                      avgComments: { type: "number", description: "Average comments per post on this platform" },
+                      postFrequency: { type: "number", description: "Posts per week on this platform" },
+                      growthRate: { type: "number", description: "Weekly follower growth rate as percentage" },
+                      posts: { type: "number", description: "Total post count on this platform" },
+                    },
                   },
                 },
                 followers: { type: "number" },
@@ -507,7 +524,7 @@ STRICT OUTPUT RULES:
           temperature: 0.3,
           max_tokens: 3000,
           messages: [
-            { role: "system", content: "You are a social media analytics and competitive intelligence expert. Return accurate, realistic data." },
+            { role: "system", content: "You are a social media analytics and competitive intelligence expert. Return accurate, realistic data. IMPORTANT: For the platformMetrics field, provide REAL per-platform follower counts, engagement rates, average likes, post frequency, and growth rates for EACH social platform the competitor uses. Each platform should have DIFFERENT metrics reflecting its actual performance - do NOT copy the same numbers across platforms. Research actual follower counts per platform." },
             { role: "user", content: prompt },
           ],
         };
