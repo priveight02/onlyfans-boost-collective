@@ -455,13 +455,27 @@ const ContentCommandCenter = () => {
       body: { messages: [{ role: "user", content: prompt }] },
     });
     if (error) throw error;
-    const text = typeof data === "string" ? data : new TextDecoder().decode(data);
+    // Handle various response types: string, ArrayBuffer, or already-parsed JSON
+    let text: string;
+    if (typeof data === "string") {
+      text = data;
+    } else if (data instanceof ArrayBuffer || (data && typeof data.byteLength === 'number')) {
+      text = new TextDecoder().decode(data as ArrayBuffer);
+    } else if (typeof data === "object" && data !== null) {
+      // Already parsed JSON from edge function
+      const choices = data.choices;
+      if (choices?.[0]?.message?.content) return choices[0].message.content;
+      if (choices?.[0]?.delta?.content) return choices[0].delta.content;
+      return JSON.stringify(data);
+    } else {
+      text = String(data);
+    }
     let content = "";
     for (const line of text.split("\n")) {
       if (!line.startsWith("data: ") || line.includes("[DONE]")) continue;
       try { const p = JSON.parse(line.slice(6)); content += p.choices?.[0]?.delta?.content || ""; } catch {}
     }
-    return content;
+    return content || text;
   };
 
   // ════════════════════════════════════════════════════════
