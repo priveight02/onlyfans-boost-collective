@@ -3711,7 +3711,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                   stats.push({ label: "Platform Dominance", value: platformDominance + "%", color: "text-[hsl(217,91%,60%)]", section: "Competitive", detail: { formula: "Platform Reach / Total Cross-Platform Reach × 100", source: srcDerived, timestamp: now, type: "Percentage" } });
 
                                   // Group by section
-                                  const sections = ["Audience", "Growth", "Engagement", "Views", "Content", "Volume"];
+                                  const sections = ["Audience", "Growth", "Engagement", "Views", "Content", "Volume", "Traffic", "Competitive"];
                                   const grouped = sections.map(s => ({ section: s, items: stats.filter(st => st.section === s) })).filter(g => g.items.length > 0);
 
                                   const periodOptions = [
