@@ -4207,7 +4207,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               {/* Daily Actions */}
               {battlePlan.dailyActions && (
                 <Card className="crm-card">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Calendar className="h-4 w-4" /> Daily Action Schedule</CardTitle></CardHeader>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><CalendarIcon className="h-4 w-4" /> Daily Action Schedule</CardTitle></CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
                       {Object.entries(battlePlan.dailyActions).map(([day, actions]: [string, any]) => (
