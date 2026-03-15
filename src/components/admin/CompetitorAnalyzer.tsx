@@ -2842,22 +2842,22 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                   });
                 };
 
-                pushEntry("Instagram", social.instagram, "hsl(330 81% 55%)", "IG", (u) => `https://www.instagram.com/${u}/`);
-                pushEntry("TikTok", social.tiktok, "hsl(347 100% 58%)", "TT", (u) => `https://www.tiktok.com/@${u}`);
+                pushEntry("Instagram", social.instagram, "hsl(330 81% 55%)", "IG", (u) => `https://www.instagram.com/${u}/`, (u) => `https://www.instagram.com/${u}/embed/`);
+                pushEntry("TikTok", social.tiktok, "hsl(347 100% 58%)", "TT", (u) => `https://www.tiktok.com/@${u}`, (u) => `https://www.tiktok.com/embed/@${u}`);
                 pushEntry("X / Twitter", social.twitter, "hsl(203 89% 53%)", "X", (u) => `https://x.com/${u}`, (u) => `https://nitter.net/${u}`);
-                pushEntry("YouTube", social.youtube, "hsl(0 100% 50%)", "YT", (u) => (/^UC[a-zA-Z0-9_-]+$/.test(u) ? `https://www.youtube.com/channel/${u}` : `https://www.youtube.com/@${u}`));
-                pushEntry("LinkedIn", social.linkedin, "hsl(210 90% 40%)", "LI", (u) => `https://www.linkedin.com/company/${u}`);
-                pushEntry("Facebook", social.facebook, "hsl(221 83% 53%)", "FB", (u) => `https://www.facebook.com/${u}`);
-                pushEntry("Pinterest", social.pinterest, "hsl(348 91% 45%)", "PI", (u) => `https://www.pinterest.com/${u}`);
+                pushEntry("YouTube", social.youtube, "hsl(0 100% 50%)", "YT", (u) => (/^UC[a-zA-Z0-9_-]+$/.test(u) ? `https://www.youtube.com/channel/${u}` : `https://www.youtube.com/@${u}`), (u) => (/^UC[a-zA-Z0-9_-]+$/.test(u) ? `https://www.youtube.com/embed?listType=user_uploads&list=${u}` : `https://www.youtube.com/embed?listType=user_uploads&list=${u}`));
+                pushEntry("LinkedIn", social.linkedin, "hsl(210 90% 40%)", "LI", (u) => `https://www.linkedin.com/company/${u}`, (u) => `https://www.linkedin.com/company/${u}`);
+                pushEntry("Facebook", social.facebook, "hsl(221 83% 53%)", "FB", (u) => `https://www.facebook.com/${u}`, (u) => `https://www.facebook.com/plugins/page.php?href=${encodeURIComponent(`https://www.facebook.com/${u}`)}&tabs=timeline&width=500&height=600`);
+                pushEntry("Pinterest", social.pinterest, "hsl(348 91% 45%)", "PI", (u) => `https://www.pinterest.com/${u}`, (u) => `https://assets.pinterest.com/ext/embed.html?id=${u}`);
                 pushEntry("Snapchat", social.snapchat, "hsl(60 100% 50%)", "SC", (u) => `https://www.snapchat.com/add/${u}`);
 
                 // If no social data found, create entries from competitor username + platform context
                 if (platformEntries.length === 0) {
                   const p = (comp.platform || "").toLowerCase();
-                  if (p === "instagram" || p === "internet") pushEntry("Instagram", comp.username, "hsl(330 81% 55%)", "IG", (u) => `https://www.instagram.com/${u}/`);
-                  if (p === "tiktok" || p === "internet") pushEntry("TikTok", comp.username, "hsl(347 100% 58%)", "TT", (u) => `https://www.tiktok.com/@${u}`);
+                  if (p === "instagram" || p === "internet") pushEntry("Instagram", comp.username, "hsl(330 81% 55%)", "IG", (u) => `https://www.instagram.com/${u}/`, (u) => `https://www.instagram.com/${u}/embed/`);
+                  if (p === "tiktok" || p === "internet") pushEntry("TikTok", comp.username, "hsl(347 100% 58%)", "TT", (u) => `https://www.tiktok.com/@${u}`, (u) => `https://www.tiktok.com/embed/@${u}`);
                   if (p === "twitter" || p === "internet" || p === "x") pushEntry("X / Twitter", comp.username, "hsl(203 89% 53%)", "X", (u) => `https://x.com/${u}`, (u) => `https://nitter.net/${u}`);
-                  if (p === "youtube" || p === "internet") pushEntry("YouTube", comp.username, "hsl(0 100% 50%)", "YT", (u) => `https://www.youtube.com/@${u}`);
+                  if (p === "youtube" || p === "internet") pushEntry("YouTube", comp.username, "hsl(0 100% 50%)", "YT", (u) => `https://www.youtube.com/@${u}`, (u) => `https://www.youtube.com/embed?listType=user_uploads&list=${u}`);
                   if (p === "linkedin" || p === "internet") pushEntry("LinkedIn", comp.username, "hsl(210 90% 40%)", "LI", (u) => `https://www.linkedin.com/company/${u}`);
                 }
 
@@ -2955,31 +2955,25 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
                               {/* Interactive preview */}
                               <div className="relative h-[240px] md:h-[320px] overflow-hidden bg-black/80">
-                                <object
-                                  data={entry.previewUrl}
-                                  type="text/html"
-                                  className="h-full w-full"
-                                  aria-label={`Interactive ${entry.platform} preview for @${entry.username}`}
-                                >
-                                  <div className="relative h-full w-full">
-                                    <img
-                                      src={getScreenshot(entry.url)}
-                                      alt={`${entry.platform} profile of @${entry.username}`}
-                                      className="h-full w-full object-cover object-top"
-                                      loading="lazy"
-                                      decoding="async"
-                                    />
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-3" style={{ background: `linear-gradient(135deg, ${entry.color}20, hsl(240 10% 4%) 70%)` }}>
-                                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${entry.color}, ${entry.color})` }}>
-                                        {entry.icon}
-                                      </div>
-                                      <p className="text-xs text-white/75 font-medium text-center">Interactive embed blocked by this platform</p>
-                                      <a href={entry.url} target="_blank" rel="noopener noreferrer" className="text-[9px] text-white/80 px-2 py-1 rounded-md bg-white/[0.12] hover:bg-white/[0.18] transition-colors">
-                                        Open live profile
-                                      </a>
-                                    </div>
+                                <iframe
+                                  src={entry.previewUrl}
+                                  className="h-full w-full border-0"
+                                  sandbox="allow-scripts allow-same-origin allow-popups"
+                                  loading="lazy"
+                                  referrerPolicy="no-referrer"
+                                  allow="encrypted-media"
+                                  title={`${entry.platform} preview for @${entry.username}`}
+                                  onError={(e) => { (e.target as HTMLIFrameElement).style.display = 'none'; const fb = (e.target as HTMLIFrameElement).nextElementSibling as HTMLElement; if (fb) fb.style.display = 'flex'; }}
+                                />
+                                <div className="absolute inset-0 flex-col items-center justify-center gap-3 p-3 hidden" style={{ background: `linear-gradient(135deg, ${entry.color}20, hsl(240 10% 4%) 70%)` }}>
+                                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${entry.color}, ${entry.color})` }}>
+                                    {entry.icon}
                                   </div>
-                                </object>
+                                  <p className="text-xs text-white/75 font-medium text-center">Interactive embed blocked by this platform</p>
+                                  <a href={entry.url} target="_blank" rel="noopener noreferrer" className="text-[9px] text-white/80 px-2 py-1 rounded-md bg-white/[0.12] hover:bg-white/[0.18] transition-colors">
+                                    Open live profile
+                                  </a>
+                                </div>
                                 <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
                               </div>
 
