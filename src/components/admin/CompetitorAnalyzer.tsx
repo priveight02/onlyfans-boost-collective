@@ -5821,7 +5821,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         {/* Weekly Hit List */}
                         {(siteInsights.weeklyHitList || []).length > 0 && (
                           <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
-                            <p className="text-xs font-medium text-white/60 mb-2 flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> Weekly Action Plan to Beat Them</p>
+                            <p className="text-xs font-medium text-white/60 mb-2 flex items-center gap-1"><CalendarIcon className="h-3.5 w-3.5" /> Weekly Action Plan to Beat Them</p>
                             <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-1.5">
                               {siteInsights.weeklyHitList.map((d: any, i: number) => (
                                 <div key={i} className="p-2 rounded-lg bg-white/[0.02] text-center space-y-1">
