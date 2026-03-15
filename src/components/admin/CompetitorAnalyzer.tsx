@@ -1370,7 +1370,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
             { value: "h2h", icon: Crosshair, label: "Head-to-Head" },
             { value: "keywords", icon: Search, label: "Keyword Search" },
             { value: "gaps", icon: Eye, label: "Gap Analysis" },
-            { value: "content", icon: Calendar, label: "Content Intel" },
+            { value: "content", icon: CalendarIcon, label: "Content Intel" },
             { value: "swot", icon: Target, label: "SWOT" },
             { value: "strategy", icon: Brain, label: "AI Strategy" },
             { value: "battleplan", icon: Crown, label: "Battle Plan" },
