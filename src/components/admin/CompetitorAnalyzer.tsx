@@ -401,7 +401,23 @@ const CompetitorAnalyzer = ({
   const [newCompetitorUrl, setNewCompetitorUrl] = useState("");
   const [newCompetitorKeywords, setNewCompetitorKeywords] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
-  const [selectedCompetitor, setSelectedCompetitor] = useState<string | null>(null);
+  const [selectedCompetitors, setSelectedCompetitors] = useState<string[]>([]);
+  const [syncCompetitorsAcrossTabs, setSyncCompetitorsAcrossTabs] = useState(() => {
+    try { return localStorage.getItem("competitor_sync_selection") === "true"; } catch { return true; }
+  });
+  const toggleSyncCompetitors = (on: boolean) => {
+    setSyncCompetitorsAcrossTabs(on);
+    localStorage.setItem("competitor_sync_selection", on ? "true" : "false");
+    toast.success(on ? "Competitor selection synced across all tabs" : "Competitor selection independent per tab");
+  };
+  const toggleCompetitorSelection = (id: string) => {
+    setSelectedCompetitors(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+  const selectAllCompetitors = () => setSelectedCompetitors(competitors.map(c => c.id));
+  const deselectAllCompetitors = () => setSelectedCompetitors([]);
+  // Backward compat: derive single selected + selected array
+  const selectedCompetitor = selectedCompetitors[0] || null;
+  const selectedComps = competitors.filter(c => selectedCompetitors.includes(c.id));
   const [swotResult, setSwotResult] = useState<AnalysisResult | null>(null);
   const [aiInsight, setAiInsight] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
@@ -522,7 +538,7 @@ const CompetitorAnalyzer = ({
       const rows = await competitorRest.select(user.id);
       if (Array.isArray(rows) && rows.length) {
         setCompetitors(rows.map(mapRow));
-        if (!selectedCompetitor) setSelectedCompetitor(rows[0].id);
+        if (selectedCompetitors.length === 0) setSelectedCompetitors([rows[0].id]);
       }
     })();
   }, []);
@@ -699,7 +715,7 @@ Be as accurate as possible. If you recognize the account, use real data. If not,
       setNewUsername("");
       setNewCompetitorUrl("");
       setNewCompetitorKeywords("");
-      if (!selectedCompetitor) setSelectedCompetitor(result.id);
+      if (selectedCompetitors.length === 0) setSelectedCompetitors([result.id]);
       toast.success(isInternet ? `${result.displayName} analyzed and added` : `@${result.username} analyzed and added`);
     }
   };
@@ -707,10 +723,14 @@ Be as accurate as possible. If you recognize the account, use real data. If not,
   const removeCompetitor = async (id: string) => {
     await competitorRest.remove(id);
     setCompetitors(prev => prev.filter(c => c.id !== id));
-    if (selectedCompetitor === id) {
-      const remaining = competitors.filter(c => c.id !== id);
-      setSelectedCompetitor(remaining[0]?.id || null);
-    }
+    setSelectedCompetitors(prev => {
+      const next = prev.filter(x => x !== id);
+      if (next.length === 0) {
+        const remaining = competitors.filter(c => c.id !== id);
+        return remaining.length > 0 ? [remaining[0].id] : [];
+      }
+      return next;
+    });
     toast.success("Competitor removed");
   };
 
@@ -1178,6 +1198,30 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
   }));
 
 
+        {/* ═══ SELECTED COMPETITORS BAR ═══ */}
+        {selectedCompetitors.length > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-[hsl(217,91%,60%)]/[0.04] border border-[hsl(217,91%,60%)]/10">
+            <div className="flex items-center gap-2 flex-1 flex-wrap min-w-0">
+              <span className="text-[10px] text-white/40 font-medium flex-shrink-0">Selected ({selectedCompetitors.length}):</span>
+              {selectedComps.map(c => (
+                <Badge key={c.id} className="bg-[hsl(217,91%,60%)]/10 text-[hsl(217,91%,60%)] border border-[hsl(217,91%,60%)]/20 text-[10px] gap-1 cursor-pointer hover:bg-[hsl(217,91%,60%)]/20 transition-colors" onClick={() => toggleCompetitorSelection(c.id)}>
+                  {c.platform === "internet" ? "🌐" : "@"}{c.platform === "internet" ? c.displayName : c.username}
+                  <XCircle className="h-2.5 w-2.5 opacity-50 hover:opacity-100" />
+                </Badge>
+              ))}
+              <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+                <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[9px] text-white/30 hover:text-white/60" onClick={selectAllCompetitors}>All</Button>
+                <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[9px] text-white/30 hover:text-white/60" onClick={deselectAllCompetitors}>None</Button>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0 pl-3 border-l border-white/[0.06]">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <Switch checked={syncCompetitorsAcrossTabs} onCheckedChange={toggleSyncCompetitors} className="h-4 w-7 data-[state=checked]:bg-[hsl(217,91%,60%)]" />
+                <span className="text-[10px] text-white/50 whitespace-nowrap">Sync across tabs</span>
+              </label>
+            </div>
+          </div>
+        )}
 
   return (
     <div className="space-y-5">
@@ -1566,12 +1610,16 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 return (
                 <Card
                   key={comp.id}
-                  className={`crm-card cursor-pointer transition-all duration-300 hover:border-white/10 hover:shadow-[0_8px_32px_hsl(0,0%,0%/0.3)] hover:translate-y-[-2px] ${selectedCompetitor === comp.id ? "ring-1 ring-[hsl(217,91%,60%)]/40 shadow-[0_0_20px_hsl(217,91%,60%/0.08)]" : ""}`}
-                  onClick={() => setSelectedCompetitor(comp.id)}
+                  className={`crm-card cursor-pointer transition-all duration-300 hover:border-white/10 hover:shadow-[0_8px_32px_hsl(0,0%,0%/0.3)] hover:translate-y-[-2px] ${selectedCompetitors.includes(comp.id) ? "ring-1 ring-[hsl(217,91%,60%)]/40 shadow-[0_0_20px_hsl(217,91%,60%/0.08)]" : ""}`}
+                  onClick={() => toggleCompetitorSelection(comp.id)}
                 >
                   <CardContent className="p-4 space-y-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-3">
+                        {/* Selection checkbox */}
+                        <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-all ${selectedCompetitors.includes(comp.id) ? "bg-[hsl(217,91%,60%)] border-[hsl(217,91%,60%)]" : "border-white/20 hover:border-white/40"}`}>
+                          {selectedCompetitors.includes(comp.id) && <CheckCircle className="h-3 w-3 text-white" />}
+                        </div>
                         {/* SVG Threat Score Ring */}
                         <div className="relative w-12 h-12 flex-shrink-0">
                           <svg className="w-12 h-12 -rotate-90" viewBox="0 0 72 72" style={{ filter: threatGlow }}>
@@ -2953,7 +3001,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
           <Card className="crm-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <select value={selectedCompetitor || ""} onChange={e => setSelectedCompetitor(e.target.value)} className="flex-1 h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
+                <select value={selectedCompetitor || ""} onChange={e => setSelectedCompetitors([e.target.value])} className="flex-1 h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
                   <option value="" disabled>Select competitor...</option>
                   {competitors.map(c => <option key={c.id} value={c.id}>@{c.username} ({c.platform}) · {fmtNum(c.followers)} followers</option>)}
                 </select>
