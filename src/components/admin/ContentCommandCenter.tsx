@@ -2571,10 +2571,10 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             {/* Platform presets */}
             {formPlatform && PLATFORM_PRESETS[formPlatform] && (
               <div className="flex gap-1.5 items-center flex-wrap">
-                <span className="text-[9px] text-muted-foreground"><Palette className="h-2.5 w-2.5 inline mr-0.5" />Quick:</span>
+                <span className="text-[9px] text-white/40"><Palette className="h-2.5 w-2.5 inline mr-0.5" />Quick:</span>
                 {PLATFORM_PRESETS[formPlatform].map((preset, i) => (
                   <Button key={i} size="sm" variant="outline" onClick={() => applyPreset(preset)}
-                    className="text-[9px] h-5 px-2 border-border text-muted-foreground">
+                    className="text-[9px] h-5 px-2 border-white/[0.08] text-white/50">
                     {preset.label}
                   </Button>
                 ))}
