@@ -1099,8 +1099,7 @@ Respond ONLY with JSON array.`);
 Caption: "${formCaption}"
 Return: tone, readability (1-10), emotion, power_words (count), improvements (3 strings), cta_strength (1-10), scroll_stop_score (1-10), brand_safety (safe/edgy/risky)
 Respond ONLY with JSON.`);
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        if (jsonMatch) { const a = JSON.parse(jsonMatch[0]); setToneAnalysis(a); toast.success(`Tone: ${a.tone} | Scroll-stop: ${a.scroll_stop_score}/10`); }
+        try { const a = safeParseJSON(content); setToneAnalysis(a); toast.success(`Tone: ${a.tone} | Scroll-stop: ${a.scroll_stop_score}/10`); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingToneAnalysis(false);
     });
