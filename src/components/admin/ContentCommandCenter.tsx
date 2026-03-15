@@ -2529,8 +2529,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 </SelectContent>
               </Select>
               <Select value={formType} onValueChange={setFormType}>
-                <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-popover border-border">
+                <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue /></SelectTrigger>
+                <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
                   {(curPlatConf?.supportedTypes || CONTENT_TYPES).map(t => (
                     <SelectItem key={t} value={t} className="text-xs capitalize">{t.replace("_", " ")}</SelectItem>
                   ))}
