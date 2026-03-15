@@ -1978,6 +1978,18 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             className={`text-xs h-8 ${bulkMode ? "bg-primary text-primary-foreground" : "border-white/[0.06] text-white/50"}`}>
             <CheckSquare className="h-3.5 w-3.5 mr-1" /> Bulk
           </Button>
+          {filtered.length > 0 && (
+            <Button size="sm" variant="outline" onClick={async () => {
+              if (!confirm(`Delete all ${filtered.length} items in current view?`)) return;
+              const ids = filtered.map(i => i.id);
+              const { error } = await supabase.from("content_calendar").delete().in("id", ids);
+              if (error) toast.error(error.message);
+              else toast.success(`${ids.length} items deleted`);
+            }}
+              className="text-xs h-8 border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500/20">
+              <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete All
+            </Button>
+          )}
           <Select value={platformFilter} onValueChange={setPlatformFilter}>
             <SelectTrigger className="bg-white/[0.03] border-white/[0.06] text-white h-8 text-xs w-32"><SelectValue placeholder="Platform" /></SelectTrigger>
             <SelectContent className="bg-[hsl(222,35%,9%)] border-white/[0.08]">
