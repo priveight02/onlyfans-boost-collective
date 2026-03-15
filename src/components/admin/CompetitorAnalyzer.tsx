@@ -635,7 +635,7 @@ Be as accurate as possible using your knowledge. If you recognize the company, u
 IMPORTANT: Return ONLY a valid JSON object, no markdown, no explanation. The JSON must have these exact keys:
 {
   "displayName": "their display name or best guess",
-  "followers": <number - realistic follower count>,
+  "followers": <number - realistic follower count on ${newPlatform}>,
   "following": <number>,
   "posts": <number - total posts>,
   "engagementRate": <number 0.5-15, typical engagement rate %>,
@@ -649,9 +649,14 @@ IMPORTANT: Return ONLY a valid JSON object, no markdown, no explanation. The JSO
   "bestPostingTimes": ["9am", "1pm", "7pm"],
   "audienceDemo": "brief audience demographics",
   "contentStyle": "brief content style description",
-  "score": <number 0-100, competitive threat level>
+  "score": <number 0-100, competitive threat level>,
+  "socialPresence": {"instagram": "handle or null", "twitter": "handle or null", "linkedin": "handle or null", "tiktok": "handle or null", "youtube": "handle or null"},
+  "platformMetrics": {
+    "${newPlatform}": {"followers": <same as top-level followers>, "engagementRate": <same as top-level>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>}
+  }
 }
 
+CRITICAL: The platformMetrics must contain the ACTUAL per-platform data. If this account is present on multiple platforms, include ALL of them with DIFFERENT follower counts for each.
 Be as accurate as possible. If you recognize the account, use real data. If not, estimate based on the username and platform norms.`;
 
       let parsed: any;
