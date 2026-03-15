@@ -197,6 +197,19 @@ const ContentCommandCenter = () => {
   const [competitorBestTimes, setCompetitorBestTimes] = useState<any[]>([]);
   const [showCompetitorBestTimes, setShowCompetitorBestTimes] = useState(false);
 
+  // ── Inter-Tab 6-10: New synced features ──
+  const [generatingPillarSync, setGeneratingPillarSync] = useState(false);
+  const [platformCoverageAudit, setPlatformCoverageAudit] = useState<any[]>([]);
+  const [showCoverageAudit, setShowCoverageAudit] = useState(false);
+  const [generatingCoverageAudit, setGeneratingCoverageAudit] = useState(false);
+  const [viralBenchmark, setViralBenchmark] = useState<any>(null);
+  const [showViralBenchmark, setShowViralBenchmark] = useState(false);
+  const [generatingVelocityMatch, setGeneratingVelocityMatch] = useState(false);
+  const [generatingCrossRepurpose, setGeneratingCrossRepurpose] = useState(false);
+  const [generatedPlansFromIntel, setGeneratedPlansFromIntel] = useState<any[]>([]);
+  const [showIntelPlans, setShowIntelPlans] = useState(false);
+  const [loadingIntelPlans, setLoadingIntelPlans] = useState(false);
+
   // ── Ultimate Content Features ──
   const [generatingHooks, setGeneratingHooks] = useState(false);
   const [hooks, setHooks] = useState<string[]>([]);
