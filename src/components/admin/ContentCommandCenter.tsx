@@ -1806,11 +1806,11 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           { title: "Platforms", value: stats.platforms, icon: Globe, color: "text-cyan-400" },
           { title: "Viral Avg", value: `${stats.avgViral}%`, icon: TrendingUp, color: "text-pink-400" },
         ].map(s => (
-          <Card key={s.title} className="bg-card/50 border-border">
+          <Card key={s.title} className="bg-white/[0.03] border-white/[0.06]">
             <CardContent className="p-3">
               <s.icon className={`h-4 w-4 ${s.color} mb-1`} />
-              <p className="text-xl font-bold text-foreground">{s.value}</p>
-              <p className="text-[10px] text-muted-foreground">{s.title}</p>
+              <p className="text-xl font-bold text-white">{s.value}</p>
+              <p className="text-[10px] text-white/40">{s.title}</p>
             </CardContent>
           </Card>
         ))}
