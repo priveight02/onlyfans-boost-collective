@@ -449,6 +449,7 @@ const CompetitorAnalyzer = ({
   const [aiLoading, setAiLoading] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [refreshingBreakdown, setRefreshingBreakdown] = useState(false);
+  const [copyingPlan, setCopyingPlan] = useState(false);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [platformTimePeriods, setPlatformTimePeriods] = useState<Record<string, string>>({});
   const [platformCustomDates, setPlatformCustomDates] = useState<Record<string, Date[]>>({});
