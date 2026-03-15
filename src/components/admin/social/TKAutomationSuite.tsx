@@ -9,10 +9,12 @@ import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import PlatformAccountSelector from "./PlatformAccountSelector";
 import { TikTokPostPreview } from "./TikTokPostPreview";
+import { pullContentPlanForPlatform, pushToSocialHub, DEFAULT_BEST_TIMES, cloneAsTemplate, ContentPlanItem } from "@/lib/contentSync";
 import {
   Music2, Video, Upload, Eye, MessageSquare, Search, Hash,
   ListVideo, Send, RefreshCw, TrendingUp, BarChart3, Users,

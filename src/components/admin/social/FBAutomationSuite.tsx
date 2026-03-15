@@ -8,14 +8,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { pullContentPlanForPlatform, pushToSocialHub, DEFAULT_BEST_TIMES, cloneAsTemplate, ContentPlanItem } from "@/lib/contentSync";
 import {
   Send, RefreshCw, BarChart3, Users, Eye, Heart,
   ExternalLink, Loader2, Brain, Activity, Globe,
   MessageCircle, LayoutDashboard, Wand2, Megaphone, Copy,
   Target, Calendar, Trash2, Search, Image, Video,
-  Layers, Link2, Hash, Shield, FileText,
+  Layers, Link2, Hash, Shield, FileText, FolderOpen,
   MessageSquare, ArrowRight, Sparkles, Bot, CheckCircle2,
   AlertCircle, Clock, ThumbsUp, Share2, Play,
   UserPlus, BookOpen, Camera, Mail, Store, DollarSign, Briefcase, MousePointer,
