@@ -13,9 +13,11 @@ import {
   Eraser, Grip, Italic, Layers, Link2, Loader2, Lock, MousePointer, Move, Pencil,
   Redo2, RotateCcw, Save, Search, Sparkles, Square, StickyNote,
   Trash2, Triangle, Type, Underline, Unlink, Unlock, ZoomIn, ZoomOut, RefreshCw, Palette,
+  Send, FileDown,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { exportSandboxToDrafts } from "@/lib/contentSync";
 
 /* ─── Types ─── */
 type Tool = "select" | "pan" | "pen" | "eraser" | "text" | "note" | "rectangle" | "ellipse" | "triangle" | "diamond" | "arrow";
