@@ -416,14 +416,22 @@ const scrapeSocialProfiles = async (
   const parseYouTubeSB = (md: string): ScrapedMetrics => {
     const out: ScrapedMetrics = {};
 
-    const subMatch = md.match(/(?:subscribers?|subs?)\s*\n\s*([\d,.KMBkmb]+)/i);
+    const subMatch = md.match(/(?:subscribers?|subs?)\s*\n\s*([\d,.KMBkmb]+)/i)
+      || md.match(/([\d,.KMBkmb]+)\s*(?:subscribers?|subs?)/i);
     if (subMatch) out.followers = parseHumanNumber(subMatch[1]);
 
-    const vidMatch = md.match(/(?:videos?|uploads?)\s*\n\s*([\d,.KMBkmb]+)/i);
+    const vidMatch = md.match(/(?:videos?|uploads?)\s*\n\s*([\d,.KMBkmb]+)/i)
+      || md.match(/([\d,.KMBkmb]+)\s*(?:videos?|uploads?)/i);
     if (vidMatch) out.posts = parseHumanNumber(vidMatch[1]);
 
-    const viewsMatch = md.match(/(?:total\s*)?video\s*views?\s*\n\s*([\d,.KMBkmb]+)/i) || md.match(/views?\s*\n\s*([\d,.KMBkmb]+)/i);
+    const viewsMatch = md.match(/(?:total\s*)?video\s*views?\s*\n\s*([\d,.KMBkmb]+)/i)
+      || md.match(/views?\s*\n\s*([\d,.KMBkmb]+)/i)
+      || md.match(/([\d,.KMBkmb]+)\s*(?:total\s*)?views?/i);
     if (viewsMatch) out.totalViews = parseHumanNumber(viewsMatch[1]);
+
+    // Country
+    const countryMatch = md.match(/country\s*\n\s*([A-Za-z ]+)/i);
+    if (countryMatch) out.description = countryMatch[1].trim();
 
     // Derive avg views
     if (out.totalViews && out.posts && out.posts > 0) {
@@ -443,6 +451,13 @@ const scrapeSocialProfiles = async (
       if (out.followers && out.followers > 0) {
         out.growthRate = (subGain / out.followers) * 100;
       }
+    }
+
+    // Grade
+    const gradeMatch = md.match(/(?:subscriber|channel)\s*(?:rank|grade)\s*\n\s*([A-Z][+-]?)/i);
+    if (gradeMatch) {
+      // store in description field as supplementary info
+      out.description = (out.description ? out.description + " | " : "") + "Grade: " + gradeMatch[1];
     }
 
     return out;
