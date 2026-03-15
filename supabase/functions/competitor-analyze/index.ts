@@ -576,7 +576,10 @@ STRICT OUTPUT RULES:
         );
     }
 
-    return new Response(JSON.stringify({ reply, usage: { count: newCount, limit: RATE_LIMIT_MAX } }), {
+    // Always clean the reply to ensure valid JSON reaches the client
+    const cleanedReply = cleanJsonResponse(reply);
+    
+    return new Response(JSON.stringify({ reply: cleanedReply, usage: { count: newCount, limit: RATE_LIMIT_MAX } }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
