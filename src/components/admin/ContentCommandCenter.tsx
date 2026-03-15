@@ -2776,7 +2776,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             )}
             {curPlatConf?.fields.altText && (
               <Input value={formAltText} onChange={e => setFormAltText(e.target.value)}
-                placeholder="Alt text for accessibility..." className="bg-card/50 border-border text-foreground text-xs" />
+                placeholder="Alt text for accessibility..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs" />
             )}
             {curPlatConf?.fields.link && (
               <Input value={formLink} onChange={e => setFormLink(e.target.value)}
