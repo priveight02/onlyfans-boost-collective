@@ -4715,6 +4715,7 @@ Return ONLY valid JSON:
   "keyBattleground": "The single most important area where the fight will be won or lost"
 }`);
                             setH2hResult({ ...parseJSON(aiReply), usernameA: a.username, usernameB: b.username, statsA: a, statsB: b });
+                            await refreshAIUsage();
                             return true;
                           });
                         } catch (err: any) { toast.error(err?.message || "Comparison failed"); }
