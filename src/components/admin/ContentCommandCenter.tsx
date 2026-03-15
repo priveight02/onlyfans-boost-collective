@@ -919,8 +919,7 @@ Rules:
 - Use pattern interrupts ("POV:", "Nobody talks about...", "Stop scrolling if...")
 - Platform-specific: ${platform === "tiktok" ? "TikTok hooks need to be punchy under 3 seconds" : platform === "twitter" ? "Tweet hooks must work standalone" : "Instagram hooks should pair with visuals"}
 Respond ONLY with JSON array: ["hook1", "hook2", "hook3", "hook4", "hook5"]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) { setHooks(JSON.parse(jsonMatch[0])); toast.success("5 scroll-stopping hooks generated"); }
+        try { setHooks(safeParseJSON(content)); toast.success("5 scroll-stopping hooks generated"); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingHooks(false);
     });
