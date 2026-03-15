@@ -2001,6 +2001,16 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Zap className="h-3.5 w-3.5 mr-1" />}
             AI Generate
           </Button>
+          <Button size="sm" variant="outline" onClick={handleImportCompetitorIntel} disabled={importingCompetitorIntel}
+            className="border-amber-500/20 text-amber-400 text-xs h-8 hover:bg-amber-500/10">
+            {importingCompetitorIntel ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Target className="h-3.5 w-3.5 mr-1" />}
+            Import Intel
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleDistributeAll} disabled={distributingAll}
+            className="border-blue-500/20 text-blue-400 text-xs h-8 hover:bg-blue-500/10">
+            {distributingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Globe className="h-3.5 w-3.5 mr-1" />}
+            Distribute All
+          </Button>
           <Button size="sm" variant="outline" onClick={openPushToSocial}
             className="border-emerald-500/20 text-emerald-400 text-xs h-8 hover:bg-emerald-500/10">
             <Send className="h-3.5 w-3.5 mr-1" /> Push to Social
