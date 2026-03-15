@@ -404,7 +404,6 @@ const CRM = () => {
       case "automation": return <StorylineHub subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
       case "persona": return <PersonaDNAEngine />;
       case "content": return <ContentCommandCenter />;
-      case "sandbox": return <ContentSandbox />;
       case "social": return <SocialMediaHub subTab={activeSubTab} onSubTabChange={handleSubTabChange} urlPlatform={activeSocialPlatform} onPlatformChange={handleSocialPlatformChange} />;
       case "ad-creatives": return <AdCreativeEngine subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
       case "competitors": return <CompetitorAnalyzer subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
