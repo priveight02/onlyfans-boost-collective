@@ -3040,53 +3040,53 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           ) : (
             <div className="space-y-3">
               <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
-                <h3 className="text-sm font-bold text-foreground">{contentBrief.campaign_name}</h3>
-                <p className="text-[10px] text-muted-foreground mt-0.5">Objective: {contentBrief.objective}</p>
+                <h3 className="text-sm font-bold text-white">{contentBrief.campaign_name}</h3>
+                <p className="text-[10px] text-white/50 mt-0.5">Objective: {contentBrief.objective}</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">🎯 Target Audience</p>
-                  <p className="text-[10px] text-foreground">{contentBrief.target_audience}</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">Target Audience</p>
+                  <p className="text-[10px] text-white">{contentBrief.target_audience}</p>
                 </div>
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">🎨 Visual Direction</p>
-                  <p className="text-[10px] text-foreground">{contentBrief.visual_direction}</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">Visual Direction</p>
+                  <p className="text-[10px] text-white">{contentBrief.visual_direction}</p>
                 </div>
               </div>
               {contentBrief.key_messages && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">💬 Key Messages</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">Key Messages</p>
                   {contentBrief.key_messages.map((msg: string, i: number) => (
-                    <p key={i} className="text-[10px] text-foreground">• {msg}</p>
+                    <p key={i} className="text-[10px] text-white">· {msg}</p>
                   ))}
                 </div>
               )}
               {contentBrief.content_mix && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">📋 Content Mix</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">Content Mix</p>
                   {contentBrief.content_mix.map((mix: any, i: number) => (
-                    <div key={i} className="flex items-center gap-2 text-[10px] text-foreground py-0.5">
-                      <Badge variant="outline" className="text-[8px] border-border text-muted-foreground capitalize">{mix.type}</Badge>
+                    <div key={i} className="flex items-center gap-2 text-[10px] text-white py-0.5">
+                      <Badge variant="outline" className="text-[8px] border-white/[0.08] text-white/40 capitalize">{mix.type}</Badge>
                       <span>×{mix.quantity}</span>
-                      <span className="text-muted-foreground">— {mix.description}</span>
+                      <span className="text-white/50">· {mix.description}</span>
                     </div>
                   ))}
                 </div>
               )}
               {contentBrief.hook_templates && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">🎣 Hook Templates</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">Hook Templates</p>
                   {contentBrief.hook_templates.map((h: string, i: number) => (
-                    <p key={i} className="text-[10px] text-foreground/80">"{h}"</p>
+                    <p key={i} className="text-[10px] text-white/70">"{h}"</p>
                   ))}
                 </div>
               )}
               {contentBrief.hashtag_strategy && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1"># Hashtag Strategy</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1"># Hashtag Strategy</p>
                   {Object.entries(contentBrief.hashtag_strategy).map(([cat, tags]: [string, any]) => (
                     <div key={cat} className="flex gap-1 items-center flex-wrap mt-0.5">
-                      <span className="text-[9px] text-muted-foreground capitalize w-16">{cat}:</span>
+                      <span className="text-[9px] text-white/40 capitalize w-16">{cat}:</span>
                       {(Array.isArray(tags) ? tags : []).map((t: string, i: number) => (
                         <span key={i} className="text-[9px] text-primary/70">#{t}</span>
                       ))}
@@ -3095,18 +3095,18 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 </div>
               )}
               {contentBrief.success_metrics && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider mb-1">📊 Success Metrics</p>
-                  <p className="text-[10px] text-foreground">{typeof contentBrief.success_metrics === 'string' ? contentBrief.success_metrics : JSON.stringify(contentBrief.success_metrics)}</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider mb-1">Success Metrics</p>
+                  <p className="text-[10px] text-white">{typeof contentBrief.success_metrics === 'string' ? contentBrief.success_metrics : JSON.stringify(contentBrief.success_metrics)}</p>
                 </div>
               )}
               <div className="flex gap-2">
                 <Button onClick={() => executeBrief(contentBrief)} disabled={generating}
                   className="flex-1 bg-primary text-primary-foreground text-xs">
                   {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Zap className="h-3.5 w-3.5 mr-1" />}
-                  Execute Brief → Create All Content
+                  Execute Brief · Create All Content
                 </Button>
-                <Button variant="outline" onClick={() => setContentBrief(null)} className="text-xs border-border text-muted-foreground">
+                <Button variant="outline" onClick={() => setContentBrief(null)} className="text-xs border-white/[0.08] text-white/50">
                   New Brief
                 </Button>
               </div>
