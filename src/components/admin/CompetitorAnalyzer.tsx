@@ -1370,7 +1370,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
             { value: "h2h", icon: Crosshair, label: "Head-to-Head" },
             { value: "keywords", icon: Search, label: "Keyword Search" },
             { value: "gaps", icon: Eye, label: "Gap Analysis" },
-            { value: "content", icon: Calendar, label: "Content Intel" },
+            { value: "content", icon: CalendarIcon, label: "Content Intel" },
             { value: "swot", icon: Target, label: "SWOT" },
             { value: "strategy", icon: Brain, label: "AI Strategy" },
             { value: "battleplan", icon: Crown, label: "Battle Plan" },
@@ -2896,6 +2896,22 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
             <Card className="crm-card"><CardContent className="p-12 text-center"><p className="text-white/50">Add competitors first</p></CardContent></Card>
           ) : (
             <>
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-semibold text-white/70">Social Intelligence</h2>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-[10px] gap-1.5 border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,60%)]/10 h-7 px-3"
+                  disabled={refreshingBreakdown}
+                  onClick={() => {
+                    setContentRecs(null);
+                    refreshPlatformBreakdown();
+                  }}
+                >
+                  <RefreshCw className={`h-3 w-3 ${refreshingBreakdown ? "animate-spin" : ""}`} />
+                  {refreshingBreakdown ? "Refreshing…" : "Refresh All"}
+                </Button>
+              </div>
               {/* Full-width Device Social Intelligence Panels — iPad on desktop, iPhone on mobile */}
               {competitors.map((comp) => {
                 const normalizeHandle = (value: unknown) => {
@@ -3423,6 +3439,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                 <BarChart3 className="h-3.5 w-3.5 text-white/40" />
                                 <span className="text-[10px] md:text-[11px] font-semibold text-white/60">Platform Performance Breakdown</span>
                                 <Button
+                                  data-refresh-breakdown
                                   size="sm"
                                   variant="outline"
                                   className="ml-auto h-6 px-2 text-[9px] gap-1 border-white/10 text-white/60 hover:text-white"
