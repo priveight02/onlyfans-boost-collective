@@ -250,29 +250,31 @@ const financialTool = {
   },
 };
 
-/** Batch-scrape social profiles via Jina Reader → SocialBlade for accurate metrics */
-const scrapeSocialProfiles = async (
-  socialPresence: Record<string, string | null>,
-): Promise<Record<string, {
+/** Scraped platform metric shape */
+type ScrapedMetrics = {
   followers?: number;
+  following?: number;
   description?: string;
   posts?: number;
   engagementRate?: number;
   avgLikes?: number;
   avgComments?: number;
+  avgViews?: number;
+  avgShares?: number;
+  totalLikes?: number;
+  totalViews?: number;
   postFrequency?: number;
   growthRate?: number;
-}>> => {
-  const results: Record<string, {
-    followers?: number;
-    description?: string;
-    posts?: number;
-    engagementRate?: number;
-    avgLikes?: number;
-    avgComments?: number;
-    postFrequency?: number;
-    growthRate?: number;
-  }> = {};
+  followerGain30d?: number;
+  viewGain30d?: number;
+  likeGain30d?: number;
+};
+
+/** Batch-scrape social profiles via Jina Reader → SocialBlade for accurate metrics */
+const scrapeSocialProfiles = async (
+  socialPresence: Record<string, string | null>,
+): Promise<Record<string, ScrapedMetrics>> => {
+  const results: Record<string, ScrapedMetrics> = {};
 
   const fetchWithTimeout = async (
     url: string,
