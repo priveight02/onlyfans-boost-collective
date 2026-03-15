@@ -2269,6 +2269,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                           const myContext = myStats ? `\nMY STATS: @${myStats.username}: ${myStats.followers} followers, ${myStats.engagementRate}% ER, ${myStats.postFrequency} posts/wk` : "";
                           const aiReply = await callAI(`Analyze these competitors' content and give me specific recommendations to outperform them.${myContext}\n\nCOMPETITORS:\n${compData}\n\nReturn ONLY valid JSON:\n{"contentPillars":[{"pillar":"name","description":"why","frequency":"posts/week","expectedEngagement":"X%"}],"hookFormulas":[{"formula":"the hook template","example":"concrete example","whyItWorks":"reason"}],"postingSchedule":{"bestDays":["Mon","Wed"],"bestTimes":["9am","7pm"],"reasoning":"why"},"contentCalendar":[{"day":"Monday","contentType":"Reel","topic":"specific topic","hashtags":["tag1","tag2"],"hookIdea":"specific hook"}],"stealableStrategies":[{"from":"@competitor","strategy":"what they do","howToAdapt":"how to do it better"}]}`);
                           setContentRecs(parseJSON(aiReply));
+                          await refreshAIUsage();
                           toast.success("Content recommendations generated");
                         } catch (err: any) { toast.error(err?.message || "Failed"); }
                         finally { setContentRecsLoading(false); }
