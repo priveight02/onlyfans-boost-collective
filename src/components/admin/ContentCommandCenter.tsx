@@ -786,7 +786,7 @@ Respond ONLY with JSON array: [{"title":"", "caption":"", "content_type":"", "ha
           setTrendIdeas(ideas.map((i: any) => ({ ...i, platform: targetPlatform })));
           setShowTrends(true);
           toast.success(`${ideas.length} trending ideas for ${platformConf(targetPlatform).label}`);
-        }
+        } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingTrends(false);
     });
