@@ -3561,7 +3561,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                   const barWidth = maxPlatformReach > 0 ? (totalReach / maxPlatformReach) * 100 : 0;
 
                                   // Build stat items - 80+ metrics organized into sections
-                                  type StatItem = { label: string; value: string; color: string; section: string; detail?: { formula?: string; source?: string; raw?: string; timestamp?: string; type?: string; note?: string } };
+                                  type StatItem = { label: string; value: string; color: string; section: string; detail?: { formula?: string; source?: string; raw?: string; timestamp?: string; type?: string; note?: string; description?: string } };
                                   const stats: StatItem[] = [];
                                   const now = new Date().toISOString().slice(0, 16);
                                   const srcSB = "SocialBlade via Jina Reader";
