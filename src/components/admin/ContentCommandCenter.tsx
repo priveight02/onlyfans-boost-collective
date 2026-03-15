@@ -2659,7 +2659,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   <p className="text-[9px] text-white/40 uppercase tracking-wider">Scroll-Stopping Hooks · click to prepend</p>
                   {hooks.map((h, i) => (
                     <button key={i} onClick={() => { setFormCaption(h + "\n\n" + formCaption); setHooks([]); toast.success("Hook applied"); }}
-                      className="w-full text-left bg-card/50 border border-border rounded-lg p-1.5 hover:border-primary/30 transition-colors text-[10px] text-foreground/80">
+                      className="w-full text-left bg-white/[0.04] border border-white/[0.06] rounded-lg p-1.5 hover:border-primary/30 transition-colors text-[10px] text-white/70">
                       {h}
                     </button>
                   ))}
