@@ -2851,12 +2851,9 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                   "hsl(0 100% 50%)",
                   "YT",
                   (u) => (/^UC[a-zA-Z0-9_-]+$/.test(u) ? `https://www.youtube.com/channel/${u}` : `https://www.youtube.com/@${u}`),
-                  (u) =>
-                    /^UC[a-zA-Z0-9_-]+$/.test(u)
-                      ? `https://www.youtube-nocookie.com/embed?listType=playlist&list=UU${u.slice(2)}`
-                      : `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(`@${u}`)}`,
+                  (u) => `__screenshot__${/^UC[a-zA-Z0-9_-]+$/.test(u) ? `https://www.youtube.com/channel/${u}` : `https://www.youtube.com/@${u}`}`,
                 );
-                pushEntry("LinkedIn", social.linkedin, "hsl(210 90% 40%)", "LI", (u) => `https://www.linkedin.com/company/${u}`, (u) => `https://image.thum.io/get/width/1200/crop/1200/noanimate/${encodeURIComponent(`https://www.linkedin.com/company/${u}`)}`);
+                pushEntry("LinkedIn", social.linkedin, "hsl(210 90% 40%)", "LI", (u) => `https://www.linkedin.com/company/${u}`, (u) => `__screenshot__https://www.linkedin.com/company/${u}`);
                 pushEntry("Facebook", social.facebook, "hsl(221 83% 53%)", "FB", (u) => `https://www.facebook.com/${u}`, (u) => `https://www.facebook.com/plugins/page.php?href=${encodeURIComponent(`https://www.facebook.com/${u}`)}&tabs=timeline&width=500&height=600`);
                 pushEntry("Pinterest", social.pinterest, "hsl(348 91% 45%)", "PI", (u) => `https://www.pinterest.com/${u}`, (u) => `https://assets.pinterest.com/ext/embed.html?id=${u}`);
                 pushEntry("Snapchat", social.snapchat, "hsl(60 100% 50%)", "SC", (u) => `https://www.snapchat.com/add/${u}`);
