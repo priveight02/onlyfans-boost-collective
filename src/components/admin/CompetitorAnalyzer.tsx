@@ -3442,6 +3442,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                 <BarChart3 className="h-3.5 w-3.5 text-white/40" />
                                 <span className="text-[10px] md:text-[11px] font-semibold text-white/60">Platform Performance Breakdown</span>
                                 <Button
+                                  data-refresh-breakdown
                                   size="sm"
                                   variant="outline"
                                   className="ml-auto h-6 px-2 text-[9px] gap-1 border-white/10 text-white/60 hover:text-white"
