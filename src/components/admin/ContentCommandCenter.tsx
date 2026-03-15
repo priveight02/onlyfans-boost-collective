@@ -2667,13 +2667,13 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               )}
               {/* Tone Analysis display */}
               {toneAnalysis && (
-                <div className="bg-muted/30 rounded-lg p-2 space-y-1">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">📊 Tone Analysis</p>
+                <div className="bg-white/[0.03] rounded-lg p-2 space-y-1">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider">Tone Analysis</p>
                   <div className="grid grid-cols-4 gap-1">
-                    <div className="text-center"><p className="text-sm font-bold text-foreground">{toneAnalysis.scroll_stop_score}/10</p><p className="text-[8px] text-muted-foreground">Scroll Stop</p></div>
-                    <div className="text-center"><p className="text-sm font-bold text-foreground">{toneAnalysis.cta_strength}/10</p><p className="text-[8px] text-muted-foreground">CTA</p></div>
-                    <div className="text-center"><p className="text-sm font-bold text-foreground">{toneAnalysis.readability}/10</p><p className="text-[8px] text-muted-foreground">Readability</p></div>
-                    <div className="text-center"><p className="text-sm font-bold text-foreground capitalize">{toneAnalysis.tone}</p><p className="text-[8px] text-muted-foreground">Tone</p></div>
+                    <div className="text-center"><p className="text-sm font-bold text-white">{toneAnalysis.scroll_stop_score}/10</p><p className="text-[8px] text-white/40">Scroll Stop</p></div>
+                    <div className="text-center"><p className="text-sm font-bold text-white">{toneAnalysis.cta_strength}/10</p><p className="text-[8px] text-white/40">CTA</p></div>
+                    <div className="text-center"><p className="text-sm font-bold text-white">{toneAnalysis.readability}/10</p><p className="text-[8px] text-white/40">Readability</p></div>
+                    <div className="text-center"><p className="text-sm font-bold text-white capitalize">{toneAnalysis.tone}</p><p className="text-[8px] text-white/40">Tone</p></div>
                   </div>
                   {toneAnalysis.improvements?.length > 0 && (
                     <div className="mt-1">{toneAnalysis.improvements.map((tip: string, i: number) => (
