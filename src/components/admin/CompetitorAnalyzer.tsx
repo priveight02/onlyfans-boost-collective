@@ -1006,30 +1006,39 @@ RULES:
             </CardContent>
           </Card>
 
-          {/* ─── YOUR STATS COMPARISON CARD ─── */}
+          {/* ─── ENTERPRISE / COMPANY PROFILE ─── */}
           <Card className="crm-card border-emerald-400/20">
             <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
-                  <Crown className="h-4 w-4 text-emerald-400" />
-                  <span className="text-sm font-medium text-emerald-400">Your Stats</span>
-                  {myStats && <Badge variant="outline" className="text-[9px] border-emerald-400/20 text-emerald-400">@{myStats.username}</Badge>}
+                  <Building2 className="h-4 w-4 text-emerald-400" />
+                  <span className="text-sm font-medium text-emerald-400">My Enterprise Profile</span>
+                  {enterpriseProfile?.companyName && <Badge variant="outline" className="text-[9px] border-emerald-400/20 text-emerald-400">{enterpriseProfile.companyName}</Badge>}
+                  {myStats && <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">@{myStats.username}</Badge>}
                 </div>
-                <Button size="sm" variant="outline" className="text-xs gap-1 border-emerald-400/20 text-emerald-400 hover:bg-emerald-400/10 h-7" onClick={() => setShowMyStatsForm(!showMyStatsForm)}>
-                  {myStats ? "Edit" : "Set My Stats"}
-                </Button>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-white/40">Use across all tabs</span>
+                    <Switch checked={useEnterpriseContext} onCheckedChange={toggleEnterpriseContext} className="h-4 w-7 data-[state=checked]:bg-emerald-500" />
+                  </div>
+                  <Button size="sm" variant="outline" className="text-xs gap-1 border-emerald-400/20 text-emerald-400 hover:bg-emerald-400/10 h-7" onClick={() => setShowEnterpriseForm(!showEnterpriseForm)}>
+                    {Object.keys(enterpriseProfile).length > 0 ? "Edit" : "Set Up"}
+                  </Button>
+                </div>
               </div>
-              {myStats && !showMyStatsForm && (
-                <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+
+              {/* Quick stats display when profile exists */}
+              {myStats && !showEnterpriseForm && (
+                <div className="grid grid-cols-4 md:grid-cols-8 gap-2 mb-2">
                   {[
                     { label: "Followers", value: fmtNum(myStats.followers) },
                     { label: "Eng. Rate", value: `${myStats.engagementRate}%` },
                     { label: "Avg Likes", value: fmtNum(myStats.avgLikes) },
-                    { label: "Avg Comments", value: `${myStats.avgComments}` },
                     { label: "Growth/Wk", value: `${myStats.growthRate >= 0 ? "+" : ""}${myStats.growthRate}%` },
                     { label: "Posts/Wk", value: `${myStats.postFrequency}` },
-                    { label: "Total Posts", value: fmtNum(myStats.posts) },
-                    { label: "vs Top", value: competitors.length > 0 ? `${Math.round((myStats.followers / Math.max(...competitors.map(c => c.followers), 1)) * 100)}%` : "—" },
+                    { label: "Revenue", value: enterpriseProfile.monthlyRevenue || "—" },
+                    { label: "Customers", value: enterpriseProfile.customerCount || "—" },
+                    { label: "Team", value: enterpriseProfile.teamSize || "—" },
                   ].map((s, i) => (
                     <div key={i} className="text-center p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
                       <p className="text-[10px] text-white/40">{s.label}</p>
@@ -1038,50 +1047,144 @@ RULES:
                   ))}
                 </div>
               )}
-              {showMyStatsForm && (
-                <div className="space-y-3 mt-2">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                    {[
-                      { key: "username", label: "Username", type: "text", placeholder: "your_username" },
-                      { key: "followers", label: "Followers", type: "number", placeholder: "10000" },
-                      { key: "engagementRate", label: "Engagement Rate %", type: "number", placeholder: "3.5" },
-                      { key: "avgLikes", label: "Avg Likes", type: "number", placeholder: "500" },
-                      { key: "avgComments", label: "Avg Comments", type: "number", placeholder: "25" },
-                      { key: "growthRate", label: "Growth/Week %", type: "number", placeholder: "1.5" },
-                      { key: "postFrequency", label: "Posts/Week", type: "number", placeholder: "5" },
-                      { key: "posts", label: "Total Posts", type: "number", placeholder: "200" },
-                    ].map(f => (
-                      <div key={f.key} className="space-y-1">
-                        <label className="text-[10px] text-white/40">{f.label}</label>
-                        <Input
-                          type={f.type}
-                          placeholder={f.placeholder}
-                          defaultValue={(myStats as any)?.[f.key] || ""}
-                          className="crm-input h-8 text-xs"
-                          id={`mystat-${f.key}`}
-                        />
+
+              {/* Full enterprise form */}
+              {showEnterpriseForm && (() => {
+                const SECTIONS = [
+                  { key: "company", label: "🏢 Company Info", fields: [
+                    { key: "companyName", label: "Company Name", type: "text", placeholder: "Acme Corp" },
+                    { key: "companyType", label: "Type", type: "text", placeholder: "SaaS, LLC, Agency, E-commerce, Corp..." },
+                    { key: "legalStructure", label: "Legal Structure", type: "text", placeholder: "LLC, S-Corp, C-Corp, Sole Prop..." },
+                    { key: "industry", label: "Industry", type: "text", placeholder: "Technology, Fashion, Finance..." },
+                    { key: "subIndustry", label: "Sub-Industry / Niche", type: "text", placeholder: "AI Marketing, Streetwear..." },
+                    { key: "website", label: "Website", type: "text", placeholder: "https://example.com" },
+                    { key: "foundedYear", label: "Founded Year", type: "text", placeholder: "2020" },
+                    { key: "headquartersCity", label: "HQ City", type: "text", placeholder: "New York" },
+                    { key: "headquartersCountry", label: "HQ Country", type: "text", placeholder: "USA" },
+                    { key: "teamSize", label: "Team Size", type: "text", placeholder: "15" },
+                    { key: "departments", label: "Departments", type: "text", placeholder: "Engineering, Marketing, Sales..." },
+                    { key: "brandVoice", label: "Brand Voice / Tone", type: "text", placeholder: "Professional, Casual, Bold..." },
+                    { key: "contentNiche", label: "Content Niche", type: "text", placeholder: "Creator economy, fitness, SaaS growth..." },
+                  ]},
+                  { key: "financial", label: "💰 Financials", fields: [
+                    { key: "monthlyRevenue", label: "Monthly Revenue", type: "text", placeholder: "$50,000" },
+                    { key: "annualRevenue", label: "Annual Revenue (CA)", type: "text", placeholder: "$600,000" },
+                    { key: "mrr", label: "MRR", type: "text", placeholder: "$50,000" },
+                    { key: "arr", label: "ARR", type: "text", placeholder: "$600,000" },
+                    { key: "avgDealSize", label: "Avg Deal Size", type: "text", placeholder: "$500" },
+                    { key: "customerCount", label: "# of Customers", type: "text", placeholder: "1200" },
+                    { key: "churnRate", label: "Churn Rate %", type: "text", placeholder: "3.5" },
+                    { key: "ltv", label: "Lifetime Value (LTV)", type: "text", placeholder: "$2,400" },
+                    { key: "cac", label: "Customer Acq. Cost (CAC)", type: "text", placeholder: "$150" },
+                    { key: "profitMargin", label: "Profit Margin %", type: "text", placeholder: "25" },
+                    { key: "grossMargin", label: "Gross Margin %", type: "text", placeholder: "70" },
+                    { key: "netIncome", label: "Net Income / Month", type: "text", placeholder: "$12,000" },
+                    { key: "operatingExpenses", label: "Operating Expenses / Month", type: "text", placeholder: "$38,000" },
+                    { key: "fundingStage", label: "Funding Stage", type: "text", placeholder: "Seed, Series A, Bootstrapped..." },
+                    { key: "totalFunding", label: "Total Funding Raised", type: "text", placeholder: "$2M" },
+                    { key: "monthlyBurn", label: "Monthly Burn Rate", type: "text", placeholder: "$30,000" },
+                    { key: "runwayMonths", label: "Runway (months)", type: "text", placeholder: "18" },
+                    { key: "debtLevel", label: "Debt Level", type: "text", placeholder: "$0 / None" },
+                  ]},
+                  { key: "social", label: "📱 Social & Marketing", fields: [
+                    { key: "username", label: "Main Username", type: "text", placeholder: "your_username" },
+                    { key: "platform", label: "Main Platform", type: "text", placeholder: "Instagram, TikTok..." },
+                    { key: "followers", label: "Followers", type: "number", placeholder: "10000" },
+                    { key: "engagementRate", label: "Engagement Rate %", type: "number", placeholder: "3.5" },
+                    { key: "avgLikes", label: "Avg Likes / Post", type: "number", placeholder: "500" },
+                    { key: "avgComments", label: "Avg Comments / Post", type: "number", placeholder: "25" },
+                    { key: "growthRate", label: "Weekly Growth %", type: "number", placeholder: "1.5" },
+                    { key: "postFrequency", label: "Posts / Week", type: "number", placeholder: "5" },
+                    { key: "posts", label: "Total Posts", type: "number", placeholder: "200" },
+                    { key: "socialPlatforms", label: "Active Platforms", type: "text", placeholder: "IG, TikTok, YouTube, Twitter..." },
+                    { key: "emailListSize", label: "Email List Size", type: "text", placeholder: "5000" },
+                    { key: "websiteTraffic", label: "Monthly Website Visitors", type: "text", placeholder: "25,000" },
+                    { key: "conversionRate", label: "Conversion Rate %", type: "text", placeholder: "2.5" },
+                    { key: "adSpend", label: "Monthly Ad Spend", type: "text", placeholder: "$5,000" },
+                    { key: "contentFrequency", label: "Content Frequency", type: "text", placeholder: "Daily, 3x/week..." },
+                  ]},
+                  { key: "product", label: "📦 Product & Market", fields: [
+                    { key: "mainProduct", label: "Main Product / Service", type: "text", placeholder: "AI content platform, coaching..." },
+                    { key: "pricingModel", label: "Pricing Model", type: "text", placeholder: "Subscription, One-time, Freemium..." },
+                    { key: "avgPrice", label: "Average Price Point", type: "text", placeholder: "$49/mo" },
+                    { key: "numberOfProducts", label: "Number of Products", type: "text", placeholder: "3" },
+                    { key: "targetMarket", label: "Target Market / ICP", type: "text", placeholder: "SMBs, Creators, Enterprise..." },
+                    { key: "usp", label: "Unique Selling Proposition", type: "text", placeholder: "What makes you different" },
+                    { key: "mainCompetitors", label: "Known Competitors", type: "text", placeholder: "Competitor A, Competitor B..." },
+                    { key: "distributionChannels", label: "Distribution Channels", type: "text", placeholder: "Direct, Affiliates, Partnerships..." },
+                  ]},
+                  { key: "goals", label: "🎯 Goals & Strategy", fields: [
+                    { key: "revenueGoal", label: "Revenue Goal", type: "text", placeholder: "$100,000/mo" },
+                    { key: "followerGoal", label: "Follower Goal", type: "text", placeholder: "50,000" },
+                    { key: "engagementGoal", label: "Engagement Goal %", type: "text", placeholder: "5" },
+                    { key: "growthTimeframe", label: "Growth Timeframe", type: "text", placeholder: "6 months, 1 year..." },
+                    { key: "topPriority", label: "Top Priority Right Now", type: "text", placeholder: "Revenue growth, brand awareness..." },
+                    { key: "biggestChallenge", label: "Biggest Challenge", type: "text", placeholder: "Customer acquisition, retention..." },
+                  ]},
+                ];
+
+                return (
+                  <div className="space-y-3 mt-3">
+                    {SECTIONS.map(section => (
+                      <div key={section.key} className="rounded-lg border border-white/[0.06] overflow-hidden">
+                        <button className="w-full flex items-center justify-between p-2.5 bg-white/[0.02] hover:bg-white/[0.04] transition-colors" onClick={() => setEnterpriseSection(enterpriseSection === section.key ? null : section.key)}>
+                          <span className="text-xs font-medium text-white/70">{section.label}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] text-white/25">{section.fields.filter(f => enterpriseProfile[f.key]).length}/{section.fields.length} filled</span>
+                            {enterpriseSection === section.key ? <ChevronUp className="h-3 w-3 text-white/30" /> : <ChevronDown className="h-3 w-3 text-white/30" />}
+                          </div>
+                        </button>
+                        {enterpriseSection === section.key && (
+                          <div className="p-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                            {section.fields.map(f => (
+                              <div key={f.key} className="space-y-1">
+                                <label className="text-[10px] text-white/40">{f.label}</label>
+                                <Input
+                                  type={f.type}
+                                  placeholder={f.placeholder}
+                                  defaultValue={enterpriseProfile[f.key] || ""}
+                                  className="crm-input h-8 text-xs"
+                                  id={`ep-${f.key}`}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     ))}
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 text-xs" onClick={() => {
+                        const allFields = SECTIONS.flatMap(s => s.fields);
+                        const profile: Record<string, any> = {};
+                        allFields.forEach(f => {
+                          const el = document.getElementById(`ep-${f.key}`) as HTMLInputElement;
+                          if (el?.value) profile[f.key] = el.value;
+                        });
+                        saveEnterpriseProfile(profile);
+                        setShowEnterpriseForm(false);
+                      }}>
+                        <CheckCircle className="h-3 w-3" /> Save Profile ({Object.keys(enterpriseProfile).length} fields)
+                      </Button>
+                      <Button size="sm" variant="ghost" className="text-xs text-white/40" onClick={() => setShowEnterpriseForm(false)}>Cancel</Button>
+                      {Object.keys(enterpriseProfile).length > 0 && (
+                        <Button size="sm" variant="ghost" className="text-xs text-red-400/60 hover:text-red-400 ml-auto" onClick={() => {
+                          saveEnterpriseProfile({});
+                          setShowEnterpriseForm(false);
+                        }}>Clear All</Button>
+                      )}
+                    </div>
                   </div>
-                  <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 text-xs" onClick={() => {
-                    const get = (k: string) => (document.getElementById(`mystat-${k}`) as HTMLInputElement)?.value || "";
-                    saveMyStats({
-                      username: get("username") || "me",
-                      followers: parseFloat(get("followers")) || 0,
-                      engagementRate: parseFloat(get("engagementRate")) || 0,
-                      avgLikes: parseFloat(get("avgLikes")) || 0,
-                      avgComments: parseFloat(get("avgComments")) || 0,
-                      growthRate: parseFloat(get("growthRate")) || 0,
-                      postFrequency: parseFloat(get("postFrequency")) || 0,
-                      posts: parseFloat(get("posts")) || 0,
-                    });
-                  }}>
-                    <CheckCircle className="h-3 w-3" /> Save My Stats
-                  </Button>
-                </div>
+                );
+              })()}
+
+              {!enterpriseProfile?.username && !showEnterpriseForm && (
+                <p className="text-xs text-white/30">Set up your enterprise profile (50 fields) to get personalized AI recommendations across all tabs · toggle "Use across all tabs" to enable</p>
               )}
-              {!myStats && !showMyStatsForm && (
-                <p className="text-xs text-white/30">Set your own stats to see how you compare in Benchmarks, charts, and get personalized action items</p>
+              {useEnterpriseContext && Object.keys(enterpriseProfile).length > 0 && !showEnterpriseForm && (
+                <div className="flex items-center gap-1.5 mt-2 p-1.5 rounded bg-emerald-400/5 border border-emerald-400/10">
+                  <CheckCircle className="h-3 w-3 text-emerald-400" />
+                  <span className="text-[10px] text-emerald-400">Enterprise data active · AI will personalize all analysis to your business</span>
+                </div>
               )}
             </CardContent>
           </Card>
