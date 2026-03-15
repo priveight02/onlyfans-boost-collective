@@ -2842,13 +2842,13 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                   });
                 };
 
-                pushEntry("Instagram", social.instagram, "hsl(330 81% 55%)", "IG", (u) => `https://www.instagram.com/${u}/`);
-                pushEntry("TikTok", social.tiktok, "hsl(347 100% 58%)", "TT", (u) => `https://www.tiktok.com/@${u}`);
+                pushEntry("Instagram", social.instagram, "hsl(330 81% 55%)", "IG", (u) => `https://www.instagram.com/${u}/`, (u) => `https://www.instagram.com/${u}/embed/`);
+                pushEntry("TikTok", social.tiktok, "hsl(347 100% 58%)", "TT", (u) => `https://www.tiktok.com/@${u}`, (u) => `https://www.tiktok.com/embed/@${u}`);
                 pushEntry("X / Twitter", social.twitter, "hsl(203 89% 53%)", "X", (u) => `https://x.com/${u}`, (u) => `https://nitter.net/${u}`);
-                pushEntry("YouTube", social.youtube, "hsl(0 100% 50%)", "YT", (u) => (/^UC[a-zA-Z0-9_-]+$/.test(u) ? `https://www.youtube.com/channel/${u}` : `https://www.youtube.com/@${u}`));
-                pushEntry("LinkedIn", social.linkedin, "hsl(210 90% 40%)", "LI", (u) => `https://www.linkedin.com/company/${u}`);
-                pushEntry("Facebook", social.facebook, "hsl(221 83% 53%)", "FB", (u) => `https://www.facebook.com/${u}`);
-                pushEntry("Pinterest", social.pinterest, "hsl(348 91% 45%)", "PI", (u) => `https://www.pinterest.com/${u}`);
+                pushEntry("YouTube", social.youtube, "hsl(0 100% 50%)", "YT", (u) => (/^UC[a-zA-Z0-9_-]+$/.test(u) ? `https://www.youtube.com/channel/${u}` : `https://www.youtube.com/@${u}`), (u) => (/^UC[a-zA-Z0-9_-]+$/.test(u) ? `https://www.youtube.com/embed?listType=user_uploads&list=${u}` : `https://www.youtube.com/embed?listType=user_uploads&list=${u}`));
+                pushEntry("LinkedIn", social.linkedin, "hsl(210 90% 40%)", "LI", (u) => `https://www.linkedin.com/company/${u}`, (u) => `https://www.linkedin.com/company/${u}`);
+                pushEntry("Facebook", social.facebook, "hsl(221 83% 53%)", "FB", (u) => `https://www.facebook.com/${u}`, (u) => `https://www.facebook.com/plugins/page.php?href=${encodeURIComponent(`https://www.facebook.com/${u}`)}&tabs=timeline&width=500&height=600`);
+                pushEntry("Pinterest", social.pinterest, "hsl(348 91% 45%)", "PI", (u) => `https://www.pinterest.com/${u}`, (u) => `https://assets.pinterest.com/ext/embed.html?id=${u}`);
                 pushEntry("Snapchat", social.snapchat, "hsl(60 100% 50%)", "SC", (u) => `https://www.snapchat.com/add/${u}`);
 
                 // If no social data found, create entries from competitor username + platform context
