@@ -3960,7 +3960,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                               </div>
                                               <Button size="sm" variant="outline"
                                                 className="w-full h-6 text-[9px] gap-1 border-primary/20 text-primary hover:bg-primary/10"
-                                                disabled={isGenerating || copyingPlan}
+                                                disabled={isGenerating || copyingPlan || aiUsageCount >= RATE_LIMIT_MAX}
                                                 onClick={async () => {
                                                   setCopyingPlanFor(comp.id);
                                                   setCopyingPlan(true);
