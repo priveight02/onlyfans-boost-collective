@@ -2069,14 +2069,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             {importingCompetitorIntel ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Target className="h-3.5 w-3.5 mr-1" />}
             Import Intel
           </Button>
-          <Button size="sm" variant="outline" onClick={handleDistributeAll} disabled={distributingAll}
-            className="border-blue-500/20 text-blue-400 text-xs h-8 hover:bg-blue-500/10">
-            {distributingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Globe className="h-3.5 w-3.5 mr-1" />}
-            Distribute All
-          </Button>
-          <Button size="sm" variant="outline" onClick={openPushToSocial}
+          <Button size="sm" variant="outline" onClick={openOrchestrate}
             className="border-emerald-500/20 text-emerald-400 text-xs h-8 hover:bg-emerald-500/10">
-            <Send className="h-3.5 w-3.5 mr-1" /> Push to Social
+            <Layers className="h-3.5 w-3.5 mr-1" /> Orchestrate to Platforms
           </Button>
           <Button size="sm" onClick={() => { resetForm(); setShowCreate(true); }} className="bg-primary text-primary-foreground text-xs h-8">
             <Plus className="h-3.5 w-3.5 mr-1" /> Create
