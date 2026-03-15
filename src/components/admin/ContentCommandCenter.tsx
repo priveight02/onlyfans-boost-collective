@@ -72,7 +72,7 @@ const PLATFORM_CONFIG: Record<string, {
     label: "Threads", supportedTypes: ["post"],
     fields: { hashtags: true },
     publishAction: "create_text_thread", captionLabel: "Thread text", maxCaption: 500,
-    color: "text-foreground", bestTimes: ["8:00 AM", "12:00 PM", "6:00 PM"],
+    color: "text-white", bestTimes: ["8:00 AM", "12:00 PM", "6:00 PM"],
     hashtagLimit: 10, mediaSpecs: "1080×1080",
   },
   onlyfans: {
@@ -1601,7 +1601,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       case "scheduled": return "border-blue-500/20 text-blue-400";
       case "draft": return "border-amber-500/20 text-amber-400";
       case "planned": return "border-purple-500/20 text-purple-400";
-      default: return "border-white/10 text-muted-foreground";
+      default: return "border-white/10 text-white/40";
     }
   };
 
@@ -1676,66 +1676,66 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <h1 className="text-lg font-bold text-white flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" /> Content Command Center
             </h1>
             <CreditCostBadge cost="3-5" variant="header" label="per content" />
           </div>
-          <p className="text-xs text-muted-foreground">Create, schedule, and publish across all platforms</p>
+          <p className="text-xs text-white/30 mt-0.5">Create, schedule, and publish across all platforms</p>
         </div>
         <div className="flex gap-1.5 flex-wrap">
           <Button size="sm" variant="outline" onClick={() => setShowContentBrief(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <FileText className="h-3.5 w-3.5 mr-1" /> Brief
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowPerformance(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <BarChart3 className="h-3.5 w-3.5 mr-1" /> Analytics
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowHeatmap(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <Flame className="h-3.5 w-3.5 mr-1" /> Heatmap
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowApprovalQueue(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Review{approvalItems.length > 0 ? ` (${approvalItems.length})` : ""}
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowRecycler(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <Repeat className="h-3.5 w-3.5 mr-1" /> Recycle
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowHashtagBank(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <Hash className="h-3.5 w-3.5 mr-1" /> Hashtags
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowCaptionLibrary(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <BookOpen className="h-3.5 w-3.5 mr-1" /> Captions
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowSeriesPlanner(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <Layers className="h-3.5 w-3.5 mr-1" /> Series
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowThreadBuilder(true)}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <Layers className="h-3.5 w-3.5 mr-1" /> Thread
           </Button>
           <Button size="sm" variant="outline" onClick={generatePillars} disabled={generatingPillars}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             {generatingPillars ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Target className="h-3.5 w-3.5 mr-1" />}
             Pillars
           </Button>
           <Button size="sm" variant="outline" onClick={generateCompetitorInspired} disabled={generatingCompetitor}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             {generatingCompetitor ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
             Inspire
           </Button>
           <Button size="sm" variant="outline" onClick={() => setShowTemplates(true)}
-            className="border-primary/20 text-primary text-xs h-8">
+            className="border-green-500/20 text-green-400 text-xs h-8 hover:text-green-300">
             <Layers className="h-3.5 w-3.5 mr-1" /> Templates
           </Button>
           <Button size="sm" variant="outline" onClick={generateTrendIdeas} disabled={generatingTrends}
-            className="border-border text-muted-foreground text-xs h-8">
+            className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             {generatingTrends ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <TrendingUp className="h-3.5 w-3.5 mr-1" />}
             Trends
           </Button>
@@ -1806,11 +1806,11 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           { title: "Platforms", value: stats.platforms, icon: Globe, color: "text-cyan-400" },
           { title: "Viral Avg", value: `${stats.avgViral}%`, icon: TrendingUp, color: "text-pink-400" },
         ].map(s => (
-          <Card key={s.title} className="bg-card/50 border-border">
+          <Card key={s.title} className="bg-white/[0.03] border-white/[0.06]">
             <CardContent className="p-3">
               <s.icon className={`h-4 w-4 ${s.color} mb-1`} />
-              <p className="text-xl font-bold text-foreground">{s.value}</p>
-              <p className="text-[10px] text-muted-foreground">{s.title}</p>
+              <p className="text-xl font-bold text-white">{s.value}</p>
+              <p className="text-[10px] text-white/40">{s.title}</p>
             </CardContent>
           </Card>
         ))}
@@ -1819,9 +1819,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       {/* Connected accounts */}
       {connections.length > 0 && (
         <div className="flex gap-2 flex-wrap items-center">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Connected:</span>
+          <span className="text-[10px] text-white/30 uppercase tracking-wider">Connected:</span>
           {connections.map(c => (
-            <Badge key={c.id} variant="outline" className="text-[10px] border-border text-muted-foreground gap-1">
+            <Badge key={c.id} variant="outline" className="text-[10px] border-white/[0.06] text-white/50 gap-1">
               {platformIcon(c.platform)} <span className="capitalize">{c.platform}</span>
               <span className="text-emerald-400">@{c.platform_username}</span>
             </Badge>
@@ -1831,15 +1831,15 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ═══ DRAFT STORAGE ═══ */}
       {draftItems.length > 0 && (
-        <Card className="bg-card/50 border-border">
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Edit2 className="h-4 w-4 text-amber-400" />
-                <h2 className="text-sm font-bold text-foreground">Draft Storage</h2>
+                <h2 className="text-sm font-bold text-white">Draft Storage</h2>
                 <Badge variant="outline" className="border-amber-500/20 text-amber-400 text-[10px]">{draftItems.length} drafts</Badge>
               </div>
-              <p className="text-[10px] text-muted-foreground">Ready to post — click to publish directly</p>
+              <p className="text-[10px] text-white/30">Ready to post · click to publish directly</p>
             </div>
             <div className="grid gap-2 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 max-h-[400px] overflow-y-auto">
               {draftItems.map(item => {
@@ -1848,7 +1848,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 const hasMedia = mediaUrls.length > 0;
                 const isVideo = hasMedia && /\.(mp4|mov|avi|webm)$/i.test(mediaUrls[0]);
                 return (
-                  <div key={item.id} className="bg-muted/20 border border-border rounded-lg overflow-hidden hover:border-primary/30 transition-all">
+                  <div key={item.id} className="bg-white/[0.02] border border-white/[0.06] rounded-lg overflow-hidden hover:border-primary/30 transition-all">
                     {/* Media thumbnail */}
                     {hasMedia && (
                       <div className="h-24 overflow-hidden relative">
@@ -1863,8 +1863,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                       </div>
                     )}
                     {!hasMedia && (
-                      <div className="h-16 bg-muted/30 flex items-center justify-center">
-                        <FileText className="h-5 w-5 text-muted-foreground/30" />
+                      <div className="h-16 bg-white/[0.02] flex items-center justify-center">
+                        <FileText className="h-5 w-5 text-white/10" />
                       </div>
                     )}
                     <div className="p-2.5 space-y-1.5">
@@ -1872,29 +1872,29 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                         <Badge variant="outline" className={`text-[8px] capitalize gap-0.5 ${platformConf(item.platform).color}`}>
                           {platformIcon(item.platform)} {item.platform}
                         </Badge>
-                        <Badge variant="outline" className="text-[8px] border-border text-muted-foreground capitalize">{item.content_type}</Badge>
+                        <Badge variant="outline" className="text-[8px] border-white/[0.06] text-white/40 capitalize">{item.content_type}</Badge>
                         {item.viral_score > 0 && (
                           <Badge variant="outline" className="text-[8px] border-pink-500/20 text-pink-400">
                             <Flame className="h-2 w-2 mr-0.5" />{item.viral_score}%
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs font-medium text-foreground truncate">{item.title}</p>
-                      {item.caption && <p className="text-[10px] text-muted-foreground truncate">{item.caption.length > 40 ? item.caption.substring(0, 40) + "…" : item.caption}</p>}
+                      <p className="text-xs font-medium text-white truncate">{item.title}</p>
+                      {item.caption && <p className="text-[10px] text-white/40 truncate">{item.caption.length > 40 ? item.caption.substring(0, 40) + "…" : item.caption}</p>}
                       {item.hashtags?.length > 0 && (
                         <div className="flex gap-0.5 flex-wrap">
                           {item.hashtags.slice(0, 4).map((h: string, i: number) => (
                             <span key={i} className="text-[8px] text-primary/50">#{h}</span>
                           ))}
-                          {item.hashtags.length > 4 && <span className="text-[8px] text-muted-foreground">+{item.hashtags.length - 4}</span>}
+                          {item.hashtags.length > 4 && <span className="text-[8px] text-white/30">+{item.hashtags.length - 4}</span>}
                         </div>
                       )}
                       {item.scheduled_at && (
-                        <p className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                        <p className="text-[9px] text-white/30 flex items-center gap-0.5">
                           <Clock className="h-2.5 w-2.5" /> {format(new Date(item.scheduled_at), "MMM d, h:mm a")}
                         </p>
                       )}
-                      <div className="flex gap-1.5 pt-1.5 border-t border-border/30">
+                      <div className="flex gap-1.5 pt-1.5 border-t border-white/[0.04]">
                         {conn ? (
                           <Button size="sm" onClick={(e) => { e.stopPropagation(); quickPublishDraft(item); }}
                             disabled={publishing}
@@ -1908,7 +1908,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                           </div>
                         )}
                         <Button size="sm" variant="outline" onClick={() => editItem(item)}
-                          className="text-[10px] h-7 border-border text-muted-foreground">
+                          className="text-[10px] h-7 border-white/[0.06] text-white/50">
                           <Edit2 className="h-2.5 w-2.5" />
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => deleteItem(item.id)}
@@ -1928,38 +1928,38 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-card/50 border border-border">
-              <TabsTrigger value="all" className="text-xs">All</TabsTrigger>
-              <TabsTrigger value="drafts" className="text-xs">Drafts</TabsTrigger>
-              <TabsTrigger value="scheduled" className="text-xs">Scheduled</TabsTrigger>
-              <TabsTrigger value="published" className="text-xs">Published</TabsTrigger>
+            <TabsList className="bg-white/[0.03] border border-white/[0.05] p-1 rounded-xl h-auto gap-1">
+              <TabsTrigger value="all" className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium transition-colors">All</TabsTrigger>
+              <TabsTrigger value="drafts" className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium transition-colors">Drafts</TabsTrigger>
+              <TabsTrigger value="scheduled" className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium transition-colors">Scheduled</TabsTrigger>
+              <TabsTrigger value="published" className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium transition-colors">Published</TabsTrigger>
             </TabsList>
           </Tabs>
           <div className="relative flex-1 min-w-[120px] max-w-[200px]">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-white/30" />
             <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search..." className="bg-card/50 border-border text-foreground text-xs h-8 pl-7" />
+              placeholder="Search..." className="bg-white/[0.03] border-white/[0.06] text-white text-xs h-8 pl-7 placeholder:text-white/20" />
           </div>
         </div>
         <div className="flex gap-2 items-center">
           <Button size="sm" variant={bulkMode ? "default" : "outline"} onClick={() => { setBulkMode(!bulkMode); setSelectedItems(new Set()); }}
-            className={`text-xs h-8 ${bulkMode ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}>
+            className={`text-xs h-8 ${bulkMode ? "bg-primary text-primary-foreground" : "border-white/[0.06] text-white/50"}`}>
             <CheckSquare className="h-3.5 w-3.5 mr-1" /> Bulk
           </Button>
           <Select value={platformFilter} onValueChange={setPlatformFilter}>
-            <SelectTrigger className="bg-card/50 border-border text-foreground h-8 text-xs w-32"><SelectValue placeholder="Platform" /></SelectTrigger>
-            <SelectContent className="bg-popover border-border">
-              <SelectItem value="all" className="text-xs">All Platforms</SelectItem>
+            <SelectTrigger className="bg-white/[0.03] border-white/[0.06] text-white h-8 text-xs w-32"><SelectValue placeholder="Platform" /></SelectTrigger>
+            <SelectContent className="bg-[hsl(222,35%,9%)] border-white/[0.08]">
+              <SelectItem value="all" className="text-xs text-white/70">All Platforms</SelectItem>
               {availablePlatforms.map(p => (
-                <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
+                <SelectItem key={p} value={p} className="text-xs capitalize text-white/70">{p}</SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <div className="flex border border-border rounded-md overflow-hidden">
-            <button onClick={() => setViewMode("grid")} className={`p-1.5 ${viewMode === "grid" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+          <div className="flex border border-white/[0.06] rounded-md overflow-hidden">
+            <button onClick={() => setViewMode("grid")} className={`p-1.5 ${viewMode === "grid" ? "bg-primary/20 text-primary" : "text-white/30 hover:text-white/60"}`}>
               <LayoutGrid className="h-3.5 w-3.5" />
             </button>
-            <button onClick={() => setViewMode("calendar")} className={`p-1.5 ${viewMode === "calendar" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+            <button onClick={() => setViewMode("calendar")} className={`p-1.5 ${viewMode === "calendar" ? "bg-primary/20 text-primary" : "text-white/30 hover:text-white/60"}`}>
               <CalendarDays className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -1970,13 +1970,13 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       {bulkMode && selectedItems.size > 0 && (
         <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-lg p-2">
           <span className="text-xs text-primary font-medium">{selectedItems.size} selected</span>
-          <Button size="sm" variant="outline" onClick={selectAll} className="text-xs h-6 border-border text-muted-foreground">
+          <Button size="sm" variant="outline" onClick={selectAll} className="text-xs h-6 border-white/[0.06] text-white/50">
             {selectedItems.size === filtered.length ? "Deselect All" : "Select All"}
           </Button>
           <div className="flex-1" />
           <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("scheduled")} className="text-xs h-6 border-blue-500/20 text-blue-400">Schedule</Button>
           <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("draft")} className="text-xs h-6 border-amber-500/20 text-amber-400">→ Draft</Button>
-          <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("archived")} className="text-xs h-6 border-border text-muted-foreground">Archive</Button>
+          <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("archived")} className="text-xs h-6 border-white/[0.06] text-white/40">Archive</Button>
           <Button size="sm" variant="outline" onClick={bulkDelete} className="text-xs h-6 border-destructive/20 text-destructive">
             <Trash2 className="h-3 w-3 mr-1" /> Delete
           </Button>
@@ -1987,11 +1987,11 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       ) : filtered.length === 0 ? (
-        <Card className="bg-card/50 border-border">
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="py-16 text-center">
-            <Calendar className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="text-muted-foreground text-sm">No content yet</p>
-            <p className="text-muted-foreground/60 text-xs mt-1">Create a draft, use a template, or auto-generate with AI</p>
+            <Calendar className="h-10 w-10 text-white/10 mx-auto mb-3" />
+            <p className="text-white/50 text-sm">No content yet</p>
+            <p className="text-white/30 text-xs mt-1">Create a draft, use a template, or auto-generate with AI</p>
           </CardContent>
         </Card>
       ) : viewMode === "calendar" ? (
@@ -2002,26 +2002,26 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             const labels: Record<string, string> = { today: "📅 Today", tomorrow: "📆 Tomorrow", thisWeek: "🗓️ This Week", later: "📋 Later", unscheduled: "📝 Unscheduled" };
             return (
               <div key={group}>
-                <h3 className="text-xs font-semibold text-foreground mb-2">{labels[group] || group}</h3>
+                <h3 className="text-xs font-semibold text-white mb-2">{labels[group] || group}</h3>
                 <div className="space-y-1.5">
                   {groupItems.map(item => (
-                    <Card key={item.id} className="bg-card/50 border-border hover:border-primary/30 transition-all cursor-pointer"
+                    <Card key={item.id} className="bg-white/[0.03] border-white/[0.06] hover:border-primary/30 transition-all cursor-pointer"
                       onClick={() => !bulkMode && setShowDetail(item)}>
                       <CardContent className="p-3 flex items-center gap-3">
                         {bulkMode && (
                           <button onClick={(e) => { e.stopPropagation(); toggleSelectItem(item.id); }}>
                             {selectedItems.has(item.id)
                               ? <CheckSquare className="h-4 w-4 text-primary" />
-                              : <Square className="h-4 w-4 text-muted-foreground" />}
+                              : <Square className="h-4 w-4 text-white/30" />}
                           </button>
                         )}
                         <Badge variant="outline" className={`${statusColor(item.status)} capitalize text-[9px]`}>{item.status}</Badge>
-                        <span className="flex-1 text-xs text-foreground truncate">{item.title}</span>
-                        <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize gap-0.5">
+                        <span className="flex-1 text-xs text-white truncate">{item.title}</span>
+                        <Badge variant="outline" className="text-[9px] border-white/[0.06] text-white/40 capitalize gap-0.5">
                           {platformIcon(item.platform)} {item.platform}
                         </Badge>
                         {item.scheduled_at && (
-                          <span className="text-[9px] text-muted-foreground">{format(new Date(item.scheduled_at), "h:mm a")}</span>
+                          <span className="text-[9px] text-white/30">{format(new Date(item.scheduled_at), "h:mm a")}</span>
                         )}
                         {item.metadata?.series && (
                           <Badge variant="outline" className="text-[9px] border-purple-500/20 text-purple-400">
@@ -2040,22 +2040,22 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
         // Grid View
         <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map(item => (
-            <Card key={item.id} className="bg-card/50 border-border hover:border-primary/30 transition-all cursor-pointer group relative"
+            <Card key={item.id} className="bg-white/[0.03] border-white/[0.06] hover:border-primary/30 transition-all cursor-pointer group relative"
               onClick={() => !bulkMode && setShowDetail(item)}>
               {bulkMode && (
                 <button onClick={(e) => { e.stopPropagation(); toggleSelectItem(item.id); }}
                   className="absolute top-2 left-2 z-10">
                   {selectedItems.has(item.id)
                     ? <CheckSquare className="h-4 w-4 text-primary" />
-                    : <Square className="h-4 w-4 text-muted-foreground" />}
+                    : <Square className="h-4 w-4 text-white/30" />}
                 </button>
               )}
               {/* Media preview */}
               {item.media_urls && Array.isArray(item.media_urls) && item.media_urls.length > 0 && (
                 <div className="h-32 overflow-hidden rounded-t-lg">
                   {/\.(mp4|mov|avi|webm)$/i.test(item.media_urls[0]) ? (
-                    <div className="w-full h-full bg-muted/30 flex items-center justify-center">
-                      <Video className="h-6 w-6 text-muted-foreground" />
+                    <div className="w-full h-full bg-white/[0.02] flex items-center justify-center">
+                      <Video className="h-6 w-6 text-white/20" />
                     </div>
                   ) : (
                     <img src={item.media_urls[0]} alt="" className="w-full h-full object-cover" />
@@ -2070,12 +2070,12 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               <CardContent className="p-3">
                 <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                   <Badge variant="outline" className={`${statusColor(item.status)} capitalize text-[9px]`}>{item.status}</Badge>
-                  <Badge variant="outline" className={`text-[9px] border-border capitalize gap-0.5 ${platformConf(item.platform).color}`}>
+                  <Badge variant="outline" className={`text-[9px] border-white/[0.06] capitalize gap-0.5 ${platformConf(item.platform).color}`}>
                     {platformIcon(item.platform)} {item.platform}
                   </Badge>
-                  <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize">{item.content_type}</Badge>
+                  <Badge variant="outline" className="text-[9px] border-white/[0.06] text-white/40 capitalize">{item.content_type}</Badge>
                   {item.viral_score > 0 && (
-                    <Badge variant="outline" className={`text-[9px] ${item.viral_score >= 70 ? "border-emerald-500/20 text-emerald-400" : "border-border text-muted-foreground"}`}>
+                    <Badge variant="outline" className={`text-[9px] ${item.viral_score >= 70 ? "border-emerald-500/20 text-emerald-400" : "border-white/[0.06] text-white/40"}`}>
                       <Flame className="h-2.5 w-2.5 mr-0.5" />{item.viral_score}%
                     </Badge>
                   )}
@@ -2085,18 +2085,18 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs font-medium text-foreground mb-1 line-clamp-1">{item.title}</p>
-                {item.caption && <p className="text-[10px] text-muted-foreground truncate mb-2">{item.caption.length > 40 ? item.caption.substring(0, 40) + "…" : item.caption}</p>}
+                <p className="text-xs font-medium text-white mb-1 line-clamp-1">{item.title}</p>
+                {item.caption && <p className="text-[10px] text-white/40 truncate mb-2">{item.caption.length > 40 ? item.caption.substring(0, 40) + "…" : item.caption}</p>}
                 {item.hashtags?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-1">
                     {(item.hashtags as string[]).slice(0, 4).map((h, i) => (
                       <span key={i} className="text-[9px] text-blue-400/60">#{h}</span>
                     ))}
-                    {item.hashtags.length > 4 && <span className="text-[9px] text-muted-foreground/40">+{item.hashtags.length - 4}</span>}
+                    {item.hashtags.length > 4 && <span className="text-[9px] text-white/20">+{item.hashtags.length - 4}</span>}
                   </div>
                 )}
                 {item.scheduled_at && (
-                  <p className="text-[9px] text-muted-foreground flex items-center gap-1 mt-1">
+                  <p className="text-[9px] text-white/30 flex items-center gap-1 mt-1">
                     <Clock className="h-2.5 w-2.5" /> {format(new Date(item.scheduled_at), "MMM d, h:mm a")}
                   </p>
                 )}
@@ -2118,9 +2118,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       {/* ========== DETAIL DIALOG ========== */}
       <Dialog open={!!showDetail} onOpenChange={v => { if (!v) setShowDetail(null); }}>
         {showDetail && (
-          <DialogContent className="bg-popover border-border text-foreground max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-foreground flex items-center gap-2">
+              <DialogTitle className="text-white flex items-center gap-2">
                 {platformIcon(showDetail.platform)} {showDetail.title}
               </DialogTitle>
             </DialogHeader>
@@ -2128,10 +2128,10 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             <div className="space-y-4">
               <div className="flex gap-2 flex-wrap">
                 <Badge variant="outline" className={`${statusColor(showDetail.status)} capitalize`}>{showDetail.status}</Badge>
-                <Badge variant="outline" className="border-border text-muted-foreground capitalize gap-1">
+                <Badge variant="outline" className="border-white/[0.06] text-white/50 capitalize gap-1">
                   {platformIcon(showDetail.platform)} {platformConf(showDetail.platform).label}
                 </Badge>
-                <Badge variant="outline" className="border-border text-muted-foreground capitalize">{showDetail.content_type}</Badge>
+                <Badge variant="outline" className="border-white/[0.06] text-white/50 capitalize">{showDetail.content_type}</Badge>
                 {showDetail.viral_score > 0 && (
                   <Badge variant="outline" className="border-purple-500/20 text-purple-400">
                     <Flame className="h-3 w-3 mr-0.5" />{showDetail.viral_score}% viral
@@ -2147,7 +2147,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               {showDetail.media_urls && Array.isArray(showDetail.media_urls) && showDetail.media_urls.length > 0 && (
                 <div className="grid gap-2" style={{ gridTemplateColumns: showDetail.media_urls.length > 1 ? "1fr 1fr" : "1fr" }}>
                   {showDetail.media_urls.map((url: string, i: number) => (
-                    <div key={i} className="rounded-lg overflow-hidden border border-border">
+                    <div key={i} className="rounded-lg overflow-hidden border border-white/[0.06]">
                       {/\.(mp4|mov|avi|webm)$/i.test(url) ? (
                         <video src={url} controls className="w-full max-h-48 object-cover" />
                       ) : (
@@ -2159,9 +2159,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               )}
 
               {showDetail.caption && (
-                <div className="bg-muted/30 rounded-lg p-3">
-                  <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">{platformConf(showDetail.platform).captionLabel}</p>
-                  <p className="text-xs text-foreground/80 whitespace-pre-wrap">{showDetail.caption}</p>
+                <div className="bg-white/[0.03] rounded-lg p-3">
+                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">{platformConf(showDetail.platform).captionLabel}</p>
+                  <p className="text-xs text-white/80 whitespace-pre-wrap">{showDetail.caption}</p>
                 </div>
               )}
 
@@ -2175,34 +2175,34 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
               <div className="grid gap-2 grid-cols-2">
                 {showDetail.metadata?.location && (
-                  <div className="bg-muted/30 rounded-lg p-2">
-                    <p className="text-[9px] text-muted-foreground">Location</p>
-                    <p className="text-xs text-foreground/70 flex items-center gap-1"><MapPin className="h-3 w-3" /> {showDetail.metadata.location}</p>
+                  <div className="bg-white/[0.03] rounded-lg p-2">
+                    <p className="text-[9px] text-white/40">Location</p>
+                    <p className="text-xs text-white/70 flex items-center gap-1"><MapPin className="h-3 w-3" /> {showDetail.metadata.location}</p>
                   </div>
                 )}
                 {showDetail.cta && (
-                  <div className="bg-muted/30 rounded-lg p-2">
-                    <p className="text-[9px] text-muted-foreground">CTA</p>
-                    <p className="text-xs text-foreground/70">{showDetail.cta}</p>
+                  <div className="bg-white/[0.03] rounded-lg p-2">
+                    <p className="text-[9px] text-white/40">CTA</p>
+                    <p className="text-xs text-white/70">{showDetail.cta}</p>
                   </div>
                 )}
                 {showDetail.scheduled_at && (
-                  <div className="bg-muted/30 rounded-lg p-2">
-                    <p className="text-[9px] text-muted-foreground">Scheduled</p>
-                    <p className="text-xs text-foreground/70 flex items-center gap-1"><Clock className="h-3 w-3" /> {format(new Date(showDetail.scheduled_at), "MMM d, h:mm a")}</p>
+                  <div className="bg-white/[0.03] rounded-lg p-2">
+                    <p className="text-[9px] text-white/40">Scheduled</p>
+                    <p className="text-xs text-white/70 flex items-center gap-1"><Clock className="h-3 w-3" /> {format(new Date(showDetail.scheduled_at), "MMM d, h:mm a")}</p>
                   </div>
                 )}
                 {showDetail.description && (
-                  <div className="bg-muted/30 rounded-lg p-2 col-span-2">
-                    <p className="text-[9px] text-muted-foreground">Notes</p>
-                    <p className="text-xs text-foreground/70">{showDetail.description}</p>
+                  <div className="bg-white/[0.03] rounded-lg p-2 col-span-2">
+                    <p className="text-[9px] text-white/40">Notes</p>
+                    <p className="text-xs text-white/70">{showDetail.description}</p>
                   </div>
                 )}
               </div>
 
               {/* Best posting times */}
-              <div className="bg-muted/30 rounded-lg p-2">
-                <p className="text-[9px] text-muted-foreground mb-1 flex items-center gap-1"><Target className="h-3 w-3" /> Best Times for {platformConf(showDetail.platform).label}</p>
+              <div className="bg-white/[0.03] rounded-lg p-2">
+                <p className="text-[9px] text-white/40 mb-1 flex items-center gap-1"><Target className="h-3 w-3" /> Best Times for {platformConf(showDetail.platform).label}</p>
                 <div className="flex gap-1.5">
                   {platformConf(showDetail.platform).bestTimes.map((t, i) => (
                     <Badge key={i} variant="outline" className="text-[9px] border-primary/20 text-primary">{t}</Badge>
@@ -2212,12 +2212,12 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
               {/* Cross-post + Recycle */}
               {showDetail.status !== "published" && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground mb-1.5 flex items-center gap-1"><Copy className="h-3 w-3" /> Cross-post to other platforms</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 mb-1.5 flex items-center gap-1"><Copy className="h-3 w-3" /> Cross-post to other platforms</p>
                   <div className="flex gap-1.5 flex-wrap">
                     {availablePlatforms.filter(p => p !== showDetail.platform).map(p => (
                       <Button key={p} size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); duplicateForPlatform(showDetail, p); }}
-                        className="text-[10px] h-6 border-border text-muted-foreground capitalize">
+                        className="text-[10px] h-6 border-white/[0.06] text-white/50 capitalize">
                         {platformIcon(p)} {p}
                       </Button>
                     ))}
@@ -2226,12 +2226,12 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               )}
 
               {showDetail.status === "published" && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground mb-1.5 flex items-center gap-1"><Repeat className="h-3 w-3" /> Recycle to another platform (AI-adapted)</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 mb-1.5 flex items-center gap-1"><Repeat className="h-3 w-3" /> Recycle to another platform (AI-adapted)</p>
                   <div className="flex gap-1.5 flex-wrap">
                     {availablePlatforms.filter(p => p !== showDetail.platform).map(p => (
                       <Button key={p} size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); recycleContent(showDetail, p); }}
-                        className="text-[10px] h-6 border-border text-muted-foreground capitalize">
+                        className="text-[10px] h-6 border-white/[0.06] text-white/50 capitalize">
                         {platformIcon(p)} {p}
                       </Button>
                     ))}
@@ -2240,7 +2240,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               )}
 
               {/* Actions */}
-              <div className="flex gap-2 pt-2 border-t border-border flex-wrap">
+              <div className="flex gap-2 pt-2 border-t border-white/[0.06] flex-wrap">
                 {showDetail.status === "draft" && (
                   <Button size="sm" variant="outline" onClick={() => moveToReview(showDetail.id)}
                     className="border-primary/20 text-primary text-xs h-9">
@@ -2255,7 +2255,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 )}
                 {showDetail.caption && (
                   <Button size="sm" variant="outline" onClick={() => saveCaptionToLibrary(showDetail.caption, showDetail.platform, showDetail.title)}
-                    className="border-border text-muted-foreground text-xs h-9">
+                    className="border-white/[0.06] text-white/50 text-xs h-9">
                     <BookOpen className="h-3 w-3 mr-1" /> Save Caption
                   </Button>
                 )}
@@ -2289,7 +2289,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   </div>
                 )}
                 <Button size="sm" variant="outline" onClick={() => { setShowDetail(null); editItem(showDetail); }}
-                  className="border-border text-muted-foreground hover:text-foreground text-xs h-9">
+                  className="border-white/[0.06] text-white/50 hover:text-white text-xs h-9">
                   <Edit2 className="h-3 w-3 mr-1" /> Edit
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => deleteItem(showDetail.id)}
@@ -2304,28 +2304,28 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== TEMPLATES DIALOG ========== */}
       <Dialog open={showTemplates} onOpenChange={setShowTemplates}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Content Templates</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Layers className="h-4 w-4 text-primary" /> Content Templates</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 max-h-[60vh] overflow-y-auto">
             {CONTENT_TEMPLATES.map((t, i) => (
-              <Card key={i} className="bg-card/50 border-border hover:border-primary/30 transition-all cursor-pointer"
+              <Card key={i} className="bg-white/[0.03] border-white/[0.06] hover:border-primary/30 transition-all cursor-pointer"
                 onClick={() => { applyTemplate(t); setShowCreate(true); }}>
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-foreground">{t.name}</p>
+                      <p className="text-sm font-medium text-white">{t.name}</p>
                       <div className="flex items-center gap-1.5 mt-0.5">
-                        <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize gap-0.5">
+                        <Badge variant="outline" className="text-[9px] border-white/[0.06] text-white/40 capitalize gap-0.5">
                           {platformIcon(t.platform)} {t.platform}
                         </Badge>
-                        <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize">{t.type}</Badge>
+                        <Badge variant="outline" className="text-[9px] border-white/[0.06] text-white/40 capitalize">{t.type}</Badge>
                       </div>
                     </div>
-                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                    <ArrowRight className="h-4 w-4 text-white/30" />
                   </div>
-                  {t.caption && <p className="text-[10px] text-muted-foreground mt-1.5 line-clamp-1">{t.caption}</p>}
+                  {t.caption && <p className="text-[10px] text-white/40 mt-1.5 line-clamp-1">{t.caption}</p>}
                 </CardContent>
               </Card>
             ))}
@@ -2335,18 +2335,18 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== TRENDS DIALOG ========== */}
       <Dialog open={showTrends} onOpenChange={setShowTrends}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Trending Content Ideas</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Trending Content Ideas</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 max-h-[60vh] overflow-y-auto">
             {trendIdeas.map((idea, i) => (
-              <Card key={i} className="bg-card/50 border-border hover:border-primary/30 transition-all">
+              <Card key={i} className="bg-white/[0.03] border-white/[0.06] hover:border-primary/30 transition-all">
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-foreground">{idea.title}</p>
+                    <p className="text-sm font-medium text-white">{idea.title}</p>
                     <div className="flex items-center gap-1.5">
-                      <Badge variant="outline" className={`text-[9px] ${idea.urgency === "now" ? "border-destructive/30 text-destructive" : idea.urgency === "this_week" ? "border-amber-500/20 text-amber-400" : "border-border text-muted-foreground"}`}>
+                      <Badge variant="outline" className={`text-[9px] ${idea.urgency === "now" ? "border-destructive/30 text-destructive" : idea.urgency === "this_week" ? "border-amber-500/20 text-amber-400" : "border-white/[0.06] text-white/40"}`}>
                         {idea.urgency === "now" ? "🔥 Now" : idea.urgency === "this_week" ? "⏰ This Week" : "♻️ Evergreen"}
                       </Badge>
                       <Badge variant="outline" className="text-[9px] border-purple-500/20 text-purple-400">
@@ -2354,10 +2354,10 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                       </Badge>
                     </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground line-clamp-2 mb-1.5">{idea.caption}</p>
+                  <p className="text-[10px] text-white/40 line-clamp-2 mb-1.5">{idea.caption}</p>
                   {idea.trend_source && <p className="text-[9px] text-blue-400/60 mb-1.5">Trend: {idea.trend_source}</p>}
                   <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize gap-0.5">
+                    <Badge variant="outline" className="text-[9px] border-white/[0.06] text-white/40 capitalize gap-0.5">
                       {platformIcon(idea.platform)} {idea.platform} · {idea.content_type}
                     </Badge>
                     <Button size="sm" onClick={() => applyTrendIdea(idea)} className="text-[10px] h-6 bg-primary text-primary-foreground">
@@ -2373,28 +2373,28 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== CONTENT RECYCLER DIALOG ========== */}
       <Dialog open={showRecycler} onOpenChange={setShowRecycler}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Repeat className="h-4 w-4 text-primary" /> Content Recycler</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Repeat className="h-4 w-4 text-primary" /> Content Recycler</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">AI repurposes your published content for other platforms with native adaptation.</p>
+          <p className="text-xs text-white/50">AI repurposes your published content for other platforms with native adaptation.</p>
           <div className="space-y-2 max-h-[55vh] overflow-y-auto">
             {publishedContent.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-8">No published content to recycle yet</p>
+              <p className="text-xs text-white/40 text-center py-8">No published content to recycle yet</p>
             ) : publishedContent.map(item => (
-              <Card key={item.id} className="bg-card/50 border-border">
+              <Card key={item.id} className="bg-white/[0.03] border-white/[0.06]">
                 <CardContent className="p-3">
                   <div className="flex items-center gap-2 mb-1.5">
                     <Badge variant="outline" className={`text-[9px] capitalize gap-0.5 ${platformConf(item.platform).color}`}>
                       {platformIcon(item.platform)} {item.platform}
                     </Badge>
-                    <span className="text-xs text-foreground flex-1 truncate">{item.title}</span>
+                    <span className="text-xs text-white flex-1 truncate">{item.title}</span>
                   </div>
-                  <p className="text-[10px] text-muted-foreground line-clamp-1 mb-2">{item.caption}</p>
+                  <p className="text-[10px] text-white/40 line-clamp-1 mb-2">{item.caption}</p>
                   <div className="flex gap-1 flex-wrap">
                     {availablePlatforms.filter(p => p !== item.platform).map(p => (
                       <Button key={p} size="sm" variant="outline" onClick={() => recycleContent(item, p)}
-                        className="text-[9px] h-5 border-border text-muted-foreground capitalize">
+                        className="text-[9px] h-5 border-white/[0.06] text-white/50 capitalize">
                         → {p}
                       </Button>
                     ))}
@@ -2408,31 +2408,31 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== SERIES PLANNER DIALOG ========== */}
       <Dialog open={showSeriesPlanner} onOpenChange={setShowSeriesPlanner}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-md">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" /> Content Series Planner</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" /> Content Series Planner</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">AI generates a multi-part content series with scheduled cadence.</p>
+          <p className="text-xs text-white/50">AI generates a multi-part content series with scheduled cadence.</p>
           <div className="space-y-3">
             <Input value={seriesTitle} onChange={e => setSeriesTitle(e.target.value)}
-              placeholder="Series topic (e.g., '5 Tips for Growth')" className="bg-card/50 border-border text-foreground text-xs" />
+              placeholder="Series topic (e.g., '5 Tips for Growth')" className="bg-white/[0.03] border-white/[0.06] text-white text-xs placeholder:text-white/20" />
             <div className="flex gap-3 items-center">
-              <span className="text-xs text-muted-foreground">Parts:</span>
+              <span className="text-xs text-white/50">Parts:</span>
               {[3, 5, 7].map(n => (
                 <Button key={n} size="sm" variant={seriesCount === n ? "default" : "outline"}
                   onClick={() => setSeriesCount(n)}
-                  className={`text-xs h-7 ${seriesCount === n ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}>
+                  className={`text-xs h-7 ${seriesCount === n ? "bg-primary text-primary-foreground" : "border-white/[0.06] text-white/50"}`}>
                   {n}
                 </Button>
               ))}
             </div>
             <Select value={formPlatform || "instagram"} onValueChange={v => setFormPlatform(v)}>
-              <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8">
+              <SelectTrigger className="bg-white/[0.03] border-white/[0.06] text-white text-xs h-8">
                 <SelectValue placeholder="Platform" />
               </SelectTrigger>
-              <SelectContent className="bg-popover border-border">
+              <SelectContent className="bg-[hsl(222,35%,9%)] border-white/[0.08]">
                 {availablePlatforms.map(p => (
-                  <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
+                  <SelectItem key={p} value={p} className="text-xs capitalize text-white/70">{p}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -2447,49 +2447,49 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== PERFORMANCE ANALYTICS DIALOG ========== */}
       <Dialog open={showPerformance} onOpenChange={setShowPerformance}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Content Analytics</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Content Analytics</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-2">
-              <div className="bg-muted/30 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-foreground">{stats.total}</p>
-                <p className="text-[10px] text-muted-foreground">Total Content</p>
+              <div className="bg-white/[0.03] rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-white">{stats.total}</p>
+                <p className="text-[10px] text-white/40">Total Content</p>
               </div>
               <div className="bg-emerald-500/10 rounded-lg p-3 text-center">
                 <p className="text-2xl font-bold text-emerald-400">{stats.published}</p>
-                <p className="text-[10px] text-muted-foreground">Published</p>
+                <p className="text-[10px] text-white/40">Published</p>
               </div>
               <div className="bg-purple-500/10 rounded-lg p-3 text-center">
                 <p className="text-2xl font-bold text-purple-400">{stats.avgViral}%</p>
-                <p className="text-[10px] text-muted-foreground">Avg Viral Score</p>
+                <p className="text-[10px] text-white/40">Avg Viral Score</p>
               </div>
             </div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Per Platform</p>
+            <p className="text-[10px] text-white/40 uppercase tracking-wider">Per Platform</p>
             {Object.entries(performanceStats).map(([platform, data]) => (
-              <div key={platform} className="flex items-center gap-3 bg-muted/30 rounded-lg p-2">
+              <div key={platform} className="flex items-center gap-3 bg-white/[0.03] rounded-lg p-2">
                 <Badge variant="outline" className={`text-[9px] capitalize gap-0.5 ${platformConf(platform).color}`}>
                   {platformIcon(platform)} {platform}
                 </Badge>
                 <div className="flex-1 grid grid-cols-3 gap-2 text-center">
                   <div>
-                    <p className="text-sm font-bold text-foreground">{data.total}</p>
-                    <p className="text-[9px] text-muted-foreground">Total</p>
+                    <p className="text-sm font-bold text-white">{data.total}</p>
+                    <p className="text-[9px] text-white/40">Total</p>
                   </div>
                   <div>
                     <p className="text-sm font-bold text-emerald-400">{data.published}</p>
-                    <p className="text-[9px] text-muted-foreground">Published</p>
+                    <p className="text-[9px] text-white/40">Published</p>
                   </div>
                   <div>
                     <p className="text-sm font-bold text-purple-400">{data.avgViral}%</p>
-                    <p className="text-[9px] text-muted-foreground">Viral Avg</p>
+                    <p className="text-[9px] text-white/40">Viral Avg</p>
                   </div>
                 </div>
               </div>
             ))}
             {Object.keys(performanceStats).length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-4">No content data yet</p>
+              <p className="text-xs text-white/40 text-center py-4">No content data yet</p>
             )}
           </div>
         </DialogContent>
@@ -2497,9 +2497,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== CREATE/EDIT DIALOG ========== */}
       <Dialog open={showCreate} onOpenChange={v => { if (!v) resetForm(); setShowCreate(v); }}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground">{editingId ? "Edit Content" : "Create Content"}</DialogTitle>
+            <DialogTitle className="text-white">{editingId ? "Edit Content" : "Create Content"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             {/* Platform selector */}
