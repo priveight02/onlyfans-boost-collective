@@ -2869,7 +2869,8 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 }
 
                 // No-key fallback screenshot only when platform refuses embedded rendering
-                const getScreenshot = (url: string) => `https://image.thum.io/get/width/1200/crop/1200/noanimate/${encodeURIComponent(url)}`;
+                // thum.io expects the target URL as a raw path segment (encoded slashes cause HTTP 400)
+                const getScreenshot = (url: string) => `https://image.thum.io/get/width/1200/crop/1200/noanimate/${url}`;
 
                 return (
                   <div key={comp.id} className="w-full" style={{ contentVisibility: "auto", contain: "layout paint style" }}>
