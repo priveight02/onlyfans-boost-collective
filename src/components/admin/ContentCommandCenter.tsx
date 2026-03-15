@@ -2447,49 +2447,49 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== PERFORMANCE ANALYTICS DIALOG ========== */}
       <Dialog open={showPerformance} onOpenChange={setShowPerformance}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Content Analytics</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Content Analytics</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="grid grid-cols-3 gap-2">
-              <div className="bg-muted/30 rounded-lg p-3 text-center">
-                <p className="text-2xl font-bold text-foreground">{stats.total}</p>
-                <p className="text-[10px] text-muted-foreground">Total Content</p>
+              <div className="bg-white/[0.03] rounded-lg p-3 text-center">
+                <p className="text-2xl font-bold text-white">{stats.total}</p>
+                <p className="text-[10px] text-white/40">Total Content</p>
               </div>
               <div className="bg-emerald-500/10 rounded-lg p-3 text-center">
                 <p className="text-2xl font-bold text-emerald-400">{stats.published}</p>
-                <p className="text-[10px] text-muted-foreground">Published</p>
+                <p className="text-[10px] text-white/40">Published</p>
               </div>
               <div className="bg-purple-500/10 rounded-lg p-3 text-center">
                 <p className="text-2xl font-bold text-purple-400">{stats.avgViral}%</p>
-                <p className="text-[10px] text-muted-foreground">Avg Viral Score</p>
+                <p className="text-[10px] text-white/40">Avg Viral Score</p>
               </div>
             </div>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Per Platform</p>
+            <p className="text-[10px] text-white/40 uppercase tracking-wider">Per Platform</p>
             {Object.entries(performanceStats).map(([platform, data]) => (
-              <div key={platform} className="flex items-center gap-3 bg-muted/30 rounded-lg p-2">
+              <div key={platform} className="flex items-center gap-3 bg-white/[0.03] rounded-lg p-2">
                 <Badge variant="outline" className={`text-[9px] capitalize gap-0.5 ${platformConf(platform).color}`}>
                   {platformIcon(platform)} {platform}
                 </Badge>
                 <div className="flex-1 grid grid-cols-3 gap-2 text-center">
                   <div>
-                    <p className="text-sm font-bold text-foreground">{data.total}</p>
-                    <p className="text-[9px] text-muted-foreground">Total</p>
+                    <p className="text-sm font-bold text-white">{data.total}</p>
+                    <p className="text-[9px] text-white/40">Total</p>
                   </div>
                   <div>
                     <p className="text-sm font-bold text-emerald-400">{data.published}</p>
-                    <p className="text-[9px] text-muted-foreground">Published</p>
+                    <p className="text-[9px] text-white/40">Published</p>
                   </div>
                   <div>
                     <p className="text-sm font-bold text-purple-400">{data.avgViral}%</p>
-                    <p className="text-[9px] text-muted-foreground">Viral Avg</p>
+                    <p className="text-[9px] text-white/40">Viral Avg</p>
                   </div>
                 </div>
               </div>
             ))}
             {Object.keys(performanceStats).length === 0 && (
-              <p className="text-xs text-muted-foreground text-center py-4">No content data yet</p>
+              <p className="text-xs text-white/40 text-center py-4">No content data yet</p>
             )}
           </div>
         </DialogContent>
