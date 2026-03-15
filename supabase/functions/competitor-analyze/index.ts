@@ -590,7 +590,7 @@ const scrapeSocialProfiles = async (
       sbUrl = `https://socialblade.com/tiktok/user/${encodeURIComponent(handle)}`;
       sbParser = parseTikTokSB;
     } else if (key === "youtube") {
-      sbUrl = `https://socialblade.com/youtube/c/${encodeURIComponent(handle)}`;
+      // YouTube needs multiple URL patterns - try them in order
       sbParser = parseYouTubeSB;
     } else if (key === "twitter") {
       sbUrl = `https://socialblade.com/twitter/user/${encodeURIComponent(handle)}`;
@@ -600,7 +600,26 @@ const scrapeSocialProfiles = async (
       sbParser = parseFacebookSB;
     }
 
-    if (sbUrl && sbParser) {
+    // YouTube multi-URL strategy
+    if (key === "youtube" && sbParser) {
+      const ytUrls = [
+        `https://socialblade.com/youtube/c/${encodeURIComponent(handle)}`,
+        `https://socialblade.com/youtube/@${encodeURIComponent(handle)}`,
+        `https://socialblade.com/youtube/user/${encodeURIComponent(handle)}`,
+      ];
+      for (const tryUrl of ytUrls) {
+        console.log(`[SCRAPE] Trying YouTube SocialBlade: ${tryUrl}`);
+        const md = await fetchJina(tryUrl);
+        if (md && md.length > 300) {
+          const parsed = sbParser(md);
+          if (parsed.followers && parsed.followers > 0) {
+            Object.assign(merged, parsed);
+            console.log(`[SCRAPE] youtube/@${handle} SocialBlade result:`, JSON.stringify(parsed));
+            break;
+          }
+        }
+      }
+    } else if (sbUrl && sbParser) {
       console.log(`[SCRAPE] Fetching SocialBlade via Jina for ${key}/@${handle}`);
       const md = await fetchJina(sbUrl);
       if (md && md.length > 200) {
