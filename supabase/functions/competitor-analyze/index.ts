@@ -1168,6 +1168,11 @@ const scrapeSocialProfiles = async (
       const l1 = await fetchInstagramGraphQL(handle);
       mergeFrom(l1, true);
     }
+    if (key === "twitter") {
+      // Dedicated multi-approach Twitter scraper (6 layers)
+      const l1 = await fetchTwitterDedicated(handle);
+      mergeFrom(l1, true);
+    }
     if (key === "github") {
       const l1 = await fetchGitHubAPI(handle);
       mergeFrom(l1, true);
