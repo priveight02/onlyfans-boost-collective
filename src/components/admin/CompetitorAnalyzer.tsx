@@ -1045,7 +1045,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-5">
-        <TabsList className="bg-white/[0.03] border border-white/[0.05] p-1 rounded-xl h-auto gap-1 flex-wrap">
+        <TabsList className="bg-[hsl(222,47%,8%)]/80 backdrop-blur-xl border border-white/[0.06] p-1.5 rounded-2xl h-auto gap-1 flex-wrap shadow-[0_8px_32px_hsl(0,0%,0%/0.4),inset_0_1px_0_hsl(0,0%,100%/0.03)]">
           {[
             { value: "tracker", icon: Crosshair, label: "Tracker" },
             { value: "benchmarks", icon: BarChart3, label: "Benchmarks" },
@@ -1060,7 +1060,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
             { value: "analysis", icon: Globe, label: "Site Analysis" },
             { value: "export", icon: Download, label: "Export Report" },
           ].map(tab => (
-            <TabsTrigger key={tab.value} value={tab.value} className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium">
+            <TabsTrigger key={tab.value} value={tab.value} className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-[hsl(217,91%,60%)]/15 data-[state=active]:to-[hsl(262,83%,58%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] data-[state=active]:shadow-[0_0_12px_hsl(217,91%,60%/0.15),inset_0_1px_0_hsl(0,0%,100%/0.06)] data-[state=active]:border data-[state=active]:border-[hsl(217,91%,60%)]/20 text-white/35 hover:text-white/50 hover:bg-white/[0.03] rounded-xl gap-1.5 text-xs font-medium transition-all duration-200">
               <tab.icon className="h-3.5 w-3.5" /> {tab.label}
             </TabsTrigger>
           ))}
