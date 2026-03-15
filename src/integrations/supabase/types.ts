@@ -1434,6 +1434,33 @@ export type Database = {
         }
         Relationships: []
       }
+      competitor_generated_plans: {
+        Row: {
+          competitor_key: string
+          created_at: string
+          entries: Json
+          id: string
+          label: string
+          user_id: string
+        }
+        Insert: {
+          competitor_key: string
+          created_at?: string
+          entries?: Json
+          id: string
+          label: string
+          user_id: string
+        }
+        Update: {
+          competitor_key?: string
+          created_at?: string
+          entries?: Json
+          id?: string
+          label?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       competitor_profiles: {
         Row: {
           avatar_url: string | null
