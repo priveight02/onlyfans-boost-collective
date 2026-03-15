@@ -1874,20 +1874,58 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
           {gapAnalysis ? (
             <div className="space-y-4">
-              {/* Overall score */}
-              <Card className="crm-card">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center border border-white/[0.06]">
-                      <span className="text-xl font-bold text-white">{gapAnalysis.overallScore || "?"}</span>
+              {/* Overall score + Opportunity Radar */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card className="crm-card">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center border border-white/[0.06]">
+                        <span className="text-xl font-bold text-white">{gapAnalysis.overallScore || "?"}</span>
+                      </div>
+                      <div>
+                        <p className="text-white font-medium">Opportunity Score</p>
+                        <p className="text-xs text-white/50">{(gapAnalysis.overallScore || 0) >= 70 ? "High opportunity · many gaps to exploit" : (gapAnalysis.overallScore || 0) >= 40 ? "Moderate opportunity · some gaps available" : "Low opportunity · market is well-covered"}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-white font-medium">Opportunity Score</p>
-                      <p className="text-xs text-white/50">{(gapAnalysis.overallScore || 0) >= 70 ? "High opportunity · many gaps to exploit" : (gapAnalysis.overallScore || 0) >= 40 ? "Moderate opportunity · some gaps available" : "Low opportunity · market is well-covered"}</p>
+                    {/* Quick gap counts */}
+                    <div className="grid grid-cols-4 gap-2">
+                      {[
+                        { label: "Hashtag", count: (gapAnalysis.hashtagGaps || []).length, color: "text-[hsl(217,91%,60%)]" },
+                        { label: "Topic", count: (gapAnalysis.topicGaps || []).length, color: "text-emerald-400" },
+                        { label: "Format", count: (gapAnalysis.contentFormatGaps || []).length, color: "text-amber-400" },
+                        { label: "Timing", count: (gapAnalysis.timingGaps || []).length, color: "text-[hsl(262,83%,58%)]" },
+                      ].map((g, i) => (
+                        <div key={i} className="text-center p-2 rounded-lg bg-white/[0.02]">
+                          <p className={`text-lg font-bold ${g.color}`}>{g.count}</p>
+                          <p className="text-[10px] text-white/40">{g.label} Gaps</p>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Opportunity Radar</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[220px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={[
+                          { metric: "Hashtags", value: Math.min((gapAnalysis.hashtagGaps || []).length * 20, 100) },
+                          { metric: "Topics", value: Math.min((gapAnalysis.topicGaps || []).length * 20, 100) },
+                          { metric: "Formats", value: Math.min((gapAnalysis.contentFormatGaps || []).length * 25, 100) },
+                          { metric: "Timing", value: Math.min((gapAnalysis.timingGaps || []).length * 25, 100) },
+                          { metric: "Overall", value: gapAnalysis.overallScore || 0 },
+                        ]}>
+                          <PolarGrid stroke="hsl(217 91% 60% / 0.08)" />
+                          <PolarAngleAxis dataKey="metric" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} />
+                          <PolarRadiusAxis tick={false} axisLine={false} />
+                          <Radar dataKey="value" stroke="hsl(217,91%,60%)" fill="hsl(217,91%,60%)" fillOpacity={0.2} strokeWidth={2} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Hashtag gaps */}
