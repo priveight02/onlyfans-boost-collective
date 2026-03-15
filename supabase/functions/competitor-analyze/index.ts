@@ -317,43 +317,46 @@ const scrapeSocialProfiles = async (
   };
 
   /** Parse SocialBlade markdown for Instagram metrics */
-  const parseInstagramSB = (md: string): typeof results[string] => {
-    const out: typeof results[string] = {};
+  const parseInstagramSB = (md: string): ScrapedMetrics => {
+    const out: ScrapedMetrics = {};
 
-    // Followers: look for the exact count (e.g. "297,845,351")
     const followersMatch = md.match(/followers\s*\n\s*([\d,]+)/i);
     if (followersMatch) out.followers = parseHumanNumber(followersMatch[1]);
 
-    // Media count
+    const followingMatch = md.match(/following\s*\n\s*([\d,]+)/i);
+    if (followingMatch) out.following = parseHumanNumber(followingMatch[1]);
+
     const mediaMatch = md.match(/media\s*count\s*\n\s*([\d,]+)/i);
     if (mediaMatch) out.posts = parseHumanNumber(mediaMatch[1]);
 
-    // Engagement rate
     const erMatch = md.match(/engagement\s*rate\s*\n\s*([\d.,]+%)/i);
     if (erMatch) {
       const er = parseFloat(erMatch[1].replace(/%/, ""));
       if (Number.isFinite(er)) out.engagementRate = er;
     }
 
-    // Average likes
     const likesMatch = md.match(/average\s*likes\s*\n\s*([\d,.\sKMBkmb]+)/i);
     if (likesMatch) {
       const v = parseHumanNumber(likesMatch[1].replace(/,/g, ""));
       if (v > 0) out.avgLikes = v;
     }
 
-    // Average comments
     const commentsMatch = md.match(/average\s*comments\s*\n\s*([\d,.\sKMBkmb]+)/i);
     if (commentsMatch) {
       const v = parseHumanNumber(commentsMatch[1].replace(/,/g, ""));
       if (v >= 0) out.avgComments = v;
     }
 
+    // Total likes from profile if available
+    const totalLikesMatch = md.match(/total\s*likes\s*\n\s*([\d,.KMBkmb]+)/i);
+    if (totalLikesMatch) out.totalLikes = parseHumanNumber(totalLikesMatch[1]);
+
     // Last 30 days: followerGain, followingGain, mediaGain
     const gains = extractLast30Row(md);
     if (gains.length >= 3) {
-      const followerGain = gains[0]; // can be negative
+      const followerGain = gains[0];
       const mediaGain = gains[2];
+      out.followerGain30d = followerGain;
       if (Number.isFinite(mediaGain) && mediaGain !== 0) {
         out.postFrequency = Math.abs((mediaGain / 30) * 7);
       }
