@@ -1561,13 +1561,20 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                           </div>
                         </div>
                         <div>
-                          <p className="text-white font-medium text-sm">@{comp.username}</p>
+                          <p className="text-white font-medium text-sm">{comp.platform === "internet" ? comp.displayName : `@${comp.username}`}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <Badge variant="outline" className="text-[10px] border-white/10 text-white/50">{comp.platform}</Badge>
+                            <Badge variant="outline" className={`text-[10px] ${comp.platform === "internet" ? "border-cyan-400/20 text-cyan-400" : "border-white/10 text-white/50"}`}>
+                              {comp.platform === "internet" ? "🌐 Website" : comp.platform}
+                            </Badge>
                             {comp.metadata?.niche && (
-                              <Badge variant="outline" className="text-[10px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]/60">{comp.metadata.niche}</Badge>
+                              <Badge variant="outline" className="text-[10px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]/60">{comp.metadata.niche || comp.metadata.industry}</Badge>
                             )}
                           </div>
+                          {comp.platform === "internet" && comp.metadata?.websiteUrl && (
+                            <a href={comp.metadata.websiteUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-[hsl(217,91%,60%)]/50 hover:text-[hsl(217,91%,60%)] flex items-center gap-0.5 mt-0.5">
+                              <ExternalLink className="h-2.5 w-2.5" /> {comp.metadata.websiteUrl.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+                            </a>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
