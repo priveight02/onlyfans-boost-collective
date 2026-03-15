@@ -3185,7 +3185,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                         <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" /> Approve
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => rejectContent(item.id)}
-                        className="flex-1 text-[10px] h-6 border-destructive/30 text-destructive">
+                        className="flex-1 text-[10px] h-6 border-red-500/30 text-red-400">
                         <X className="h-2.5 w-2.5 mr-0.5" /> Reject
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => { setShowDetail(item); setShowApprovalQueue(false); }}
