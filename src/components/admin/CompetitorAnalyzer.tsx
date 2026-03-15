@@ -1198,27 +1198,49 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
         {/* ═══ TRACKER TAB ═══ */}
         <TabsContent value="tracker" className="space-y-5">
-          <Card className="crm-card">
+           <Card className="crm-card">
             <CardContent className="p-4">
-              <div className="flex gap-3 items-end">
-                <div className="flex-1 space-y-1.5">
-                  <label className="text-xs font-medium text-white/50">Username</label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">@</span>
-                    <Input value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="competitor_username" className="crm-input pl-7" onKeyDown={e => e.key === "Enter" && !analyzing && addCompetitor()} />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
+              <div className="flex gap-3 items-end flex-wrap">
+                <div className="space-y-1.5 w-[140px]">
                   <label className="text-xs font-medium text-white/50">Platform</label>
-                  <select value={newPlatform} onChange={e => setNewPlatform(e.target.value)} className="h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
+                  <select value={newPlatform} onChange={e => setNewPlatform(e.target.value)} className="h-10 w-full px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
                     <option value="instagram">Instagram</option>
                     <option value="tiktok">TikTok</option>
                     <option value="twitter">Twitter/X</option>
                     <option value="youtube">YouTube</option>
                     <option value="threads">Threads</option>
+                    <option value="internet">🌐 Internet / Website</option>
                   </select>
                 </div>
-                <Button onClick={addCompetitor} disabled={analyzing || !newUsername.trim()} className="bg-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,55%)] text-white gap-1.5 h-10">
+
+                {newPlatform === "internet" ? (
+                  <>
+                    <div className="flex-1 min-w-[200px] space-y-1.5">
+                      <label className="text-xs font-medium text-white/50">Competitor Website URL <span className="text-red-400">*</span></label>
+                      <div className="relative">
+                        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                        <Input value={newCompetitorUrl} onChange={e => setNewCompetitorUrl(e.target.value)} placeholder="example.com or https://competitor.com" className="crm-input pl-9" onKeyDown={e => e.key === "Enter" && !analyzing && addCompetitor()} />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-[200px] space-y-1.5">
+                      <label className="text-xs font-medium text-white/50">Competitor Name / Keywords <span className="text-white/25">(helps AI identify)</span></label>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+                        <Input value={newCompetitorKeywords} onChange={e => setNewCompetitorKeywords(e.target.value)} placeholder="e.g. Acme Corp, SaaS, project management" className="crm-input pl-9" onKeyDown={e => e.key === "Enter" && !analyzing && addCompetitor()} />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 min-w-[200px] space-y-1.5">
+                    <label className="text-xs font-medium text-white/50">Username</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-sm">@</span>
+                      <Input value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="competitor_username" className="crm-input pl-7" onKeyDown={e => e.key === "Enter" && !analyzing && addCompetitor()} />
+                    </div>
+                  </div>
+                )}
+
+                <Button onClick={addCompetitor} disabled={analyzing || (newPlatform === "internet" ? !newCompetitorUrl.trim() : !newUsername.trim())} className="bg-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,55%)] text-white gap-1.5 h-10">
                   {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   {analyzing ? "Analyzing..." : "Add & Analyze"}
                 </Button>
@@ -1235,6 +1257,13 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                   </Button>
                 )}
               </div>
+              {newPlatform === "internet" && (
+                <p className="text-[10px] text-white/30 mt-2 flex items-center gap-1">
+                  <Globe className="h-3 w-3" /> Enter any competitor's website — AI will research their company, traffic, social presence, revenue, team size, and more
+                </p>
+              )}
+            </CardContent>
+          </Card>
             </CardContent>
           </Card>
 
