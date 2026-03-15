@@ -2792,29 +2792,120 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
             <Card className="crm-card"><CardContent className="p-12 text-center"><p className="text-white/50">Add competitors first</p></CardContent></Card>
           ) : (
             <>
-              {/* Content type pie charts */}
+              {/* Social Media Profile Previews */}
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                {competitors.map(comp => (
-                  <Card key={comp.id} className="crm-card">
-                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">@{comp.username} Content Mix</CardTitle></CardHeader>
-                    <CardContent>
-                      {comp.contentTypes.length > 0 ? (
-                        <div className="h-[200px]">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie data={comp.contentTypes.map(ct => ({ name: ct.type, value: ct.pct }))} cx="50%" cy="50%" innerRadius={50} outerRadius={80} dataKey="value" label={({ name, value }) => `${name} ${value}%`} labelLine={false}>
-                                {comp.contentTypes.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
-                              </Pie>
-                              <Tooltip contentStyle={chartTooltipStyle} />
-                            </PieChart>
-                          </ResponsiveContainer>
+                {competitors.map(comp => {
+                  const topType = comp.contentTypes.length > 0 ? comp.contentTypes.sort((a, b) => b.pct - a.pct)[0] : null;
+                  return (
+                    <Card key={comp.id} className="crm-card overflow-hidden">
+                      <div className="relative">
+                        {/* Phone frame header */}
+                        <div className="bg-gradient-to-b from-white/[0.04] to-transparent px-4 pt-3 pb-2">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-1.5">
+                              <div className="w-2 h-2 rounded-full bg-red-400" />
+                              <div className="w-2 h-2 rounded-full bg-amber-400" />
+                              <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                            </div>
+                            <span className="text-[9px] text-white/30 font-mono">{comp.platform === "Internet" ? "website" : comp.platform.toLowerCase()}.com</span>
+                            <div className="w-10" />
+                          </div>
+                          {/* Profile section */}
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[hsl(262,83%,58%)] to-[hsl(217,91%,60%)] flex items-center justify-center text-white font-bold text-sm shrink-0">
+                              {comp.username.charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-white truncate">@{comp.username}</p>
+                              <p className="text-[10px] text-white/40">{comp.displayName || comp.metadata?.niche || "Creator"}</p>
+                            </div>
+                            <Badge className="bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)] text-[9px] border-0 shrink-0">Follow</Badge>
+                          </div>
+                          {/* Stats row */}
+                          <div className="grid grid-cols-3 gap-2 text-center mb-3">
+                            <div>
+                              <p className="text-sm font-bold text-white">{fmtNum(comp.posts)}</p>
+                              <p className="text-[9px] text-white/40">Posts</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-white">{fmtNum(comp.followers)}</p>
+                              <p className="text-[9px] text-white/40">Followers</p>
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-white">{fmtNum(comp.following)}</p>
+                              <p className="text-[9px] text-white/40">Following</p>
+                            </div>
+                          </div>
                         </div>
-                      ) : (
-                        <p className="text-white/30 text-sm text-center py-8">No content type data · refresh to analyze</p>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
+                        {/* Content grid mockup */}
+                        <div className="px-3 pb-3">
+                          <div className="grid grid-cols-3 gap-0.5 rounded-lg overflow-hidden">
+                            {comp.contentTypes.length > 0 ? comp.contentTypes.slice(0, 6).map((ct, i) => (
+                              <div key={i} className="aspect-square relative" style={{ background: `linear-gradient(135deg, ${PIE_COLORS[i % PIE_COLORS.length]}33, ${PIE_COLORS[(i+1) % PIE_COLORS.length]}22)` }}>
+                                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                  {ct.type.toLowerCase().includes("reel") || ct.type.toLowerCase().includes("video") ? (
+                                    <Activity className="h-4 w-4 text-white/50 mb-0.5" />
+                                  ) : ct.type.toLowerCase().includes("story") ? (
+                                    <Clock className="h-4 w-4 text-white/50 mb-0.5" />
+                                  ) : (
+                                    <ImageIcon className="h-4 w-4 text-white/50 mb-0.5" />
+                                  )}
+                                  <span className="text-[8px] text-white/60 font-medium">{ct.type}</span>
+                                  <span className="text-[10px] text-white font-bold">{ct.pct}%</span>
+                                </div>
+                              </div>
+                            )) : Array.from({ length: 6 }).map((_, i) => (
+                              <div key={i} className="aspect-square bg-white/[0.02] flex items-center justify-center">
+                                <ImageIcon className="h-4 w-4 text-white/10" />
+                              </div>
+                            ))}
+                          </div>
+                          {/* Engagement bar */}
+                          <div className="mt-2 flex items-center gap-2">
+                            <div className="flex-1">
+                              <div className="flex justify-between text-[9px] mb-0.5">
+                                <span className="text-white/40">Engagement</span>
+                                <span className="text-emerald-400 font-medium">{comp.engagementRate}%</span>
+                              </div>
+                              <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                                <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400" style={{ width: `${Math.min(comp.engagementRate * 10, 100)}%` }} />
+                              </div>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex justify-between text-[9px] mb-0.5">
+                                <span className="text-white/40">Growth</span>
+                                <span className="text-[hsl(217,91%,60%)] font-medium">{comp.growthRate}%/wk</span>
+                              </div>
+                              <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                                <div className="h-full rounded-full bg-gradient-to-r from-[hsl(217,91%,60%)] to-[hsl(262,83%,58%)]" style={{ width: `${Math.min(comp.growthRate * 20, 100)}%` }} />
+                              </div>
+                            </div>
+                          </div>
+                          {/* Top hashtags as post caption preview */}
+                          {comp.topHashtags.length > 0 && (
+                            <div className="mt-2 p-2 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                              <div className="flex items-center gap-1.5 mb-1">
+                                <div className="w-4 h-4 rounded-full bg-gradient-to-br from-[hsl(262,83%,58%)] to-[hsl(217,91%,60%)] flex items-center justify-center">
+                                  <span className="text-[7px] text-white font-bold">{comp.username.charAt(0).toUpperCase()}</span>
+                                </div>
+                                <span className="text-[9px] text-white/70 font-medium">@{comp.username}</span>
+                                <span className="text-[8px] text-white/20">· {topType ? topType.type : "Post"}</span>
+                              </div>
+                              <p className="text-[9px] text-[hsl(217,91%,60%)]/70 leading-relaxed">
+                                {comp.topHashtags.slice(0, 5).map(t => `#${t}`).join(" ")}
+                              </p>
+                              <div className="flex items-center gap-3 mt-1.5 pt-1.5 border-t border-white/[0.04]">
+                                <span className="text-[8px] text-white/30 flex items-center gap-0.5"><TrendingUp className="h-2.5 w-2.5" />{fmtNum(comp.avgLikes)}</span>
+                                <span className="text-[8px] text-white/30 flex items-center gap-0.5"><Hash className="h-2.5 w-2.5" />{fmtNum(comp.avgComments)}</span>
+                                <span className="text-[8px] text-white/30 flex items-center gap-0.5"><Zap className="h-2.5 w-2.5" />{comp.postFrequency}/wk</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  );
+                })}
               </div>
 
               {/* Hashtag Overlap Matrix */}
@@ -2855,7 +2946,6 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                       <tbody>
                         {(() => {
                           const allTags = [...new Set(competitors.flatMap(c => c.topHashtags))];
-                          // Sort by usage count descending
                           return allTags
                             .map(tag => ({ tag, count: competitors.filter(c => c.topHashtags.includes(tag)).length }))
                             .sort((a, b) => b.count - a.count)
@@ -2884,25 +2974,57 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 </CardContent>
               </Card>
 
-              {/* Posting Velocity & Engagement Correlation */}
+              {/* Posting Velocity as Social Feed Comparison */}
               <Card className="crm-card">
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Posting Velocity vs Engagement Rate</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Activity className="h-4 w-4" /> Posting Velocity vs Engagement</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="h-[240px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={[
-                        ...(myStats ? [{ name: `@${myStats.username}`, frequency: myStats.postFrequency, engagement: myStats.engagementRate, isMe: true }] : []),
-                        ...competitors.map(c => ({ name: `@${c.username}`, frequency: c.postFrequency, engagement: c.engagementRate, isMe: false })),
-                      ].sort((a, b) => b.engagement - a.engagement)} barCategoryGap="20%">
-                        <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                        <YAxis yAxisId="left" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                        <YAxis yAxisId="right" orientation="right" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
-                        <Tooltip contentStyle={chartTooltipStyle} />
-                        <Bar yAxisId="left" dataKey="frequency" fill="hsl(262,83%,58%)" radius={[4, 4, 0, 0]} name="Posts/Week" opacity={0.7} />
-                        <Bar yAxisId="right" dataKey="engagement" fill="hsl(150,60%,50%)" radius={[4, 4, 0, 0]} name="Engagement %" />
-                        <Legend wrapperStyle={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                  <div className="space-y-2">
+                    {[...(myStats ? [{ ...myStats, isMe: true }] : []), ...competitors.map(c => ({ ...c, isMe: false }))]
+                      .sort((a, b) => b.engagementRate - a.engagementRate)
+                      .map((entry, i) => {
+                        const maxEng = Math.max(...competitors.map(c => c.engagementRate), myStats?.engagementRate || 0);
+                        const maxFreq = Math.max(...competitors.map(c => c.postFrequency), myStats?.postFrequency || 0);
+                        return (
+                          <div key={entry.username} className={`p-3 rounded-xl border ${entry.isMe ? "bg-emerald-400/5 border-emerald-400/20" : "bg-white/[0.02] border-white/[0.04]"}`}>
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${entry.isMe ? "bg-emerald-400/15 text-emerald-400" : "bg-gradient-to-br from-[hsl(262,83%,58%)]/20 to-[hsl(217,91%,60%)]/20 text-white/70"}`}>
+                                {i + 1}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  <span className={`text-xs font-medium ${entry.isMe ? "text-emerald-400" : "text-white/80"}`}>@{entry.username}</span>
+                                  {entry.isMe && <Badge className="bg-emerald-400/15 text-emerald-400 text-[8px] border-0">YOU</Badge>}
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div>
+                                    <div className="flex justify-between text-[9px] mb-0.5">
+                                      <span className="text-white/40">Engagement</span>
+                                      <span className="text-emerald-400 font-medium">{entry.engagementRate}%</span>
+                                    </div>
+                                    <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+                                      <div className="h-full rounded-full bg-emerald-400/60" style={{ width: `${maxEng > 0 ? (entry.engagementRate / maxEng) * 100 : 0}%` }} />
+                                    </div>
+                                  </div>
+                                  <div>
+                                    <div className="flex justify-between text-[9px] mb-0.5">
+                                      <span className="text-white/40">Posts/Week</span>
+                                      <span className="text-[hsl(262,83%,58%)] font-medium">{entry.postFrequency}</span>
+                                    </div>
+                                    <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+                                      <div className="h-full rounded-full bg-[hsl(262,83%,58%)]/60" style={{ width: `${maxFreq > 0 ? (entry.postFrequency / maxFreq) * 100 : 0}%` }} />
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-[9px] text-white/30">Efficiency</p>
+                                <p className="text-sm font-bold text-white/80">{entry.postFrequency > 0 ? (entry.engagementRate / entry.postFrequency).toFixed(2) : "0"}</p>
+                                <p className="text-[8px] text-white/30">ER/post</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
                   </div>
                   <p className="text-[10px] text-white/30 text-center mt-2">Higher frequency doesn't always mean higher engagement — find your optimal posting cadence</p>
                 </CardContent>
