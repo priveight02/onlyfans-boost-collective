@@ -892,9 +892,8 @@ Consider:
 - Content type timing (${formType === "reel" || formType === "story" ? "video content performs better in evenings" : "posts perform well mid-day"})
 
 Respond ONLY with JSON array of ISO datetime strings for the next 7 days: ["2025-01-01T14:00:00", ...]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const slots = JSON.parse(jsonMatch[0]);
+        try {
+          const slots = safeParseJSON(content);
           setSuggestedSlots(slots);
           toast.success("Smart schedule suggestions ready");
         }
