@@ -5,14 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import {
   ArrowRight, Bold, Check, Circle, Cloud, CloudOff, Copy, Diamond, Download,
-  Eraser, Grip, Italic, Layers, Link2, Loader2, MousePointer, Move, Pencil,
-  RefreshCw, RotateCcw, Redo2, Save, Search, Sparkles, Square, StickyNote,
-  Trash2, Triangle, Type, Underline, Unlink, Wand2, ZoomIn, ZoomOut,
+  Eraser, Grip, Italic, Layers, Link2, Loader2, Lock, MousePointer, Move, Pencil,
+  Redo2, RotateCcw, Save, Search, Sparkles, Square, StickyNote,
+  Trash2, Triangle, Type, Underline, Unlink, Unlock, Wand2, ZoomIn, ZoomOut, RefreshCw,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -58,18 +57,15 @@ type InteractionState =
   | { type: "drag"; anchor: Point; originPositions: Record<string, Point> }
   | { type: "resize"; elementId: string; anchor: Point; originRect: Pick<SandboxElement, "x" | "y" | "width" | "height"> };
 
-interface SandboxSnapshot {
-  elements: SandboxElement[];
-  strokes: SandboxStroke[];
-}
+interface SandboxSnapshot { elements: SandboxElement[]; strokes: SandboxStroke[]; }
 
 /* ─── Constants ─── */
-const STORAGE_KEY = "content_sandbox_state_v5";
-const MIN_ZOOM = 0.25;
-const MAX_ZOOM = 3;
+const STORAGE_KEY = "content_sandbox_state_v6";
+const MIN_ZOOM = 0.15;
+const MAX_ZOOM = 4;
 const DEFAULT_VIEWPORT: Viewport = { x: 32, y: 32, zoom: 1 };
-const MAX_UNDO = 60;
-const AUTOSAVE_MS = 3000;
+const MAX_UNDO = 80;
+const AUTOSAVE_MS = 2500;
 
 const PALETTE: Record<PaletteTone, { label: string; stroke: string; fill: string; softClass: string }> = {
   primary: { label: "Primary", stroke: "hsl(var(--primary))", fill: "hsl(var(--primary) / 0.14)", softClass: "border-primary/20 bg-primary/10 text-primary" },
@@ -88,13 +84,13 @@ const FONT_FAMILIES = [
   "Trebuchet MS, sans-serif", "Verdana, sans-serif", "Times New Roman, serif",
 ];
 
-const TOOL_ITEMS: { id: Tool; label: string; icon: any }[] = [
-  { id: "select", label: "Select", icon: MousePointer },
-  { id: "pan", label: "Pan", icon: Move },
-  { id: "pen", label: "Brush", icon: Pencil },
-  { id: "eraser", label: "Eraser", icon: Eraser },
-  { id: "text", label: "Text", icon: Type },
-  { id: "note", label: "Sticky", icon: StickyNote },
+const TOOL_ITEMS: { id: Tool; label: string; icon: any; key?: string }[] = [
+  { id: "select", label: "Select (V)", icon: MousePointer, key: "v" },
+  { id: "pan", label: "Pan (H)", icon: Move, key: "h" },
+  { id: "pen", label: "Brush (P)", icon: Pencil, key: "p" },
+  { id: "eraser", label: "Eraser (E)", icon: Eraser, key: "e" },
+  { id: "text", label: "Text (T)", icon: Type, key: "t" },
+  { id: "note", label: "Sticky (N)", icon: StickyNote, key: "n" },
   { id: "rectangle", label: "Rect", icon: Square },
   { id: "ellipse", label: "Ellipse", icon: Circle },
   { id: "triangle", label: "Tri", icon: Triangle },
@@ -108,11 +104,7 @@ const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 const center = (el: SandboxElement) => ({ x: el.x + el.width / 2, y: el.y + el.height / 2 });
 const nextZ = (els: SandboxElement[]) => (els.length ? Math.max(...els.map(e => e.z)) + 1 : 1);
 const getSource = (item: any) => (typeof item?.metadata?.source === "string" ? item.metadata.source : "");
-
-const gridPos = (i: number, cols: number) => ({
-  x: 48 + (i % cols) * 312,
-  y: 48 + Math.floor(i / cols) * 228,
-});
+const gridPos = (i: number, cols: number) => ({ x: 48 + (i % cols) * 312, y: 48 + Math.floor(i / cols) * 228 });
 
 const scenePoint = (cx: number, cy: number, board: HTMLDivElement | null, vp: Viewport): Point => {
   if (!board) return { x: 0, y: 0 };
@@ -121,10 +113,7 @@ const scenePoint = (cx: number, cy: number, board: HTMLDivElement | null, vp: Vi
 };
 
 const parseAi = (raw: unknown) => {
-  const text = typeof raw === "string" ? raw
-    : typeof raw === "object" && raw !== null && "choices" in raw
-      ? (raw as any)?.choices?.[0]?.message?.content || JSON.stringify(raw)
-      : JSON.stringify(raw ?? "");
+  const text = typeof raw === "string" ? raw : typeof raw === "object" && raw !== null && "choices" in raw ? (raw as any)?.choices?.[0]?.message?.content || JSON.stringify(raw) : JSON.stringify(raw ?? "");
   const cleaned = text.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
   const m = cleaned.match(/\{[\s\S]*\}/);
   if (m) return JSON.parse(m[0].replace(/,\s*([}\]])/g, "$1"));
@@ -144,10 +133,7 @@ const shapeSvg = (shape: ShapeKind, tone: PaletteTone) => {
 };
 
 /* ─── ElementView ─── */
-const ElementView = memo(function ElementView({
-  el, selected, linkSrc,
-  onDown, onResize, onTextChange,
-}: {
+const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, onResize, onTextChange }: {
   el: SandboxElement; selected: boolean; linkSrc: boolean;
   onDown: (e: React.PointerEvent, el: SandboxElement) => void;
   onResize: (e: React.PointerEvent, el: SandboxElement) => void;
@@ -158,12 +144,12 @@ const ElementView = memo(function ElementView({
 
   return (
     <div
-      className={cn("absolute will-change-transform", selected && "ring-2 ring-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.2)]", linkSrc && "ring-2 ring-accent")}
-      style={{ left: el.x, top: el.y, width: el.width, height: el.height, zIndex: el.z }}
+      className={cn("absolute", selected && "ring-2 ring-primary shadow-[0_0_0_1px_hsl(var(--primary)/0.2)]", linkSrc && "ring-2 ring-accent")}
+      style={{ left: el.x, top: el.y, width: el.width, height: el.height, zIndex: el.z, willChange: "transform" }}
       onPointerDown={e => onDown(e, el)}
     >
       {el.kind === "content" && el.data && (
-        <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card/95 shadow-sm backdrop-blur-sm">
+        <div className="flex h-full flex-col overflow-hidden rounded-2xl border border-border bg-card/95 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border px-3 py-2">
             <Grip className="h-3.5 w-3.5 text-muted-foreground" />
             <Badge variant="outline" className="border-border text-[10px] capitalize text-muted-foreground">{el.data.platform}</Badge>
@@ -190,46 +176,31 @@ const ElementView = memo(function ElementView({
       )}
 
       {el.kind === "note" && (
-        <div className="flex h-full flex-col rounded-2xl border p-3 shadow-sm backdrop-blur-sm" style={{ borderColor: pal.stroke, backgroundColor: pal.fill }}>
+        <div className="flex h-full flex-col rounded-2xl border p-3 shadow-sm" style={{ borderColor: pal.stroke, backgroundColor: pal.fill }}>
           <div className="mb-2 flex items-center gap-2">
             <Grip className="h-3.5 w-3.5" style={{ color: pal.stroke }} />
             <span className="text-[10px] font-semibold uppercase tracking-[0.2em]" style={{ color: pal.stroke }}>Note</span>
           </div>
-          <textarea
-            value={el.text || ""}
-            onPointerDown={e => e.stopPropagation()}
-            onChange={e => onTextChange(el.id, e.target.value)}
-            className="h-full w-full resize-none border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-            placeholder="Sketch an idea..."
-          />
+          <textarea value={el.text || ""} onPointerDown={e => e.stopPropagation()} onChange={e => onTextChange(el.id, e.target.value)}
+            className="h-full w-full resize-none border-0 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground" placeholder="Sketch an idea..." />
         </div>
       )}
 
       {el.kind === "text" && (
         <div className="flex h-full items-start rounded-xl border border-dashed border-border bg-background/70 p-3 shadow-sm">
-          <div
-            contentEditable suppressContentEditableWarning
-            onPointerDown={e => e.stopPropagation()}
+          <div contentEditable suppressContentEditableWarning onPointerDown={e => e.stopPropagation()}
             onBlur={e => onTextChange(el.id, e.currentTarget.textContent || "")}
             className="w-full whitespace-pre-wrap break-words text-foreground outline-none"
-            style={{
-              color: pal.stroke,
-              fontSize: el.fontSize || 16,
-              fontFamily: el.fontFamily || "Inter, sans-serif",
-              fontWeight: el.fontWeight || "normal",
-              fontStyle: el.fontStyle || "normal",
-              textDecoration: el.textDecoration || "none",
-            }}
+            style={{ color: pal.stroke, fontSize: el.fontSize || 16, fontFamily: el.fontFamily || "Inter, sans-serif", fontWeight: el.fontWeight || "normal", fontStyle: el.fontStyle || "normal", textDecoration: el.textDecoration || "none" }}
           >{el.text || "New text"}</div>
         </div>
       )}
 
       {el.kind === "shape" && el.shape && (
-        <div className="h-full rounded-2xl border border-border bg-background/60 p-2 backdrop-blur-sm">{shapeSvg(el.shape, el.tone)}</div>
+        <div className="h-full rounded-2xl border border-border bg-background/60 p-2">{shapeSvg(el.shape, el.tone)}</div>
       )}
 
       {el.groupId && <div className="absolute -top-2 -right-2 h-4 w-4 rounded-full bg-accent border border-accent-foreground" title="Grouped" />}
-
       <button type="button" aria-label="Resize" className="absolute bottom-1 right-1 h-4 w-4 rounded-full border border-border bg-background shadow-sm" onPointerDown={e => onResize(e as any, el)} />
     </div>
   );
@@ -240,10 +211,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const isMobile = useIsMobile();
   const boardRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const interactionRef = useRef<InteractionState | null>(null);
   const elsRef = useRef<SandboxElement[]>([]);
   const selRef = useRef<Set<string>>(new Set());
   const vpRef = useRef<Viewport>(DEFAULT_VIEWPORT);
+  const rafRef = useRef<number>(0);
 
   const [elements, setElements] = useState<SandboxElement[]>([]);
   const [strokes, setStrokes] = useState<SandboxStroke[]>([]);
@@ -266,42 +239,41 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [fontSize, setFontSize] = useState(16);
   const [fontFamily, setFontFamily] = useState("Inter, sans-serif");
+  const [locked, setLocked] = useState(true);
+  const [zoomSpeed, setZoomSpeed] = useState(1);
 
-  // Undo/Redo stacks
+  // Undo/Redo
   const undoStack = useRef<SandboxSnapshot[]>([]);
   const redoStack = useRef<SandboxSnapshot[]>([]);
+  const strokesRef = useRef(strokes);
+  useEffect(() => { strokesRef.current = strokes; }, [strokes]);
 
   const pushUndo = useCallback(() => {
-    undoStack.current.push({ elements: clone(elsRef.current), strokes: clone(strokes) });
+    undoStack.current.push({ elements: clone(elsRef.current), strokes: clone(strokesRef.current) });
     if (undoStack.current.length > MAX_UNDO) undoStack.current.shift();
     redoStack.current = [];
     setDirty(true);
-  }, [strokes]);
+  }, []);
 
   const undo = useCallback(() => {
-    if (undoStack.current.length === 0) return;
-    redoStack.current.push({ elements: clone(elsRef.current), strokes: clone(strokes) });
-    const snap = undoStack.current.pop()!;
-    setElements(snap.elements);
-    setStrokes(snap.strokes);
-    setDirty(true);
-  }, [strokes]);
+    if (!undoStack.current.length) return;
+    redoStack.current.push({ elements: clone(elsRef.current), strokes: clone(strokesRef.current) });
+    const s = undoStack.current.pop()!;
+    setElements(s.elements); setStrokes(s.strokes); setDirty(true);
+  }, []);
 
   const redo = useCallback(() => {
-    if (redoStack.current.length === 0) return;
-    undoStack.current.push({ elements: clone(elsRef.current), strokes: clone(strokes) });
-    const snap = redoStack.current.pop()!;
-    setElements(snap.elements);
-    setStrokes(snap.strokes);
-    setDirty(true);
-  }, [strokes]);
+    if (!redoStack.current.length) return;
+    undoStack.current.push({ elements: clone(elsRef.current), strokes: clone(strokesRef.current) });
+    const s = redoStack.current.pop()!;
+    setElements(s.elements); setStrokes(s.strokes); setDirty(true);
+  }, []);
 
   // Persistence
   const save = useCallback(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 5, elements: elsRef.current, strokes }));
-    setDirty(false);
-    setLastSaved(new Date());
-  }, [strokes]);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 6, elements: elsRef.current, strokes: strokesRef.current }));
+    setDirty(false); setLastSaved(new Date());
+  }, []);
 
   useEffect(() => {
     try {
@@ -311,10 +283,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       setElements(Array.isArray(p?.elements) ? p.elements : []);
       setStrokes(Array.isArray(p?.strokes) ? p.strokes : []);
       setLastSaved(new Date());
-    } catch { /* ignore */ }
+    } catch { /* noop */ }
   }, []);
 
-  // Autosave
   useEffect(() => {
     if (!dirty) return;
     const t = setTimeout(() => save(), AUTOSAVE_MS);
@@ -325,6 +296,24 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   useEffect(() => { elsRef.current = elements; }, [elements]);
   useEffect(() => { selRef.current = selectedIds; }, [selectedIds]);
   useEffect(() => { vpRef.current = viewport; }, [viewport]);
+
+  // Lock scroll when sandbox is active
+  useEffect(() => {
+    if (!locked) return;
+    const el = wrapperRef.current;
+    if (!el) return;
+    // Scroll into view on mount
+    el.scrollIntoView({ block: "start", behavior: "smooth" });
+    const prevent = (e: Event) => {
+      // Prevent page scroll while locked
+      const tgt = e.target as HTMLElement;
+      if (tgt.closest("[data-sandbox-board]") || tgt.closest("[data-sandbox-wrapper]")) {
+        // handled by our wheel handler
+      }
+    };
+    document.body.style.overflow = locked ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [locked]);
 
   const ordered = useMemo(() => [...elements].sort((a, b) => a.z - b.z), [elements]);
   const primaryId = useMemo(() => Array.from(selectedIds)[0] || null, [selectedIds]);
@@ -343,7 +332,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     });
   }, [importMode, importQuery, items]);
 
-  /* ─── Canvas drawing ─── */
+  /* ─── Canvas drawing (RAF batched) ─── */
   const drawScene = useCallback(() => {
     const board = boardRef.current, canvas = canvasRef.current;
     if (!board || !canvas) return;
@@ -356,15 +345,16 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, rect.width, rect.height);
     ctx.save();
-    ctx.translate(viewport.x, viewport.y);
-    ctx.scale(viewport.zoom, viewport.zoom);
+    const vp = vpRef.current;
+    ctx.translate(vp.x, vp.y);
+    ctx.scale(vp.zoom, vp.zoom);
 
-    // Draw links
-    const lookup = new Map(elements.map(e => [e.id, e]));
-    ordered.forEach(el => {
-      el.links.forEach(tid => {
+    // Links
+    const lookup = new Map(elsRef.current.map(e => [e.id, e]));
+    for (const el of elsRef.current) {
+      for (const tid of el.links) {
         const t = lookup.get(tid);
-        if (!t) return;
+        if (!t) continue;
         const f = center(el), to = center(t);
         ctx.beginPath(); ctx.strokeStyle = "hsl(var(--primary) / 0.4)"; ctx.lineWidth = 2; ctx.setLineDash([8, 6]);
         ctx.moveTo(f.x, f.y); ctx.lineTo(to.x, to.y); ctx.stroke(); ctx.setLineDash([]);
@@ -374,12 +364,13 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         ctx.lineTo(to.x - hl * Math.cos(a - Math.PI / 6), to.y - hl * Math.sin(a - Math.PI / 6));
         ctx.lineTo(to.x - hl * Math.cos(a + Math.PI / 6), to.y - hl * Math.sin(a + Math.PI / 6));
         ctx.closePath(); ctx.fill();
-      });
-    });
+      }
+    }
 
-    // Draw strokes
-    const allStrokes = [...strokes, ...(draftStroke ? [draftStroke] : [])];
-    for (const s of allStrokes) {
+    // Strokes
+    const ds = draftStroke;
+    const all = ds ? [...strokesRef.current, ds] : strokesRef.current;
+    for (const s of all) {
       if (s.points.length < 2) continue;
       ctx.beginPath(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = s.size;
       ctx.globalCompositeOperation = s.tool === "eraser" ? "destination-out" : "source-over";
@@ -390,13 +381,19 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       ctx.globalCompositeOperation = "source-over";
     }
     ctx.restore();
-  }, [draftStroke, elements, ordered, strokes, viewport]);
+  }, [draftStroke]);
 
-  useEffect(() => { drawScene(); }, [drawScene]);
+  // RAF-batched redraw
+  useEffect(() => {
+    cancelAnimationFrame(rafRef.current);
+    rafRef.current = requestAnimationFrame(drawScene);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [drawScene, elements, strokes, viewport]);
+
   useEffect(() => {
     const board = boardRef.current;
     if (!board) return;
-    const obs = new ResizeObserver(() => drawScene());
+    const obs = new ResizeObserver(() => { cancelAnimationFrame(rafRef.current); rafRef.current = requestAnimationFrame(drawScene); });
     obs.observe(board);
     return () => obs.disconnect();
   }, [drawScene]);
@@ -459,17 +456,13 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, [pushUndo]);
 
   const clearBoard = useCallback(() => {
-    if (!confirm("⚠️ Clear the ENTIRE sandbox board? This will remove all elements and ink strokes. This action can be undone with Ctrl+Z.")) return;
+    if (!confirm("⚠️ Clear the ENTIRE sandbox board? All elements and strokes will be removed. (Ctrl+Z to undo)")) return;
     pushUndo();
-    setElements([]);
-    setStrokes([]);
-    setSelectedIds(new Set());
-    setLinkSourceId(null);
+    setElements([]); setStrokes([]); setSelectedIds(new Set()); setLinkSourceId(null);
   }, [pushUndo]);
 
   const clearInk = useCallback(() => { pushUndo(); setStrokes([]); }, [pushUndo]);
 
-  // Group / Attach elements
   const groupSelected = useCallback(() => {
     const ids = Array.from(selRef.current);
     if (ids.length < 2) { toast.info("Select 2+ elements to group"); return; }
@@ -524,8 +517,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       }).eq("id", primaryEl.data.id).select().single();
       if (error) throw error;
       setElements(p => p.map(e => e.id === primaryEl.id ? { ...e, data, annotation: data.description || primaryEl.annotation } : e));
-      onRefresh();
-      toast.success("Saved back to Content");
+      onRefresh(); toast.success("Saved back to Content");
     } catch (err: any) { toast.error(err.message || "Save failed"); }
     finally { setSavingBack(false); }
   }, [onRefresh, primaryEl]);
@@ -556,13 +548,11 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       pushUndo();
 
       const { data: newItem, error: ie } = await supabase.from("content_calendar").insert({
-        title: evolved.title || "Evolved concept",
-        caption: evolved.caption || "",
+        title: evolved.title || "Evolved concept", caption: evolved.caption || "",
         platform: (evolved.platform || evolverPlatform || "instagram").toLowerCase(),
         content_type: evolved.content_type || "post",
         hashtags: Array.isArray(evolved.hashtags) ? evolved.hashtags.map((t: string) => t.replace(/^#/, "")) : [],
-        status: "draft",
-        viral_score: Number(evolved.viral_score || 82),
+        status: "draft", viral_score: Number(evolved.viral_score || 82),
         description: evolved.evolution_notes || "Created inside Sandbox Evolver",
         metadata: { source: "sandbox_evolver", evolved_from: sel.map(e => e.sourceItemId || e.id), sandbox_prompt: evolverPrompt || null, hook: evolved.hook, cta: evolved.cta, angle: evolved.angle },
       }).select().single();
@@ -587,7 +577,6 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   /* ─── Pointer handlers ─── */
   const startDrag = useCallback((el: SandboxElement, cx: number, cy: number) => {
     const pt = scenePoint(cx, cy, boardRef.current, vpRef.current);
-    // If element is in a group, select all group members
     let ids = selRef.current.has(el.id) ? Array.from(selRef.current) : [el.id];
     if (el.groupId) {
       const groupEls = elsRef.current.filter(e => e.groupId === el.groupId).map(e => e.id);
@@ -666,7 +655,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     return () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
   }, [pushUndo]);
 
-  const zoom = useCallback((nz: number, cx?: number, cy?: number) => {
+  // Zoom helper
+  const zoomTo = useCallback((nz: number, cx?: number, cy?: number) => {
     const board = boardRef.current;
     if (!board) return;
     const r = board.getBoundingClientRect();
@@ -676,34 +666,47 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     setViewport({ zoom: z, x: ax - r.left - pt.x * z, y: ay - r.top - pt.y * z });
   }, []);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
+  // Mouse wheel = zoom (not scroll), speed adjustable
+  const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault();
-    if (e.ctrlKey || e.metaKey) { zoom(vpRef.current.zoom + (e.deltaY > 0 ? -0.1 : 0.1), e.clientX, e.clientY); return; }
-    setViewport(p => ({ ...p, x: p.x - e.deltaX, y: p.y - e.deltaY }));
-  }, [zoom]);
+    e.stopPropagation();
+    const delta = -e.deltaY * 0.001 * zoomSpeed;
+    zoomTo(vpRef.current.zoom * (1 + delta * 3), e.clientX, e.clientY);
+  }, [zoomTo, zoomSpeed]);
+
+  // Attach native wheel listener with { passive: false } to prevent scroll
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+    board.addEventListener("wheel", handleWheel, { passive: false });
+    return () => board.removeEventListener("wheel", handleWheel);
+  }, [handleWheel]);
 
   /* ─── Keyboard shortcuts ─── */
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tgt = e.target as HTMLElement;
-      if (tgt && ["INPUT", "TEXTAREA"].includes(tgt.tagName)) return;
+      if (tgt && ["INPUT", "TEXTAREA", "SELECT"].includes(tgt.tagName)) return;
       if (tgt?.isContentEditable) return;
 
-      // Ctrl+Z undo, Ctrl+Shift+Z redo, Ctrl+Y redo
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && e.shiftKey) { e.preventDefault(); redo(); return; }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); return; }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); save(); toast.success("Sandbox saved"); return; }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "d") { e.preventDefault(); duplicateSel(); return; }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "g") { e.preventDefault(); groupSelected(); return; }
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "0") { e.preventDefault(); setViewport(DEFAULT_VIEWPORT); return; }
-      if (e.key === "Delete" || e.key === "Backspace") { e.preventDefault(); deleteSel(); }
-      if (e.key === "v") setTool("select");
-      if (e.key === "h") setTool("pan");
-      if (e.key === "p") setTool("pen");
-      if (e.key === "e") setTool("eraser");
-      if (e.key === "n") setTool("note");
-      if (e.key === "t") setTool("text");
+      const ctrl = e.metaKey || e.ctrlKey;
+      const k = e.key.toLowerCase();
+
+      // Ctrl+Z undo, Ctrl+Shift+Z / Ctrl+Y redo
+      if (ctrl && k === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
+      if (ctrl && k === "z" && e.shiftKey) { e.preventDefault(); redo(); return; }
+      if (ctrl && k === "y") { e.preventDefault(); redo(); return; }
+      if (ctrl && k === "s") { e.preventDefault(); save(); toast.success("Sandbox saved"); return; }
+      if (ctrl && k === "d") { e.preventDefault(); duplicateSel(); return; }
+      if (ctrl && k === "g") { e.preventDefault(); groupSelected(); return; }
+      if (ctrl && k === "0") { e.preventDefault(); setViewport(DEFAULT_VIEWPORT); return; }
+      if (e.key === "Delete" || (e.key === "Backspace" && !tgt?.isContentEditable)) { e.preventDefault(); deleteSel(); }
+      if (k === "v" && !ctrl) setTool("select");
+      if (k === "h" && !ctrl) setTool("pan");
+      if (k === "p" && !ctrl) setTool("pen");
+      if (k === "e" && !ctrl) setTool("eraser");
+      if (k === "n" && !ctrl) setTool("note");
+      if (k === "t" && !ctrl) setTool("text");
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -713,8 +716,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   /* ─── Render ─── */
   return (
-    <div className="flex flex-col gap-2">
-      {/* Toolbar */}
+    <div ref={wrapperRef} data-sandbox-wrapper className="flex flex-col gap-2 w-full">
+      {/* Top Toolbar */}
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-card/80 p-2 backdrop-blur-sm">
         {/* Tools */}
         <div className="flex flex-wrap items-center gap-0.5 rounded-xl border border-border bg-background/60 p-0.5">
@@ -737,11 +740,11 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
         {/* Sizes for pen/eraser */}
         {(tool === "pen" || tool === "eraser") && (
-          <div className="flex items-center gap-0.5 rounded-xl border border-border bg-background/60 px-1.5 py-1 overflow-x-auto max-w-[280px]">
+          <div className="flex items-center gap-0.5 rounded-xl border border-border bg-background/60 px-1.5 py-1 overflow-x-auto max-w-[320px]">
             {activeSizes.map(s => (
               <button key={s} type="button" onClick={() => setBrushSize(s)}
                 className={cn("rounded-full shrink-0 transition-transform", brushSize === s ? "scale-110 ring-2 ring-primary bg-primary" : "bg-muted-foreground/40")}
-                style={{ width: clamp(s * 1.2, 8, 32), height: clamp(s * 1.2, 8, 32) }} />
+                style={{ width: clamp(s * 1.2, 8, 36), height: clamp(s * 1.2, 8, 36) }} />
             ))}
           </div>
         )}
@@ -772,16 +775,29 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           </div>
         )}
 
-        {/* Zoom + actions */}
+        {/* Zoom + Lock + Save */}
         <div className="ml-auto flex items-center gap-1">
-          <Button size="sm" variant="ghost" onClick={() => zoom(viewport.zoom - 0.15)} className="h-7 w-7 p-0 text-muted-foreground"><ZoomOut className="h-3.5 w-3.5" /></Button>
+          <Button size="sm" variant="ghost" onClick={() => zoomTo(viewport.zoom - 0.15)} className="h-7 w-7 p-0 text-muted-foreground"><ZoomOut className="h-3.5 w-3.5" /></Button>
           <span className="min-w-[40px] text-center text-[11px] text-muted-foreground">{Math.round(viewport.zoom * 100)}%</span>
-          <Button size="sm" variant="ghost" onClick={() => zoom(viewport.zoom + 0.15)} className="h-7 w-7 p-0 text-muted-foreground"><ZoomIn className="h-3.5 w-3.5" /></Button>
-          <div className="mx-1 h-4 w-px bg-border" />
+          <Button size="sm" variant="ghost" onClick={() => zoomTo(viewport.zoom + 0.15)} className="h-7 w-7 p-0 text-muted-foreground"><ZoomIn className="h-3.5 w-3.5" /></Button>
+          <div className="mx-0.5 h-4 w-px bg-border" />
+          {/* Zoom speed */}
+          <div className="flex items-center gap-1 rounded-lg border border-border bg-background/60 px-1.5 py-0.5">
+            <span className="text-[9px] text-muted-foreground">Speed</span>
+            <input type="number" min={0.1} max={5} step={0.1} value={zoomSpeed}
+              onChange={e => setZoomSpeed(clamp(Number(e.target.value) || 1, 0.1, 5))}
+              className="h-5 w-10 rounded border-0 bg-transparent text-center text-[10px] text-foreground outline-none" />
+          </div>
+          <div className="mx-0.5 h-4 w-px bg-border" />
+          <Button size="sm" variant="ghost" onClick={() => setLocked(p => !p)} title={locked ? "Unlock scroll" : "Lock to sandbox"} className={cn("h-7 gap-1 px-1.5 text-[10px]", locked ? "text-primary" : "text-muted-foreground")}>
+            {locked ? <Lock className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+            {locked ? "Locked" : "Unlocked"}
+          </Button>
+          <div className="mx-0.5 h-4 w-px bg-border" />
           <Button size="sm" variant="ghost" onClick={undo} title="Undo (Ctrl+Z)" className="h-7 w-7 p-0 text-muted-foreground"><RotateCcw className="h-3.5 w-3.5" /></Button>
           <Button size="sm" variant="ghost" onClick={redo} title="Redo (Ctrl+Shift+Z)" className="h-7 w-7 p-0 text-muted-foreground"><Redo2 className="h-3.5 w-3.5" /></Button>
-          <div className="mx-1 h-4 w-px bg-border" />
-          <Button size="sm" variant="ghost" onClick={() => save()} title="Save (Ctrl+S)" className="h-7 p-1 text-muted-foreground">
+          <div className="mx-0.5 h-4 w-px bg-border" />
+          <Button size="sm" variant="ghost" onClick={() => { save(); toast.success("Saved"); }} title="Save (Ctrl+S)" className="h-7 p-1 text-muted-foreground">
             <Save className="mr-1 h-3.5 w-3.5" /><span className="text-[10px]">Save</span>
           </Button>
           {dirty ? <CloudOff className="h-3.5 w-3.5 text-destructive" /> : <Cloud className="h-3.5 w-3.5 text-accent" />}
@@ -824,11 +840,11 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         {/* Board */}
         <div
           ref={boardRef}
+          data-sandbox-board
           onPointerDown={handleBoardDown}
-          onWheel={handleWheel}
           className="relative flex-1 overflow-hidden rounded-2xl border border-border bg-background touch-none"
           style={{
-            height: isMobile ? "70vh" : "78vh",
+            height: isMobile ? "75vh" : "80vh",
             cursor: tool === "pan" ? "grab" : tool === "pen" ? "crosshair" : tool === "eraser" ? "cell" : tool === "text" ? "text" : "default",
             backgroundImage: "radial-gradient(circle at 1px 1px, hsl(var(--border)) 1px, transparent 0)",
             backgroundSize: `${32 * viewport.zoom}px ${32 * viewport.zoom}px`,
@@ -848,7 +864,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 <Layers className="mx-auto mb-3 h-10 w-10 text-primary" />
                 <h3 className="text-lg font-semibold text-foreground">Sandbox</h3>
                 <p className="mt-2 text-sm text-muted-foreground">Import content, draw, annotate, connect ideas, evolve with AI.</p>
-                <p className="mt-1 text-xs text-muted-foreground">Ctrl+Z undo • Ctrl+Shift+Z redo • Ctrl+S save • Ctrl+G group</p>
+                <p className="mt-1 text-xs text-muted-foreground">Ctrl+Z undo • Ctrl+Shift+Z redo • Ctrl+S save • Scroll to zoom</p>
               </div>
             </div>
           )}
@@ -873,7 +889,6 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                       <div className="rounded-lg border border-border bg-background/60 px-2 py-1">w {Math.round(primaryEl.width)}</div>
                       <div className="rounded-lg border border-border bg-background/60 px-2 py-1">h {Math.round(primaryEl.height)}</div>
                     </div>
-
                     {primaryEl.kind === "content" && primaryEl.data && (
                       <>
                         <Input value={primaryEl.data.title || ""} onChange={e => updateContentField("title", e.target.value)} className="border-border bg-background/70 text-xs" placeholder="Title" />
@@ -884,7 +899,6 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                         </Button>
                       </>
                     )}
-
                     {(primaryEl.kind === "note" || primaryEl.kind === "text") && (
                       <>
                         <Textarea value={primaryEl.text || ""} onChange={e => { pushUndo(); updateEl(primaryEl.id, { text: e.target.value }); }} className="min-h-[100px] border-border bg-background/70 text-xs" />
@@ -900,7 +914,6 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                         )}
                       </>
                     )}
-
                     {primaryEl.kind === "shape" && (
                       <div className="flex flex-wrap gap-1">
                         {(Object.keys(PALETTE) as PaletteTone[]).map(t => (
@@ -947,22 +960,20 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
             ))}
             <Button size="sm" onClick={() => importItems(importable)} className="h-7 bg-primary text-primary-foreground text-[11px]"><Check className="mr-1 h-3 w-3" />Import ({importable.length})</Button>
           </div>
-          <div className="grid gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
-            {importable.map(item => {
-              const on = importedSrcIds.has(item.id);
-              return (
-                <button key={item.id} type="button" onClick={() => importItems([item])}
-                  className={cn("rounded-xl border p-3 text-left transition-colors", on ? "border-primary/20 bg-primary/10" : "border-border bg-background/60 hover:border-primary/30")}>
-                  <div className="mb-2 flex flex-wrap items-center gap-1">
-                    <Badge variant="outline" className="border-border text-[9px] capitalize text-muted-foreground">{item.platform}</Badge>
-                    <Badge variant="outline" className={cn("text-[9px] capitalize", item.status === "draft" ? "border-primary/20 text-primary" : item.status === "published" ? "border-accent/20 text-accent" : "border-border text-muted-foreground")}>{item.status}</Badge>
-                    {on && <Badge variant="outline" className="border-primary/20 bg-primary/10 text-primary text-[9px]">On board</Badge>}
-                  </div>
-                  <p className="text-xs font-semibold text-foreground line-clamp-2">{item.title}</p>
-                  <p className="mt-1 line-clamp-3 text-[11px] text-muted-foreground">{item.caption || item.description || "—"}</p>
-                </button>
-              );
-            })}
+          <div className="grid gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3" style={{ maxHeight: "60vh" }}>
+            {importable.slice(0, 60).map(item => (
+              <button key={item.id} type="button" onClick={() => importItems([item])}
+                className={cn("flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors",
+                  importedSrcIds.has(item.id) ? "border-accent/30 bg-accent/5" : "border-border bg-background/60 hover:border-primary/30 hover:bg-primary/5")}>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="border-border text-[10px] capitalize text-muted-foreground">{item.platform}</Badge>
+                  <Badge variant="outline" className="border-border text-[10px] capitalize text-muted-foreground">{item.status}</Badge>
+                  {importedSrcIds.has(item.id) && <Check className="h-3 w-3 text-accent" />}
+                </div>
+                <span className="line-clamp-2 text-xs font-medium text-foreground">{item.title}</span>
+                <span className="line-clamp-2 text-[10px] text-muted-foreground">{item.caption || "No caption"}</span>
+              </button>
+            ))}
           </div>
         </DialogContent>
       </Dialog>
