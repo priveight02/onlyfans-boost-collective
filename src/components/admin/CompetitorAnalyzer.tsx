@@ -919,6 +919,77 @@ RULES:
     });
   };
 
+  // ─── AI Site Intelligence Generator ─────────────────
+  const generateSiteInsights = async () => {
+    if (!scrapeResult) return;
+    await performAction("site_scrape", async () => {
+      setSiteInsightsLoading(true);
+      try {
+        const dp = scrapeResult.detectedPlatforms || {};
+        const cm = scrapeResult.curatedMetrics || {};
+        const social = scrapeResult.socialMediaPresence || {};
+        const url = scrapeResult.finalUrl || scrapeResult.url || scrapeUrl;
+        const socialPlatforms = Object.keys(social).filter(k => (social[k] || []).length > 0);
+        const techCategories = Object.keys(dp).filter(k => Array.isArray(dp[k]) && dp[k].length > 0);
+        const techList = techCategories.map(k => `${k}: ${dp[k].map((p: any) => p.name).join(", ")}`).join("; ");
+        const seoData = cm.seoSignals?.items || {};
+        const contentData = cm.contentQuality?.items || {};
+        const monetization = cm.monetization?.items || {};
+        const secHeaders = scrapeResult.securityHeaders || {};
+        const headings = scrapeResult.headings || {};
+        const links = scrapeResult.links || {};
+        const financialContext = financialData ? `\nFINANCIAL DATA AVAILABLE: Revenue: ${financialData.revenueEstimates?.monthlyRevenue || "unknown"}, Traffic: ${financialData.trafficEstimates?.monthlyVisitors || "unknown"}, Business Model: ${financialData.companyOverview?.businessModel || "unknown"}, Stage: ${financialData.companyOverview?.stage || "unknown"}, Growth indicators: ${JSON.stringify(financialData.growthIndicators || {}).slice(0, 200)}` : "";
+
+        const prompt = `You are an elite competitive intelligence analyst. Analyze this website and produce a comprehensive competitive intelligence report.
+
+WEBSITE: ${url}
+SOCIAL PRESENCE: ${socialPlatforms.join(", ") || "none detected"}
+TECH STACK: ${techList || "minimal detection"}
+SEO SIGNALS: ${JSON.stringify(seoData).slice(0, 300)}
+CONTENT: ${JSON.stringify(contentData).slice(0, 300)}
+MONETIZATION: ${JSON.stringify(monetization).slice(0, 200)}
+SECURITY HEADERS: ${Object.entries(secHeaders).map(([k, v]) => `${k}: ${v ? "✓" : "✗"}`).join(", ")}
+HEADINGS: H1s: ${headings.h1Count || 0}, H2s: ${headings.h2Count || 0}, H3s: ${headings.h3Count || 0}
+LINKS: Internal: ${links.totalInternal || 0}, External: ${links.totalExternal || 0}
+${financialContext}
+${scrapeResult.analysisKeywords ? `BUSINESS KEYWORDS: ${scrapeResult.analysisKeywords}` : ""}
+
+Return ONLY valid JSON:
+{
+  "competitiveScore": <0-100 overall competitive strength>,
+  "executiveSummary": "3-4 sentence summary of competitive position",
+  "marketPosition": {"tier": "leader/challenger/follower/niche", "reasoning": "why"},
+  "strengthsToFear": [{"strength": "what they do well", "impact": "how it affects you", "counterStrategy": "how to counter it"}],
+  "weaknessesToExploit": [{"weakness": "their vulnerability", "severity": "critical/high/medium", "exploitStrategy": "exactly how to exploit this", "expectedGain": "what you gain"}],
+  "seoOpportunities": [{"opportunity": "specific SEO gap", "difficulty": "easy/medium/hard", "action": "exact steps to take", "expectedTraffic": "potential traffic gain"}],
+  "contentStrategy": {"dominantTopics": ["topic1"], "contentGaps": ["gap1"], "recommendedFormats": ["format1"], "postingCadence": "recommended frequency", "toneAnalysis": "their brand tone"},
+  "marketingIntel": {"channels": ["channel1"], "adPresence": "description of their ad activity", "emailStrategy": "what they do with email", "funnelType": "their funnel approach", "ctas": ["call to action patterns"]},
+  "techAdvantages": [{"tech": "technology name", "advantage": "what it gives them", "alternative": "what you should use instead or additionally"}],
+  "pricingIntel": {"strategy": "their pricing approach", "vulnerabilities": ["pricing weakness"], "recommendations": ["how to price against them"]},
+  "audienceIntel": {"primaryDemo": "who they target", "secondaryDemo": "secondary audience", "underservedSegments": ["segment they miss"], "acquisitionChannels": ["how they get users"]},
+  "weeklyHitList": [{"day": "Monday", "action": "specific action to take", "target": "what metric this impacts", "priority": "high/medium"}],
+  "immediateActions": [{"action": "do this right now", "timeNeeded": "15min", "impact": "high", "details": "step by step"}],
+  "longTermPlays": [{"play": "strategic move", "timeline": "2-4 weeks", "investment": "time/money needed", "expectedROI": "expected return"}],
+  "riskAssessment": {"overallThreat": "low/medium/high/critical", "biggestRisk": "main risk", "mitigation": "how to mitigate"}
+}
+
+Be extremely specific. Use actual data from the analysis. No generic advice. Every recommendation must be actionable with clear steps.`;
+
+        const aiReply = await callAI(prompt, "site_intelligence");
+        const parsed = parseJSON(aiReply);
+        setSiteInsights(parsed);
+        await refreshAIUsage();
+        toast.success("Competitive intelligence report generated");
+        return true;
+      } catch (err: any) {
+        toast.error(err?.message || "Site intelligence failed");
+        throw err;
+      } finally {
+        setSiteInsightsLoading(false);
+      }
+    });
+  };
+
   const selected = competitors.find(c => c.id === selectedCompetitor) || competitors[0] || null;
   const getThreatColor = (score: number) => score >= 70 ? "text-red-400" : score >= 40 ? "text-amber-400" : "text-emerald-400";
   const getThreatBg = (score: number) => score >= 70 ? "bg-red-400/10 border-red-400/20" : score >= 40 ? "bg-amber-400/10 border-amber-400/20" : "bg-emerald-400/10 border-emerald-400/20";
