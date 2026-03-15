@@ -1970,13 +1970,13 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       {bulkMode && selectedItems.size > 0 && (
         <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-lg p-2">
           <span className="text-xs text-primary font-medium">{selectedItems.size} selected</span>
-          <Button size="sm" variant="outline" onClick={selectAll} className="text-xs h-6 border-border text-muted-foreground">
+          <Button size="sm" variant="outline" onClick={selectAll} className="text-xs h-6 border-white/[0.06] text-white/50">
             {selectedItems.size === filtered.length ? "Deselect All" : "Select All"}
           </Button>
           <div className="flex-1" />
           <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("scheduled")} className="text-xs h-6 border-blue-500/20 text-blue-400">Schedule</Button>
           <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("draft")} className="text-xs h-6 border-amber-500/20 text-amber-400">→ Draft</Button>
-          <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("archived")} className="text-xs h-6 border-border text-muted-foreground">Archive</Button>
+          <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("archived")} className="text-xs h-6 border-white/[0.06] text-white/40">Archive</Button>
           <Button size="sm" variant="outline" onClick={bulkDelete} className="text-xs h-6 border-destructive/20 text-destructive">
             <Trash2 className="h-3 w-3 mr-1" /> Delete
           </Button>
