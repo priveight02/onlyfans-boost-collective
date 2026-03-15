@@ -250,6 +250,125 @@ const financialTool = {
   },
 };
 
+/** Batch-scrape social profile URLs to extract real follower counts from HTML meta/og tags */
+const scrapeSocialProfiles = async (socialPresence: Record<string, string | null>): Promise<Record<string, { followers?: number; description?: string; posts?: number }>> => {
+  const results: Record<string, { followers?: number; description?: string; posts?: number }> = {};
+  const platformUrls: Record<string, string> = {};
+
+  for (const [platform, handle] of Object.entries(socialPresence || {})) {
+    if (!handle) continue;
+    const h = handle.replace(/^@/, "").trim();
+    if (!h) continue;
+    const p = platform.toLowerCase();
+    if (p.includes("instagram")) platformUrls["instagram"] = `https://www.instagram.com/${h}/`;
+    else if (p.includes("tiktok")) platformUrls["tiktok"] = `https://www.tiktok.com/@${h}`;
+    else if (p.includes("twitter") || p === "x") platformUrls["twitter"] = `https://nitter.net/${h}`;
+    else if (p.includes("youtube")) platformUrls["youtube"] = `https://www.youtube.com/@${h}`;
+    else if (p.includes("linkedin")) platformUrls["linkedin"] = `https://www.linkedin.com/company/${h}/`;
+    else if (p.includes("facebook")) platformUrls["facebook"] = `https://www.facebook.com/${h}/`;
+  }
+
+  // Batch fetch all in parallel with short timeout
+  const fetchWithTimeout = async (url: string, ms = 8000): Promise<string> => {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), ms);
+    try {
+      const res = await fetch(url, {
+        signal: ctrl.signal,
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; ContentAnalyzer/1.0)" },
+      });
+      if (!res.ok) return "";
+      const text = await res.text();
+      return text.slice(0, 50000); // Cap at 50KB
+    } catch { return ""; }
+    finally { clearTimeout(tid); }
+  };
+
+  const entries = Object.entries(platformUrls);
+  const htmlResults = await Promise.allSettled(entries.map(([, url]) => fetchWithTimeout(url)));
+
+  for (let i = 0; i < entries.length; i++) {
+    const [plat] = entries[i];
+    const result = htmlResults[i];
+    if (result.status !== "fulfilled" || !result.value) continue;
+    const html = result.value;
+
+    // Extract follower counts from meta tags and common patterns
+    let followers: number | undefined;
+    let description: string | undefined;
+    let posts: number | undefined;
+
+    // og:description often has follower info
+    const ogDesc = html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]+)"/i)?.[1] ||
+                   html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:description"/i)?.[1] || "";
+    if (ogDesc) description = ogDesc;
+
+    // Try to extract follower numbers from description/title
+    const followerPatterns = [
+      /(\d[\d,. ]*[KMBkmb]?)\s*(?:Followers|followers|subscribers|Subscribers|Abonnenten)/i,
+      /(?:Followers|followers|subscribers)[\s:]*(\d[\d,. ]*[KMBkmb]?)/i,
+    ];
+    const textToSearch = ogDesc + " " + (html.match(/<title[^>]*>([^<]+)</i)?.[1] || "");
+    for (const pat of followerPatterns) {
+      const m = textToSearch.match(pat);
+      if (m) {
+        followers = parseHumanNumber(m[1]);
+        break;
+      }
+    }
+
+    // Nitter-specific extraction for Twitter
+    if (plat === "twitter") {
+      const nitterFollowers = html.match(/followers"[^>]*>[\s]*<span[^>]*>([\d,]+)/i)?.[1];
+      if (nitterFollowers) followers = parseInt(nitterFollowers.replace(/,/g, ""));
+      const nitterPosts = html.match(/tweets"[^>]*>[\s]*<span[^>]*>([\d,]+)/i)?.[1];
+      if (nitterPosts) posts = parseInt(nitterPosts.replace(/,/g, ""));
+    }
+
+    // YouTube subscriber extraction
+    if (plat === "youtube") {
+      const subMatch = html.match(/(\d[\d,.]*[KMBkmb]?)\s*subscribers/i);
+      if (subMatch) followers = parseHumanNumber(subMatch[1]);
+    }
+
+    // TikTok follower extraction from meta
+    if (plat === "tiktok") {
+      const tikFollowers = html.match(/(\d[\d,.]*[KMBkmb]?)\s*Followers/i);
+      if (tikFollowers) followers = parseHumanNumber(tikFollowers[1]);
+      const tikLikes = html.match(/(\d[\d,.]*[KMBkmb]?)\s*Likes/i);
+    }
+
+    // Instagram from og:description "X Followers, Y Following, Z Posts"
+    if (plat === "instagram") {
+      const igMatch = ogDesc.match(/([\d,.]+[KMBkmb]?)\s*Followers/i);
+      if (igMatch) followers = parseHumanNumber(igMatch[1]);
+      const igPosts = ogDesc.match(/([\d,.]+)\s*Posts/i);
+      if (igPosts) posts = parseInt(igPosts[1].replace(/,/g, ""));
+    }
+
+    if (followers || description || posts) {
+      results[plat] = { ...(followers ? { followers } : {}), ...(description ? { description } : {}), ...(posts ? { posts } : {}) };
+    }
+  }
+
+  console.log("[SCRAPE] Social profile results:", JSON.stringify(results));
+  return results;
+};
+
+/** Parse human-readable numbers like 2.2M, 380K, 9,579,516 */
+const parseHumanNumber = (s: string): number => {
+  if (!s) return 0;
+  const cleaned = s.replace(/[\s,]/g, "").trim();
+  const multiplierMatch = cleaned.match(/^([\d.]+)([KMBkmb]?)$/);
+  if (!multiplierMatch) return parseInt(cleaned) || 0;
+  const num = parseFloat(multiplierMatch[1]);
+  const suffix = multiplierMatch[2].toUpperCase();
+  if (suffix === "K") return Math.round(num * 1000);
+  if (suffix === "M") return Math.round(num * 1000000);
+  if (suffix === "B") return Math.round(num * 1000000000);
+  return Math.round(num);
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -438,6 +557,67 @@ STRICT OUTPUT RULES:
       } else {
         // Non-financial: single pass with tool calling for reliable structured output
         const isInternetAnalysis = prompt.includes("WEBSITE:") || prompt.includes("competitor business/website");
+
+        // === BATCH SCRAPE social profiles if this is an internet analysis ===
+        let scrapedData: Record<string, { followers?: number; description?: string; posts?: number }> = {};
+        let scrapeContext = "";
+        if (isInternetAnalysis) {
+          try {
+            // Extract social handles from the prompt to pre-scrape
+            // First do a quick AI pass to get social handles, then scrape them
+            // But we can also try to extract from the website directly
+            const websiteMatch = prompt.match(/WEBSITE:\s*(\S+)/i);
+            if (websiteMatch) {
+              const siteUrl = websiteMatch[1].startsWith("http") ? websiteMatch[1] : `https://${websiteMatch[1]}`;
+              try {
+                const siteCtrl = new AbortController();
+                const siteTid = setTimeout(() => siteCtrl.abort(), 6000);
+                const siteRes = await fetch(siteUrl, {
+                  signal: siteCtrl.signal,
+                  headers: { "User-Agent": "Mozilla/5.0 (compatible; ContentAnalyzer/1.0)" },
+                });
+                clearTimeout(siteTid);
+                if (siteRes.ok) {
+                  const siteHtml = (await siteRes.text()).slice(0, 80000);
+                  // Extract social links from the website
+                  const socialHandles: Record<string, string> = {};
+                  const igMatch = siteHtml.match(/instagram\.com\/([a-zA-Z0-9_.]+)/i);
+                  if (igMatch) socialHandles.instagram = igMatch[1];
+                  const ttMatch = siteHtml.match(/tiktok\.com\/@?([a-zA-Z0-9_.]+)/i);
+                  if (ttMatch) socialHandles.tiktok = ttMatch[1];
+                  const twMatch = siteHtml.match(/(?:twitter|x)\.com\/([a-zA-Z0-9_]+)/i);
+                  if (twMatch) socialHandles.twitter = twMatch[1];
+                  const ytMatch = siteHtml.match(/youtube\.com\/(?:@|channel\/|c\/)?([a-zA-Z0-9_-]+)/i);
+                  if (ytMatch) socialHandles.youtube = ytMatch[1];
+                  const liMatch = siteHtml.match(/linkedin\.com\/company\/([a-zA-Z0-9_-]+)/i);
+                  if (liMatch) socialHandles.linkedin = liMatch[1];
+                  const fbMatch = siteHtml.match(/facebook\.com\/([a-zA-Z0-9_.]+)/i);
+                  if (fbMatch) socialHandles.facebook = fbMatch[1];
+
+                  if (Object.keys(socialHandles).length > 0) {
+                    console.log("[SCRAPE] Found social handles on website:", JSON.stringify(socialHandles));
+                    scrapedData = await scrapeSocialProfiles(socialHandles);
+                    if (Object.keys(scrapedData).length > 0) {
+                      scrapeContext = "\n\n=== VERIFIED SOCIAL PROFILE DATA (scraped directly from platform pages - USE THESE EXACT NUMBERS for platformMetrics) ===\n";
+                      for (const [plat, data] of Object.entries(scrapedData)) {
+                        const parts = [];
+                        if (data.followers) parts.push(`followers: ${data.followers.toLocaleString()}`);
+                        if (data.posts) parts.push(`posts: ${data.posts.toLocaleString()}`);
+                        if (data.description) parts.push(`bio: "${data.description.slice(0, 200)}"`);
+                        scrapeContext += `${plat}: ${parts.join(", ")}\n`;
+                      }
+                      scrapeContext += "=== END VERIFIED DATA ===\nIMPORTANT: Use the above VERIFIED follower counts in platformMetrics. Do NOT make up different numbers.\n";
+                    }
+                  }
+                }
+              } catch (e) {
+                console.log("[SCRAPE] Website fetch failed:", e);
+              }
+            }
+          } catch (e) {
+            console.log("[SCRAPE] Social scrape error:", e);
+          }
+        }
         
         const competitorTool = {
           type: "function" as const,
@@ -468,12 +648,12 @@ STRICT OUTPUT RULES:
                 },
                 platformMetrics: {
                   type: "object",
-                  description: "Per-platform follower counts, engagement rates, avg likes, post frequency, and growth rates. Keys are platform names (instagram, tiktok, twitter, youtube, linkedin, facebook). Only include platforms the competitor actually uses.",
+                  description: "Per-platform follower counts, engagement rates, avg likes, post frequency, and growth rates. Keys are platform names (instagram, tiktok, twitter, youtube, linkedin, facebook). Only include platforms the competitor actually uses. EACH PLATFORM MUST HAVE DIFFERENT NUMBERS.",
                   additionalProperties: {
                     type: "object",
                     properties: {
-                      followers: { type: "number", description: "Follower/subscriber count on this specific platform" },
-                      engagementRate: { type: "number", description: "Average engagement rate on this platform as percentage" },
+                      followers: { type: "number", description: "Follower/subscriber count on this specific platform - MUST be different per platform" },
+                      engagementRate: { type: "number", description: "Average engagement rate on this platform as percentage - varies by platform" },
                       avgLikes: { type: "number", description: "Average likes per post on this platform" },
                       avgComments: { type: "number", description: "Average comments per post on this platform" },
                       postFrequency: { type: "number", description: "Posts per week on this platform" },
@@ -514,18 +694,30 @@ STRICT OUTPUT RULES:
                 audienceDemo: { type: "string" },
                 contentStyle: { type: "string" },
               },
-              required: ["displayName", "followers", "engagementRate", "score", "topHashtags", "contentTypes"],
+              required: ["displayName", "followers", "engagementRate", "score", "topHashtags", "contentTypes", "platformMetrics"],
             },
           },
         };
 
+        const enrichedPrompt = prompt + scrapeContext;
+
         const bodyPayload: any = {
           model: "google/gemini-2.5-flash",
-          temperature: 0.3,
-          max_tokens: 3000,
+          temperature: 0.2,
+          max_tokens: 4000,
           messages: [
-            { role: "system", content: "You are a social media analytics and competitive intelligence expert. Return accurate, realistic data. IMPORTANT: For the platformMetrics field, provide REAL per-platform follower counts, engagement rates, average likes, post frequency, and growth rates for EACH social platform the competitor uses. Each platform should have DIFFERENT metrics reflecting its actual performance - do NOT copy the same numbers across platforms. Research actual follower counts per platform." },
-            { role: "user", content: prompt },
+            { role: "system", content: `You are a social media analytics and competitive intelligence expert. Return accurate, realistic data based on your latest knowledge.
+
+CRITICAL RULES FOR platformMetrics:
+1. EACH platform MUST have DIFFERENT follower counts, engagement rates, and posting frequencies
+2. If verified scraped data is provided, use those EXACT follower counts
+3. Instagram typically has higher followers than TikTok for established brands, but TikTok often has higher engagement rates
+4. YouTube subscribers are usually lower than Instagram followers for most brands
+5. LinkedIn followers are typically the lowest for B2C brands
+6. Twitter/X followers vary but engagement rates are usually lower (0.1-0.5%)
+7. NEVER copy the same numbers across platforms - each platform has genuinely different metrics
+8. The top-level "followers" field should be the SUM of all individual platform followers` },
+            { role: "user", content: enrichedPrompt },
           ],
         };
 
@@ -557,6 +749,21 @@ STRICT OUTPUT RULES:
         if (toolCall?.function?.arguments) {
           try {
             const parsed = JSON.parse(toolCall.function.arguments);
+            // Merge scraped data into platformMetrics to override AI hallucinations
+            if (Object.keys(scrapedData).length > 0 && parsed.platformMetrics) {
+              for (const [plat, scraped] of Object.entries(scrapedData)) {
+                if (parsed.platformMetrics[plat] && scraped.followers) {
+                  parsed.platformMetrics[plat].followers = scraped.followers;
+                }
+                if (parsed.platformMetrics[plat] && scraped.posts) {
+                  parsed.platformMetrics[plat].posts = scraped.posts;
+                }
+              }
+              // Recalculate total followers from platform metrics
+              const totalFromPlatforms = Object.values(parsed.platformMetrics as Record<string, any>)
+                .reduce((sum: number, pm: any) => sum + (pm.followers || 0), 0);
+              if (totalFromPlatforms > 0) parsed.followers = totalFromPlatforms;
+            }
             reply = JSON.stringify(parsed);
           } catch {
             reply = toolCall.function.arguments;
