@@ -991,6 +991,42 @@ const IGContentCenter = ({ selectedAccount: parentAccount, onNavigateToConnect, 
         post={previewPost}
         profile={profile}
       />
+
+      {/* Import from Content Plan Dialog */}
+      <Dialog open={showImportPlan} onOpenChange={setShowImportPlan}>
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <FileDown className="h-4 w-4 text-emerald-400" /> Import from Content Plan
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-white/50">{planItems.length} Instagram items available in your Content Plan</p>
+          <div className="flex items-center justify-between rounded-lg border border-white/8 bg-white/3 p-2.5">
+            <div>
+              <p className="text-[11px] text-white/80 font-medium">Auto-Schedule at Best Times</p>
+              <p className="text-[10px] text-white/35">9 AM, 12 PM, 3 PM, 7 PM</p>
+            </div>
+            <Switch checked={importAutoSchedule} onCheckedChange={setImportAutoSchedule} />
+          </div>
+          <div className="space-y-1.5 max-h-[40vh] overflow-y-auto">
+            {planItems.map(item => (
+              <div key={item.id} className="flex items-center gap-2 rounded-lg border border-white/6 bg-white/3 p-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] text-white/80 font-medium truncate">{item.title}</p>
+                  <p className="text-[10px] text-white/35 truncate">{item.caption || "No caption"}</p>
+                </div>
+                <Badge variant="outline" className="text-[8px] border-white/10 text-white/40 capitalize shrink-0">{item.status}</Badge>
+              </div>
+            ))}
+            {planItems.length === 0 && <p className="text-xs text-white/30 text-center py-6">No Instagram content in your plan. Create content in the Content tab first.</p>}
+          </div>
+          <Button onClick={importFromPlan} disabled={importingPlan || planItems.length === 0}
+            className="w-full bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/25">
+            {importingPlan ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+            {importingPlan ? "Importing..." : `Import ${planItems.length} items`}
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
