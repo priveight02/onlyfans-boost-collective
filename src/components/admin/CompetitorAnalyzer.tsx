@@ -1849,6 +1849,169 @@ RULES:
             </Card>
           )}
         </TabsContent>
+
+        {/* ═══ BATTLE PLAN TAB ═══ */}
+        <TabsContent value="battleplan" className="space-y-5">
+          <Card className="crm-card">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-white/80 flex items-center gap-2"><Crown className="h-4 w-4 text-amber-400" /> Weekly Battle Plan</h3>
+                  <p className="text-xs text-white/40 mt-0.5">AI generates a specific weekly action plan to outperform all tracked competitors</p>
+                </div>
+                <Button disabled={battlePlanLoading || competitors.length === 0} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 text-white gap-1.5"
+                  onClick={async () => {
+                    setBattlePlanLoading(true);
+                    try {
+                      const compData = competitors.map(c => `@${c.username}(${c.platform}): ${c.followers} followers, ${c.engagementRate}% ER, ${c.growthRate}% growth, ${c.postFrequency} posts/wk, niche: ${c.metadata?.niche || "?"}, hashtags: ${c.topHashtags.slice(0,3).join(",")}`).join("\n");
+                      const myContext = myStats ? `\nMY STATS: @${myStats.username}: ${myStats.followers} followers, ${myStats.engagementRate}% ER, ${myStats.avgLikes} avg likes, ${myStats.growthRate}% growth, ${myStats.postFrequency} posts/wk` : "\nNo user stats provided.";
+                      const aiReply = await callAI(`Create an aggressive weekly battle plan to outperform these competitors.${myContext}\n\nCOMPETITORS:\n${compData}\n\nReturn ONLY valid JSON:\n{"weeklyGoals":[{"goal":"specific measurable goal","metric":"what to track","target":"specific number"}],"dailyActions":{"monday":{"morning":"action","afternoon":"action","evening":"action"},"tuesday":{"morning":"action","afternoon":"action","evening":"action"},"wednesday":{"morning":"action","afternoon":"action","evening":"action"},"thursday":{"morning":"action","afternoon":"action","evening":"action"},"friday":{"morning":"action","afternoon":"action","evening":"action"},"saturday":{"morning":"action","evening":"action"},"sunday":{"morning":"action","evening":"action"}},"quickWins":[{"action":"do this now","impact":"high/medium","timeNeeded":"30min","expectedResult":"what happens"}],"competitorVulnerabilities":[{"competitor":"@name","vulnerability":"their weakness","exploit":"how to exploit it","priority":"high/medium/low"}],"growthHacks":[{"hack":"specific tactic","difficulty":"easy/medium/hard","expectedGrowth":"X% or X followers","timeline":"1 week"}],"contentBombs":[{"title":"viral content idea","format":"reel/carousel/story","hook":"opening hook","whyViral":"reason it would go viral"}]}`);
+                      setBattlePlan(parseJSON(aiReply));
+                      toast.success("Battle plan generated!");
+                    } catch (err: any) { toast.error(err?.message || "Failed"); }
+                    finally { setBattlePlanLoading(false); }
+                  }}>
+                  {battlePlanLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Flame className="h-4 w-4" />}
+                  {battlePlanLoading ? "Planning..." : "Generate Battle Plan"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {battlePlanLoading ? (
+            <Card className="crm-card"><CardContent className="p-12 text-center"><Loader2 className="h-8 w-8 text-amber-400 mx-auto animate-spin mb-3" /><p className="text-white/50 text-sm">Crafting your dominance strategy...</p></CardContent></Card>
+          ) : battlePlan ? (
+            <div className="space-y-4">
+              {/* Weekly Goals */}
+              <Card className="crm-card border-amber-400/15">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><Target className="h-4 w-4" /> Weekly Goals</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    {(battlePlan.weeklyGoals || []).map((g: any, i: number) => (
+                      <div key={i} className="p-3 rounded-lg bg-amber-400/5 border border-amber-400/15 space-y-1">
+                        <p className="text-xs font-medium text-white/80">{g.goal}</p>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[9px] border-amber-400/20 text-amber-400">{g.metric}</Badge>
+                          <span className="text-[10px] text-emerald-400 font-bold">{g.target}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Quick Wins */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-400 flex items-center gap-2"><Zap className="h-4 w-4" /> Quick Wins (Do Now)</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  {(battlePlan.quickWins || []).map((w: any, i: number) => (
+                    <div key={i} className="flex items-start gap-3 p-2.5 rounded-lg bg-emerald-400/5 border border-emerald-400/15">
+                      <div className={`mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold ${w.impact === "high" ? "bg-red-400/20 text-red-400" : "bg-amber-400/20 text-amber-400"}`}>{w.impact}</div>
+                      <div className="flex-1 space-y-0.5">
+                        <p className="text-xs font-medium text-white/80">{w.action}</p>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] text-white/40">⏱ {w.timeNeeded}</span>
+                          <span className="text-[10px] text-emerald-400">→ {w.expectedResult}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* Competitor Vulnerabilities */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-red-400 flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Competitor Vulnerabilities to Exploit</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  {(battlePlan.competitorVulnerabilities || []).map((v: any, i: number) => (
+                    <div key={i} className="p-2.5 rounded-lg bg-red-400/5 border border-red-400/15 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-white/80">{v.competitor}</span>
+                        <Badge variant="outline" className={`text-[9px] ${v.priority === "high" ? "border-red-400/30 text-red-400" : "border-white/10 text-white/40"}`}>{v.priority}</Badge>
+                      </div>
+                      <p className="text-[10px] text-white/50">Weakness: {v.vulnerability}</p>
+                      <p className="text-[10px] text-amber-400">→ {v.exploit}</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Growth Hacks */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(217,91%,60%)] flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Growth Hacks</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {(battlePlan.growthHacks || []).map((h: any, i: number) => (
+                      <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1">
+                        <p className="text-xs font-medium text-white/80">{h.hack}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className={`text-[9px] ${h.difficulty === "easy" ? "border-emerald-400/20 text-emerald-400" : h.difficulty === "hard" ? "border-red-400/20 text-red-400" : "border-amber-400/20 text-amber-400"}`}>{h.difficulty}</Badge>
+                          <span className="text-[10px] text-emerald-400">+{h.expectedGrowth}</span>
+                          <span className="text-[10px] text-white/30">{h.timeline}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Content Bombs */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2"><Flame className="h-4 w-4" /> Viral Content Bombs</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {(battlePlan.contentBombs || []).map((b: any, i: number) => (
+                      <div key={i} className="p-2.5 rounded-lg bg-[hsl(262,83%,58%)]/5 border border-[hsl(262,83%,58%)]/15 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-white/80">{b.title}</span>
+                          <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{b.format}</Badge>
+                        </div>
+                        <p className="text-[10px] text-amber-400">Hook: "{b.hook}"</p>
+                        <p className="text-[10px] text-white/40">{b.whyViral}</p>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Daily Actions */}
+              {battlePlan.dailyActions && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Calendar className="h-4 w-4" /> Daily Action Schedule</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+                      {Object.entries(battlePlan.dailyActions).map(([day, actions]: [string, any]) => (
+                        <div key={day} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1.5">
+                          <p className="text-xs font-medium text-white/80 capitalize">{day}</p>
+                          {Object.entries(actions || {}).map(([time, action]: [string, any]) => (
+                            <div key={time} className="flex items-start gap-2">
+                              <span className="text-[9px] text-white/30 uppercase w-14 shrink-0 pt-0.5">{time}</span>
+                              <span className="text-[10px] text-white/60">{String(action)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="flex justify-end">
+                <Button size="sm" variant="outline" className="text-xs gap-1 border-white/10 text-white/50" onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify(battlePlan, null, 2));
+                  toast.success("Battle plan copied");
+                }}><Copy className="h-3 w-3" /> Copy Plan</Button>
+              </div>
+            </div>
+          ) : (
+            <Card className="crm-card">
+              <CardContent className="p-12 text-center">
+                <Crown className="h-10 w-10 text-white/20 mx-auto mb-3" />
+                <h3 className="text-white/50 font-medium mb-1">{competitors.length === 0 ? "Add competitors first" : "Generate your battle plan"}</h3>
+                <p className="text-white/30 text-sm">Get a specific weekly action plan with quick wins, growth hacks, and competitor vulnerabilities to exploit</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
         {/* ═══ SITE ANALYSIS TAB ═══ */}
         <TabsContent value="analysis" className="space-y-5 w-full overflow-x-hidden overflow-y-auto" style={{ maxWidth: 'calc(100vw - 340px)' }}>
           <Card className="crm-card">
