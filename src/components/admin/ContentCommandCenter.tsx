@@ -363,9 +363,8 @@ const ContentCommandCenter = () => {
         const myContent = items.slice(0, 20).map(i => `${i.platform}/${i.content_type}: "${i.title}"`).join("\n");
         const compSummary = competitorProfiles.map(c => `@${c.username} (${c.platform}): ${c.followers} followers, types: ${JSON.stringify(c.content_types || [])}`).join("\n");
         const content = await callAI(`Content gap analysis: Find what I'm MISSING vs competitors.\n\nMY CONTENT:\n${myContent || "No content yet"}\n\nCOMPETITORS:\n${compSummary}\n\nFind 6 gaps. Each: title, platform, content_type, caption, hashtags, gap_identified, competitor_doing_it, estimated_impact (high/medium/critical), viral_score 50-90.\n\nReturn ONLY JSON array.`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const ideas = JSON.parse(jsonMatch[0]);
+        const ideas = safeParseJSON(content);
+        if (Array.isArray(ideas)) {
           for (const idea of ideas) { await supabase.from("content_calendar").insert({ title: idea.title, caption: idea.caption, platform: idea.platform || "instagram", content_type: idea.content_type || "post", hashtags: (idea.hashtags || []).map((h: string) => h.replace("#", "")), viral_score: idea.viral_score || 0, description: `Gap: ${idea.gap_identified} · Impact: ${idea.estimated_impact}`, status: "draft", metadata: { source: "gap_analysis" } }); }
           toast.success(`${ideas.length} gap analysis posts created`);
         }
