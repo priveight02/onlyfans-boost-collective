@@ -3540,8 +3540,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                   const followerQuality = followerFollowingRatio > 10 ? "Premium" : followerFollowingRatio > 3 ? "High" : followerFollowingRatio > 1 ? "Average" : "Low";
                                   const growthMomentum = avgGrP > 2 ? "Explosive" : avgGrP > 0.5 ? "Strong" : avgGrP > 0 ? "Steady" : avgGrP > -0.5 ? "Stagnant" : "Declining";
                                   const contentConsistency = avgFreqP >= 7 ? "Daily+" : avgFreqP >= 3 ? "Frequent" : avgFreqP >= 1 ? "Weekly" : avgFreqP > 0 ? "Sporadic" : "Inactive";
-                                  const benchmarkER = key === "tiktok" ? 5.0 : key === "instagram" ? 2.5 : key === "youtube" ? 3.5 : key === "twitter" ? 0.5 : 1.5;
-                                  const erVsBenchmark = benchmarkER > 0 ? ((avgEng / benchmarkER) * 100) : 0;
+                                   // benchmarkER & erVsBenchmark moved to Engagement section below
                                   const estTotalLikesPeriod = Math.round(dailyLikeGain * periodDays);
                                   const estTotalViewsPeriod = Math.round(dailyViewGain * periodDays);
                                   const growthRatePeriod = avgGrP * (periodDays / 7);
