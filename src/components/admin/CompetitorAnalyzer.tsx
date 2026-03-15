@@ -2864,8 +2864,8 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                   if (p === "instagram" || p === "internet") pushEntry("Instagram", comp.username, "hsl(330 81% 55%)", "IG", (u) => `https://www.instagram.com/${u}/`, (u) => `https://www.instagram.com/${u}/embed/`);
                   if (p === "tiktok" || p === "internet") pushEntry("TikTok", comp.username, "hsl(347 100% 58%)", "TT", (u) => `https://www.tiktok.com/@${u}`, (u) => `https://www.tiktok.com/embed/@${u}`);
                   if (p === "twitter" || p === "internet" || p === "x") pushEntry("X / Twitter", comp.username, "hsl(203 89% 53%)", "X", (u) => `https://x.com/${u}`, (u) => `https://nitter.net/${u}`);
-                  if (p === "youtube" || p === "internet") pushEntry("YouTube", comp.username, "hsl(0 100% 50%)", "YT", (u) => `https://www.youtube.com/@${u}`, (u) => `https://www.youtube-nocookie.com/embed?listType=search&list=${encodeURIComponent(`@${u}`)}`);
-                  if (p === "linkedin" || p === "internet") pushEntry("LinkedIn", comp.username, "hsl(210 90% 40%)", "LI", (u) => `https://www.linkedin.com/company/${u}`, (u) => `https://image.thum.io/get/width/1200/crop/1200/noanimate/${encodeURIComponent(`https://www.linkedin.com/company/${u}`)}`);
+                  if (p === "youtube" || p === "internet") pushEntry("YouTube", comp.username, "hsl(0 100% 50%)", "YT", (u) => `https://www.youtube.com/@${u}`, (u) => `__screenshot__https://www.youtube.com/@${u}`);
+                  if (p === "linkedin" || p === "internet") pushEntry("LinkedIn", comp.username, "hsl(210 90% 40%)", "LI", (u) => `https://www.linkedin.com/company/${u}`, (u) => `__screenshot__https://www.linkedin.com/company/${u}`);
                 }
 
                 // No-key fallback screenshot only when platform refuses embedded rendering
