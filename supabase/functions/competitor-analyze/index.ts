@@ -838,18 +838,24 @@ CRITICAL RULES FOR platformMetrics:
           try {
             const parsed = JSON.parse(toolCall.function.arguments);
             // Merge scraped data into platformMetrics to override AI hallucinations
-            if (Object.keys(scrapedData).length > 0 && parsed.platformMetrics) {
+            if (Object.keys(scrapedData).length > 0) {
+              parsed.platformMetrics = parsed.platformMetrics || {};
               for (const [plat, scraped] of Object.entries(scrapedData)) {
-                if (parsed.platformMetrics[plat] && scraped.followers) {
-                  parsed.platformMetrics[plat].followers = scraped.followers;
-                }
-                if (parsed.platformMetrics[plat] && scraped.posts) {
-                  parsed.platformMetrics[plat].posts = scraped.posts;
-                }
+                const prev = parsed.platformMetrics[plat] || {};
+                parsed.platformMetrics[plat] = {
+                  ...prev,
+                  followers: scraped.followers ?? prev.followers ?? 0,
+                  posts: scraped.posts ?? prev.posts ?? 0,
+                  engagementRate: prev.engagementRate ?? 0,
+                  avgLikes: prev.avgLikes ?? 0,
+                  avgComments: prev.avgComments ?? 0,
+                  postFrequency: prev.postFrequency ?? 0,
+                  growthRate: prev.growthRate ?? 0,
+                };
               }
               // Recalculate total followers from platform metrics
               const totalFromPlatforms = Object.values(parsed.platformMetrics as Record<string, any>)
-                .reduce((sum: number, pm: any) => sum + (pm.followers || 0), 0);
+                .reduce((sum: number, pm: any) => sum + (pm?.followers || 0), 0);
               if (totalFromPlatforms > 0) parsed.followers = totalFromPlatforms;
             }
             reply = JSON.stringify(parsed);
