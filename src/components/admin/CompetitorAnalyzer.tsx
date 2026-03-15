@@ -1033,13 +1033,16 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
           {[
             { value: "tracker", icon: Crosshair, label: "Tracker" },
             { value: "benchmarks", icon: BarChart3, label: "Benchmarks" },
+            { value: "h2h", icon: Crosshair, label: "Head-to-Head" },
             { value: "keywords", icon: Search, label: "Keyword Search" },
             { value: "gaps", icon: Eye, label: "Gap Analysis" },
             { value: "content", icon: Calendar, label: "Content Intel" },
             { value: "swot", icon: Target, label: "SWOT" },
             { value: "strategy", icon: Brain, label: "AI Strategy" },
             { value: "battleplan", icon: Crown, label: "Battle Plan" },
+            { value: "forecast", icon: TrendingUp, label: "Growth Forecast" },
             { value: "analysis", icon: Globe, label: "Site Analysis" },
+            { value: "export", icon: Download, label: "Export Report" },
           ].map(tab => (
             <TabsTrigger key={tab.value} value={tab.value} className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium">
               <tab.icon className="h-3.5 w-3.5" /> {tab.label}
