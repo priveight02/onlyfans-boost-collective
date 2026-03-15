@@ -61,7 +61,6 @@ const navSections = [
       { id: "copilot", label: "Uplyze AI Copilot", icon: Bot },
       { id: "ad-creatives", label: "Creative Maker", icon: Megaphone },
       { id: "content", label: "Content", icon: Calendar },
-      { id: "sandbox", label: "Sandbox", icon: Zap },
       { id: "competitors", label: "Competitor Analyzer", icon: Crosshair },
     ],
   },
