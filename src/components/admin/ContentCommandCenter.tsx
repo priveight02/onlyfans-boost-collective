@@ -975,8 +975,7 @@ Respond ONLY with JSON: {"hook":"", "scenes":[{"timestamp":"0-3s", "visual":"", 
 Topic: "${formCaption || formTitle}"
 Rules: Part 1: Hook + "🧵👇". Parts 2-5: ONE insight each, max ${maxLen} chars. Part 6: Summary. Part 7: CTA.
 Respond ONLY with JSON array: ["Part 1", "Part 2", ...]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) { const parts = JSON.parse(jsonMatch[0]); setThreadParts(parts); toast.success(`${parts.length}-part thread generated`); }
+        try { const parts = safeParseJSON(content); setThreadParts(parts); toast.success(`${parts.length}-part thread generated`); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingThread(false);
     });
