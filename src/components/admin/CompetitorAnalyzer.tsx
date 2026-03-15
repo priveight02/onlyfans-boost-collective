@@ -311,6 +311,11 @@ const detectTruncation = (text: string): boolean => {
 };
 
 const parseJSON = (text: string): any => {
+  // First try direct parse (edge function now pre-cleans responses)
+  try {
+    return JSON.parse(text);
+  } catch { /* continue to cleanup */ }
+
   let cleaned = text.replace(/```(?:json)?\s*/gi, "").replace(/```\s*/g, "").trim();
 
   const candidate = extractBalancedJson(cleaned);
@@ -328,13 +333,24 @@ const parseJSON = (text: string): any => {
   } catch {
     const repaired = sanitized
       .replace(/,\s*}/g, "}")
-      .replace(/,\s*]/g, "]");
+      .replace(/,\s*]/g, "]")
+      .replace(/'/g, '"')
+      .replace(/([{,]\s*)(\w+)\s*:/g, '$1"$2":');
 
     try {
       return JSON.parse(repaired);
     } catch {
+      // Last resort: try to close truncated JSON
+      let lastBrace = repaired.lastIndexOf("}");
+      let lastBracket = repaired.lastIndexOf("]");
+      if (lastBrace > 0 && repaired.trimStart().startsWith("{")) {
+        try { return JSON.parse(repaired.slice(0, lastBrace + 1)); } catch {}
+      }
+      if (lastBracket > 0 && repaired.trimStart().startsWith("[")) {
+        try { return JSON.parse(repaired.slice(0, lastBracket + 1)); } catch {}
+      }
       if (detectTruncation(candidate)) {
-        throw new Error("AI response was truncated. Please retry financial analysis.");
+        throw new Error("AI response was truncated. Please retry.");
       }
       throw new Error("Invalid AI JSON response. Please retry.");
     }
