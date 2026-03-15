@@ -7,10 +7,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import PlatformAccountSelector from "./PlatformAccountSelector";
 import { InstagramPostPreview } from "./InstagramPostPreview";
+import { pullContentPlanForPlatform, pushToSocialHub, DEFAULT_BEST_TIMES } from "@/lib/contentSync";
 import {
   Upload, Eye, MessageSquare, Search, Hash,
   Send, RefreshCw, TrendingUp, BarChart3, Users,
@@ -21,7 +23,7 @@ import {
   CheckCircle2, AlertCircle, Bot, Sparkles,
   MapPin, FileImage, X, Trash2, Edit3, Filter,
   LayoutGrid, MoreHorizontal, Instagram,
-  MousePointerClick, Shield,
+  MousePointerClick, Shield, FileDown,
 } from "lucide-react";
 
 interface Props {
