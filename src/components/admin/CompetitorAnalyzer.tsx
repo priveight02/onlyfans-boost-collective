@@ -5655,11 +5655,62 @@ Return ONLY valid JSON:
                   URL.revokeObjectURL(url);
                   toast.success("Report exported as Markdown");
                 }}>
-                  <Download className="h-4 w-4" /> Export as Markdown
+                  <Download className="h-4 w-4" /> Export Markdown
+                </Button>
+
+                {/* CSV Export */}
+                <Button variant="outline" className="gap-1.5 border-emerald-400/20 text-emerald-400 hover:bg-emerald-400/10" onClick={() => {
+                  if (!competitors.length) { toast.error("No competitors to export"); return; }
+                  const headers = ["Username", "Platform", "Followers", "Engagement Rate %", "Avg Likes", "Avg Comments", "Growth/Wk %", "Posts/Wk", "Total Posts", "Threat Score", "Niche", "Top Hashtags", "Last Analyzed"];
+                  const rows = competitors.map(c => [
+                    `@${c.username}`, c.platform, c.followers, c.engagementRate, c.avgLikes, c.avgComments,
+                    c.growthRate, c.postFrequency, c.posts, c.score, c.metadata?.niche || "",
+                    c.topHashtags.join(";"), new Date(c.lastAnalyzed).toLocaleDateString(),
+                  ]);
+                  const csv = [headers.join(","), ...rows.map(r => r.map(v => `"${v}"`).join(","))].join("\n");
+                  const blob = new Blob([csv], { type: "text/csv" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `competitors-${new Date().toISOString().slice(0, 10)}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast.success("CSV exported");
+                }}>
+                  <Download className="h-4 w-4" /> Export CSV
+                </Button>
+
+                {/* JSON Export */}
+                <Button variant="outline" className="gap-1.5 border-[hsl(262,83%,58%)]/20 text-[hsl(262,83%,58%)] hover:bg-[hsl(262,83%,58%)]/10" onClick={() => {
+                  const data = {
+                    exportedAt: new Date().toISOString(),
+                    enterprise: enterpriseProfile || null,
+                    competitors: competitors.map(c => ({
+                      username: c.username, platform: c.platform, followers: c.followers,
+                      engagementRate: c.engagementRate, avgLikes: c.avgLikes, avgComments: c.avgComments,
+                      growthRate: c.growthRate, postFrequency: c.postFrequency, posts: c.posts,
+                      score: c.score, niche: c.metadata?.niche, topHashtags: c.topHashtags,
+                    })),
+                    swot: swotResult || null,
+                    gapAnalysis: gapAnalysis || null,
+                    siteInsights: siteInsights || null,
+                    financialData: financialData || null,
+                    battlePlan: battlePlan || null,
+                    forecast: forecastResult || null,
+                  };
+                  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `competitor-intel-${new Date().toISOString().slice(0, 10)}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast.success("Full data exported as JSON");
+                }}>
+                  <Download className="h-4 w-4" /> Export JSON
                 </Button>
 
                 <Button variant="outline" className="gap-1.5 border-white/10 text-white/60 hover:text-white" onClick={() => {
-                  // Copy to clipboard
                   const sections: string[] = [];
                   sections.push(`📊 COMPETITIVE INTELLIGENCE REPORT — ${new Date().toLocaleDateString()}`);
                   if (competitors.length) {
