@@ -3928,7 +3928,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                       <Button
                                         size="sm"
                                         className="w-full h-8 gap-2 text-[10px] font-bold bg-gradient-to-r from-[hsl(262,83%,58%)] to-[hsl(217,91%,60%)] hover:from-[hsl(262,83%,48%)] hover:to-[hsl(217,91%,50%)] text-white border-0"
-                                        disabled={copyingPlan}
+                                        disabled={copyingPlan || aiUsageCount >= RATE_LIMIT_MAX}
                                         onClick={async () => {
                                           setCopyingPlan(true);
                                           try {
