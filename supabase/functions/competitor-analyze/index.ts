@@ -250,106 +250,202 @@ const financialTool = {
   },
 };
 
-/** Batch-scrape social profile URLs to extract real follower counts from HTML meta/og tags */
+/** Batch-scrape social profiles (platform pages + SocialBlade fallback) for live follower/post metrics */
 const scrapeSocialProfiles = async (socialPresence: Record<string, string | null>): Promise<Record<string, { followers?: number; description?: string; posts?: number }>> => {
   const results: Record<string, { followers?: number; description?: string; posts?: number }> = {};
-  const platformUrls: Record<string, string> = {};
 
-  for (const [platform, handle] of Object.entries(socialPresence || {})) {
-    if (!handle) continue;
-    const h = handle.replace(/^@/, "").trim();
-    if (!h) continue;
-    const p = platform.toLowerCase();
-    if (p.includes("instagram")) platformUrls["instagram"] = `https://www.instagram.com/${h}/`;
-    else if (p.includes("tiktok")) platformUrls["tiktok"] = `https://www.tiktok.com/@${h}`;
-    else if (p.includes("twitter") || p === "x") platformUrls["twitter"] = `https://nitter.net/${h}`;
-    else if (p.includes("youtube")) platformUrls["youtube"] = `https://www.youtube.com/@${h}`;
-    else if (p.includes("linkedin")) platformUrls["linkedin"] = `https://www.linkedin.com/company/${h}/`;
-    else if (p.includes("facebook")) platformUrls["facebook"] = `https://www.facebook.com/${h}/`;
-  }
+  const parseMetricFromPatterns = (text: string, patterns: RegExp[]): number | undefined => {
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      const raw = match?.[1];
+      if (!raw) continue;
+      const parsed = parseHumanNumber(raw);
+      if (Number.isFinite(parsed) && parsed > 0) return parsed;
+    }
+    return undefined;
+  };
 
-  // Batch fetch all in parallel with short timeout
-  const fetchWithTimeout = async (url: string, ms = 8000): Promise<string> => {
+  const extractMetaDescription = (html: string): string | undefined => {
+    const desc = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i)?.[1]
+      || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:description["']/i)?.[1]
+      || html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i)?.[1]
+      || "";
+    const cleaned = desc.replace(/\s+/g, " ").trim();
+    return cleaned || undefined;
+  };
+
+  const fetchWithTimeout = async (
+    url: string,
+    options?: { ms?: number; maxChars?: number; headers?: Record<string, string> },
+  ): Promise<string> => {
     const ctrl = new AbortController();
-    const tid = setTimeout(() => ctrl.abort(), ms);
+    const tid = setTimeout(() => ctrl.abort(), options?.ms ?? 10000);
     try {
       const res = await fetch(url, {
         signal: ctrl.signal,
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; ContentAnalyzer/1.0)" },
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+          "Accept-Language": "en-US,en;q=0.9",
+          Accept: "text/html,application/json;q=0.9,*/*;q=0.8",
+          ...(options?.headers || {}),
+        },
       });
       if (!res.ok) return "";
       const text = await res.text();
-      return text.slice(0, 50000); // Cap at 50KB
-    } catch { return ""; }
-    finally { clearTimeout(tid); }
+      return text.slice(0, options?.maxChars ?? 350000);
+    } catch {
+      return "";
+    } finally {
+      clearTimeout(tid);
+    }
   };
 
-  const entries = Object.entries(platformUrls);
-  const htmlResults = await Promise.allSettled(entries.map(([, url]) => fetchWithTimeout(url)));
+  const scrapeOnePlatform = async (platform: string, rawHandle: string) => {
+    const handle = rawHandle.replace(/^@/, "").trim();
+    if (!handle) return;
 
-  for (let i = 0; i < entries.length; i++) {
-    const [plat] = entries[i];
-    const result = htmlResults[i];
-    if (result.status !== "fulfilled" || !result.value) continue;
-    const html = result.value;
-
-    // Extract follower counts from meta tags and common patterns
+    const key = platform.toLowerCase() === "x" ? "twitter" : platform.toLowerCase();
     let followers: number | undefined;
-    let description: string | undefined;
     let posts: number | undefined;
+    let description: string | undefined;
 
-    // og:description often has follower info
-    const ogDesc = html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]+)"/i)?.[1] ||
-                   html.match(/<meta[^>]*content="([^"]+)"[^>]*property="og:description"/i)?.[1] || "";
-    if (ogDesc) description = ogDesc;
+    const sources: { url: string; headers?: Record<string, string> }[] = [];
 
-    // Try to extract follower numbers from description/title
-    const followerPatterns = [
-      /(\d[\d,. ]*[KMBkmb]?)\s*(?:Followers|followers|subscribers|Subscribers|Abonnenten)/i,
-      /(?:Followers|followers|subscribers)[\s:]*(\d[\d,. ]*[KMBkmb]?)/i,
-    ];
-    const textToSearch = ogDesc + " " + (html.match(/<title[^>]*>([^<]+)</i)?.[1] || "");
-    for (const pat of followerPatterns) {
-      const m = textToSearch.match(pat);
-      if (m) {
-        followers = parseHumanNumber(m[1]);
-        break;
+    if (key === "instagram") {
+      sources.push(
+        {
+          url: `https://i.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(handle)}`,
+          headers: { "x-ig-app-id": "936619743392459", Referer: `https://www.instagram.com/${handle}/` },
+        },
+        { url: `https://www.instagram.com/${handle}/?hl=en` },
+        { url: `https://socialblade.com/instagram/user/${encodeURIComponent(handle)}` },
+      );
+    } else if (key === "tiktok") {
+      sources.push(
+        { url: `https://www.tiktok.com/@${handle}?lang=en` },
+        { url: `https://socialblade.com/tiktok/user/${encodeURIComponent(handle)}` },
+      );
+    } else if (key === "youtube") {
+      sources.push(
+        { url: `https://www.youtube.com/@${handle}/about` },
+        { url: `https://www.youtube.com/@${handle}` },
+        { url: `https://socialblade.com/youtube/user/${encodeURIComponent(handle)}` },
+      );
+    } else if (key === "twitter") {
+      sources.push(
+        { url: `https://nitter.net/${handle}` },
+        { url: `https://nitter.poast.org/${handle}` },
+        { url: `https://nitter.privacydev.net/${handle}` },
+        { url: `https://socialblade.com/twitter/user/${encodeURIComponent(handle)}` },
+      );
+    } else if (key === "linkedin") {
+      sources.push({ url: `https://www.linkedin.com/company/${handle}/` });
+    } else if (key === "facebook") {
+      sources.push(
+        { url: `https://www.facebook.com/${handle}/` },
+        { url: `https://socialblade.com/facebook/page/${encodeURIComponent(handle)}` },
+      );
+    } else {
+      return;
+    }
+
+    const followerPatternsByPlatform: Record<string, RegExp[]> = {
+      instagram: [
+        /"edge_followed_by"\s*:\s*\{\s*"count"\s*:\s*(\d+)/i,
+        /"followers_count"\s*:\s*(\d+)/i,
+        /"followers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
+        /([\d,.\sKMBkmb]+)\s*Followers/i,
+      ],
+      tiktok: [
+        /"followerCount"\s*:\s*(\d+)/i,
+        /"follower_count"\s*:\s*(\d+)/i,
+        /"followers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
+        /([\d,.\sKMBkmb]+)\s*Followers/i,
+      ],
+      youtube: [
+        /"subscriberCount"\s*:\s*"?(\d+)/i,
+        /"subscribers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
+        /"subscriberCountText"\s*:\s*\{\s*"simpleText"\s*:\s*"([^"]+)"/i,
+        /"subscriberCountText"[\s\S]{0,220}?"label"\s*:\s*"([^"]+)"/i,
+        /([\d,.\sKMBkmb]+)\s*subscribers/i,
+      ],
+      twitter: [
+        /followers_count["']?\s*[:=]\s*"?(\d+)/i,
+        /"followers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
+        /([\d,.\sKMBkmb]+)\s*Followers/i,
+      ],
+      linkedin: [
+        /([\d,.\sKMBkmb]+)\s*followers?\s+on\s+LinkedIn/i,
+        /([\d,.\sKMBkmb]+)\s*Followers/i,
+      ],
+      facebook: [
+        /"followers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
+        /([\d,.\sKMBkmb]+)\s*followers/i,
+        /([\d,.\sKMBkmb]+)\s*likes/i,
+      ],
+    };
+
+    const postPatternsByPlatform: Record<string, RegExp[]> = {
+      instagram: [
+        /"edge_owner_to_timeline_media"\s*:\s*\{\s*"count"\s*:\s*(\d+)/i,
+        /"posts_count"\s*:\s*(\d+)/i,
+        /"media_count"\s*:\s*(\d+)/i,
+        /([\d,.\sKMBkmb]+)\s*Posts/i,
+      ],
+      tiktok: [
+        /"videoCount"\s*:\s*(\d+)/i,
+        /"video_count"\s*:\s*(\d+)/i,
+        /"videos"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
+        /([\d,.\sKMBkmb]+)\s*Videos?/i,
+      ],
+      youtube: [
+        /"videoCount"\s*:\s*"?(\d+)/i,
+        /"videoCountText"[\s\S]{0,140}?"text"\s*:\s*"([^"]+)"/i,
+        /([\d,.\sKMBkmb]+)\s*videos/i,
+      ],
+      twitter: [
+        /tweets?["']?\s*[:=]\s*"?(\d+)/i,
+        /([\d,.\sKMBkmb]+)\s*Tweets?/i,
+      ],
+      linkedin: [],
+      facebook: [
+        /"posts"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
+        /([\d,.\sKMBkmb]+)\s*posts/i,
+      ],
+    };
+
+    for (const source of sources) {
+      const html = await fetchWithTimeout(source.url, { headers: source.headers });
+      if (!html) continue;
+
+      if (!description) description = extractMetaDescription(html);
+
+      if (!followers) {
+        followers = parseMetricFromPatterns(html, followerPatternsByPlatform[key] || []);
       }
+
+      if (posts === undefined) {
+        const parsedPosts = parseMetricFromPatterns(html, postPatternsByPlatform[key] || []);
+        if (typeof parsedPosts === "number" && parsedPosts >= 0) posts = parsedPosts;
+      }
+
+      if (followers && posts !== undefined) break;
     }
 
-    // Nitter-specific extraction for Twitter
-    if (plat === "twitter") {
-      const nitterFollowers = html.match(/followers"[^>]*>[\s]*<span[^>]*>([\d,]+)/i)?.[1];
-      if (nitterFollowers) followers = parseInt(nitterFollowers.replace(/,/g, ""));
-      const nitterPosts = html.match(/tweets"[^>]*>[\s]*<span[^>]*>([\d,]+)/i)?.[1];
-      if (nitterPosts) posts = parseInt(nitterPosts.replace(/,/g, ""));
+    if (followers || description || posts !== undefined) {
+      results[key] = {
+        ...(typeof followers === "number" && followers > 0 ? { followers } : {}),
+        ...(typeof posts === "number" && posts >= 0 ? { posts } : {}),
+        ...(description ? { description } : {}),
+      };
     }
+  };
 
-    // YouTube subscriber extraction
-    if (plat === "youtube") {
-      const subMatch = html.match(/(\d[\d,.]*[KMBkmb]?)\s*subscribers/i);
-      if (subMatch) followers = parseHumanNumber(subMatch[1]);
-    }
+  const tasks = Object.entries(socialPresence || {})
+    .filter(([, handle]) => typeof handle === "string" && handle.trim().length > 0)
+    .map(([platform, handle]) => scrapeOnePlatform(platform, String(handle)));
 
-    // TikTok follower extraction from meta
-    if (plat === "tiktok") {
-      const tikFollowers = html.match(/(\d[\d,.]*[KMBkmb]?)\s*Followers/i);
-      if (tikFollowers) followers = parseHumanNumber(tikFollowers[1]);
-      const tikLikes = html.match(/(\d[\d,.]*[KMBkmb]?)\s*Likes/i);
-    }
-
-    // Instagram from og:description "X Followers, Y Following, Z Posts"
-    if (plat === "instagram") {
-      const igMatch = ogDesc.match(/([\d,.]+[KMBkmb]?)\s*Followers/i);
-      if (igMatch) followers = parseHumanNumber(igMatch[1]);
-      const igPosts = ogDesc.match(/([\d,.]+)\s*Posts/i);
-      if (igPosts) posts = parseInt(igPosts[1].replace(/,/g, ""));
-    }
-
-    if (followers || description || posts) {
-      results[plat] = { ...(followers ? { followers } : {}), ...(description ? { description } : {}), ...(posts ? { posts } : {}) };
-    }
-  }
+  await Promise.allSettled(tasks);
 
   console.log("[SCRAPE] Social profile results:", JSON.stringify(results));
   return results;
@@ -358,14 +454,23 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
 /** Parse human-readable numbers like 2.2M, 380K, 9,579,516 */
 const parseHumanNumber = (s: string): number => {
   if (!s) return 0;
-  const cleaned = s.replace(/[\s,]/g, "").trim();
-  const multiplierMatch = cleaned.match(/^(-?[\d.]+)([KMBkmb]?)$/);
-  if (!multiplierMatch) return parseInt(cleaned) || 0;
-  const num = parseFloat(multiplierMatch[1]);
-  const suffix = multiplierMatch[2].toUpperCase();
-  if (suffix === "K") return Math.round(num * 1000);
-  if (suffix === "M") return Math.round(num * 1000000);
-  if (suffix === "B") return Math.round(num * 1000000000);
+
+  const cleaned = String(s)
+    .replace(/\u00A0/g, " ")
+    .replace(/,/g, "")
+    .replace(/\+/g, "")
+    .trim();
+
+  const match = cleaned.match(/(-?[\d.\s]+)\s*([KMBkmb])?/);
+  if (!match) return 0;
+
+  const num = parseFloat(match[1].replace(/\s+/g, ""));
+  if (!Number.isFinite(num)) return 0;
+
+  const suffix = (match[2] || "").toUpperCase();
+  if (suffix === "K") return Math.round(num * 1_000);
+  if (suffix === "M") return Math.round(num * 1_000_000);
+  if (suffix === "B") return Math.round(num * 1_000_000_000);
   return Math.round(num);
 };
 
@@ -543,8 +648,16 @@ serve(async (req) => {
 
         if (websiteUrl) {
           const extracted = normalizeSocialPresence(await extractSocialHandlesFromWebsite(websiteUrl));
-          // Keep existing valid handles, but fill any missing ones from live website scan.
-          socialPresence = { ...extracted, ...socialPresence };
+          // Keep valid existing handles, but never let null placeholders overwrite discovered handles.
+          const merged: Record<string, string | null> = { ...extracted };
+          for (const [platform, handle] of Object.entries(socialPresence)) {
+            if (typeof handle === "string" && handle.trim().length > 0) {
+              merged[platform] = handle;
+            } else if (!(platform in merged)) {
+              merged[platform] = null;
+            }
+          }
+          socialPresence = merged;
         }
 
         const platformMetrics: Record<string, ReturnType<typeof normalizePlatformMetric>> = {};
