@@ -1956,8 +1956,16 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 <Card className="crm-card">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4 mb-4">
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center border border-white/[0.06]">
-                        <span className="text-xl font-bold text-white">{gapAnalysis.overallScore || "?"}</span>
+                      <div className="relative w-20 h-20 flex-shrink-0">
+                        <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80" style={{ filter: `drop-shadow(0 0 8px hsl(217,91%,60%,${(gapAnalysis.overallScore || 0) / 200}))` }}>
+                          <circle cx="40" cy="40" r="35" fill="none" stroke="hsl(0,0%,100%,0.04)" strokeWidth="4" />
+                          <circle cx="40" cy="40" r="35" fill="none" stroke="hsl(217,91%,60%)" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${((gapAnalysis.overallScore || 0) / 100) * (2 * Math.PI * 35)} ${2 * Math.PI * 35}`} className="transition-all duration-1000" />
+                        </svg>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                          <span className="text-xl font-black text-white">{gapAnalysis.overallScore || "?"}</span>
+                          <span className="text-[8px] text-white/30">/ 100</span>
+                        </div>
+                      </div>
                       </div>
                       <div>
                         <p className="text-white font-medium">Opportunity Score</p>
