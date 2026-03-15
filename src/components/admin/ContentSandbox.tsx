@@ -849,6 +849,31 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         <button type="button" onClick={groupSelected} disabled={selectedIds.size < 2} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Group</button>
         <button type="button" onClick={ungroupSelected} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Ungroup</button>
         <button type="button" onClick={clearInk} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">Clear ink</button>
+
+        {/* Export buttons */}
+        <button type="button" onClick={async () => {
+          const contentEls = elements.filter(e => e.kind === "content" && e.data);
+          if (!contentEls.length) { toast.info("No content cards to export"); return; }
+          const count = await exportSandboxToDrafts(contentEls.map(e => ({
+            title: e.data?.title, caption: e.data?.caption, platform: e.data?.platform,
+            type: e.data?.content_type, hashtags: e.data?.hashtags, annotation: e.annotation,
+          })));
+          if (count > 0) { onRefresh(); toast.success(`${count} cards exported to Content drafts`); }
+        }} className="rounded-md border border-blue-500/15 bg-blue-500/5 px-2.5 py-1 text-[10px] text-blue-400/70 hover:bg-blue-500/10">
+          <FileDown className="inline h-3 w-3 mr-0.5" />Export All
+        </button>
+        <button type="button" onClick={async () => {
+          const sel = elements.filter(e => selectedIds.has(e.id) && e.kind === "content" && e.data);
+          if (!sel.length) { toast.info("Select content cards to export"); return; }
+          const count = await exportSandboxToDrafts(sel.map(e => ({
+            title: e.data?.title, caption: e.data?.caption, platform: e.data?.platform,
+            type: e.data?.content_type, hashtags: e.data?.hashtags, annotation: e.annotation,
+          })));
+          if (count > 0) { onRefresh(); toast.success(`${count} selected cards exported to drafts`); }
+        }} disabled={!selectedIds.size} className="rounded-md border border-blue-500/15 bg-blue-500/5 px-2.5 py-1 text-[10px] text-blue-400/70 hover:bg-blue-500/10 disabled:opacity-30">
+          <Send className="inline h-3 w-3 mr-0.5" />Export Selected
+        </button>
+
         <button type="button" onClick={deleteSel} disabled={!selectedIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
         <button type="button" onClick={clearBoard} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">Clear board</button>
         <div className="ml-auto flex items-center gap-1">
