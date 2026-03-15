@@ -769,6 +769,7 @@ Provide a detailed strategy covering:
 Be extremely specific with numbers, times, and actionable steps. No generic advice.`
         );
         setAiInsight(aiReply);
+        await refreshAIUsage();
         return true;
       } catch (err) {
         toast.error("Strategy generation failed");
