@@ -2973,7 +2973,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
           <Card className="crm-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <select value={selectedCompetitor || ""} onChange={e => setSelectedCompetitor(e.target.value)} className="flex-1 h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
+                <select value={selectedCompetitor || ""} onChange={e => setSelectedCompetitors([e.target.value])} className="flex-1 h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
                   <option value="" disabled>Select competitor...</option>
                   {competitors.map(c => <option key={c.id} value={c.id}>@{c.username} ({c.platform}) · {fmtNum(c.followers)} followers</option>)}
                 </select>
