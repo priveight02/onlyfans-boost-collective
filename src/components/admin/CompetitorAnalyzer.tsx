@@ -2290,6 +2290,31 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
           {swotResult ? (
             <div className="space-y-4">
+              {/* SWOT Quadrant Score Visual */}
+              <Card className="crm-card">
+                <CardContent className="p-5">
+                  <div className="grid grid-cols-2 gap-0.5 max-w-md mx-auto">
+                    {[
+                      { key: "strengths", label: "S", fullLabel: "Strengths", color: "from-emerald-500/20 to-emerald-500/5", border: "border-emerald-400/20", text: "text-emerald-400" },
+                      { key: "weaknesses", label: "W", fullLabel: "Weaknesses", color: "from-red-400/20 to-red-400/5", border: "border-red-400/20", text: "text-red-400" },
+                      { key: "opportunities", label: "O", fullLabel: "Opportunities", color: "from-[hsl(217,91%,60%)]/20 to-[hsl(217,91%,60%)]/5", border: "border-[hsl(217,91%,60%)]/20", text: "text-[hsl(217,91%,60%)]" },
+                      { key: "threats", label: "T", fullLabel: "Threats", color: "from-amber-400/20 to-amber-400/5", border: "border-amber-400/20", text: "text-amber-400" },
+                    ].map((q) => {
+                      const items = (swotResult as any)[q.key] || [];
+                      const highCount = items.filter((i: any) => typeof i !== "string" && i.priority === "high").length;
+                      return (
+                        <div key={q.key} className={`p-4 rounded-xl bg-gradient-to-br ${q.color} border ${q.border} text-center space-y-1`}>
+                          <span className={`text-2xl font-black ${q.text}`}>{q.label}</span>
+                          <p className={`text-[10px] font-medium ${q.text}`}>{q.fullLabel}</p>
+                          <p className="text-lg font-bold text-white">{items.length}</p>
+                          {highCount > 0 && <Badge className="bg-red-400/15 text-red-400 text-[8px]">{highCount} critical</Badge>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* Verdict + Top Action */}
               {(swotResult as any).overallVerdict && (
                 <Card className="crm-card border-[hsl(217,91%,60%)]/15">
