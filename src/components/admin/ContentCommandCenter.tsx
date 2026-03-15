@@ -296,9 +296,9 @@ const ContentCommandCenter = () => {
         const compData = competitorProfiles.map(c => ({ username: c.username, platform: c.platform, followers: c.followers, engagementRate: c.engagement_rate, avgLikes: c.avg_likes, postFrequency: c.post_frequency, topHashtags: c.top_hashtags || [], contentTypes: c.content_types || [] }));
         const totalFreq = compData.reduce((s, c) => s + (c.postFrequency || 3), 0);
         const content = await callAI(`You are a social media strategist. Based on these real competitor profiles, generate a 2-week content calendar that COPIES their posting strategy exactly.\n\nCompetitor data:\n${JSON.stringify(compData, null, 2)}\n\nMatch their posting frequency, content types, top hashtags, and optimal times.\nGenerate ${Math.max(totalFreq * 2, 14)} entries.\nEach: {"title":"...", "platform":"instagram/tiktok/twitter/facebook/threads", "content_type":"post/reel/story/tweet", "caption":"full caption with emojis", "hashtags":["tag1"], "scheduled_at":"ISO date next 2 weeks", "viral_score": 40-90, "description":"Based on @competitor strategy"}\n\nReturn ONLY a JSON array.`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const entries = JSON.parse(jsonMatch[0]);
+        try {
+          const entries = safeParseJSON(content);
+          if (Array.isArray(entries)) {
           for (const e of entries) {
             await supabase.from("content_calendar").insert({ title: String(e.title || "Competitor Strategy Post").slice(0, 200), platform: String(e.platform || "instagram").toLowerCase(), content_type: String(e.content_type || "post"), caption: String(e.caption || ""), hashtags: Array.isArray(e.hashtags) ? e.hashtags.map((h: string) => h.replace("#", "")) : [], scheduled_at: e.scheduled_at || new Date(Date.now() + Math.random() * 14 * 86400000).toISOString(), status: "draft", viral_score: e.viral_score || 0, description: e.description || "Imported from Competitor Intel", metadata: { source: "competitor_intel" } });
           }
