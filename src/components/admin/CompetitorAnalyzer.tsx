@@ -3924,6 +3924,11 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                                           {stat.label}
                                                         </ContextMenuLabel>
                                                         <ContextMenuSeparator className="bg-white/[0.06]" />
+                                                        {stat.detail?.description && (
+                                                          <div className="px-2 pt-1.5 pb-1">
+                                                            <p className="text-[8px] text-white/60 leading-relaxed bg-white/[0.02] rounded px-2 py-1.5 border border-white/[0.04]">{stat.detail.description}</p>
+                                                          </div>
+                                                        )}
                                                         <div className="px-2 py-1.5 space-y-1.5">
                                                           <div className="flex justify-between items-center">
                                                             <span className="text-[9px] text-white/40">Value</span>
