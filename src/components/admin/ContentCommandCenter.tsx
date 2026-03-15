@@ -248,6 +248,10 @@ const ContentCommandCenter = () => {
   const [pushingToSocial, setPushingToSocial] = useState(false);
   const [pushItemFilter, setPushItemFilter] = useState<"all_drafts" | "scheduled" | "competitor" | "selected">("all_drafts");
 
+  // ── Inter-tab sync states ──
+  const [importingCompetitorIntel, setImportingCompetitorIntel] = useState(false);
+  const [distributingAll, setDistributingAll] = useState(false);
+
   // Create form
   const [formTitle, setFormTitle] = useState("");
   const [formPlatform, setFormPlatform] = useState("");
