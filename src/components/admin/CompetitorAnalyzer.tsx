@@ -2792,194 +2792,189 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
             <Card className="crm-card"><CardContent className="p-12 text-center"><p className="text-white/50">Add competitors first</p></CardContent></Card>
           ) : (
             <>
-              {/* Real iPhone Social Media Profile Previews */}
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                {competitors.map(comp => {
-                  const topType = comp.contentTypes.length > 0 ? [...comp.contentTypes].sort((a, b) => b.pct - a.pct)[0] : null;
-                  const platformColor = comp.platform === "TikTok" ? "#fe2c55" : comp.platform === "Instagram" ? "#E1306C" : comp.platform === "Twitter" ? "#1DA1F2" : "hsl(var(--primary))";
-                  return (
-                    <div key={comp.id} className="flex flex-col items-center">
-                      {/* iPhone Frame */}
-                      <div
-                        className="relative w-[280px] rounded-[2.5rem] bg-[#000] overflow-hidden"
-                        style={{
-                          aspectRatio: "9/18",
-                          boxShadow: "0 0 0 3px #333, 0 0 0 5px #111, 0 20px 60px rgba(0,0,0,0.6), 0 0 60px hsl(var(--primary) / 0.06)",
-                        }}
-                      >
-                        {/* Dynamic Island */}
-                        <div className="absolute top-[6px] left-1/2 -translate-x-1/2 w-[80px] h-[20px] bg-black rounded-full z-40" />
+              {/* Full-width iPad Social Intelligence Panels — 1 per competitor */}
+              {competitors.map(comp => {
+                const social = comp.metadata?.socialPresence || {};
+                const platformEntries: { platform: string; username: string; color: string; icon: string; url: string }[] = [];
+                
+                // Build real social platform entries from metadata
+                if (social.instagram) platformEntries.push({ platform: "Instagram", username: social.instagram, color: "#E1306C", icon: "IG", url: `https://www.instagram.com/${social.instagram}/` });
+                if (social.tiktok) platformEntries.push({ platform: "TikTok", username: social.tiktok, color: "#fe2c55", icon: "TT", url: `https://www.tiktok.com/@${social.tiktok}` });
+                if (social.twitter) platformEntries.push({ platform: "X / Twitter", username: social.twitter, color: "#1DA1F2", icon: "X", url: `https://x.com/${social.twitter}` });
+                if (social.youtube) platformEntries.push({ platform: "YouTube", username: social.youtube, color: "#FF0000", icon: "YT", url: `https://www.youtube.com/@${social.youtube}` });
+                if (social.linkedin) platformEntries.push({ platform: "LinkedIn", username: social.linkedin, color: "#0A66C2", icon: "LI", url: `https://www.linkedin.com/company/${social.linkedin}` });
+                if (social.facebook) platformEntries.push({ platform: "Facebook", username: social.facebook, color: "#1877F2", icon: "FB", url: `https://www.facebook.com/${social.facebook}` });
+                if (social.pinterest) platformEntries.push({ platform: "Pinterest", username: social.pinterest, color: "#E60023", icon: "PI", url: `https://www.pinterest.com/${social.pinterest}` });
+                if (social.snapchat) platformEntries.push({ platform: "Snapchat", username: social.snapchat, color: "#FFFC00", icon: "SC", url: `https://www.snapchat.com/add/${social.snapchat}` });
 
-                        {/* Status bar */}
-                        <div className="absolute top-0 left-0 right-0 h-[40px] z-30 flex items-end justify-between px-6 pb-0.5">
-                          <span className="text-[9px] text-white font-semibold" style={{ fontFamily: "system-ui" }}>9:41</span>
-                          <div className="flex gap-[2px] items-center">
-                            <div className="flex gap-[1px] items-end h-[8px]">
-                              {[2.5, 4, 5.5, 7].map((h, i) => (
-                                <div key={i} className="w-[2.5px] rounded-[0.5px] bg-white" style={{ height: h }} />
-                              ))}
-                            </div>
-                            <svg className="h-[9px] w-[12px] ml-[2px]" viewBox="0 0 16 12" fill="white"><path d="M8 9.6a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4zM3.76 7.04a5.92 5.92 0 018.48 0l-1.2 1.2a4.16 4.16 0 00-6.08 0l-1.2-1.2zM1.04 4.32a9.44 9.44 0 0113.92 0l-1.2 1.2a7.68 7.68 0 00-11.52 0l-1.2-1.2z"/></svg>
-                            <div className="w-[18px] h-[8px] border border-white/60 rounded-[2px] ml-[2px] relative">
-                              <div className="absolute inset-[1.5px] right-[2px] bg-white rounded-[0.5px]" />
-                              <div className="absolute -right-[2.5px] top-[2px] w-[1px] h-[4px] bg-white/60 rounded-r-[1px]" />
-                            </div>
+                // If no social data found, create entries from the competitor's own platform
+                if (platformEntries.length === 0) {
+                  const p = comp.platform.toLowerCase();
+                  if (p === "instagram" || p === "internet") platformEntries.push({ platform: "Instagram", username: comp.username, color: "#E1306C", icon: "IG", url: `https://www.instagram.com/${comp.username}/` });
+                  if (p === "tiktok" || p === "internet") platformEntries.push({ platform: "TikTok", username: comp.username, color: "#fe2c55", icon: "TT", url: `https://www.tiktok.com/@${comp.username}` });
+                  if (p === "twitter" || p === "internet") platformEntries.push({ platform: "X / Twitter", username: comp.username, color: "#1DA1F2", icon: "X", url: `https://x.com/${comp.username}` });
+                  if (p === "youtube" || p === "internet") platformEntries.push({ platform: "YouTube", username: comp.username, color: "#FF0000", icon: "YT", url: `https://www.youtube.com/@${comp.username}` });
+                  if (p === "internet") platformEntries.push({ platform: "LinkedIn", username: comp.username, color: "#0A66C2", icon: "LI", url: `https://www.linkedin.com/company/${comp.username}` });
+                }
+
+                return (
+                  <div key={comp.id} className="w-full">
+                    {/* iPad Frame */}
+                    <div
+                      className="relative w-full rounded-[1.8rem] bg-[#1a1a1a] overflow-hidden border border-white/[0.08]"
+                      style={{
+                        boxShadow: "0 0 0 3px #2a2a2a, 0 0 0 5px #181818, 0 25px 80px rgba(0,0,0,0.5), 0 0 100px hsl(var(--primary) / 0.04)",
+                      }}
+                    >
+                      {/* iPad top bezel with camera */}
+                      <div className="h-[32px] bg-[#1a1a1a] flex items-center justify-between px-6 relative">
+                        <div className="absolute left-1/2 top-[10px] -translate-x-1/2 w-[8px] h-[8px] rounded-full bg-[#2a2a2a] border border-[#333]" />
+                        <span className="text-[10px] text-white/50 font-semibold" style={{ fontFamily: "system-ui" }}>9:41</span>
+                        <div className="flex gap-[2px] items-center">
+                          <div className="flex gap-[1px] items-end h-[8px]">
+                            {[2.5, 4, 5.5, 7].map((h, i) => (
+                              <div key={i} className="w-[2.5px] rounded-[0.5px] bg-white/60" style={{ height: h }} />
+                            ))}
+                          </div>
+                          <svg className="h-[9px] w-[12px] ml-[2px]" viewBox="0 0 16 12" fill="rgba(255,255,255,0.6)"><path d="M8 9.6a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4zM3.76 7.04a5.92 5.92 0 018.48 0l-1.2 1.2a4.16 4.16 0 00-6.08 0l-1.2-1.2zM1.04 4.32a9.44 9.44 0 0113.92 0l-1.2 1.2a7.68 7.68 0 00-11.52 0l-1.2-1.2z"/></svg>
+                          <div className="w-[18px] h-[8px] border border-white/40 rounded-[2px] ml-[2px] relative">
+                            <div className="absolute inset-[1.5px] right-[2px] bg-white/60 rounded-[0.5px]" />
                           </div>
                         </div>
+                      </div>
 
-                        {/* App content */}
-                        <div className="absolute inset-0 pt-[40px] pb-[44px] flex flex-col bg-[#000]">
-                          {/* Profile header */}
-                          <div className="px-3 pt-2 pb-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-[11px] text-white/40 font-mono">{comp.platform === "Internet" ? comp.username : comp.platform.toLowerCase() + ".com"}</span>
-                            </div>
-                            <div className="flex items-center gap-2.5 mb-2.5">
-                              <div className="w-[44px] h-[44px] rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0" style={{ background: `linear-gradient(135deg, ${platformColor}, hsl(var(--primary)))` }}>
-                                {comp.username.charAt(0).toUpperCase()}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-[12px] font-semibold text-white truncate">@{comp.username}</p>
-                                <p className="text-[9px] text-white/40">{comp.displayName || comp.metadata?.niche || "Creator"}</p>
-                              </div>
-                              <div className="px-3 py-1 rounded-lg text-[9px] font-semibold text-white" style={{ background: platformColor }}>Follow</div>
-                            </div>
-                            {/* Stats */}
-                            <div className="grid grid-cols-3 gap-1 text-center mb-2.5">
-                              <div>
-                                <p className="text-[11px] font-bold text-white">{fmtNum(comp.posts)}</p>
-                                <p className="text-[8px] text-white/35">Posts</p>
-                              </div>
-                              <div>
-                                <p className="text-[11px] font-bold text-white">{fmtNum(comp.followers)}</p>
-                                <p className="text-[8px] text-white/35">Followers</p>
-                              </div>
-                              <div>
-                                <p className="text-[11px] font-bold text-white">{fmtNum(comp.following)}</p>
-                                <p className="text-[8px] text-white/35">Following</p>
-                              </div>
+                      {/* iPad Safari-style address bar */}
+                      <div className="h-[36px] bg-[#111] border-b border-white/[0.06] flex items-center px-4 gap-3">
+                        <div className="flex gap-1.5">
+                          <div className="w-[10px] h-[10px] rounded-full bg-[#ff5f57]" />
+                          <div className="w-[10px] h-[10px] rounded-full bg-[#febc2e]" />
+                          <div className="w-[10px] h-[10px] rounded-full bg-[#28c840]" />
+                        </div>
+                        <div className="flex-1 h-[24px] rounded-lg bg-white/[0.06] flex items-center px-3 gap-2">
+                          <Lock className="h-2.5 w-2.5 text-emerald-400/70" />
+                          <span className="text-[10px] text-white/40 font-mono">{comp.metadata?.websiteUrl || `${comp.username}.com`}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          <ExternalLink className="h-3.5 w-3.5 text-white/30" />
+                          <RefreshCw className="h-3.5 w-3.5 text-white/30" />
+                        </div>
+                      </div>
+
+                      {/* iPad content area */}
+                      <div className="bg-[#0a0a0a] p-4">
+                        {/* Competitor header banner */}
+                        <div className="flex items-center gap-4 mb-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
+                          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-lg shrink-0" style={{ background: `linear-gradient(135deg, hsl(var(--primary)), hsl(262, 83%, 58%))` }}>
+                            {comp.username.charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="text-sm font-bold text-white">{comp.displayName || comp.username}</h3>
+                            <p className="text-[10px] text-white/40">@{comp.username} · {comp.metadata?.industry || comp.platform}</p>
+                            <div className="flex items-center gap-3 mt-1">
+                              <span className="text-[10px] text-white/50"><span className="text-white font-semibold">{fmtNum(comp.followers)}</span> followers</span>
+                              <span className="text-[10px] text-white/50"><span className="text-emerald-400 font-semibold">{comp.engagementRate}%</span> ER</span>
+                              <span className="text-[10px] text-white/50"><span className="font-semibold" style={{ color: "hsl(var(--primary))" }}>{comp.growthRate}%</span>/wk</span>
                             </div>
                           </div>
-
-                          {/* Content type breakdown - grid with icons */}
-                          <div className="px-3 mb-2">
-                            <div className="grid grid-cols-3 gap-2">
-                              {(comp.contentTypes.length > 0 ? comp.contentTypes.slice(0, 3) : [{ type: "Social Media Posts", pct: 60 }, { type: "Video Content", pct: 20 }, { type: "Blog/Articles", pct: 10 }]).map((ct, i) => (
-                                <div key={i} className="flex flex-col items-center py-2">
-                                  <div className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center mb-1">
-                                    {ct.type.toLowerCase().includes("video") || ct.type.toLowerCase().includes("reel") ? (
-                                      <Activity className="h-3.5 w-3.5 text-white/50" />
-                                    ) : ct.type.toLowerCase().includes("blog") || ct.type.toLowerCase().includes("article") ? (
-                                      <FileText className="h-3.5 w-3.5 text-white/50" />
-                                    ) : (
-                                      <ImageIcon className="h-3.5 w-3.5 text-white/50" />
-                                    )}
-                                  </div>
-                                  <span className="text-[7px] text-white/40 text-center leading-tight">{ct.type}</span>
-                                  <span className="text-[10px] font-bold text-white mt-0.5">{ct.pct}%</span>
-                                </div>
-                              ))}
-                            </div>
-                            {comp.contentTypes.length > 3 && (
-                              <div className="grid grid-cols-3 gap-2 mt-1">
-                                {comp.contentTypes.slice(3, 6).map((ct, i) => (
-                                  <div key={i} className="flex flex-col items-center py-2">
-                                    <div className="w-7 h-7 rounded-lg bg-white/[0.06] flex items-center justify-center mb-1">
-                                      <ImageIcon className="h-3.5 w-3.5 text-white/50" />
-                                    </div>
-                                    <span className="text-[7px] text-white/40 text-center leading-tight">{ct.type}</span>
-                                    <span className="text-[10px] font-bold text-white mt-0.5">{ct.pct}%</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Engagement & Growth bars */}
-                          <div className="px-3 mb-2">
-                            <div className="flex items-center justify-between text-[8px] mb-0.5">
-                              <span className="text-white/35">Engagement</span>
-                              <span className="text-emerald-400 font-semibold">{comp.engagementRate}%</span>
-                              <span className="text-white/35">Growth</span>
-                              <span className="font-semibold" style={{ color: platformColor }}>{comp.growthRate}%/wk</span>
-                            </div>
-                            <div className="flex gap-2">
-                              <div className="flex-1 h-[3px] rounded-full bg-white/[0.06] overflow-hidden">
-                                <div className="h-full rounded-full bg-emerald-400" style={{ width: `${Math.min(comp.engagementRate * 10, 100)}%` }} />
-                              </div>
-                              <div className="flex-1 h-[3px] rounded-full bg-white/[0.06] overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: `${Math.min(comp.growthRate * 20, 100)}%`, background: platformColor }} />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Post preview / hashtags */}
-                          <div className="px-3 flex-1 overflow-hidden">
-                            <div className="p-2 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                              <div className="flex items-center gap-1.5 mb-1">
-                                <div className="w-4 h-4 rounded-full flex items-center justify-center text-[6px] text-white font-bold" style={{ background: `linear-gradient(135deg, ${platformColor}, hsl(var(--primary)))` }}>
-                                  {comp.username.charAt(0).toUpperCase()}
-                                </div>
-                                <span className="text-[8px] text-white/60 font-medium">@{comp.username}</span>
-                                <span className="text-[7px] text-white/20">· {topType ? topType.type : "Post"}</span>
-                              </div>
-                              {comp.topHashtags.length > 0 ? (
-                                <p className="text-[9px] leading-relaxed" style={{ color: platformColor + "cc" }}>
-                                  {comp.topHashtags.slice(0, 5).map(t => `##${t}`).join(" ")}
-                                </p>
-                              ) : (
-                                <p className="text-[8px] text-white/20 italic">No hashtag data</p>
-                              )}
-                              <div className="flex items-center gap-2.5 mt-1.5 pt-1.5 border-t border-white/[0.04]">
-                                <span className="text-[7px] text-white/30 flex items-center gap-0.5"><TrendingUp className="h-2 w-2" />{fmtNum(comp.avgLikes)}</span>
-                                <span className="text-[7px] text-white/30 flex items-center gap-0.5"><Hash className="h-2 w-2" />{fmtNum(comp.avgComments)}</span>
-                                <span className="text-[7px] text-white/30 flex items-center gap-0.5"><Zap className="h-2 w-2" />{comp.postFrequency}/wk</span>
-                              </div>
-                            </div>
-                          </div>
+                          <Badge className="bg-emerald-400/10 text-emerald-400 border-0 text-[9px]">{platformEntries.length} platforms</Badge>
                         </div>
 
-                        {/* Bottom nav bar */}
-                        <div className="absolute bottom-0 left-0 right-0 h-[44px] bg-black/95 z-20 flex items-center justify-around px-4 pt-0.5 pb-[4px] border-t border-white/[0.06]">
-                          {["Home", "Search", "＋", "Reels", "Profile"].map((label, i) => (
-                            <div key={i} className="flex flex-col items-center">
-                              {i === 2 ? (
-                                <div className="h-[22px] w-[22px] rounded-md border-[1.5px] border-white/70 flex items-center justify-center"><span className="text-white text-sm leading-none">+</span></div>
-                              ) : (
-                                <span className={`text-[7px] ${i === 4 ? "text-white font-bold" : "text-white/40"}`}>{label}</span>
-                              )}
+                        {/* Social platforms grid — real embedded profiles */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                          {platformEntries.map((entry, idx) => (
+                            <div key={idx} className="rounded-xl overflow-hidden border border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] transition-colors group">
+                              {/* Platform header */}
+                              <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.04]" style={{ background: `${entry.color}10` }}>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-black text-white" style={{ background: entry.color }}>
+                                    {entry.icon}
+                                  </div>
+                                  <div>
+                                    <p className="text-[11px] font-semibold text-white">{entry.platform}</p>
+                                    <p className="text-[9px] text-white/40">@{entry.username}</p>
+                                  </div>
+                                </div>
+                                <a href={entry.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-semibold text-white/70 hover:text-white bg-white/[0.06] hover:bg-white/[0.1] transition-colors">
+                                  <ExternalLink className="h-2.5 w-2.5" /> Open
+                                </a>
+                              </div>
+
+                              {/* Live embedded iframe of the real profile */}
+                              <div className="relative h-[320px] bg-[#000] overflow-hidden">
+                                <iframe
+                                  src={entry.url}
+                                  title={`${entry.platform} - @${entry.username}`}
+                                  className="w-full h-full border-0 pointer-events-none"
+                                  style={{ transform: "scale(0.65)", transformOrigin: "top left", width: "154%", height: "154%" }}
+                                  sandbox="allow-scripts allow-same-origin"
+                                  loading="lazy"
+                                />
+                                {/* Clickable overlay to open in new tab */}
+                                <a
+                                  href={entry.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="absolute inset-0 z-10 bg-transparent hover:bg-white/[0.02] transition-colors cursor-pointer flex items-end justify-center pb-3 opacity-0 group-hover:opacity-100"
+                                >
+                                  <span className="px-3 py-1.5 rounded-lg text-[10px] font-semibold text-white bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1.5">
+                                    <ExternalLink className="h-3 w-3" /> View full profile on {entry.platform}
+                                  </span>
+                                </a>
+                                {/* Fallback overlay if iframe blocked */}
+                                <div className="absolute inset-0 z-5 flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-[#111] to-[#0a0a0a] opacity-0 [iframe:not([src])~&]:opacity-100">
+                                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black text-white" style={{ background: entry.color }}>
+                                    {entry.icon}
+                                  </div>
+                                  <p className="text-[11px] text-white/50">@{entry.username}</p>
+                                </div>
+                              </div>
+
+                              {/* Quick stats bar */}
+                              <div className="px-3 py-2 flex items-center justify-between border-t border-white/[0.04] bg-white/[0.01]">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[9px] text-white/40 flex items-center gap-1"><Users className="h-2.5 w-2.5" />{fmtNum(comp.followers)}</span>
+                                  <span className="text-[9px] text-white/40 flex items-center gap-1"><Activity className="h-2.5 w-2.5" />{comp.engagementRate}% ER</span>
+                                  <span className="text-[9px] text-white/40 flex items-center gap-1"><Zap className="h-2.5 w-2.5" />{comp.postFrequency}/wk</span>
+                                </div>
+                                <span className="text-[8px] text-white/20">Live preview</span>
+                              </div>
                             </div>
                           ))}
                         </div>
 
-                        {/* Home indicator */}
-                        <div className="absolute bottom-[2px] left-1/2 -translate-x-1/2 w-[80px] h-[3px] bg-white/20 rounded-full z-50" />
+                        {/* Content breakdown row */}
+                        <div className="mt-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-[10px] text-white/40 font-medium">Content Mix</span>
+                            <span className="text-[10px] text-white/40">Top Hashtags</span>
+                          </div>
+                          <div className="flex items-center gap-4">
+                            <div className="flex gap-2 flex-1">
+                              {comp.contentTypes.slice(0, 4).map((ct, i) => (
+                                <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/[0.03]">
+                                  {ct.type.toLowerCase().includes("video") || ct.type.toLowerCase().includes("reel") ? <Activity className="h-3 w-3 text-white/40" /> : <ImageIcon className="h-3 w-3 text-white/40" />}
+                                  <span className="text-[9px] text-white/60">{ct.type}</span>
+                                  <span className="text-[9px] font-bold text-white">{ct.pct}%</span>
+                                </div>
+                              ))}
+                            </div>
+                            <div className="flex gap-1 flex-wrap justify-end">
+                              {comp.topHashtags.slice(0, 5).map(tag => (
+                                <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded bg-[hsl(217,91%,60%)]/10 text-[hsl(217,91%,60%)]">#{tag.replace("#", "")}</span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
 
-                {/* Empty state phone placeholders if less than 3 competitors */}
-                {competitors.length < 3 && Array.from({ length: 3 - competitors.length }).map((_, i) => (
-                  <div key={`empty-${i}`} className="flex flex-col items-center">
-                    <div
-                      className="relative w-[280px] rounded-[2.5rem] bg-[#000] overflow-hidden opacity-30"
-                      style={{
-                        aspectRatio: "9/18",
-                        boxShadow: "0 0 0 3px #222, 0 0 0 5px #111",
-                      }}
-                    >
-                      <div className="absolute top-[6px] left-1/2 -translate-x-1/2 w-[80px] h-[20px] bg-black rounded-full z-40" />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-                        <Plus className="h-8 w-8 text-white/20" />
-                        <span className="text-[10px] text-white/20 font-medium">Add competitor</span>
+                      {/* iPad bottom bezel — home indicator */}
+                      <div className="h-[16px] bg-[#1a1a1a] flex items-center justify-center">
+                        <div className="w-[100px] h-[4px] bg-white/15 rounded-full" />
                       </div>
-                      <div className="absolute bottom-0 left-0 right-0 h-[44px] bg-black/95 z-20 border-t border-white/[0.04]" />
-                      <div className="absolute bottom-[2px] left-1/2 -translate-x-1/2 w-[80px] h-[3px] bg-white/10 rounded-full z-50" />
                     </div>
                   </div>
-                ))}
-              </div>
+                );
+              })}
 
               {/* Hashtag Overlap Matrix */}
               <Card className="crm-card">
