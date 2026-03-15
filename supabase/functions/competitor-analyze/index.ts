@@ -413,14 +413,45 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { prompt, action, analysisType, competitors } = await req.json();
+    const rawBody = await req.text();
+    let parsedBody: Record<string, any> = {};
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    if (rawBody) {
+      try {
+        parsedBody = JSON.parse(rawBody);
+      } catch {
+        return new Response(JSON.stringify({ error: "Invalid JSON body" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    const body = parsedBody?.body && typeof parsedBody.body === "object" ? parsedBody.body : parsedBody;
+    const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
+    const action = typeof body?.action === "string" ? body.action.trim() : "";
+    const analysisType = typeof body?.analysisType === "string" ? body.analysisType : undefined;
+    const competitors = Array.isArray(body?.competitors) ? body.competitors : [];
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+
+    if (!supabaseUrl || !serviceKey || !anonKey) {
+      console.error("Missing required environment variables", {
+        hasSupabaseUrl: !!supabaseUrl,
+        hasServiceRoleKey: !!serviceKey,
+        hasAnonKey: !!anonKey,
+      });
+      return new Response(JSON.stringify({ error: "Server configuration error" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const sb = createClient(supabaseUrl, serviceKey);
 
     const authHeader = req.headers.get("authorization") || "";
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -430,22 +461,7 @@ serve(async (req) => {
 
     const today = new Date().toISOString().slice(0, 10);
 
-    if (action === "check_usage") {
-      const { data: row } = await sb
-        .from("competitor_ai_usage")
-        .select("call_count, reset_by_admin")
-        .eq("user_id", user.id)
-        .eq("usage_date", today)
-        .maybeSingle();
-
-      const count = row?.reset_by_admin ? 0 : row?.call_count || 0;
-      return new Response(JSON.stringify({ count, limit: RATE_LIMIT_MAX, limited: count >= RATE_LIMIT_MAX }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (action === "batch_platform_refresh") {
-      const items = Array.isArray(competitors) ? competitors : [];
+    const runBatchPlatformRefresh = async (items: any[]) => {
       const results = await Promise.all(items.map(async (item: any) => {
         const websiteUrl = item?.websiteUrl ? String(item.websiteUrl) : "";
         const existingPresence = (item?.socialPresence && typeof item.socialPresence === "object") ? item.socialPresence : {};
@@ -490,9 +506,33 @@ serve(async (req) => {
       return new Response(JSON.stringify({ results }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    };
+
+    if (action === "check_usage") {
+      const { data: row } = await sb
+        .from("competitor_ai_usage")
+        .select("call_count, reset_by_admin")
+        .eq("user_id", user.id)
+        .eq("usage_date", today)
+        .maybeSingle();
+
+      const count = row?.reset_by_admin ? 0 : row?.call_count || 0;
+      return new Response(JSON.stringify({ count, limit: RATE_LIMIT_MAX, limited: count >= RATE_LIMIT_MAX }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    if (!prompt) throw new Error("Missing prompt");
+    const shouldBatchRefresh = action === "batch_platform_refresh" || (competitors.length > 0 && !prompt);
+    if (shouldBatchRefresh) {
+      return await runBatchPlatformRefresh(competitors);
+    }
+
+    if (!prompt) {
+      return new Response(JSON.stringify({ error: "Missing prompt" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const { data: usageRow } = await sb
       .from("competitor_ai_usage")
