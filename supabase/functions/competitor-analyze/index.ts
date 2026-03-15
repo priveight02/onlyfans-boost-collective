@@ -2028,6 +2028,31 @@ STRICT OUTPUT RULES:
         } else {
           reply = structData.choices?.[0]?.message?.content || "";
         }
+      } else if (analysisType === "content_plan") {
+        // === CONTENT PLAN GENERATION — high token limit, fast model ===
+        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            temperature: 0.7,
+            max_tokens: 16000,
+            messages: [
+              { role: "system", content: prompt.split("|||USER_DATA|||")[0] || prompt },
+              { role: "user", content: prompt.split("|||USER_DATA|||")[1] || "" },
+            ],
+          }),
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          const t = await response.text();
+          console.error("Content plan AI error:", response.status, t);
+          if (response.status === 429) return new Response(JSON.stringify({ error: "Rate limited. Please try again shortly." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          if (response.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+          throw new Error(`Content plan AI failed: ${response.status}`);
+        }
+        const data = await response.json();
+        reply = data.choices?.[0]?.message?.content || "";
       } else {
         // Non-financial: single pass with tool calling for reliable structured output
         const isInternetAnalysis = prompt.includes("WEBSITE:") || prompt.includes("competitor business/website");
