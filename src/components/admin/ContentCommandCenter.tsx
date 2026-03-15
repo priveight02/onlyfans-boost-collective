@@ -2307,8 +2307,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   <Edit2 className="h-3 w-3 mr-1" /> Edit
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => deleteItem(showDetail.id)}
-                  className="border-destructive/20 text-destructive hover:text-destructive text-xs h-9">
-                  <Trash2 className="h-3 w-3" />
+                  className="border-white/[0.08] text-white/50 hover:text-red-400 hover:border-red-500/30 text-xs h-9">
+                  <Trash2 className="h-3 w-3 mr-1" /> Delete
                 </Button>
               </div>
             </div>
