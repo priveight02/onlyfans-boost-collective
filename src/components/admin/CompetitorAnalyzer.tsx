@@ -715,7 +715,7 @@ Be as accurate as possible. If you recognize the account, use real data. If not,
       setNewUsername("");
       setNewCompetitorUrl("");
       setNewCompetitorKeywords("");
-      if (!selectedCompetitor) setSelectedCompetitor(result.id);
+      if (selectedCompetitors.length === 0) setSelectedCompetitors([result.id]);
       toast.success(isInternet ? `${result.displayName} analyzed and added` : `@${result.username} analyzed and added`);
     }
   };
