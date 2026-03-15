@@ -2819,7 +2819,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             <div className="space-y-1">
               <div className="flex gap-2">
                 <Input type="datetime-local" value={formSchedule} onChange={e => setFormSchedule(e.target.value)}
-                  className="bg-card/50 border-border text-foreground text-xs flex-1" />
+                  className="bg-white/[0.04] border-white/[0.08] text-white text-xs flex-1" />
                 <Button size="sm" variant="outline" onClick={suggestSchedule} disabled={smartScheduling}
                   className="text-[9px] h-10 px-2 border-primary/20 text-primary">
                   {smartScheduling ? <Loader2 className="h-3 w-3 animate-spin" /> : <><Timer className="h-3 w-3 mr-0.5" />Smart</>}
