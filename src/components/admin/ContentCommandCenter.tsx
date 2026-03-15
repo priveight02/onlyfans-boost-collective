@@ -26,7 +26,9 @@ import { useCreditAction } from "@/hooks/useCreditAction";
 import CreditCostBadge from "./CreditCostBadge";
 import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 import ContentSandbox from "./ContentSandbox";
-import { pushToSocialHub, pullContentPlanForPlatform, getConnectedAccounts, DEFAULT_BEST_TIMES, importCompetitorIntelToPlan, distributeToAllPlatforms, cloneAsTemplate, syncMediaPlanIdeas, getSyncLog } from "@/lib/contentSync";
+import { pushToSocialHub, pullContentPlanForPlatform, getConnectedAccounts, DEFAULT_BEST_TIMES, importCompetitorIntelToPlan, distributeToAllPlatforms, cloneAsTemplate, syncMediaPlanIdeas, getSyncLog, detectPlanPlatforms, orchestratePlanToPlatforms, batchPrepareContent, generateMediaPlaceholders, getSyncDashboard, type ExecutionMode, type OrchestrationResult, type PlatformSyncStatus } from "@/lib/contentSync";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const CONTENT_TYPES = ["post", "story", "reel", "tweet", "promo", "teaser", "behind_scenes", "collab"];
 const STATUSES = ["draft", "planned", "scheduled", "published", "archived"];
@@ -251,6 +253,18 @@ const ContentCommandCenter = () => {
   // ── Inter-tab sync states ──
   const [importingCompetitorIntel, setImportingCompetitorIntel] = useState(false);
   const [distributingAll, setDistributingAll] = useState(false);
+
+  // ── Orchestration Dialog ──
+  const [showOrchestrate, setShowOrchestrate] = useState(false);
+  const [orchStep, setOrchStep] = useState<1 | 2 | 3>(1);
+  const [orchDetectedPlatforms, setOrchDetectedPlatforms] = useState<{ platform: string; count: number; hasAccount: boolean; accountId?: string; accountUsername?: string }[]>([]);
+  const [orchSelectedPlatforms, setOrchSelectedPlatforms] = useState<Set<string>>(new Set());
+  const [orchMode, setOrchMode] = useState<ExecutionMode>("manual");
+  const [orchItemFilter, setOrchItemFilter] = useState<"all" | "drafts" | "competitor">("all");
+  const [orchExecuting, setOrchExecuting] = useState(false);
+  const [orchResult, setOrchResult] = useState<OrchestrationResult | null>(null);
+  const [orchSyncDashboard, setOrchSyncDashboard] = useState<PlatformSyncStatus[]>([]);
+  const [orchLoadingPlatforms, setOrchLoadingPlatforms] = useState(false);
 
   // Create form
   const [formTitle, setFormTitle] = useState("");
@@ -1890,6 +1904,55 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
     else toast.error("Clone failed");
   };
 
+  // ═══ ORCHESTRATION – 3-Step Flow ═══
+  const openOrchestrate = async () => {
+    setShowOrchestrate(true);
+    setOrchStep(1);
+    setOrchResult(null);
+    setOrchLoadingPlatforms(true);
+    try {
+      const [platforms, dashboard] = await Promise.all([detectPlanPlatforms(), getSyncDashboard()]);
+      setOrchDetectedPlatforms(platforms);
+      setOrchSyncDashboard(dashboard);
+      // Auto-select all platforms with items
+      setOrchSelectedPlatforms(new Set(platforms.filter(p => p.count > 0).map(p => p.platform)));
+    } catch (e: any) { toast.error(e.message); }
+    finally { setOrchLoadingPlatforms(false); }
+  };
+
+  const toggleOrchPlatform = (platform: string) => {
+    setOrchSelectedPlatforms(prev => {
+      const next = new Set(prev);
+      if (next.has(platform)) next.delete(platform);
+      else next.add(platform);
+      return next;
+    });
+  };
+
+  const handleOrchExecute = async () => {
+    if (orchSelectedPlatforms.size === 0) { toast.error("Select at least one platform"); return; }
+    setOrchExecuting(true);
+    try {
+      const result = await orchestratePlanToPlatforms(
+        Array.from(orchSelectedPlatforms),
+        orchMode,
+        orchItemFilter === "all" ? "all" : orchItemFilter === "drafts" ? "drafts" : "competitor",
+        selectedItems.size > 0 ? Array.from(selectedItems) : undefined,
+      );
+      setOrchResult(result);
+      setOrchStep(3);
+
+      const totalMsg = `${result.total_created} posts pushed to ${result.platforms_processed.length} platform(s)`;
+      if (orchMode === "automated") {
+        toast.success(`${totalMsg} with auto-scheduling`);
+      } else {
+        toast.success(`${totalMsg} as drafts (manual mode)`);
+      }
+      await loadItems();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setOrchExecuting(false); }
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -2006,14 +2069,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             {importingCompetitorIntel ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Target className="h-3.5 w-3.5 mr-1" />}
             Import Intel
           </Button>
-          <Button size="sm" variant="outline" onClick={handleDistributeAll} disabled={distributingAll}
-            className="border-blue-500/20 text-blue-400 text-xs h-8 hover:bg-blue-500/10">
-            {distributingAll ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Globe className="h-3.5 w-3.5 mr-1" />}
-            Distribute All
-          </Button>
-          <Button size="sm" variant="outline" onClick={openPushToSocial}
+          <Button size="sm" variant="outline" onClick={openOrchestrate}
             className="border-emerald-500/20 text-emerald-400 text-xs h-8 hover:bg-emerald-500/10">
-            <Send className="h-3.5 w-3.5 mr-1" /> Push to Social
+            <Layers className="h-3.5 w-3.5 mr-1" /> Orchestrate to Platforms
           </Button>
           <Button size="sm" onClick={() => { resetForm(); setShowCreate(true); }} className="bg-primary text-primary-foreground text-xs h-8">
             <Plus className="h-3.5 w-3.5 mr-1" /> Create
@@ -3648,94 +3706,227 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       <InsufficientCreditsModal open={insufficientModal.open} onClose={closeInsufficientModal}
         requiredCredits={insufficientModal.requiredCredits} actionName={insufficientModal.actionName} />
 
-      {/* ========== PUSH TO SOCIAL HUB DIALOG ========== */}
-      <Dialog open={showPushToSocial} onOpenChange={setShowPushToSocial}>
-        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg">
+      {/* ========== ORCHESTRATE TO PLATFORMS DIALOG ========== */}
+      <Dialog open={showOrchestrate} onOpenChange={setShowOrchestrate}>
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2">
-              <Send className="h-4 w-4 text-emerald-400" /> Push to Social Hub
+              <Layers className="h-4 w-4 text-emerald-400" /> Orchestrate Content to Platforms
             </DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-white/50">Send content plan items to platform-specific social posts with optional auto-scheduling at optimal times.</p>
 
-          <div className="space-y-3">
-            {/* Platform selector */}
-            <div>
-              <label className="text-[10px] text-white/40 uppercase tracking-wider">Platform</label>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {["instagram", "tiktok", "twitter", "facebook", "threads", "onlyfans"].map(p => (
-                  <button key={p} type="button" onClick={() => setPushPlatform(p)}
-                    className={cn("rounded-md px-2.5 py-1.5 text-[10px] capitalize border transition-all",
-                      pushPlatform === p ? "border-primary/30 bg-primary/10 text-primary" : "border-white/8 text-white/40 hover:border-white/15")}>
-                    {p}
-                  </button>
-                ))}
+          {/* Step indicators */}
+          <div className="flex items-center gap-2 mb-2">
+            {[
+              { step: 1 as const, label: "Select Platforms" },
+              { step: 2 as const, label: "Configure Execution" },
+              { step: 3 as const, label: "Results" },
+            ].map(s => (
+              <div key={s.step} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-medium border transition-all",
+                orchStep === s.step ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                : orchStep > s.step ? "border-primary/20 bg-primary/5 text-primary/60"
+                : "border-white/6 text-white/25")}>
+                <span className={cn("w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold",
+                  orchStep === s.step ? "bg-emerald-500/20 text-emerald-400"
+                  : orchStep > s.step ? "bg-primary/20 text-primary" : "bg-white/5 text-white/30")}>
+                  {orchStep > s.step ? <CheckCircle2 className="h-3 w-3" /> : s.step}
+                </span>
+                {s.label}
               </div>
-            </div>
-
-            {/* Connected account */}
-            <div>
-              <label className="text-[10px] text-white/40 uppercase tracking-wider">Connected Account</label>
-              {pushAccounts.length === 0 ? (
-                <p className="text-[11px] text-amber-400/70 mt-1">No connected {pushPlatform} accounts. Connect in Social Media Hub first.</p>
-              ) : (
-                <select value={pushSelectedAccount} onChange={e => setPushSelectedAccount(e.target.value)}
-                  className="mt-1 w-full rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-[11px] text-white/80 outline-none">
-                  {pushAccounts.map(a => (
-                    <option key={a.account_id} value={a.account_id} className="bg-[hsl(222,30%,12%)] text-white">
-                      @{a.platform_username || a.account_id}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            {/* Item filter */}
-            <div>
-              <label className="text-[10px] text-white/40 uppercase tracking-wider">Items to Push</label>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {([
-                  { id: "all_drafts" as const, label: "All Drafts", count: items.filter(i => i.status === "draft" && i.platform === pushPlatform).length },
-                  { id: "scheduled" as const, label: "Planned/Scheduled", count: items.filter(i => ["scheduled", "planned"].includes(i.status) && i.platform === pushPlatform).length },
-                  { id: "competitor" as const, label: "Competitor Intel", count: items.filter(i => COMPETITOR_SYNC_SOURCES.includes(getContentSource(i) as any) && i.platform === pushPlatform).length },
-                  { id: "selected" as const, label: `Selected (${selectedItems.size})`, count: items.filter(i => selectedItems.has(i.id) && i.platform === pushPlatform).length },
-                ]).map(f => (
-                  <button key={f.id} type="button" onClick={() => setPushItemFilter(f.id)}
-                    className={cn("rounded-md px-2.5 py-1.5 text-[10px] border transition-all",
-                      pushItemFilter === f.id ? "border-primary/30 bg-primary/10 text-primary" : "border-white/8 text-white/40")}>
-                    {f.label} ({f.count})
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Auto-schedule toggle */}
-            <div className="flex items-center justify-between rounded-lg border border-white/8 bg-white/3 p-2.5">
-              <div>
-                <p className="text-[11px] text-white/80 font-medium">Auto-Schedule at Best Times</p>
-                <p className="text-[10px] text-white/35">Distribute posts across optimal posting hours</p>
-              </div>
-              <Switch checked={pushAutoSchedule} onCheckedChange={setPushAutoSchedule} />
-            </div>
-
-            {/* Custom times */}
-            {pushAutoSchedule && (
-              <div>
-                <label className="text-[10px] text-white/40 uppercase tracking-wider">Custom Times (optional)</label>
-                <Input value={pushCustomTimes} onChange={e => setPushCustomTimes(e.target.value)}
-                  placeholder={`Default: ${DEFAULT_BEST_TIMES[pushPlatform]?.join(", ")}`}
-                  className="mt-1 bg-white/[0.04] border-white/[0.08] text-white text-xs" />
-                <p className="text-[9px] text-white/25 mt-0.5">Comma-separated e.g. 9:00 AM, 2:00 PM, 7:00 PM</p>
-              </div>
-            )}
-
-            {/* Push button */}
-            <Button onClick={handlePushToSocial} disabled={pushingToSocial || pushAccounts.length === 0}
-              className="w-full bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/25">
-              {pushingToSocial ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
-              {pushingToSocial ? "Pushing..." : `Push ${pushPlatform} content to Social Hub`}
-            </Button>
+            ))}
           </div>
+
+          {/* STEP 1: Platform Selection */}
+          {orchStep === 1 && (
+            <div className="space-y-3">
+              <p className="text-xs text-white/50">Select which platforms from your content plan to push to the Social Hub. Only platforms with content in your plan are shown.</p>
+
+              {orchLoadingPlatforms ? (
+                <div className="flex items-center justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-white/30" /></div>
+              ) : orchDetectedPlatforms.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-xs text-white/40">No content found in your plan.</p>
+                  <p className="text-[10px] text-white/25 mt-1">Create content items or import from Competitor Intel first.</p>
+                </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between mb-1">
+                    <button onClick={() => {
+                      if (orchSelectedPlatforms.size === orchDetectedPlatforms.length) setOrchSelectedPlatforms(new Set());
+                      else setOrchSelectedPlatforms(new Set(orchDetectedPlatforms.map(p => p.platform)));
+                    }} className="text-[10px] text-primary hover:text-primary/80 underline">
+                      {orchSelectedPlatforms.size === orchDetectedPlatforms.length ? "Deselect All" : "Select All"}
+                    </button>
+                    <Badge variant="outline" className="text-[9px] border-emerald-500/20 text-emerald-400">
+                      {orchSelectedPlatforms.size}/{orchDetectedPlatforms.length} selected
+                    </Badge>
+                  </div>
+
+                  {orchDetectedPlatforms.map(p => (
+                    <div key={p.platform} onClick={() => toggleOrchPlatform(p.platform)}
+                      className={cn("flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all",
+                        orchSelectedPlatforms.has(p.platform) ? "border-emerald-500/25 bg-emerald-500/5" : "border-white/6 bg-white/[0.02] hover:border-white/12")}>
+                      <div className="flex items-center gap-2.5">
+                        <div className={cn("w-4 h-4 rounded border flex items-center justify-center transition-all",
+                          orchSelectedPlatforms.has(p.platform) ? "bg-emerald-500/20 border-emerald-500/40" : "border-white/15")}>
+                          {orchSelectedPlatforms.has(p.platform) && <CheckCircle2 className="h-3 w-3 text-emerald-400" />}
+                        </div>
+                        <div>
+                          <span className="text-xs font-medium text-white capitalize">{p.platform}</span>
+                          <span className="text-[10px] text-white/30 ml-2">{p.count} items in plan</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {p.hasAccount ? (
+                          <Badge variant="outline" className="text-[9px] border-emerald-500/20 text-emerald-400">
+                            @{p.accountUsername || "connected"}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[9px] border-amber-500/20 text-amber-400">
+                            No account
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Sync Dashboard */}
+              {orchSyncDashboard.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-white/6">
+                  <p className="text-[10px] text-white/30 uppercase tracking-wider mb-2">Current Sync Status</p>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {orchSyncDashboard.filter(s => s.plan_count > 0 || s.pushed_count > 0).map(s => (
+                      <div key={s.platform} className="rounded border border-white/6 bg-white/[0.02] p-2">
+                        <p className="text-[10px] text-white/60 capitalize font-medium">{s.platform}</p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[9px] text-white/30">Plan: {s.plan_count}</span>
+                          <span className="text-[9px] text-emerald-400/60">Pushed: {s.pushed_count}</span>
+                          <span className="text-[9px] text-primary/60">Sched: {s.scheduled_count}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <Button onClick={() => setOrchStep(2)} disabled={orchSelectedPlatforms.size === 0}
+                className="w-full bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/25">
+                Next: Configure Execution <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+              </Button>
+            </div>
+          )}
+
+          {/* STEP 2: Execution Mode */}
+          {orchStep === 2 && (
+            <div className="space-y-3">
+              <p className="text-xs text-white/50">Choose how to execute your content plan across {orchSelectedPlatforms.size} platform(s).</p>
+
+              {/* Execution Mode */}
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5 block">Execution Mode</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button onClick={() => setOrchMode("manual")}
+                    className={cn("p-3 rounded-lg border text-left transition-all",
+                      orchMode === "manual" ? "border-primary/30 bg-primary/10" : "border-white/6 bg-white/[0.02] hover:border-white/12")}>
+                    <p className={cn("text-xs font-semibold", orchMode === "manual" ? "text-primary" : "text-white/60")}>Manual Mode</p>
+                    <p className="text-[10px] text-white/35 mt-0.5">Push as drafts. Review, edit, and schedule/post manually in each platform tab.</p>
+                  </button>
+                  <button onClick={() => setOrchMode("automated")}
+                    className={cn("p-3 rounded-lg border text-left transition-all",
+                      orchMode === "automated" ? "border-emerald-500/30 bg-emerald-500/10" : "border-white/6 bg-white/[0.02] hover:border-white/12")}>
+                    <p className={cn("text-xs font-semibold", orchMode === "automated" ? "text-emerald-400" : "text-white/60")}>Automated Mode</p>
+                    <p className="text-[10px] text-white/35 mt-0.5">Auto-schedule at optimal hours per platform. Posts are ready to go.</p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Content Filter */}
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1.5 block">Content to Push</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {([
+                    { id: "all" as const, label: "All Plan Items" },
+                    { id: "drafts" as const, label: "Drafts Only" },
+                    { id: "competitor" as const, label: "Competitor Intel" },
+                  ]).map(f => (
+                    <button key={f.id} onClick={() => setOrchItemFilter(f.id)}
+                      className={cn("rounded-md px-3 py-1.5 text-[10px] border transition-all",
+                        orchItemFilter === f.id ? "border-primary/30 bg-primary/10 text-primary" : "border-white/8 text-white/40")}>
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Summary */}
+              <div className="rounded-lg border border-white/8 bg-white/[0.02] p-3 space-y-1.5">
+                <p className="text-[10px] text-white/40 uppercase tracking-wider">Execution Summary</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="text-xs text-white/70">Platforms: <span className="text-primary font-medium">{Array.from(orchSelectedPlatforms).join(", ")}</span></div>
+                  <div className="text-xs text-white/70">Mode: <span className={cn("font-medium", orchMode === "automated" ? "text-emerald-400" : "text-primary")}>{orchMode === "automated" ? "Automated" : "Manual"}</span></div>
+                  <div className="text-xs text-white/70">Filter: <span className="text-white/50 capitalize">{orchItemFilter}</span></div>
+                  {orchMode === "automated" && <div className="text-xs text-white/70">Scheduling: <span className="text-emerald-400">Best times per platform</span></div>}
+                </div>
+                {orchMode === "manual" && (
+                  <p className="text-[10px] text-white/30 mt-1">Items will be synced as drafts in each platform's content tab. You can edit, add media, and schedule manually.</p>
+                )}
+                {orchMode === "automated" && (
+                  <p className="text-[10px] text-white/30 mt-1">Items will be auto-scheduled at optimal posting hours and pushed to each platform's content tab ready for publishing.</p>
+                )}
+              </div>
+
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={() => setOrchStep(1)} className="flex-1 border-white/10 text-white/50">
+                  Back
+                </Button>
+                <Button onClick={handleOrchExecute} disabled={orchExecuting}
+                  className={cn("flex-1", orchMode === "automated"
+                    ? "bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/25"
+                    : "bg-primary/15 border border-primary/20 text-primary hover:bg-primary/25")}>
+                  {orchExecuting ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+                  {orchExecuting ? "Executing..." : orchMode === "automated" ? "Execute & Auto-Schedule" : "Push as Drafts"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* STEP 3: Results */}
+          {orchStep === 3 && orchResult && (
+            <div className="space-y-3">
+              <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-center">
+                <CheckCircle2 className="h-6 w-6 text-emerald-400 mx-auto mb-1.5" />
+                <p className="text-sm font-semibold text-white">{orchResult.total_created} posts pushed</p>
+                <p className="text-[10px] text-white/40 mt-0.5">
+                  {orchResult.mode === "automated" ? `${orchResult.total_scheduled} auto-scheduled` : "Synced as drafts for manual review"}
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                {Object.entries(orchResult.per_platform).map(([platform, data]) => (
+                  <div key={platform} className="flex items-center justify-between p-2 rounded border border-white/6 bg-white/[0.02]">
+                    <span className="text-xs text-white/70 capitalize font-medium">{platform}</span>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-[9px] border-emerald-500/20 text-emerald-400">{data.created} created</Badge>
+                      {data.scheduled > 0 && <Badge variant="outline" className="text-[9px] border-primary/20 text-primary">{data.scheduled} scheduled</Badge>}
+                      {data.errors.length > 0 && <Badge variant="outline" className="text-[9px] border-destructive/20 text-destructive">{data.errors.length} errors</Badge>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <p className="text-[10px] text-white/30">
+                {orchResult.mode === "manual"
+                  ? "Go to each platform's automation tab in Social Hub to review, edit, add media, and schedule posts."
+                  : "Posts are now scheduled in each platform's content tab at optimal posting hours."}
+              </p>
+
+              <Button onClick={() => setShowOrchestrate(false)} className="w-full bg-primary/15 border border-primary/20 text-primary hover:bg-primary/25">
+                Done
+              </Button>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
