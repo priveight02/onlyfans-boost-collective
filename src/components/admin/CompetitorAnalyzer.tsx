@@ -907,7 +907,7 @@ Return ONLY valid JSON:
       if (!results.length) throw new Error("No platform data returned");
 
       const now = new Date().toISOString();
-      const byId = new Map(results.map((r: any) => [r.id, r]));
+      const byId = new Map<string, any>(results.map((r: any) => [r.id, r]));
 
       const nextCompetitors = competitors.map((c) => {
         const fresh = byId.get(c.id);
