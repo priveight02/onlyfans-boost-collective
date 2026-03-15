@@ -735,37 +735,220 @@ const scrapeSocialProfiles = async (
       }
     }
 
-    // ── SECONDARY: LinkedIn via Jina (no SocialBlade page) ──
+    // ── SECONDARY: Platform-specific scrapers for non-SocialBlade platforms ──
+
+    // Helper to extract followers/engagement from Jina-rendered profile pages
+    const extractFromJinaProfile = (md: string, platform: string) => {
+      // Generic follower extraction
+      const followerPatterns = [
+        /([\d,.KMBkmb]+)\s*followers/i,
+        /([\d,.KMBkmb]+)\s*subscribers/i,
+        /([\d,.KMBkmb]+)\s*members/i,
+      ];
+      for (const p of followerPatterns) {
+        const m = md.match(p);
+        if (m) { const v = parseHumanNumber(m[1]); if (v > 0 && !merged.followers) { merged.followers = v; break; } }
+      }
+      // Generic following
+      const followingMatch = md.match(/([\d,.KMBkmb]+)\s*following/i);
+      if (followingMatch && !merged.following) merged.following = parseHumanNumber(followingMatch[1]);
+      // Posts/videos/pins count
+      const postPatterns = [
+        /([\d,.KMBkmb]+)\s*(?:posts|pins|videos|tweets|toots|tracks|photos)/i,
+      ];
+      for (const p of postPatterns) {
+        const m = md.match(p);
+        if (m) { const v = parseHumanNumber(m[1]); if (v > 0 && !merged.posts) { merged.posts = v; break; } }
+      }
+      // Likes/reactions from visible posts
+      const likeValues = [...md.matchAll(/(\d[\d,]*)\s*(?:likes?|reactions?|♥|❤️|hearts?)\b/gi)]
+        .map(m => parseHumanNumber(m[1]))
+        .filter(n => n > 0 && n < 1e9)
+        .slice(0, 15);
+      const commentValues = [...md.matchAll(/(\d[\d,]*)\s*(?:comments?|replies)\b/gi)]
+        .map(m => parseHumanNumber(m[1]))
+        .filter(n => n >= 0 && n < 1e8)
+        .slice(0, 15);
+      const viewValues = [...md.matchAll(/(\d[\d,.KMBkmb]*)\s*(?:views?|plays?|impressions?|listens?)\b/gi)]
+        .map(m => parseHumanNumber(m[1]))
+        .filter(n => n > 0)
+        .slice(0, 15);
+      if (!merged.avgLikes && likeValues.length) merged.avgLikes = Math.round(likeValues.reduce((a, b) => a + b, 0) / likeValues.length);
+      if (!merged.avgComments && commentValues.length) merged.avgComments = Math.round(commentValues.reduce((a, b) => a + b, 0) / commentValues.length);
+      if (!merged.avgViews && viewValues.length) merged.avgViews = Math.round(viewValues.reduce((a, b) => a + b, 0) / viewValues.length);
+      // Post frequency from recency
+      const recency = [...md.matchAll(/(\d+)\s*(d|h|w|mo)\s/gi)]
+        .map(m => ({ n: Number(m[1]), u: m[2].toLowerCase() }))
+        .filter(r => Number.isFinite(r.n) && r.n > 0)
+        .slice(0, 10);
+      if (!merged.postFrequency && recency.length >= 2) {
+        const maxDays = Math.max(...recency.map(r => r.u === "mo" ? r.n * 30 : r.u === "w" ? r.n * 7 : r.u === "h" ? r.n / 24 : r.n));
+        if (maxDays > 0) merged.postFrequency = (recency.length / maxDays) * 7;
+      }
+      // Description from og or visible bio
+      if (!merged.description) {
+        const bio = md.match(/(?:bio|about|description)[:\s]*\n?\s*([^\n]{10,200})/i)?.[1];
+        if (bio) merged.description = bio.trim().slice(0, 200);
+      }
+    };
+
     if (key === "linkedin") {
       console.log(`[SCRAPE] Fetching LinkedIn via Jina for @${handle}`);
       const md = await fetchJina(`https://www.linkedin.com/company/${handle}/`);
-      if (md && md.length > 100) {
-        const followersMatch = md.match(/([\d,.KMBkmb]+)\s*followers/i);
-        if (followersMatch) merged.followers = parseHumanNumber(followersMatch[1]);
+      if (md && md.length > 100) extractFromJinaProfile(md, "linkedin");
+    }
 
-        // Extract reactions from posts
-        const reactionValues = [...md.matchAll(/(\d[\d,]*)\s*(?:reactions?|likes?)\b/gi)]
-          .map(m => parseHumanNumber(m[1]))
-          .filter(n => n > 0)
-          .slice(0, 10);
-        const commentValues = [...md.matchAll(/(\d[\d,]*)\s*(?:comments?)\b/gi)]
-          .map(m => parseHumanNumber(m[1]))
-          .filter(n => n >= 0)
-          .slice(0, 10);
-
-        if (!merged.avgLikes && reactionValues.length) merged.avgLikes = Math.round(reactionValues.reduce((a, b) => a + b, 0) / reactionValues.length);
-        if (!merged.avgComments && commentValues.length) merged.avgComments = Math.round(commentValues.reduce((a, b) => a + b, 0) / commentValues.length);
-
-        // Post frequency from recency markers
-        const recency = [...md.matchAll(/(\d+)\s*(d|w|mo)\s/gi)]
-          .map(m => ({ n: Number(m[1]), u: m[2].toLowerCase() }))
-          .filter(r => Number.isFinite(r.n) && r.n > 0)
-          .slice(0, 10);
-        if (!merged.postFrequency && recency.length) {
-          const maxDays = Math.max(...recency.map(r => r.u === "mo" ? r.n * 30 : r.u === "w" ? r.n * 7 : r.n));
-          if (maxDays > 0) merged.postFrequency = (recency.length / maxDays) * 7;
+    // ── Reddit: Free JSON API (no key needed) ──
+    if (key === "reddit") {
+      console.log(`[SCRAPE] Fetching Reddit via JSON API for @${handle}`);
+      // Try subreddit first, then user
+      const isSubreddit = !handle.startsWith("u_") && !handle.startsWith("u/");
+      const redditUrls = isSubreddit
+        ? [`https://www.reddit.com/r/${handle}/about.json`, `https://www.reddit.com/user/${handle}/about.json`]
+        : [`https://www.reddit.com/user/${handle.replace(/^u[_/]/, "")}/about.json`];
+      for (const rUrl of redditUrls) {
+        const raw = await fetchWithTimeout(rUrl, { ms: 8000, maxChars: 50000, headers: { "Accept": "application/json" } });
+        if (raw) {
+          try {
+            const rData = JSON.parse(raw);
+            const d = rData?.data;
+            if (d) {
+              if (d.subscribers && !merged.followers) merged.followers = d.subscribers;
+              if (d.active_user_count && !merged.avgViews) merged.avgViews = d.active_user_count;
+              if (d.comment_karma && !merged.avgComments) merged.avgComments = Math.round(d.comment_karma / Math.max(d.link_karma || 1, 1));
+              if (d.link_karma && !merged.avgLikes) merged.avgLikes = Math.round(d.link_karma / 100);
+              if (d.total_karma) merged.totalLikes = d.total_karma;
+              if (d.public_description) merged.description = d.public_description.slice(0, 200);
+              if (d.created_utc) {
+                const ageDays = (Date.now() / 1000 - d.created_utc) / 86400;
+                if (d.subscribers && ageDays > 30) {
+                  merged.growthRate = (d.subscribers / ageDays) * 7 / d.subscribers * 100;
+                }
+              }
+              console.log(`[SCRAPE] Reddit JSON result: followers=${merged.followers}`);
+              break;
+            }
+          } catch { /* parse error, try next */ }
         }
       }
+      // Fallback to Jina if JSON API failed
+      if (!merged.followers) {
+        const md = await fetchJina(`https://www.reddit.com/r/${handle}/`);
+        if (md && md.length > 100) extractFromJinaProfile(md, "reddit");
+      }
+    }
+
+    // ── Threads: Jina scraping ──
+    if (key === "threads") {
+      console.log(`[SCRAPE] Fetching Threads via Jina for @${handle}`);
+      const md = await fetchJina(`https://www.threads.net/@${handle}`);
+      if (md && md.length > 100) {
+        extractFromJinaProfile(md, "threads");
+        // Threads-specific patterns
+        const followersMatch = md.match(/([\d,.KMBkmb]+)\s*followers/i);
+        if (followersMatch && !merged.followers) merged.followers = parseHumanNumber(followersMatch[1]);
+      }
+    }
+
+    // ── Pinterest: Jina scraping ──
+    if (key === "pinterest") {
+      console.log(`[SCRAPE] Fetching Pinterest via Jina for @${handle}`);
+      const md = await fetchJina(`https://www.pinterest.com/${handle}/`);
+      if (md && md.length > 100) {
+        extractFromJinaProfile(md, "pinterest");
+        // Pinterest-specific: monthly views
+        const monthlyViews = md.match(/([\d,.KMBkmb]+)\s*monthly\s*views/i)?.[1];
+        if (monthlyViews) { const v = parseHumanNumber(monthlyViews); if (v > 0) merged.avgViews = Math.round(v / 30); }
+        const pinsMatch = md.match(/([\d,.KMBkmb]+)\s*pins/i)?.[1];
+        if (pinsMatch && !merged.posts) merged.posts = parseHumanNumber(pinsMatch);
+      }
+    }
+
+    // ── Twitch: Jina scraping + SocialBlade ──
+    if (key === "twitch") {
+      console.log(`[SCRAPE] Fetching Twitch via SocialBlade+Jina for @${handle}`);
+      // SocialBlade has Twitch pages
+      const sbMd = await fetchJina(`https://socialblade.com/twitch/user/${encodeURIComponent(handle)}`);
+      if (sbMd && sbMd.length > 200) {
+        const fMatch = sbMd.match(/followers\s*\n\s*([\d,.KMBkmb]+)/i);
+        if (fMatch) merged.followers = parseHumanNumber(fMatch[1]);
+        const vMatch = sbMd.match(/(?:total\s*)?views?\s*\n\s*([\d,.KMBkmb]+)/i);
+        if (vMatch) { const v = parseHumanNumber(vMatch[1]); if (v > 1000) merged.totalViews = v; }
+        const gains = extractLast30Row(sbMd);
+        if (gains.length >= 1) {
+          merged.followerGain30d = gains[0];
+          if (merged.followers && merged.followers > 0) merged.growthRate = (gains[0] / merged.followers) * 100;
+        }
+        if (gains.length >= 2) merged.viewGain30d = gains[1];
+        console.log(`[SCRAPE] Twitch SocialBlade: followers=${merged.followers}, views=${merged.totalViews}`);
+      }
+      // Jina fallback
+      if (!merged.followers) {
+        const md = await fetchJina(`https://www.twitch.tv/${handle}`);
+        if (md && md.length > 100) extractFromJinaProfile(md, "twitch");
+      }
+    }
+
+    // ── Snapchat: Jina scraping ──
+    if (key === "snapchat") {
+      console.log(`[SCRAPE] Fetching Snapchat via Jina for @${handle}`);
+      const md = await fetchJina(`https://www.snapchat.com/add/${handle}`);
+      if (md && md.length > 50) {
+        extractFromJinaProfile(md, "snapchat");
+        // Try Snapchat Spotlight/public profile
+        if (!merged.followers) {
+          const md2 = await fetchJina(`https://story.snapchat.com/s/${handle}`);
+          if (md2 && md2.length > 50) extractFromJinaProfile(md2, "snapchat");
+        }
+      }
+    }
+
+    // ── Discord: Jina scraping (invite page) ──
+    if (key === "discord") {
+      console.log(`[SCRAPE] Fetching Discord invite for ${handle}`);
+      // Discord widget.json is a free open API
+      const widgetJson = await fetchWithTimeout(`https://discord.com/api/v9/invites/${handle}?with_counts=true`, { ms: 6000, maxChars: 20000 });
+      if (widgetJson) {
+        try {
+          const inv = JSON.parse(widgetJson);
+          if (inv?.approximate_member_count) merged.followers = inv.approximate_member_count;
+          if (inv?.approximate_presence_count) merged.avgViews = inv.approximate_presence_count;
+          if (inv?.guild?.description) merged.description = inv.guild.description.slice(0, 200);
+          console.log(`[SCRAPE] Discord API: members=${merged.followers}, online=${merged.avgViews}`);
+        } catch { /* noop */ }
+      }
+    }
+
+    // ── Spotify: Jina scraping ──
+    if (key === "spotify") {
+      console.log(`[SCRAPE] Fetching Spotify via Jina for ${handle}`);
+      const md = await fetchJina(`https://open.spotify.com/artist/${handle}`);
+      if (md && md.length > 100) {
+        const listenersMatch = md.match(/([\d,.KMBkmb]+)\s*monthly\s*listeners/i)?.[1];
+        if (listenersMatch) merged.followers = parseHumanNumber(listenersMatch);
+        extractFromJinaProfile(md, "spotify");
+      }
+    }
+
+    // ── Twitch, Mastodon, Bluesky, Tumblr, etc.: Generic Jina fallback ──
+    const jinaFallbackPlatforms: Record<string, string> = {
+      mastodon: `https://mastodon.social/@${handle}`,
+      bluesky: `https://bsky.app/profile/${handle}`,
+      tumblr: `https://${handle}.tumblr.com`,
+      vimeo: `https://vimeo.com/${handle}`,
+      medium: `https://medium.com/@${handle}`,
+      soundcloud: `https://soundcloud.com/${handle}`,
+      patreon: `https://www.patreon.com/${handle}`,
+      dribbble: `https://dribbble.com/${handle}`,
+      behance: `https://www.behance.net/${handle}`,
+      github: `https://github.com/${handle}`,
+      clubhouse: `https://www.clubhouse.com/@${handle}`,
+      telegram: `https://t.me/${handle}`,
+    };
+    if (key in jinaFallbackPlatforms && !merged.followers) {
+      console.log(`[SCRAPE] Fetching ${key} via Jina for @${handle}`);
+      const md = await fetchJina(jinaFallbackPlatforms[key]);
+      if (md && md.length > 50) extractFromJinaProfile(md, key);
     }
 
     // ── TERTIARY: YouTube RSS enrichment for real engagement (always run for YouTube) ──
@@ -820,7 +1003,6 @@ const scrapeSocialProfiles = async (
               }
             }
           }
-          // Try og:description for profile description
           if (!merged.description) {
             const desc = raw.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i)?.[1]
               || raw.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i)?.[1] || "";
@@ -1494,10 +1676,11 @@ STRICT OUTPUT RULES:
 
                 if (Object.keys(socialHandles).length > 0) {
                   console.log("[SCRAPE] Found social handles on website:", JSON.stringify(socialHandles));
-                  // Only scrape the 6 core platforms that have SocialBlade support
+                  // Scrape ALL platforms that have scraping support (not just SocialBlade 6)
                   const scrapeable: Record<string, string> = {};
+                  const supportedScrape = ["instagram", "tiktok", "youtube", "twitter", "facebook", "linkedin", "reddit", "threads", "pinterest", "twitch", "snapchat", "discord", "spotify", "mastodon", "bluesky", "tumblr", "vimeo", "medium", "soundcloud", "patreon", "dribbble", "behance", "github", "telegram"];
                   for (const [k, v] of Object.entries(socialHandles)) {
-                    if (["instagram", "tiktok", "youtube", "twitter", "facebook", "linkedin"].includes(k)) {
+                    if (supportedScrape.includes(k)) {
                       scrapeable[k] = v;
                     }
                   }
