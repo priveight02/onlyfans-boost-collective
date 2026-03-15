@@ -1560,6 +1560,27 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                     }}>
                     <RefreshCw className={`h-3 w-3 ${refreshingId ? "animate-spin" : ""}`} /> Refresh All
                   </Button>
+                  {/* Master Sync All switch */}
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none px-2.5 py-1 rounded-lg bg-[hsl(217,91%,60%)]/[0.04] border border-[hsl(217,91%,60%)]/10 hover:bg-[hsl(217,91%,60%)]/[0.08] transition-colors" onClick={e => e.stopPropagation()}>
+                    <Switch
+                      checked={syncCompetitorsAcrossTabs && selectedCompetitors.length === competitors.length && competitors.length > 0}
+                      onCheckedChange={(on) => {
+                        if (on) {
+                          setSelectedCompetitors(competitors.map(c => c.id));
+                          setSyncCompetitorsAcrossTabs(true);
+                          localStorage.setItem("competitor_sync_selection", "true");
+                          toast.success("All competitors synced across all tabs");
+                        } else {
+                          setSelectedCompetitors([]);
+                          setSyncCompetitorsAcrossTabs(false);
+                          localStorage.setItem("competitor_sync_selection", "false");
+                          toast.success("Sync disabled — selection cleared");
+                        }
+                      }}
+                      className="h-4 w-7 data-[state=checked]:bg-[hsl(217,91%,60%)]"
+                    />
+                    <span className="text-[10px] text-white/50 whitespace-nowrap font-medium">Sync All Across Tabs</span>
+                  </label>
                   <span className="text-[10px] text-white/25">{competitors.length} competitor{competitors.length !== 1 ? "s" : ""}</span>
                   {/* Stale data warning */}
                   {competitors.some(c => {
