@@ -484,6 +484,7 @@ const CRM = () => {
                 {section.items.map((item) => {
                   const isActive = activeTab === item.id;
                   const Icon = item.icon;
+                  const isSandbox = item.id === "sandbox";
                   return (
                     <button
                       key={item.id}
@@ -494,6 +495,8 @@ const CRM = () => {
                         sidebarCollapsed ? "justify-center px-0 py-2.5 mx-auto" : "px-3 py-[9px]",
                         isActive
                           ? "text-white"
+                          : isSandbox && !isActive
+                          ? "text-primary/70 hover:text-primary hover:bg-primary/[0.05]"
                           : "text-white/35 hover:text-white/65 hover:bg-white/[0.03]"
                       )}
                     >
