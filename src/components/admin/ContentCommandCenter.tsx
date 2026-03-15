@@ -2751,7 +2751,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 {formMediaPreviews.map((url, i) => (
                   <div key={`n-${i}`} className="relative w-16 h-16 rounded-lg overflow-hidden border border-primary/30">
                     {formMediaFiles[i]?.type.startsWith("video") ? (
-                      <div className="w-full h-full bg-muted/30 flex items-center justify-center"><Video className="h-5 w-5 text-muted-foreground" /></div>
+                      <div className="w-full h-full bg-white/[0.03] flex items-center justify-center"><Video className="h-5 w-5 text-white/40" /></div>
                     ) : (
                       <img src={url} alt="" className="w-full h-full object-cover" />
                     )}
