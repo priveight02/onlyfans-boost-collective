@@ -2964,17 +2964,17 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               <Card key={i} className="bg-white/[0.03] border-white/[0.06]">
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-foreground">{idea.title}</p>
+                    <p className="text-sm font-medium text-white">{idea.title}</p>
                     <div className="flex gap-1">
-                      <Badge variant="outline" className={`text-[9px] ${idea.estimated_reach === "viral" ? "border-pink-500/20 text-pink-400" : idea.estimated_reach === "high" ? "border-emerald-500/20 text-emerald-400" : "border-border text-muted-foreground"}`}>
+                      <Badge variant="outline" className={`text-[9px] ${idea.estimated_reach === "viral" ? "border-pink-500/20 text-pink-400" : idea.estimated_reach === "high" ? "border-emerald-500/20 text-emerald-400" : "border-white/[0.08] text-white/40"}`}>
                         {idea.estimated_reach}
                       </Badge>
-                      <Badge variant="outline" className="text-[9px] border-border text-muted-foreground">{idea.difficulty}</Badge>
+                      <Badge variant="outline" className="text-[9px] border-white/[0.08] text-white/40">{idea.difficulty}</Badge>
                     </div>
                   </div>
                   <p className="text-[9px] text-blue-400/70 mb-1">Strategy: {idea.strategy}</p>
-                  <p className="text-[10px] text-muted-foreground line-clamp-2 mb-1">{idea.caption}</p>
-                  <p className="text-[9px] text-muted-foreground/60">💡 {idea.why_it_works}</p>
+                  <p className="text-[10px] text-white/50 line-clamp-2 mb-1">{idea.caption}</p>
+                  <p className="text-[9px] text-white/30">{idea.why_it_works}</p>
                   <Button size="sm" className="mt-1.5 text-[9px] h-5 bg-primary text-primary-foreground" onClick={() => {
                     applyTrendIdea({ ...idea, platform: idea.platform, viral_potential: idea.estimated_reach === "viral" ? 90 : 60 });
                   }}>
