@@ -5919,6 +5919,65 @@ Return ONLY valid JSON:
                 }}>
                   <Copy className="h-4 w-4" /> Copy Summary
                 </Button>
+
+                {/* HTML Report Export */}
+                <Button variant="outline" className="gap-1.5 border-amber-400/20 text-amber-400 hover:bg-amber-400/10" onClick={() => {
+                  const css = `body{font-family:system-ui,-apple-system,sans-serif;background:#0a0e1a;color:#e2e8f0;padding:40px;max-width:900px;margin:0 auto}h1{background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:28px}h2{color:#60a5fa;border-bottom:1px solid rgba(255,255,255,0.06);padding-bottom:8px;margin-top:32px}h3{color:#a78bfa;font-size:14px}.card{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:12px;padding:16px;margin:12px 0}.stat{display:inline-block;padding:8px 16px;background:rgba(59,130,246,0.08);border-radius:8px;margin:4px;font-size:13px}.stat b{color:#60a5fa}.good{color:#34d399}.bad{color:#f87171}.warn{color:#fbbf24}table{width:100%;border-collapse:collapse;font-size:13px}th,td{padding:8px 12px;text-align:left;border-bottom:1px solid rgba(255,255,255,0.04)}th{color:rgba(255,255,255,0.4);font-weight:500}.footer{margin-top:48px;padding-top:16px;border-top:1px solid rgba(255,255,255,0.06);color:rgba(255,255,255,0.3);font-size:11px}`;
+                  let html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Competitive Intelligence Report</title><style>${css}</style></head><body>`;
+                  html += `<h1>🎯 Competitive Intelligence Report</h1><p style="color:rgba(255,255,255,0.4)">Generated: ${new Date().toLocaleString()}</p>`;
+                  
+                  if (enterpriseProfile?.companyName) {
+                    html += `<div class="card"><h3>My Enterprise</h3><p><b>${enterpriseProfile.companyName}</b>${enterpriseProfile.industry ? ` · ${enterpriseProfile.industry}` : ""}</p>`;
+                    if (myStats) html += `<p>@${myStats.username} · ${fmtNum(myStats.followers)} followers · ${myStats.engagementRate}% ER</p>`;
+                    html += `</div>`;
+                  }
+
+                  if (competitors.length) {
+                    html += `<h2>👥 Tracked Competitors (${competitors.length})</h2><table><tr><th>Account</th><th>Platform</th><th>Followers</th><th>ER%</th><th>Growth</th><th>Threat</th></tr>`;
+                    competitors.forEach(c => {
+                      const tc = c.score >= 70 ? "bad" : c.score >= 40 ? "warn" : "good";
+                      html += `<tr><td><b>@${c.username}</b></td><td>${c.platform}</td><td>${fmtNum(c.followers)}</td><td>${c.engagementRate}%</td><td class="${c.growthRate >= 0 ? "good" : "bad"}">${c.growthRate >= 0 ? "+" : ""}${c.growthRate}%</td><td class="${tc}">${c.score}/100</td></tr>`;
+                    });
+                    html += `</table>`;
+                  }
+
+                  if (siteInsights) {
+                    html += `<h2>🧠 AI Competitive Intelligence</h2><div class="card"><p><b>Score:</b> <span class="${(siteInsights.competitiveScore || 0) >= 60 ? "good" : "warn"}">${siteInsights.competitiveScore}/100</span> · <b>Position:</b> ${siteInsights.marketPosition?.tier || "?"}</p><p>${siteInsights.executiveSummary || ""}</p></div>`;
+                  }
+
+                  if (forecastResult) {
+                    html += `<h2>📈 Growth Forecast: @${forecastResult.username}</h2><div class="card"><p><b>Trend:</b> <span class="${forecastResult.currentTrend === "accelerating" ? "good" : forecastResult.currentTrend === "declining" ? "bad" : "warn"}">${forecastResult.currentTrend}</span></p><p>${forecastResult.trendAnalysis || ""}</p>`;
+                    html += `<div style="display:flex;gap:8px;margin-top:12px">`;
+                    [{ l: "30 Days", d: forecastResult.projections?.thirtyDays },{ l: "90 Days", d: forecastResult.projections?.ninetyDays },{ l: "6 Months", d: forecastResult.projections?.sixMonths },{ l: "1 Year", d: forecastResult.projections?.oneYear }].forEach(p => {
+                      html += `<div class="stat"><b>${fmtNum(p.d?.followers || 0)}</b><br><span style="font-size:10px;color:rgba(255,255,255,0.4)">${p.l}</span></div>`;
+                    });
+                    html += `</div></div>`;
+                  }
+
+                  if (swotResult) {
+                    html += `<h2>🎯 SWOT Analysis</h2><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
+                    [{ k: "strengths", l: "Strengths", c: "good" },{ k: "weaknesses", l: "Weaknesses", c: "bad" },{ k: "opportunities", l: "Opportunities", c: "" },{ k: "threats", l: "Threats", c: "warn" }].forEach(q => {
+                      const items = (swotResult as any)[q.k] || [];
+                      html += `<div class="card"><h3 class="${q.c}">${q.l} (${items.length})</h3><ul>`;
+                      items.forEach((it: any) => { html += `<li style="font-size:12px;margin:4px 0">${typeof it === "string" ? it : it.text || it}</li>`; });
+                      html += `</ul></div>`;
+                    });
+                    html += `</div>`;
+                  }
+
+                  html += `<div class="footer">Generated by Uplyze Competitor Analyzer · ${new Date().toISOString()}</div></body></html>`;
+
+                  const blob = new Blob([html], { type: "text/html" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `competitive-intel-${new Date().toISOString().slice(0, 10)}.html`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast.success("HTML report exported — open in any browser");
+                }}>
+                  <FileText className="h-4 w-4" /> Export HTML Report
+                </Button>
               </div>
             </CardContent>
           </Card>
