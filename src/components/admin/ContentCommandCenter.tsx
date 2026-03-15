@@ -2705,14 +2705,14 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               )}
               {/* Carousel Slides display */}
               {carouselSlides.length > 0 && (
-                <div className="bg-muted/30 rounded-lg p-2 space-y-1.5">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">📱 Carousel Slides ({carouselSlides.length})</p>
+                <div className="bg-white/[0.03] rounded-lg p-2 space-y-1.5">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider">Carousel Slides ({carouselSlides.length})</p>
                   <div className="flex gap-1.5 overflow-x-auto pb-1">
                     {carouselSlides.map((slide, i) => (
-                      <div key={i} className="min-w-[140px] bg-card/50 border border-border rounded-lg p-2 flex-shrink-0">
+                      <div key={i} className="min-w-[140px] bg-white/[0.04] border border-white/[0.06] rounded-lg p-2 flex-shrink-0">
                         <p className="text-[8px] text-primary font-bold">Slide {i + 1}</p>
-                        <p className="text-[10px] font-medium text-foreground mt-0.5">{slide.title}</p>
-                        <p className="text-[9px] text-muted-foreground mt-0.5 line-clamp-3">{slide.body}</p>
+                        <p className="text-[10px] font-medium text-white mt-0.5">{slide.title}</p>
+                        <p className="text-[9px] text-white/40 mt-0.5 line-clamp-3">{slide.body}</p>
                         <p className="text-[8px] text-primary/60 mt-0.5">{slide.cta}</p>
                       </div>
                     ))}
