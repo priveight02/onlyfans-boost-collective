@@ -2257,7 +2257,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               <div className="flex gap-2 pt-2 border-t border-white/[0.06] flex-wrap">
                 {showDetail.status === "draft" && (
                   <Button size="sm" variant="outline" onClick={() => moveToReview(showDetail.id)}
-                    className="border-primary/20 text-primary text-xs h-9">
+                    className="border-primary/20 bg-primary/10 text-primary hover:bg-primary/20 text-xs h-9">
                     <CheckCircle2 className="h-3 w-3 mr-1" /> Submit for Review
                   </Button>
                 )}
