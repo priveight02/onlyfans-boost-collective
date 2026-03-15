@@ -2826,8 +2826,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 </Button>
               </div>
               {suggestedSlots.length > 0 && (
-                <div className="flex gap-1 flex-wrap bg-muted/30 rounded-lg p-2">
-                  <span className="text-[9px] text-muted-foreground w-full mb-0.5">AI Suggested Slots:</span>
+                <div className="flex gap-1 flex-wrap bg-white/[0.03] rounded-lg p-2">
+                  <span className="text-[9px] text-white/40 w-full mb-0.5">AI Suggested Slots:</span>
                   {suggestedSlots.map((slot, i) => {
                     try {
                       const d = new Date(slot);
