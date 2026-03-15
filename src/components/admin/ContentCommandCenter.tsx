@@ -3214,30 +3214,30 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== HASHTAG BANK DIALOG ========== */}
       <Dialog open={showHashtagBank} onOpenChange={setShowHashtagBank}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-md">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Hash className="h-4 w-4 text-primary" /> Hashtag Bank</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Hash className="h-4 w-4 text-primary" /> Hashtag Bank</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Save and reuse your best hashtag sets across content.</p>
+          <p className="text-xs text-white/50">Save and reuse your best hashtag sets across content.</p>
           <div className="space-y-3">
             {formHashtags.trim() && (
               <div className="flex gap-1.5 items-center">
                 <Input value={newSetName} onChange={e => setNewSetName(e.target.value)}
-                  placeholder="Set name..." className="bg-card/50 border-border text-foreground text-xs flex-1" />
+                  placeholder="Set name..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs flex-1" />
                 <Button size="sm" onClick={saveHashtagSet} className="text-xs h-8 bg-primary text-primary-foreground">
                   <Plus className="h-3 w-3 mr-0.5" /> Save Current
                 </Button>
               </div>
             )}
             {hashtagSets.length === 0 ? (
-              <p className="text-xs text-muted-foreground/60 text-center py-6">No saved hashtag sets yet. Generate hashtags in the create dialog, then save them here.</p>
+              <p className="text-xs text-white/30 text-center py-6">No saved hashtag sets yet. Generate hashtags in the create dialog, then save them here.</p>
             ) : hashtagSets.map((set, i) => (
-              <Card key={i} className="bg-card/50 border-border">
+              <Card key={i} className="bg-white/[0.03] border-white/[0.06]">
                 <CardContent className="p-2">
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-medium text-foreground">{set.name}</span>
+                    <span className="text-xs font-medium text-white">{set.name}</span>
                     <div className="flex gap-1">
-                      <Badge variant="outline" className="text-[8px] border-border text-muted-foreground capitalize">{set.platform}</Badge>
+                      <Badge variant="outline" className="text-[8px] border-white/[0.08] text-white/40 capitalize">{set.platform}</Badge>
                       <Button size="sm" variant="outline" onClick={() => applyHashtagSet(set)}
                         className="text-[9px] h-5 px-2 border-primary/20 text-primary">Use</Button>
                       <Button size="sm" variant="outline" onClick={() => setHashtagSets(prev => prev.filter((_, j) => j !== i))}
@@ -3246,7 +3246,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   </div>
                   <div className="flex flex-wrap gap-1">
                     {set.tags.slice(0, 10).map((t, j) => <span key={j} className="text-[9px] text-primary/60">#{t}</span>)}
-                    {set.tags.length > 10 && <span className="text-[9px] text-muted-foreground">+{set.tags.length - 10}</span>}
+                    {set.tags.length > 10 && <span className="text-[9px] text-white/40">+{set.tags.length - 10}</span>}
                   </div>
                 </CardContent>
               </Card>
@@ -3257,11 +3257,11 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== CAPTION LIBRARY DIALOG ========== */}
       <Dialog open={showCaptionLibrary} onOpenChange={setShowCaptionLibrary}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-md max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" /> Caption Library</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" /> Caption Library</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Save your best captions for quick reuse. Click to apply.</p>
+          <p className="text-xs text-white/50">Save your best captions for quick reuse. Click to apply.</p>
           {formCaption.trim() && (
             <Button size="sm" variant="outline" onClick={() => saveCaptionToLibrary(formCaption, formPlatform || "all")}
               className="text-xs h-8 border-primary/20 text-primary w-full">
@@ -3270,20 +3270,20 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           )}
           <div className="space-y-2">
             {savedCaptions.length === 0 ? (
-              <p className="text-xs text-muted-foreground/60 text-center py-6">No saved captions yet. Write a great caption and save it here for reuse.</p>
+              <p className="text-xs text-white/30 text-center py-6">No saved captions yet. Write a great caption and save it here for reuse.</p>
             ) : savedCaptions.map(cap => (
-              <Card key={cap.id} className="bg-card/50 border-border hover:border-primary/30 transition-all cursor-pointer"
+              <Card key={cap.id} className="bg-white/[0.03] border-white/[0.06] hover:border-primary/30 transition-all cursor-pointer"
                 onClick={() => applySavedCaption(cap)}>
                 <CardContent className="p-2">
                   <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[10px] font-medium text-foreground">{cap.label}</span>
+                    <span className="text-[10px] font-medium text-white">{cap.label}</span>
                     <div className="flex gap-1 items-center">
-                      <Badge variant="outline" className="text-[8px] border-border text-muted-foreground capitalize">{cap.platform}</Badge>
+                      <Badge variant="outline" className="text-[8px] border-white/[0.08] text-white/40 capitalize">{cap.platform}</Badge>
                       <button onClick={(e) => { e.stopPropagation(); setSavedCaptions(prev => prev.filter(c => c.id !== cap.id)); }}
                         className="p-0.5 rounded hover:bg-destructive/15"><X className="h-2.5 w-2.5 text-destructive/50" /></button>
                     </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground line-clamp-3">{cap.text}</p>
+                  <p className="text-[10px] text-white/50 line-clamp-3">{cap.text}</p>
                 </CardContent>
               </Card>
             ))}
