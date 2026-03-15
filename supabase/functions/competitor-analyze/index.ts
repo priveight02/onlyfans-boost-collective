@@ -444,6 +444,54 @@ serve(async (req) => {
       });
     }
 
+    if (action === "batch_platform_refresh") {
+      const items = Array.isArray(competitors) ? competitors : [];
+      const results = await Promise.all(items.map(async (item: any) => {
+        const websiteUrl = item?.websiteUrl ? String(item.websiteUrl) : "";
+        const existingPresence = (item?.socialPresence && typeof item.socialPresence === "object") ? item.socialPresence : {};
+        const existingMetrics = (item?.platformMetrics && typeof item.platformMetrics === "object") ? item.platformMetrics : {};
+
+        let socialPresence: Record<string, string | null> = { ...existingPresence };
+        const hasAnyHandle = Object.values(socialPresence).some(Boolean);
+
+        if (!hasAnyHandle && websiteUrl) {
+          const extracted = await extractSocialHandlesFromWebsite(websiteUrl);
+          socialPresence = { ...socialPresence, ...extracted };
+        }
+
+        const scraped = await scrapeSocialProfiles(socialPresence);
+        const platformMetrics: Record<string, any> = { ...existingMetrics };
+
+        for (const [platform, scrapedData] of Object.entries(scraped)) {
+          const prev = platformMetrics[platform] || {};
+          platformMetrics[platform] = {
+            ...prev,
+            followers: scrapedData.followers ?? prev.followers ?? 0,
+            posts: scrapedData.posts ?? prev.posts ?? 0,
+            engagementRate: prev.engagementRate ?? 0,
+            avgLikes: prev.avgLikes ?? 0,
+            avgComments: prev.avgComments ?? 0,
+            postFrequency: prev.postFrequency ?? 0,
+            growthRate: prev.growthRate ?? 0,
+          };
+        }
+
+        const followers = Object.values(platformMetrics).reduce((sum: number, pm: any) => sum + (Number(pm?.followers) || 0), 0);
+
+        return {
+          id: item?.id,
+          followers: followers > 0 ? followers : (Number(item?.followers) || 0),
+          socialPresence,
+          platformMetrics,
+          scrapedPlatforms: Object.keys(scraped),
+        };
+      }));
+
+      return new Response(JSON.stringify({ results }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (!prompt) throw new Error("Missing prompt");
 
     const { data: usageRow } = await sb
