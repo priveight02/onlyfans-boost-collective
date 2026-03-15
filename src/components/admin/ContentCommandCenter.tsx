@@ -1819,9 +1819,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       {/* Connected accounts */}
       {connections.length > 0 && (
         <div className="flex gap-2 flex-wrap items-center">
-          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Connected:</span>
+          <span className="text-[10px] text-white/30 uppercase tracking-wider">Connected:</span>
           {connections.map(c => (
-            <Badge key={c.id} variant="outline" className="text-[10px] border-border text-muted-foreground gap-1">
+            <Badge key={c.id} variant="outline" className="text-[10px] border-white/[0.06] text-white/50 gap-1">
               {platformIcon(c.platform)} <span className="capitalize">{c.platform}</span>
               <span className="text-emerald-400">@{c.platform_username}</span>
             </Badge>
