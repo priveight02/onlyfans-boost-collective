@@ -156,12 +156,91 @@ const checkAIUsage = async (): Promise<{ count: number; limited: boolean }> => {
   } catch { return { count: 0, limited: false }; }
 };
 
+// ─── Enterprise Context Auto-Injection ──────────────
+const getEnterpriseContextForPrompt = (): string => {
+  try {
+    const toggle = localStorage.getItem("competitor_use_enterprise");
+    if (toggle !== "true") return "";
+    const raw = localStorage.getItem("competitor_enterprise_profile");
+    if (!raw) return "";
+    const ep = JSON.parse(raw);
+    const s: string[] = [];
+    if (ep.companyName) s.push(`Company: ${ep.companyName}${ep.companyType ? ` (${ep.companyType})` : ""}`);
+    if (ep.industry) s.push(`Industry: ${ep.industry}${ep.subIndustry ? ` / ${ep.subIndustry}` : ""}`);
+    if (ep.website) s.push(`Website: ${ep.website}`);
+    if (ep.teamSize) s.push(`Team: ${ep.teamSize}`);
+    if (ep.foundedYear) s.push(`Founded: ${ep.foundedYear}`);
+    if (ep.headquartersCity) s.push(`HQ: ${ep.headquartersCity}${ep.headquartersCountry ? `, ${ep.headquartersCountry}` : ""}`);
+    if (ep.brandVoice) s.push(`Brand Voice: ${ep.brandVoice}`);
+    if (ep.contentNiche) s.push(`Content Niche: ${ep.contentNiche}`);
+    if (ep.departments) s.push(`Departments: ${ep.departments}`);
+    if (ep.legalStructure) s.push(`Legal: ${ep.legalStructure}`);
+    const fin: string[] = [];
+    if (ep.monthlyRevenue) fin.push(`Monthly Rev: ${ep.monthlyRevenue}`);
+    if (ep.annualRevenue) fin.push(`Annual Rev: ${ep.annualRevenue}`);
+    if (ep.mrr) fin.push(`MRR: ${ep.mrr}`);
+    if (ep.arr) fin.push(`ARR: ${ep.arr}`);
+    if (ep.customerCount) fin.push(`Customers: ${ep.customerCount}`);
+    if (ep.churnRate) fin.push(`Churn: ${ep.churnRate}%`);
+    if (ep.ltv) fin.push(`LTV: ${ep.ltv}`);
+    if (ep.cac) fin.push(`CAC: ${ep.cac}`);
+    if (ep.profitMargin) fin.push(`Margin: ${ep.profitMargin}%`);
+    if (ep.avgDealSize) fin.push(`Avg Deal: ${ep.avgDealSize}`);
+    if (ep.fundingStage) fin.push(`Stage: ${ep.fundingStage}`);
+    if (ep.totalFunding) fin.push(`Total Funding: ${ep.totalFunding}`);
+    if (ep.monthlyBurn) fin.push(`Burn: ${ep.monthlyBurn}/mo`);
+    if (ep.runwayMonths) fin.push(`Runway: ${ep.runwayMonths} months`);
+    if (ep.grossMargin) fin.push(`Gross Margin: ${ep.grossMargin}%`);
+    if (ep.netIncome) fin.push(`Net Income: ${ep.netIncome}`);
+    if (ep.operatingExpenses) fin.push(`OpEx: ${ep.operatingExpenses}`);
+    if (ep.debtLevel) fin.push(`Debt: ${ep.debtLevel}`);
+    if (fin.length) s.push(`Financials: ${fin.join(" | ")}`);
+    const soc: string[] = [];
+    if (ep.username) soc.push(`@${ep.username}`);
+    if (ep.platform) soc.push(`Platform: ${ep.platform}`);
+    if (ep.followers) soc.push(`${ep.followers} followers`);
+    if (ep.engagementRate) soc.push(`${ep.engagementRate}% ER`);
+    if (ep.avgLikes) soc.push(`${ep.avgLikes} avg likes`);
+    if (ep.avgComments) soc.push(`${ep.avgComments} avg comments`);
+    if (ep.growthRate) soc.push(`${ep.growthRate}% weekly growth`);
+    if (ep.postFrequency) soc.push(`${ep.postFrequency} posts/wk`);
+    if (ep.posts) soc.push(`${ep.posts} total posts`);
+    if (ep.emailListSize) soc.push(`${ep.emailListSize} email list`);
+    if (ep.websiteTraffic) soc.push(`${ep.websiteTraffic} monthly visitors`);
+    if (ep.conversionRate) soc.push(`${ep.conversionRate}% conversion`);
+    if (ep.adSpend) soc.push(`Ad spend: ${ep.adSpend}/mo`);
+    if (ep.contentFrequency) soc.push(`Content: ${ep.contentFrequency}`);
+    if (ep.socialPlatforms) soc.push(`Active on: ${ep.socialPlatforms}`);
+    if (soc.length) s.push(`Social/Marketing: ${soc.join(" | ")}`);
+    const prod: string[] = [];
+    if (ep.mainProduct) prod.push(`Product: ${ep.mainProduct}`);
+    if (ep.pricingModel) prod.push(`Pricing: ${ep.pricingModel}`);
+    if (ep.avgPrice) prod.push(`Avg Price: ${ep.avgPrice}`);
+    if (ep.numberOfProducts) prod.push(`Products: ${ep.numberOfProducts}`);
+    if (ep.targetMarket) prod.push(`Target: ${ep.targetMarket}`);
+    if (ep.usp) prod.push(`USP: ${ep.usp}`);
+    if (ep.mainCompetitors) prod.push(`Known competitors: ${ep.mainCompetitors}`);
+    if (ep.distributionChannels) prod.push(`Distribution: ${ep.distributionChannels}`);
+    if (prod.length) s.push(prod.join(" | "));
+    const goals: string[] = [];
+    if (ep.revenueGoal) goals.push(`Rev goal: ${ep.revenueGoal}`);
+    if (ep.followerGoal) goals.push(`Follower goal: ${ep.followerGoal}`);
+    if (ep.engagementGoal) goals.push(`Engagement goal: ${ep.engagementGoal}%`);
+    if (ep.growthTimeframe) goals.push(`Timeframe: ${ep.growthTimeframe}`);
+    if (ep.topPriority) goals.push(`Priority: ${ep.topPriority}`);
+    if (ep.biggestChallenge) goals.push(`Challenge: ${ep.biggestChallenge}`);
+    if (goals.length) s.push(`Goals: ${goals.join(" | ")}`);
+    if (s.length === 0) return "";
+    return `\n\n═══ MY ENTERPRISE CONTEXT (use to personalize all recommendations to this specific business) ═══\n${s.join("\n")}\n═══ END ENTERPRISE CONTEXT ═══`;
+  } catch { return ""; }
+};
+
 const callAI = async (prompt: string, analysisType?: string): Promise<any> => {
+  const enrichedPrompt = prompt + getEnterpriseContextForPrompt();
   const { data, error } = await supabase.functions.invoke("competitor-analyze", {
-    body: { prompt, analysisType },
+    body: { prompt: enrichedPrompt, analysisType },
   });
   if (error) {
-    // Check if it's a rate limit error from the edge function
     if (error.message?.includes("limit")) throw new Error("Daily AI analysis limit reached (20/day). AI-powered fields will be left blank until reset.");
     throw new Error(error.message || "AI request failed");
   }
