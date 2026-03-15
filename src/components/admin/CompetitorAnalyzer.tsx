@@ -723,6 +723,9 @@ Return ONLY valid JSON with 4-6 items per category. Each item must have "text" a
         );
         const parsed = parseJSON(aiReply);
         if (!parsed.strengths || !parsed.weaknesses) throw new Error("Incomplete SWOT");
+        // Normalize: support both old string[] and new {text,priority,action}[] format
+        const normalize = (arr: any[]) => arr.map((item: any) => typeof item === "string" ? { text: item, priority: "medium", action: "" } : item);
+        setSwotResult({ ...parsed, strengths: normalize(parsed.strengths), weaknesses: normalize(parsed.weaknesses), opportunities: normalize(parsed.opportunities), threats: normalize(parsed.threats) });
         setSwotResult(parsed);
         return true;
       } catch (err) {
