@@ -2841,7 +2841,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 {/* Content format gaps */}
                 <Card className="crm-card">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><Calendar className="h-4 w-4" /> Format Gaps</CardTitle>
+                    <CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><CalendarIcon className="h-4 w-4" /> Format Gaps</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {(gapAnalysis.contentFormatGaps || []).map((gap: any, i: number) => (
