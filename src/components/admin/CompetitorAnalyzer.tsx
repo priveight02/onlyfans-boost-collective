@@ -1594,6 +1594,38 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                             <p className="text-xs text-white/70">{comp.metadata.recentTrend}</p>
                           </div>
                         )}
+                        {/* Engagement Efficiency */}
+                        <div className="p-2 rounded-lg bg-white/[0.02]">
+                          <p className="text-[10px] text-white/40 mb-1">Engagement Efficiency</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-[hsl(217,91%,60%)]">{comp.followers > 0 ? (comp.avgLikes / comp.followers * 100).toFixed(2) : 0}%</p>
+                              <p className="text-[8px] text-white/30">Like Rate</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-emerald-400">{comp.followers > 0 ? (comp.avgComments / comp.followers * 100).toFixed(3) : 0}%</p>
+                              <p className="text-[8px] text-white/30">Comment Rate</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs font-bold text-amber-400">{comp.postFrequency > 0 ? Math.round(comp.avgLikes * comp.postFrequency) : 0}</p>
+                              <p className="text-[8px] text-white/30">Weekly Impressions Est.</p>
+                            </div>
+                          </div>
+                        </div>
+                        {/* Quick Notes */}
+                        <div className="p-2 rounded-lg bg-white/[0.02]">
+                          <p className="text-[10px] text-white/40 mb-1">Notes</p>
+                          <Textarea
+                            placeholder="Add private notes about this competitor..."
+                            className="text-xs bg-transparent border-white/[0.06] text-white/70 min-h-[48px] resize-none placeholder:text-white/20"
+                            defaultValue={comp.metadata?.notes || ""}
+                            onBlur={async (e) => {
+                              const notes = e.target.value.trim();
+                              await competitorRest.update(comp.id, { metadata: { ...comp.metadata, notes } });
+                              setCompetitors(prev => prev.map(c => c.id === comp.id ? { ...c, metadata: { ...c.metadata, notes } } : c));
+                            }}
+                          />
+                        </div>
                       </div>
                     )}
 
