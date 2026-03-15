@@ -841,9 +841,8 @@ Make it a cohesive narrative arc:
 - Final part: Conclusion / big CTA
 
 Respond ONLY with JSON array: [{"title":"", "caption":"", "content_type":"", "hashtags":[], "part_number": number, "hook":"", "schedule_offset_days": number}]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) {
-          const parts = JSON.parse(jsonMatch[0]);
+        try {
+          const parts = safeParseJSON(content);
           for (const part of parts) {
             const schedDate = addDays(new Date(), part.schedule_offset_days || 0);
             await supabase.from("content_calendar").insert({
