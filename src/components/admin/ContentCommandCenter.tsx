@@ -2799,7 +2799,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 <div className="relative">
                   <Input value={formHashtags} onChange={e => setFormHashtags(e.target.value)}
                     placeholder={`Hashtags (comma-separated, max ${curPlatConf?.hashtagLimit || 30})...`}
-                    className="bg-card/50 border-border text-foreground text-xs pr-20" />
+                    className="bg-white/[0.04] border-white/[0.08] text-white text-xs pr-20" />
                   <Button size="sm" variant="outline" onClick={generateHashtags} disabled={generatingHashtags}
                     className="absolute right-1 top-1/2 -translate-y-1/2 text-[9px] h-6 px-2 border-primary/20 text-primary">
                     {generatingHashtags ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Hash className="h-2.5 w-2.5 mr-0.5" />AI</>}
