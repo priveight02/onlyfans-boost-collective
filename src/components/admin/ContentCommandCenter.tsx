@@ -172,6 +172,17 @@ const ContentCommandCenter = () => {
   const [showPresets, setShowPresets] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
+  // ── Inter-Tab Competitor Intel States ──
+  const [competitorProfiles, setCompetitorProfiles] = useState<any[]>([]);
+  const [showCompetitorSync, setShowCompetitorSync] = useState(false);
+  const [importingCompetitorPlan, setImportingCompetitorPlan] = useState(false);
+  const [importingCompetitorHashtags, setImportingCompetitorHashtags] = useState(false);
+  const [generatingSwotContent, setGeneratingSwotContent] = useState(false);
+  const [generatingGapContent, setGeneratingGapContent] = useState(false);
+  const [generatingBestTimes, setGeneratingBestTimes] = useState(false);
+  const [competitorBestTimes, setCompetitorBestTimes] = useState<any[]>([]);
+  const [showCompetitorBestTimes, setShowCompetitorBestTimes] = useState(false);
+
   // ── Ultimate Content Features ──
   const [generatingHooks, setGeneratingHooks] = useState(false);
   const [hooks, setHooks] = useState<string[]>([]);
@@ -239,6 +250,7 @@ const ContentCommandCenter = () => {
 
   useEffect(() => {
     loadData();
+    loadCompetitorProfiles();
     const ch = supabase.channel("content-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "content_calendar" }, () => loadItems())
       .subscribe();
@@ -261,6 +273,107 @@ const ContentCommandCenter = () => {
   const loadItems = async () => {
     const { data } = await supabase.from("content_calendar").select("*").order("created_at", { ascending: false });
     setItems(data || []);
+  };
+
+  const loadCompetitorProfiles = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/competitor_profiles?user_id=eq.${session.user.id}&order=created_at.desc`, {
+        headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.access_token}` },
+      });
+      const profiles = await res.json();
+      if (Array.isArray(profiles)) setCompetitorProfiles(profiles);
+    } catch { /* silent */ }
+  };
+
+  // ═══ INTER-TAB 1: Import Competitor Posting Plan ═══
+  const importCompetitorPlan = async () => {
+    if (competitorProfiles.length === 0) { toast.error("No competitors tracked · Add competitors in Competitor Analyzer first"); return; }
+    await performAction('ai_generate_ideas', async () => {
+      setImportingCompetitorPlan(true);
+      try {
+        const compData = competitorProfiles.map(c => ({ username: c.username, platform: c.platform, followers: c.followers, engagementRate: c.engagement_rate, avgLikes: c.avg_likes, postFrequency: c.post_frequency, topHashtags: c.top_hashtags || [], contentTypes: c.content_types || [] }));
+        const totalFreq = compData.reduce((s, c) => s + (c.postFrequency || 3), 0);
+        const content = await callAI(`You are a social media strategist. Based on these real competitor profiles, generate a 2-week content calendar that COPIES their posting strategy exactly.\n\nCompetitor data:\n${JSON.stringify(compData, null, 2)}\n\nMatch their posting frequency, content types, top hashtags, and optimal times.\nGenerate ${Math.max(totalFreq * 2, 14)} entries.\nEach: {"title":"...", "platform":"instagram/tiktok/twitter/facebook/threads", "content_type":"post/reel/story/tweet", "caption":"full caption with emojis", "hashtags":["tag1"], "scheduled_at":"ISO date next 2 weeks", "viral_score": 40-90, "description":"Based on @competitor strategy"}\n\nReturn ONLY a JSON array.`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const entries = JSON.parse(jsonMatch[0]);
+          for (const e of entries) {
+            await supabase.from("content_calendar").insert({ title: String(e.title || "Competitor Strategy Post").slice(0, 200), platform: String(e.platform || "instagram").toLowerCase(), content_type: String(e.content_type || "post"), caption: String(e.caption || ""), hashtags: Array.isArray(e.hashtags) ? e.hashtags.map((h: string) => h.replace("#", "")) : [], scheduled_at: e.scheduled_at || new Date(Date.now() + Math.random() * 14 * 86400000).toISOString(), status: "draft", viral_score: e.viral_score || 0, description: e.description || "Imported from Competitor Intel", metadata: { source: "competitor_intel" } });
+          }
+          toast.success(`${entries.length} posts imported from competitor strategy`);
+        }
+      } catch (e: any) { toast.error(e.message || "Failed to import plan"); }
+      setImportingCompetitorPlan(false);
+    });
+  };
+
+  // ═══ INTER-TAB 2: Import Competitor Hashtags ═══
+  const importCompetitorHashtags = () => {
+    if (competitorProfiles.length === 0) { toast.error("No competitors tracked · Add them in Competitor Analyzer first"); return; }
+    setImportingCompetitorHashtags(true);
+    const allTags = [...new Set(competitorProfiles.flatMap(c => c.top_hashtags || []))];
+    if (allTags.length === 0) { toast.error("No hashtags in competitor data"); setImportingCompetitorHashtags(false); return; }
+    const newSets = competitorProfiles.filter(c => c.top_hashtags?.length).map(c => ({ name: `Competitor · @${c.username}`, tags: c.top_hashtags, platform: "all" as const }));
+    newSets.unshift({ name: "All Competitors · Merged", tags: allTags.slice(0, 30), platform: "all" });
+    setHashtagSets(prev => [...prev, ...newSets]);
+    toast.success(`${newSets.length} hashtag sets imported (${allTags.length} unique tags)`);
+    setImportingCompetitorHashtags(false);
+  };
+
+  // ═══ INTER-TAB 3: Competitor Best Times ═══
+  const analyzeCompetitorBestTimes = async () => {
+    if (competitorProfiles.length === 0) { toast.error("No competitors tracked yet"); return; }
+    await performAction('ai_analysis', async () => {
+      setGeneratingBestTimes(true);
+      try {
+        const compData = competitorProfiles.map(c => ({ username: c.username, platform: c.platform, postFrequency: c.post_frequency, engagementRate: c.engagement_rate, followers: c.followers }));
+        const content = await callAI(`Analyze these competitor profiles and determine optimal posting times.\n\nCompetitors: ${JSON.stringify(compData)}\n\nFor each platform: platform, best_hours (4-5 times like "9:00 AM"), best_days, frequency (posts/week), reasoning.\n\nReturn ONLY JSON array.`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) { setCompetitorBestTimes(JSON.parse(jsonMatch[0])); setShowCompetitorBestTimes(true); toast.success("Best posting times analyzed"); }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingBestTimes(false);
+    });
+  };
+
+  // ═══ INTER-TAB 4: SWOT Content Ideas ═══
+  const generateSwotContent = async () => {
+    if (competitorProfiles.length === 0) { toast.error("No competitors tracked yet"); return; }
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingSwotContent(true);
+      try {
+        const compSummary = competitorProfiles.map(c => `@${c.username} (${c.platform}): ${c.followers} followers, ${c.engagement_rate}% ER, ${c.post_frequency} posts/wk`).join("\n");
+        const content = await callAI(`Based on competitive SWOT analysis, generate 8 content ideas exploiting competitor weaknesses.\n\nCompetitors:\n${compSummary}\n\nFor each: title, platform, content_type, caption (full), hashtags array, swot_angle (strength/weakness/opportunity/threat), strategy, viral_score 40-95.\n\nReturn ONLY a JSON array.`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const ideas = JSON.parse(jsonMatch[0]);
+          for (const idea of ideas) { await supabase.from("content_calendar").insert({ title: idea.title, caption: idea.caption, platform: idea.platform || "instagram", content_type: idea.content_type || "post", hashtags: (idea.hashtags || []).map((h: string) => h.replace("#", "")), viral_score: idea.viral_score || 0, description: `SWOT: ${idea.swot_angle} · ${idea.strategy || ""}`, status: "draft", metadata: { source: "swot_analysis" } }); }
+          toast.success(`${ideas.length} SWOT-driven content ideas created`);
+        }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingSwotContent(false);
+    });
+  };
+
+  // ═══ INTER-TAB 5: Gap Analysis Content ═══
+  const generateGapContent = async () => {
+    if (competitorProfiles.length === 0) { toast.error("No competitors tracked yet"); return; }
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingGapContent(true);
+      try {
+        const myContent = items.slice(0, 20).map(i => `${i.platform}/${i.content_type}: "${i.title}"`).join("\n");
+        const compSummary = competitorProfiles.map(c => `@${c.username} (${c.platform}): ${c.followers} followers, types: ${JSON.stringify(c.content_types || [])}`).join("\n");
+        const content = await callAI(`Content gap analysis: Find what I'm MISSING vs competitors.\n\nMY CONTENT:\n${myContent || "No content yet"}\n\nCOMPETITORS:\n${compSummary}\n\nFind 6 gaps. Each: title, platform, content_type, caption, hashtags, gap_identified, competitor_doing_it, estimated_impact (high/medium/critical), viral_score 50-90.\n\nReturn ONLY JSON array.`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const ideas = JSON.parse(jsonMatch[0]);
+          for (const idea of ideas) { await supabase.from("content_calendar").insert({ title: idea.title, caption: idea.caption, platform: idea.platform || "instagram", content_type: idea.content_type || "post", hashtags: (idea.hashtags || []).map((h: string) => h.replace("#", "")), viral_score: idea.viral_score || 0, description: `Gap: ${idea.gap_identified} · Impact: ${idea.estimated_impact}`, status: "draft", metadata: { source: "gap_analysis" } }); }
+          toast.success(`${ideas.length} gap analysis posts created`);
+        }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingGapContent(false);
+    });
   };
 
   const availablePlatforms = useMemo(() => {
@@ -1631,6 +1744,30 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             {generatingBatchCaptions ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
             Batch AI{batchProgress ? ` ${batchProgress.done}/${batchProgress.total}` : ""}
           </Button>
+          <Button size="sm" variant="outline" onClick={importCompetitorPlan} disabled={importingCompetitorPlan}
+            className="border-purple-500/20 text-purple-400 text-xs h-8">
+            {importingCompetitorPlan ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Copy className="h-3.5 w-3.5 mr-1" />}
+            Copy Plan
+          </Button>
+          <Button size="sm" variant="outline" onClick={importCompetitorHashtags} disabled={importingCompetitorHashtags}
+            className="border-cyan-500/20 text-cyan-400 text-xs h-8">
+            <Hash className="h-3.5 w-3.5 mr-1" /> Steal Tags
+          </Button>
+          <Button size="sm" variant="outline" onClick={analyzeCompetitorBestTimes} disabled={generatingBestTimes}
+            className="border-emerald-500/20 text-emerald-400 text-xs h-8">
+            {generatingBestTimes ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Clock className="h-3.5 w-3.5 mr-1" />}
+            Best Times
+          </Button>
+          <Button size="sm" variant="outline" onClick={generateSwotContent} disabled={generatingSwotContent}
+            className="border-amber-500/20 text-amber-400 text-xs h-8">
+            {generatingSwotContent ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Target className="h-3.5 w-3.5 mr-1" />}
+            SWOT Ideas
+          </Button>
+          <Button size="sm" variant="outline" onClick={generateGapContent} disabled={generatingGapContent}
+            className="border-pink-500/20 text-pink-400 text-xs h-8">
+            {generatingGapContent ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Eye className="h-3.5 w-3.5 mr-1" />}
+            Gap Fill
+          </Button>
           <Button size="sm" onClick={generateRandomPosts} disabled={generating}
             className="bg-gradient-to-r from-purple-600 to-pink-600 text-white text-xs h-8">
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Zap className="h-3.5 w-3.5 mr-1" />}
@@ -1641,6 +1778,22 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           </Button>
         </div>
       </div>
+
+      {/* Competitor Intel Sync Bar */}
+      {competitorProfiles.length > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-500/5 border border-purple-500/10">
+          <Brain className="h-3.5 w-3.5 text-purple-400 shrink-0" />
+          <span className="text-[10px] text-white/50">Competitor Intel synced:</span>
+          <span className="text-[10px] font-semibold text-white/70">{competitorProfiles.length} competitors tracked</span>
+          <span className="text-[10px] text-white/30">·</span>
+          <span className="text-[10px] text-white/50">{[...new Set(competitorProfiles.flatMap(c => c.top_hashtags || []))].length} hashtags available</span>
+          <span className="text-[10px] text-white/30">·</span>
+          <span className="text-[10px] text-white/50">{[...new Set(competitorProfiles.map(c => c.platform))].length} platforms</span>
+          <Button size="sm" variant="ghost" onClick={loadCompetitorProfiles} className="ml-auto text-[9px] h-5 text-purple-400 hover:text-purple-300 px-2">
+            <RefreshCw className="h-2.5 w-2.5 mr-1" /> Refresh
+          </Button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-7">
@@ -3119,6 +3272,39 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                     </div>
                   </div>
                   <p className="text-[10px] text-muted-foreground line-clamp-3">{cap.text}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ========== COMPETITOR BEST TIMES DIALOG ========== */}
+      <Dialog open={showCompetitorBestTimes} onOpenChange={setShowCompetitorBestTimes}>
+        <DialogContent className="bg-popover border-border text-white max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2"><Clock className="h-4 w-4 text-emerald-400" /> Competitor Best Posting Times</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-white/50">Optimal posting times derived from {competitorProfiles.length} tracked competitors</p>
+          <div className="space-y-3">
+            {competitorBestTimes.map((t, i) => (
+              <Card key={i} className="bg-white/[0.03] border-white/[0.06]">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-white capitalize">{t.platform}</span>
+                    <Badge variant="outline" className="text-[9px] border-emerald-500/20 text-emerald-400">{t.frequency} posts/wk</Badge>
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap mb-2">
+                    {(t.best_hours || []).map((h: string, j: number) => (
+                      <Badge key={j} variant="outline" className="text-[9px] border-primary/20 text-primary">{h}</Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-1 flex-wrap mb-1.5">
+                    {(t.best_days || []).map((d: string, j: number) => (
+                      <span key={j} className="text-[9px] text-white/40 bg-white/[0.04] px-1.5 py-0.5 rounded">{d}</span>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-white/40">{t.reasoning}</p>
                 </CardContent>
               </Card>
             ))}
