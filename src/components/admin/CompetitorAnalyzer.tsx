@@ -3435,53 +3435,114 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
                                 {/* Platform cards */}
                                 {platforms.map(([key, data]) => {
-                                  const competitorCount = data.competitors.length;
-                                  const avgEng = competitorCount > 0 ? data.competitors.reduce((s, c) => s + c.engagementRate, 0) / competitorCount : 0;
-                                  const avgLikes = competitorCount > 0 ? Math.round(data.competitors.reduce((s, c) => s + c.avgLikes, 0) / competitorCount) : 0;
-                                  const avgFreq = competitorCount > 0 ? (data.competitors.reduce((s, c) => s + c.postFrequency, 0) / competitorCount).toFixed(1) : "0.0";
-                                  const avgGr = competitorCount > 0 ? data.competitors.reduce((s, c) => s + c.growthRate, 0) / competitorCount : 0;
-                                  const totalReach = data.competitors.reduce((s, c) => s + c.followers, 0);
+                                  const cc = data.competitors;
+                                  const n = cc.length;
+                                  const sum = (fn: (c: typeof cc[0]) => number) => cc.reduce((s, c) => s + fn(c), 0);
+                                  const avg = (fn: (c: typeof cc[0]) => number) => n > 0 ? sum(fn) / n : 0;
+
+                                  // Core metrics
+                                  const totalReach = sum(c => c.followers);
+                                  const totalFollowingP = sum(c => c.following);
+                                  const totalPostsP = sum(c => c.posts);
+                                  const avgEng = avg(c => c.engagementRate);
+                                  const avgLikesP = Math.round(avg(c => c.avgLikes));
+                                  const avgCommentsP = Math.round(avg(c => c.avgComments));
+                                  const avgViewsP = Math.round(avg(c => c.avgViews));
+                                  const avgFreqP = avg(c => c.postFrequency);
+                                  const avgGrP = avg(c => c.growthRate);
+                                  const totalLikesP = sum(c => c.totalLikes);
+                                  const totalViewsP = sum(c => c.totalViews);
+                                  const totalGain30d = sum(c => c.followerGain30d);
+                                  const totalViewGain30d = sum(c => c.viewGain30d);
+                                  const totalLikeGain30d = sum(c => c.likeGain30d);
+
+                                  // Derived metrics
+                                  const likesPerK = totalReach > 0 ? (avgLikesP / (totalReach / n / 1000)) : 0;
+                                  const commentsPerK = totalReach > 0 ? (avgCommentsP / (totalReach / n / 1000)) : 0;
+                                  const likeCommentRatio = avgCommentsP > 0 ? (avgLikesP / avgCommentsP) : 0;
+                                  const followerFollowingRatio = totalFollowingP > 0 ? (totalReach / totalFollowingP) : 0;
+                                  const avgInteractions = avgLikesP + avgCommentsP;
+                                  const postsPerDay = avgFreqP / 7;
+                                  const estReachPerPost = totalReach > 0 ? Math.round((totalReach / n) * (avgEng / 100) * 3.5) : 0;
+                                  const viralityScore = totalReach > 0 ? ((avgLikesP / (totalReach / n)) * 100) : 0;
+                                  const commentRate = totalReach > 0 ? ((avgCommentsP / (totalReach / n)) * 100) : 0;
+                                  const contentVelocity = totalPostsP > 0 ? Math.round(totalPostsP / n) : 0;
+                                  const dailyGain = totalGain30d !== 0 ? Math.round(totalGain30d / 30) : 0;
+
                                   const reachPct = totalFollowers > 0 ? ((totalReach / totalFollowers) * 100).toFixed(1) : "0";
                                   const maxPlatformReach = Math.max(...platforms.map(([, d]) => d.competitors.reduce((s, c) => s + c.followers, 0)));
                                   const barWidth = maxPlatformReach > 0 ? (totalReach / maxPlatformReach) * 100 : 0;
 
+                                  // Build stat items - only show those with data
+                                  type StatItem = { label: string; value: string; color: string; section: string };
+                                  const stats: StatItem[] = [];
+
+                                  // Section: Audience
+                                  stats.push({ label: "Total Reach", value: fmtNum(totalReach), color: "text-white", section: "Audience" });
+                                  if (totalFollowingP > 0) stats.push({ label: "Total Following", value: fmtNum(totalFollowingP), color: "text-white/70", section: "Audience" });
+                                  if (followerFollowingRatio > 0) stats.push({ label: "Follower:Following", value: followerFollowingRatio.toFixed(1) + "x", color: followerFollowingRatio > 5 ? "text-emerald-400" : "text-white/70", section: "Audience" });
+                                  if (totalGain30d !== 0) stats.push({ label: "30d Follower Gain", value: (totalGain30d >= 0 ? "+" : "") + fmtNum(totalGain30d), color: totalGain30d >= 0 ? "text-emerald-400" : "text-red-400", section: "Audience" });
+                                  if (dailyGain !== 0) stats.push({ label: "Daily Gain", value: (dailyGain >= 0 ? "+" : "") + fmtNum(dailyGain) + "/day", color: dailyGain >= 0 ? "text-emerald-400" : "text-red-400", section: "Audience" });
+                                  stats.push({ label: "Growth Rate", value: (avgGrP >= 0 ? "+" : "") + avgGrP.toFixed(2) + "%/wk", color: avgGrP >= 0 ? "text-emerald-400" : "text-red-400", section: "Audience" });
+
+                                  // Section: Engagement
+                                  stats.push({ label: "Avg ER", value: avgEng.toFixed(2) + "%", color: avgEng > 3 ? "text-emerald-400" : avgEng > 1 ? "text-amber-400" : "text-red-400", section: "Engagement" });
+                                  stats.push({ label: "Avg Likes", value: fmtNum(avgLikesP), color: "text-white", section: "Engagement" });
+                                  if (avgCommentsP > 0) stats.push({ label: "Avg Comments", value: fmtNum(avgCommentsP), color: "text-white", section: "Engagement" });
+                                  if (avgViewsP > 0) stats.push({ label: "Avg Views", value: fmtNum(avgViewsP), color: "text-[hsl(217,91%,60%)]", section: "Engagement" });
+                                  if (avgInteractions > 0) stats.push({ label: "Avg Interactions", value: fmtNum(avgInteractions), color: "text-white", section: "Engagement" });
+                                  if (likesPerK > 0) stats.push({ label: "Likes / 1K Followers", value: likesPerK.toFixed(1), color: likesPerK > 30 ? "text-emerald-400" : "text-white/70", section: "Engagement" });
+                                  if (commentsPerK > 0) stats.push({ label: "Comments / 1K", value: commentsPerK.toFixed(1), color: "text-white/70", section: "Engagement" });
+                                  if (likeCommentRatio > 0) stats.push({ label: "Like:Comment Ratio", value: likeCommentRatio.toFixed(1) + ":1", color: "text-white/70", section: "Engagement" });
+                                  if (viralityScore > 0) stats.push({ label: "Virality Score", value: viralityScore.toFixed(2) + "%", color: viralityScore > 5 ? "text-emerald-400" : "text-white/70", section: "Engagement" });
+                                  if (commentRate > 0) stats.push({ label: "Comment Rate", value: commentRate.toFixed(3) + "%", color: "text-white/70", section: "Engagement" });
+
+                                  // Section: Content
+                                  if (totalPostsP > 0) stats.push({ label: "Total Content", value: fmtNum(totalPostsP), color: "text-[hsl(262,83%,58%)]", section: "Content" });
+                                  stats.push({ label: "Post Frequency", value: avgFreqP.toFixed(1) + "/wk", color: "text-[hsl(262,83%,58%)]", section: "Content" });
+                                  if (postsPerDay > 0) stats.push({ label: "Posts / Day", value: postsPerDay.toFixed(2), color: "text-white/70", section: "Content" });
+                                  if (contentVelocity > 0) stats.push({ label: "Avg Content Library", value: fmtNum(contentVelocity), color: "text-white/70", section: "Content" });
+                                  if (estReachPerPost > 0) stats.push({ label: "Est. Reach / Post", value: fmtNum(estReachPerPost), color: "text-[hsl(217,91%,60%)]", section: "Content" });
+
+                                  // Section: Volume
+                                  if (totalLikesP > 0) stats.push({ label: "Total Likes", value: fmtNum(totalLikesP), color: "text-white", section: "Volume" });
+                                  if (totalViewsP > 0) stats.push({ label: "Total Views", value: fmtNum(totalViewsP), color: "text-[hsl(217,91%,60%)]", section: "Volume" });
+                                  if (totalViewGain30d > 0) stats.push({ label: "30d View Gain", value: "+" + fmtNum(totalViewGain30d), color: "text-emerald-400", section: "Volume" });
+                                  if (totalLikeGain30d !== 0) stats.push({ label: "30d Like Gain", value: (totalLikeGain30d >= 0 ? "+" : "") + fmtNum(totalLikeGain30d), color: totalLikeGain30d >= 0 ? "text-emerald-400" : "text-red-400", section: "Volume" });
+
+                                  // Group by section
+                                  const sections = ["Audience", "Engagement", "Content", "Volume"];
+                                  const grouped = sections.map(s => ({ section: s, items: stats.filter(st => st.section === s) })).filter(g => g.items.length > 0);
+
                                   return (
-                                    <div key={key} className="p-2.5 rounded-xl border border-white/[0.04] bg-white/[0.015] hover:border-white/[0.08] transition-all">
-                                      <div className="flex items-center gap-2.5 mb-2">
-                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 p-1.5" style={{ background: data.color }}><img src={data.logo} alt={data.name} className="w-full h-full object-contain" /></div>
+                                    <div key={key} className="p-3 rounded-xl border border-white/[0.04] bg-white/[0.015] hover:border-white/[0.08] transition-all">
+                                      <div className="flex items-center gap-2.5 mb-3">
+                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 p-1.5" style={{ background: data.color }}><img src={data.logo} alt={data.name} className="w-full h-full object-contain" /></div>
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center gap-2">
-                                            <span className="text-[11px] font-semibold text-white">{data.name}</span>
-                                            <Badge variant="outline" className="text-[7px] border-white/10 text-white/40">{data.competitors.length} competitor{data.competitors.length !== 1 ? "s" : ""}</Badge>
+                                            <span className="text-[12px] font-semibold text-white">{data.name}</span>
+                                            <Badge variant="outline" className="text-[7px] border-white/10 text-white/40">{n} competitor{n !== 1 ? "s" : ""}</Badge>
                                             <span className="text-[9px] text-white/30 ml-auto">{reachPct}% of total reach</span>
                                           </div>
-                                          <div className="h-1 rounded-full bg-white/[0.04] overflow-hidden mt-1">
+                                          <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden mt-1">
                                             <div className="h-full rounded-full transition-all duration-700" style={{ width: `${barWidth}%`, background: `linear-gradient(90deg, ${data.color}, ${data.color}88)` }} />
                                           </div>
                                         </div>
                                       </div>
-                                      <div className="grid grid-cols-5 gap-1.5">
-                                        <div className="p-1.5 rounded-md bg-white/[0.02] text-center">
-                                          <p className="text-[7px] text-white/30">Reach</p>
-                                          <p className="text-[10px] font-bold text-white">{fmtNum(totalReach)}</p>
+
+                                      {grouped.map(({ section, items }) => (
+                                        <div key={section} className="mb-2 last:mb-0">
+                                          <p className="text-[7px] font-semibold text-white/25 uppercase tracking-wider mb-1 px-0.5">{section}</p>
+                                          <div className="grid grid-cols-5 gap-1">
+                                            {items.map((stat) => (
+                                              <div key={stat.label} className="p-1.5 rounded-md bg-white/[0.02] text-center">
+                                                <p className="text-[6.5px] text-white/30 leading-tight">{stat.label}</p>
+                                                <p className={`text-[10px] font-bold ${stat.color}`}>{stat.value}</p>
+                                              </div>
+                                            ))}
+                                          </div>
                                         </div>
-                                        <div className="p-1.5 rounded-md bg-white/[0.02] text-center">
-                                          <p className="text-[7px] text-white/30">Avg ER</p>
-                                          <p className="text-[10px] font-bold text-emerald-400">{avgEng.toFixed(2)}%</p>
-                                        </div>
-                                        <div className="p-1.5 rounded-md bg-white/[0.02] text-center">
-                                          <p className="text-[7px] text-white/30">Avg Likes</p>
-                                          <p className="text-[10px] font-bold text-white">{fmtNum(avgLikes)}</p>
-                                        </div>
-                                        <div className="p-1.5 rounded-md bg-white/[0.02] text-center">
-                                          <p className="text-[7px] text-white/30">Frequency</p>
-                                          <p className="text-[10px] font-bold text-[hsl(262,83%,58%)]">{avgFreq}/wk</p>
-                                        </div>
-                                        <div className="p-1.5 rounded-md bg-white/[0.02] text-center">
-                                          <p className="text-[7px] text-white/30">Growth</p>
-                                          <p className={`text-[10px] font-bold ${avgGr >= 0 ? "text-emerald-400" : "text-red-400"}`}>{avgGr >= 0 ? "+" : ""}{avgGr.toFixed(2)}%</p>
-                                        </div>
-                                      </div>
+                                      ))}
                                     </div>
                                   );
                                 })}
