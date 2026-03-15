@@ -749,6 +749,21 @@ CRITICAL RULES FOR platformMetrics:
         if (toolCall?.function?.arguments) {
           try {
             const parsed = JSON.parse(toolCall.function.arguments);
+            // Merge scraped data into platformMetrics to override AI hallucinations
+            if (Object.keys(scrapedData).length > 0 && parsed.platformMetrics) {
+              for (const [plat, scraped] of Object.entries(scrapedData)) {
+                if (parsed.platformMetrics[plat] && scraped.followers) {
+                  parsed.platformMetrics[plat].followers = scraped.followers;
+                }
+                if (parsed.platformMetrics[plat] && scraped.posts) {
+                  parsed.platformMetrics[plat].posts = scraped.posts;
+                }
+              }
+              // Recalculate total followers from platform metrics
+              const totalFromPlatforms = Object.values(parsed.platformMetrics as Record<string, any>)
+                .reduce((sum: number, pm: any) => sum + (pm.followers || 0), 0);
+              if (totalFromPlatforms > 0) parsed.followers = totalFromPlatforms;
+            }
             reply = JSON.stringify(parsed);
           } catch {
             reply = toolCall.function.arguments;
