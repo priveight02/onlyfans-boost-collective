@@ -2872,9 +2872,14 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               <Card className="crm-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-400 flex items-center gap-2"><Zap className="h-4 w-4" /> Quick Wins (Do Now)</CardTitle></CardHeader>
                 <CardContent className="space-y-2">
-                  {(battlePlan.quickWins || []).map((w: any, i: number) => (
-                    <div key={i} className="flex items-start gap-3 p-2.5 rounded-lg bg-emerald-400/5 border border-emerald-400/15">
-                      <div className={`mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold ${w.impact === "high" ? "bg-red-400/20 text-red-400" : "bg-amber-400/20 text-amber-400"}`}>{w.impact}</div>
+                  {(battlePlan.quickWins || []).map((w: any, i: number) => {
+                    const key = `qw-${i}`;
+                    const checked = battlePlanChecks[key];
+                    return (
+                    <div key={i} className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-all ${checked ? "bg-emerald-400/10 border-emerald-400/20" : "bg-emerald-400/5 border-emerald-400/15"}`} onClick={() => toggleBattlePlanCheck(key)}>
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 mt-0.5 ${checked ? "bg-emerald-400 border-emerald-400" : "border-white/20"}`}>
+                        {checked && <CheckCircle className="h-3 w-3 text-white" />}
+                      </div>
                       <div className="flex-1 space-y-0.5">
                         <p className="text-xs font-medium text-white/80">{w.action}</p>
                         <div className="flex items-center gap-3">
