@@ -401,7 +401,23 @@ const CompetitorAnalyzer = ({
   const [newCompetitorUrl, setNewCompetitorUrl] = useState("");
   const [newCompetitorKeywords, setNewCompetitorKeywords] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
-  const [selectedCompetitor, setSelectedCompetitor] = useState<string | null>(null);
+  const [selectedCompetitors, setSelectedCompetitors] = useState<string[]>([]);
+  const [syncCompetitorsAcrossTabs, setSyncCompetitorsAcrossTabs] = useState(() => {
+    try { return localStorage.getItem("competitor_sync_selection") === "true"; } catch { return true; }
+  });
+  const toggleSyncCompetitors = (on: boolean) => {
+    setSyncCompetitorsAcrossTabs(on);
+    localStorage.setItem("competitor_sync_selection", on ? "true" : "false");
+    toast.success(on ? "Competitor selection synced across all tabs" : "Competitor selection independent per tab");
+  };
+  const toggleCompetitorSelection = (id: string) => {
+    setSelectedCompetitors(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+  const selectAllCompetitors = () => setSelectedCompetitors(competitors.map(c => c.id));
+  const deselectAllCompetitors = () => setSelectedCompetitors([]);
+  // Backward compat: derive single selected + selected array
+  const selectedCompetitor = selectedCompetitors[0] || null;
+  const selectedComps = competitors.filter(c => selectedCompetitors.includes(c.id));
   const [swotResult, setSwotResult] = useState<AnalysisResult | null>(null);
   const [aiInsight, setAiInsight] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
