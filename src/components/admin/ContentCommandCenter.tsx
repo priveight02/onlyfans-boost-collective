@@ -24,6 +24,7 @@ import { format, isToday, isTomorrow, isThisWeek, addDays } from "date-fns";
 import { useCreditAction } from "@/hooks/useCreditAction";
 import CreditCostBadge from "./CreditCostBadge";
 import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
+import ContentSandbox from "./ContentSandbox";
 
 const CONTENT_TYPES = ["post", "story", "reel", "tweet", "promo", "teaser", "behind_scenes", "collab"];
 const STATUSES = ["draft", "planned", "scheduled", "published", "archived"];
@@ -171,6 +172,7 @@ const ContentCommandCenter = () => {
   const [suggestedSlots, setSuggestedSlots] = useState<string[]>([]);
   const [showPresets, setShowPresets] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sandboxMode, setSandboxMode] = useState(false);
 
   // ── Inter-Tab Competitor Intel States ──
   const [competitorProfiles, setCompetitorProfiles] = useState<any[]>([]);
@@ -1694,14 +1696,22 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-bold text-white flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-primary" /> Content Command Center
-            </h1>
-            <CreditCostBadge cost="3-5" variant="header" label="per content" />
+            <div className="flex items-center gap-2">
+              <button onClick={() => setSandboxMode(false)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${!sandboxMode ? "bg-primary/15 text-primary border border-primary/30" : "text-white/40 hover:text-white/60"}`}>
+                <Calendar className="h-4 w-4 inline mr-1.5" />Content
+              </button>
+              <button onClick={() => setSandboxMode(true)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all relative ${sandboxMode ? "bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 border border-purple-500/30" : "text-purple-400/60 hover:text-purple-400 border border-transparent hover:border-purple-500/20"}`}>
+                <Sparkle className="h-4 w-4 inline mr-1.5" />Sandbox
+                <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+              </button>
+            </div>
+            {!sandboxMode && <CreditCostBadge cost="3-5" variant="header" label="per content" />}
           </div>
-          <p className="text-xs text-white/30 mt-0.5">Create, schedule, and publish across all platforms</p>
+          <p className="text-xs text-white/30 mt-0.5">{sandboxMode ? "Your creative canvas – drag, draw, link, and evolve ideas" : "Create, schedule, and publish across all platforms"}</p>
         </div>
-        <div className="flex gap-1.5 flex-wrap">
+        {!sandboxMode && <div className="flex gap-1.5 flex-wrap">
           <Button size="sm" variant="outline" onClick={() => setShowContentBrief(true)}
             className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <FileText className="h-3.5 w-3.5 mr-1" /> Brief
@@ -1794,8 +1804,14 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           <Button size="sm" onClick={() => { resetForm(); setShowCreate(true); }} className="bg-primary text-primary-foreground text-xs h-8">
             <Plus className="h-3.5 w-3.5 mr-1" /> Create
           </Button>
-        </div>
+        </div>}
       </div>
+
+      {/* ═══ SANDBOX MODE ═══ */}
+      {sandboxMode && <ContentSandbox items={items} onRefresh={loadItems} />}
+
+      {/* ═══ CONTENT MODE ═══ */}
+      {!sandboxMode && (<>
 
       {/* Competitor Intel Sync Bar */}
       {competitorProfiles.length > 0 && (
@@ -2207,6 +2223,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           ))}
         </div>
       )}
+
+      </>)}
 
       {/* ========== DETAIL DIALOG ========== */}
       <Dialog open={!!showDetail} onOpenChange={v => { if (!v) setShowDetail(null); }}>

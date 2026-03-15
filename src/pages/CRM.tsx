@@ -26,7 +26,6 @@ import AdminAPI from "@/components/admin/AdminAPI";
 import EnhancedDashboard from "@/components/admin/EnhancedDashboard";
 import AdCreativeEngine from "@/components/admin/AdCreativeEngine";
 import CompetitorAnalyzer from "@/components/admin/CompetitorAnalyzer";
-import ContentSandbox from "@/components/admin/ContentSandbox";
 import CRMHelpWidget from "@/components/crm/CRMHelpWidget";
 import CreditsDisplay from "@/components/CreditsDisplay";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,7 +61,6 @@ const navSections = [
       { id: "copilot", label: "Uplyze AI Copilot", icon: Bot },
       { id: "ad-creatives", label: "Creative Maker", icon: Megaphone },
       { id: "content", label: "Content", icon: Calendar },
-      { id: "sandbox", label: "Sandbox", icon: Zap },
       { id: "competitors", label: "Competitor Analyzer", icon: Crosshair },
     ],
   },
@@ -122,7 +120,6 @@ const TAB_SLUGS: Record<string, string> = {
   tasks: "tasks", contracts: "contracts", team: "team", "team-perf": "performance",
   automation: "storyline", persona: "persona-dna", copilot: "uplyze-assistant", emotional: "emotional",
   content: "content", social: "social-media", "ad-creatives": "ad-creatives",
-  sandbox: "sandbox",
   competitors: "competitor-analyzer",
   lookup: "lookup", audience: "audience", reports: "reports",
   settings: "settings", api: "api",
@@ -407,7 +404,6 @@ const CRM = () => {
       case "automation": return <StorylineHub subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
       case "persona": return <PersonaDNAEngine />;
       case "content": return <ContentCommandCenter />;
-      case "sandbox": return <ContentSandbox />;
       case "social": return <SocialMediaHub subTab={activeSubTab} onSubTabChange={handleSubTabChange} urlPlatform={activeSocialPlatform} onPlatformChange={handleSocialPlatformChange} />;
       case "ad-creatives": return <AdCreativeEngine subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
       case "competitors": return <CompetitorAnalyzer subTab={activeSubTab} onSubTabChange={handleSubTabChange} />;
@@ -484,7 +480,6 @@ const CRM = () => {
                 {section.items.map((item) => {
                   const isActive = activeTab === item.id;
                   const Icon = item.icon;
-                  const isSandbox = item.id === "sandbox";
                   return (
                     <button
                       key={item.id}
@@ -495,8 +490,6 @@ const CRM = () => {
                         sidebarCollapsed ? "justify-center px-0 py-2.5 mx-auto" : "px-3 py-[9px]",
                         isActive
                           ? "text-white"
-                          : isSandbox && !isActive
-                          ? "text-primary/70 hover:text-primary hover:bg-primary/[0.05]"
                           : "text-white/35 hover:text-white/65 hover:bg-white/[0.03]"
                       )}
                     >
