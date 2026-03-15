@@ -416,49 +416,91 @@ const scrapeSocialProfiles = async (
   const parseYouTubeSB = (md: string): ScrapedMetrics => {
     const out: ScrapedMetrics = {};
 
-    const subMatch = md.match(/(?:subscribers?|subs?)\s*\n\s*([\d,.KMBkmb]+)/i)
-      || md.match(/([\d,.KMBkmb]+)\s*(?:subscribers?|subs?)/i);
-    if (subMatch) out.followers = parseHumanNumber(subMatch[1]);
+    // Subscribers - try many patterns
+    const subPatterns = [
+      /(?:subscribers?|subs?)\s*\n\s*([\d,.KMBkmb]+)/i,
+      /([\d,.KMBkmb]+)\s*(?:subscribers?|subs?)/i,
+      /subscriber\s*count[:\s]*([\d,.KMBkmb]+)/i,
+      /\|\s*([\d,.KMBkmb]+)\s*\|\s*$/im,
+    ];
+    for (const p of subPatterns) {
+      const m = md.match(p);
+      if (m) { const v = parseHumanNumber(m[1]); if (v > 0) { out.followers = v; break; } }
+    }
 
-    const vidMatch = md.match(/(?:videos?|uploads?)\s*\n\s*([\d,.KMBkmb]+)/i)
-      || md.match(/([\d,.KMBkmb]+)\s*(?:videos?|uploads?)/i);
-    if (vidMatch) out.posts = parseHumanNumber(vidMatch[1]);
+    // Videos
+    const vidPatterns = [
+      /(?:videos?|uploads?)\s*\n\s*([\d,.KMBkmb]+)/i,
+      /([\d,.KMBkmb]+)\s*(?:videos?|uploads?)/i,
+      /video\s*count[:\s]*([\d,.KMBkmb]+)/i,
+    ];
+    for (const p of vidPatterns) {
+      const m = md.match(p);
+      if (m) { const v = parseHumanNumber(m[1]); if (v > 0) { out.posts = v; break; } }
+    }
 
-    const viewsMatch = md.match(/(?:total\s*)?video\s*views?\s*\n\s*([\d,.KMBkmb]+)/i)
-      || md.match(/views?\s*\n\s*([\d,.KMBkmb]+)/i)
-      || md.match(/([\d,.KMBkmb]+)\s*(?:total\s*)?views?/i);
-    if (viewsMatch) out.totalViews = parseHumanNumber(viewsMatch[1]);
+    // Total views - very aggressive patterns
+    const viewPatterns = [
+      /(?:total\s*)?video\s*views?\s*\n\s*([\d,.KMBkmb]+)/i,
+      /total\s*views?\s*[:\n]\s*([\d,.KMBkmb]+)/i,
+      /views?\s*\n\s*([\d,.KMBkmb]+)/i,
+      /([\d,.KMBkmb]+)\s*(?:total\s*)?views?/i,
+      /view\s*count[:\s]*([\d,.KMBkmb]+)/i,
+    ];
+    for (const p of viewPatterns) {
+      const m = md.match(p);
+      if (m) { const v = parseHumanNumber(m[1]); if (v > 1000) { out.totalViews = v; break; } }
+    }
 
     // Country
     const countryMatch = md.match(/country\s*\n\s*([A-Za-z ]+)/i);
     if (countryMatch) out.description = countryMatch[1].trim();
+
+    // Channel type
+    const typeMatch = md.match(/channel\s*type\s*\n\s*([A-Za-z &]+)/i);
+    if (typeMatch) out.description = (out.description ? out.description + " | " : "") + typeMatch[1].trim();
 
     // Derive avg views
     if (out.totalViews && out.posts && out.posts > 0) {
       out.avgViews = Math.round(out.totalViews / out.posts);
     }
 
-    // Last 30 days
+    // Last 30 days - try table rows
     const gains = extractLast30Row(md);
-    if (gains.length >= 3) {
+    if (gains.length >= 2) {
       const subGain = gains[0];
       out.followerGain30d = subGain;
       if (gains.length >= 2) out.viewGain30d = gains[1];
-      const videoGain = gains[gains.length - 1];
-      if (Number.isFinite(videoGain) && videoGain !== 0) {
-        out.postFrequency = Math.abs((videoGain / 30) * 7);
+      if (gains.length >= 3) {
+        const videoGain = gains[gains.length - 1];
+        if (Number.isFinite(videoGain) && videoGain !== 0) {
+          out.postFrequency = Math.abs((videoGain / 30) * 7);
+        }
       }
       if (out.followers && out.followers > 0) {
         out.growthRate = (subGain / out.followers) * 100;
       }
     }
 
+    // Also try to extract from "daily averages" or "monthly" sections
+    if (!out.viewGain30d) {
+      const monthlyViewsMatch = md.match(/(?:monthly|30\s*day)\s*(?:video\s*)?views?\s*[:\n]\s*([-+]?\s*[\d,.KMBkmb]+)/i);
+      if (monthlyViewsMatch) out.viewGain30d = parseHumanNumber(monthlyViewsMatch[1]);
+    }
+
     // Grade
     const gradeMatch = md.match(/(?:subscriber|channel)\s*(?:rank|grade)\s*\n\s*([A-Z][+-]?)/i);
     if (gradeMatch) {
-      // store in description field as supplementary info
       out.description = (out.description ? out.description + " | " : "") + "Grade: " + gradeMatch[1];
     }
+
+    // Estimated earnings (for metadata enrichment)
+    const earningsMatch = md.match(/estimated\s*(?:monthly\s*)?earnings?\s*[:\n]\s*\$?([\d,.KMBkmb]+)/i);
+    if (earningsMatch) {
+      out.description = (out.description ? out.description + " | " : "") + "Est. Earnings: $" + earningsMatch[1];
+    }
+
+    console.log(`[SCRAPE] YouTube SB parsed: followers=${out.followers}, posts=${out.posts}, totalViews=${out.totalViews}, viewGain30d=${out.viewGain30d}, followerGain30d=${out.followerGain30d}`);
 
     return out;
   };

@@ -11,12 +11,16 @@ import {
   Loader2, Clock, AlertTriangle, Calendar as CalendarIcon, Search, Eye, Globe, Sparkles,
   Shield, Flame, Crown, Download, Copy, ChevronDown, ChevronUp, Star,
   Link, Lock, FileText, Image as ImageIcon, Code, Activity, CheckCircle, XCircle, ExternalLink,
-  DollarSign, TrendingUp as TrendUp, Building2, Briefcase,
+  DollarSign, TrendingUp as TrendUp, Building2, Briefcase, Info,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger,
+  ContextMenuSeparator, ContextMenuLabel,
+} from "@/components/ui/context-menu";
 import { cn } from "@/lib/utils";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -3455,10 +3459,11 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                   // Time period logic
                                   const period = platformTimePeriods[key] || "monthly";
                                   const customDates = platformCustomDates[key] || [];
-                                  const periodLabel = period === "daily" ? "Day" : period === "weekly" ? "Week" : period === "monthly" ? "Month" : period === "quarterly" ? "Quarter" : period === "yearly" ? "Year" : `${customDates.length} day${customDates.length !== 1 ? "s" : ""}`;
+                                  const periodLabel = period === "daily" ? "Day" : period === "weekly" ? "Week" : period === "monthly" ? "Month" : period === "quarterly" ? "Quarter" : period === "yearly" ? "Year" : period === "alltime" ? "All Time" : `${customDates.length} day${customDates.length !== 1 ? "s" : ""}`;
                                   // Multiplier for 30d base data → selected period
-                                  const periodDays = period === "daily" ? 1 : period === "weekly" ? 7 : period === "monthly" ? 30 : period === "quarterly" ? 90 : period === "yearly" ? 365 : Math.max(customDates.length, 1);
-                                  const periodMul = periodDays / 30;
+                                  const periodDays = period === "daily" ? 1 : period === "weekly" ? 7 : period === "monthly" ? 30 : period === "quarterly" ? 90 : period === "yearly" ? 365 : period === "alltime" ? 0 : Math.max(customDates.length, 1);
+                                  const periodMul = period === "alltime" ? 1 : periodDays / 30;
+                                  const isAllTime = period === "alltime";
 
                                   // Core metrics
                                   const totalReach = sum(c => c.followers);
@@ -3532,80 +3537,181 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                   const maxPlatformReach = Math.max(...platforms.map(([, d]) => d.competitors.reduce((s, c) => s + c.followers, 0)));
                                   const barWidth = maxPlatformReach > 0 ? (totalReach / maxPlatformReach) * 100 : 0;
 
-                                  // Build stat items - 50+ metrics organized into sections
-                                  type StatItem = { label: string; value: string; color: string; section: string };
+                                  // Build stat items - 80+ metrics organized into sections
+                                  type StatItem = { label: string; value: string; color: string; section: string; detail?: { formula?: string; source?: string; raw?: string; timestamp?: string; type?: string; note?: string } };
                                   const stats: StatItem[] = [];
+                                  const now = new Date().toISOString().slice(0, 16);
+                                  const srcSB = "SocialBlade via Jina Reader";
+                                  const srcDerived = "Derived from scraped data";
+                                  const srcRSS = "YouTube RSS + Watch Pages";
+                                  const srcJina = "Jina Reader (platform profile)";
 
                                   // ── AUDIENCE ──
-                                  stats.push({ label: "Total Reach", value: fmtNum(totalReach), color: "text-white", section: "Audience" });
-                                  stats.push({ label: "Avg Followers", value: fmtNum(Math.round(avgFollowersEach)), color: "text-white", section: "Audience" });
-                                  if (totalFollowingP > 0) stats.push({ label: "Total Following", value: fmtNum(totalFollowingP), color: "text-white/70", section: "Audience" });
-                                  if (followerFollowingRatio > 0) stats.push({ label: "Follower:Following", value: followerFollowingRatio.toFixed(1) + "x", color: followerFollowingRatio > 5 ? "text-emerald-400" : "text-white/70", section: "Audience" });
-                                  stats.push({ label: "Follower Quality", value: followerQuality, color: followerQuality === "Premium" ? "text-emerald-400" : followerQuality === "High" ? "text-[hsl(217,91%,60%)]" : "text-white/50", section: "Audience" });
-                                  stats.push({ label: "Reach Share", value: reachPct + "%", color: "text-[hsl(217,91%,60%)]", section: "Audience" });
-                                  stats.push({ label: "Brand Authority", value: brandAuthority, color: brandAuthority === "High" ? "text-emerald-400" : brandAuthority === "Medium" ? "text-amber-400" : "text-white/50", section: "Audience" });
-                                  stats.push({ label: "Audience Health", value: audienceHealth, color: audienceHealth === "Healthy" ? "text-emerald-400" : audienceHealth === "Fair" ? "text-amber-400" : "text-red-400", section: "Audience" });
+                                  stats.push({ label: "Total Reach", value: fmtNum(totalReach), color: "text-white", section: "Audience", detail: { formula: "Sum of followers across all competitors on this platform", source: srcSB, raw: totalReach.toString(), timestamp: now, type: "Absolute" } });
+                                  stats.push({ label: "Avg Followers", value: fmtNum(Math.round(avgFollowersEach)), color: "text-white", section: "Audience", detail: { formula: "Total Reach / Number of competitors", source: srcDerived, raw: Math.round(avgFollowersEach).toString(), timestamp: now, type: "Average" } });
+                                  if (totalFollowingP > 0) stats.push({ label: "Total Following", value: fmtNum(totalFollowingP), color: "text-white/70", section: "Audience", detail: { formula: "Sum of following counts", source: srcSB, raw: totalFollowingP.toString(), timestamp: now, type: "Absolute" } });
+                                  if (followerFollowingRatio > 0) stats.push({ label: "Follower:Following", value: followerFollowingRatio.toFixed(1) + "x", color: followerFollowingRatio > 5 ? "text-emerald-400" : "text-white/70", section: "Audience", detail: { formula: "Total Followers / Total Following", source: srcDerived, raw: followerFollowingRatio.toFixed(3), timestamp: now, type: "Ratio", note: ">5x = premium audience, >1x = healthy" } });
+                                  stats.push({ label: "Follower Quality", value: followerQuality, color: followerQuality === "Premium" ? "text-emerald-400" : followerQuality === "High" ? "text-[hsl(217,91%,60%)]" : "text-white/50", section: "Audience", detail: { formula: "Based on Follower:Following ratio. Premium >10x, High >3x, Average >1x, Low <1x", source: srcDerived, timestamp: now, type: "Rating" } });
+                                  stats.push({ label: "Reach Share", value: reachPct + "%", color: "text-[hsl(217,91%,60%)]", section: "Audience", detail: { formula: "Platform Reach / Total Reach across all platforms × 100", source: srcDerived, raw: reachPct, timestamp: now, type: "Percentage" } });
+                                  stats.push({ label: "Brand Authority", value: brandAuthority, color: brandAuthority === "High" ? "text-emerald-400" : brandAuthority === "Medium" ? "text-amber-400" : "text-white/50", section: "Audience", detail: { formula: "Based on Follower:Following >5x AND Reach >10K = High", source: srcDerived, timestamp: now, type: "Rating" } });
+                                  stats.push({ label: "Audience Health", value: audienceHealth, color: audienceHealth === "Healthy" ? "text-emerald-400" : audienceHealth === "Fair" ? "text-amber-400" : "text-red-400", section: "Audience", detail: { formula: "Engagement Quality >60 AND Growth >0 = Healthy", source: srcDerived, timestamp: now, type: "Rating" } });
+                                  // NEW audience metrics
+                                  const medianFollowers = n > 0 ? [...cc].sort((a, b) => a.followers - b.followers)[Math.floor(n / 2)].followers : 0;
+                                  stats.push({ label: "Median Followers", value: fmtNum(medianFollowers), color: "text-white/70", section: "Audience", detail: { formula: "Middle value of all competitor follower counts (sorted)", source: srcDerived, raw: medianFollowers.toString(), timestamp: now, type: "Median" } });
+                                  const maxFollowers = Math.max(...cc.map(c => c.followers));
+                                  const minFollowers = Math.min(...cc.map(c => c.followers));
+                                  stats.push({ label: "Top Follower", value: fmtNum(maxFollowers), color: "text-emerald-400/70", section: "Audience", detail: { formula: "Highest follower count among competitors", source: srcSB, raw: maxFollowers.toString(), timestamp: now, type: "Max" } });
+                                  if (n > 1) stats.push({ label: "Follower Spread", value: fmtNum(maxFollowers - minFollowers), color: "text-white/50", section: "Audience", detail: { formula: "Max Followers − Min Followers", source: srcDerived, raw: (maxFollowers - minFollowers).toString(), timestamp: now, type: "Range" } });
+                                  const avgPostsPerFollower = avgFollowersEach > 0 ? ((totalPostsP / n) / avgFollowersEach * 1000) : 0;
+                                  if (avgPostsPerFollower > 0) stats.push({ label: "Posts / 1K Foll.", value: avgPostsPerFollower.toFixed(1), color: "text-white/50", section: "Audience", detail: { formula: "(Avg Posts / Avg Followers) × 1000", source: srcDerived, timestamp: now, type: "Ratio" } });
 
                                   // ── GROWTH (period-scaled) ──
-                                  stats.push({ label: `Growth (${periodLabel})`, value: (growthRatePeriod >= 0 ? "+" : "") + growthRatePeriod.toFixed(2) + "%", color: growthRatePeriod >= 0 ? "text-emerald-400" : "text-red-400", section: "Growth" });
-                                  stats.push({ label: "Momentum", value: growthMomentum, color: growthMomentum === "Explosive" ? "text-emerald-400" : growthMomentum === "Strong" ? "text-[hsl(217,91%,60%)]" : growthMomentum === "Declining" ? "text-red-400" : "text-white/50", section: "Growth" });
-                                  if (followerGainPeriod !== 0) stats.push({ label: `${periodLabel} Foll. Gain`, value: (followerGainPeriod >= 0 ? "+" : "") + fmtNum(followerGainPeriod), color: followerGainPeriod >= 0 ? "text-emerald-400" : "text-red-400", section: "Growth" });
-                                  if (dailyFollowerGain !== 0) stats.push({ label: "Daily Gain", value: (dailyFollowerGain >= 0 ? "+" : "") + fmtNum(Math.round(dailyFollowerGain)), color: dailyFollowerGain >= 0 ? "text-emerald-400" : "text-red-400", section: "Growth" });
-                                  if (projFollowersPeriod > 0) stats.push({ label: `Proj. End of ${periodLabel}`, value: fmtNum(projFollowersPeriod), color: "text-[hsl(217,91%,60%)]", section: "Growth" });
-                                  stats.push({ label: "Proj. Yearly Gain", value: (dailyFollowerGain * 365 >= 0 ? "+" : "") + fmtNum(Math.round(dailyFollowerGain * 365)), color: dailyFollowerGain >= 0 ? "text-emerald-400/50" : "text-red-400/50", section: "Growth" });
-                                  stats.push({ label: "Conversion Potential", value: conversionPotential, color: conversionPotential === "Strong" ? "text-emerald-400" : conversionPotential === "Moderate" ? "text-amber-400" : "text-white/50", section: "Growth" });
+                                  if (!isAllTime) {
+                                    stats.push({ label: `Growth (${periodLabel})`, value: (growthRatePeriod >= 0 ? "+" : "") + growthRatePeriod.toFixed(2) + "%", color: growthRatePeriod >= 0 ? "text-emerald-400" : "text-red-400", section: "Growth", detail: { formula: `Weekly Growth Rate × (${periodDays} / 7)`, source: srcSB, raw: growthRatePeriod.toFixed(4), timestamp: now, type: "Percentage" } });
+                                  }
+                                  stats.push({ label: "Momentum", value: growthMomentum, color: growthMomentum === "Explosive" ? "text-emerald-400" : growthMomentum === "Strong" ? "text-[hsl(217,91%,60%)]" : growthMomentum === "Declining" ? "text-red-400" : "text-white/50", section: "Growth", detail: { formula: "Explosive >2%/wk, Strong >0.5%/wk, Steady >0%/wk, Stagnant >-0.5%/wk, Declining <-0.5%/wk", source: srcDerived, timestamp: now, type: "Rating" } });
+                                  if (!isAllTime && followerGainPeriod !== 0) stats.push({ label: `${periodLabel} Foll. Gain`, value: (followerGainPeriod >= 0 ? "+" : "") + fmtNum(followerGainPeriod), color: followerGainPeriod >= 0 ? "text-emerald-400" : "text-red-400", section: "Growth", detail: { formula: `30d Follower Gain × (${periodDays} / 30)`, source: srcSB, raw: followerGainPeriod.toString(), timestamp: now, type: "Absolute" } });
+                                  if (dailyFollowerGain !== 0) stats.push({ label: "Daily Gain", value: (dailyFollowerGain >= 0 ? "+" : "") + fmtNum(Math.round(dailyFollowerGain)), color: dailyFollowerGain >= 0 ? "text-emerald-400" : "text-red-400", section: "Growth", detail: { formula: "30d Follower Gain / 30", source: srcSB, raw: Math.round(dailyFollowerGain).toString(), timestamp: now, type: "Average" } });
+                                  if (!isAllTime && projFollowersPeriod > 0) stats.push({ label: `Proj. End of ${periodLabel}`, value: fmtNum(projFollowersPeriod), color: "text-[hsl(217,91%,60%)]", section: "Growth", detail: { formula: "Current Followers × (1 + Growth Rate Period / 100)", source: srcDerived, raw: projFollowersPeriod.toString(), timestamp: now, type: "Projection", note: "Based on current growth trajectory" } });
+                                  stats.push({ label: "Proj. Yearly Gain", value: (dailyFollowerGain * 365 >= 0 ? "+" : "") + fmtNum(Math.round(dailyFollowerGain * 365)), color: dailyFollowerGain >= 0 ? "text-emerald-400/50" : "text-red-400/50", section: "Growth", detail: { formula: "Daily Gain × 365", source: srcDerived, timestamp: now, type: "Projection" } });
+                                  stats.push({ label: "Conversion Potential", value: conversionPotential, color: conversionPotential === "Strong" ? "text-emerald-400" : conversionPotential === "Moderate" ? "text-amber-400" : "text-white/50", section: "Growth", detail: { formula: "Strong = ER >3% AND Growth >0.5%/wk", source: srcDerived, timestamp: now, type: "Rating" } });
+                                  // NEW growth metrics
+                                  const weeklyGainRate = totalGain30d !== 0 ? (totalGain30d / 30) * 7 : 0;
+                                  stats.push({ label: "Weekly Gain", value: (weeklyGainRate >= 0 ? "+" : "") + fmtNum(Math.round(weeklyGainRate)), color: weeklyGainRate >= 0 ? "text-emerald-400/70" : "text-red-400/70", section: "Growth", detail: { formula: "(30d Gain / 30) × 7", source: srcDerived, timestamp: now, type: "Average" } });
+                                  const daysToDouble = dailyFollowerGain > 0 && totalReach > 0 ? Math.round(totalReach / dailyFollowerGain) : 0;
+                                  if (daysToDouble > 0 && daysToDouble < 36500) stats.push({ label: "Days to 2× Reach", value: fmtNum(daysToDouble) + "d", color: daysToDouble < 365 ? "text-emerald-400" : "text-white/50", section: "Growth", detail: { formula: "Current Reach / Daily Gain", source: srcDerived, raw: daysToDouble.toString(), timestamp: now, type: "Projection", note: "Time to double current follower base at current growth rate" } });
+                                  const growthVelocity = avgGrP > 0 ? Math.round(avgGrP * avgFollowersEach / 100) : 0;
+                                  if (growthVelocity > 0) stats.push({ label: "Growth Velocity", value: "+" + fmtNum(growthVelocity) + "/wk", color: "text-emerald-400/60", section: "Growth", detail: { formula: "Weekly Growth % × Avg Followers / 100", source: srcDerived, timestamp: now, type: "Absolute" } });
 
                                   // ── ENGAGEMENT ──
-                                  stats.push({ label: "Avg ER", value: avgEng.toFixed(2) + "%", color: avgEng > 3 ? "text-emerald-400" : avgEng > 1 ? "text-amber-400" : "text-red-400", section: "Engagement" });
-                                  stats.push({ label: "ER vs Benchmark", value: erVsBenchmark.toFixed(0) + "%", color: erVsBenchmark > 120 ? "text-emerald-400" : erVsBenchmark > 80 ? "text-amber-400" : "text-red-400", section: "Engagement" });
-                                  stats.push({ label: "Quality Score", value: engQualityScore + "/100", color: engQualityScore > 70 ? "text-emerald-400" : engQualityScore > 40 ? "text-amber-400" : "text-red-400", section: "Engagement" });
-                                  stats.push({ label: "Avg Likes", value: fmtNum(avgLikesP), color: "text-white", section: "Engagement" });
-                                  if (avgCommentsP > 0) stats.push({ label: "Avg Comments", value: fmtNum(avgCommentsP), color: "text-white", section: "Engagement" });
-                                  if (avgViewsP > 0) stats.push({ label: "Avg Views", value: fmtNum(avgViewsP), color: "text-[hsl(217,91%,60%)]", section: "Engagement" });
-                                  if (avgSharesP > 0) stats.push({ label: "Avg Shares", value: fmtNum(avgSharesP), color: "text-white", section: "Engagement" });
-                                  stats.push({ label: "Avg Interactions", value: fmtNum(avgInteractions), color: "text-white", section: "Engagement" });
-                                  if (likesPerK > 0) stats.push({ label: "Likes / 1K Foll.", value: likesPerK.toFixed(1), color: likesPerK > 30 ? "text-emerald-400" : "text-white/70", section: "Engagement" });
-                                  if (commentsPerK > 0) stats.push({ label: "Comments / 1K", value: commentsPerK.toFixed(1), color: "text-white/70", section: "Engagement" });
-                                  if (likeCommentRatio > 0) stats.push({ label: "Like:Comment", value: likeCommentRatio.toFixed(1) + ":1", color: "text-white/70", section: "Engagement" });
-                                  if (viralityScore > 0) stats.push({ label: "Virality Score", value: viralityScore.toFixed(2) + "%", color: viralityScore > 5 ? "text-emerald-400" : "text-white/70", section: "Engagement" });
-                                  if (commentRate > 0) stats.push({ label: "Comment Rate", value: commentRate.toFixed(3) + "%", color: "text-white/70", section: "Engagement" });
-                                  stats.push({ label: "Save Potential", value: savePotential, color: savePotential === "High" ? "text-emerald-400" : savePotential === "Medium" ? "text-amber-400" : "text-white/50", section: "Engagement" });
-                                  if (retentionProxy > 0) stats.push({ label: "Retention Score", value: retentionProxy + "%", color: retentionProxy > 50 ? "text-emerald-400" : "text-white/70", section: "Engagement" });
+                                  stats.push({ label: "Avg ER", value: avgEng.toFixed(2) + "%", color: avgEng > 3 ? "text-emerald-400" : avgEng > 1 ? "text-amber-400" : "text-red-400", section: "Engagement", detail: { formula: "(Avg Likes + Avg Comments) / Followers × 100", source: srcSB, raw: avgEng.toFixed(4), timestamp: now, type: "Percentage", note: `Benchmark for ${key}: ${benchmarkER}%` } });
+                                  stats.push({ label: "ER vs Benchmark", value: erVsBenchmark.toFixed(0) + "%", color: erVsBenchmark > 120 ? "text-emerald-400" : erVsBenchmark > 80 ? "text-amber-400" : "text-red-400", section: "Engagement", detail: { formula: `(Avg ER / ${benchmarkER}%) × 100 — ${key} benchmark = ${benchmarkER}%`, source: srcDerived, timestamp: now, type: "Percentage" } });
+                                  stats.push({ label: "Quality Score", value: engQualityScore + "/100", color: engQualityScore > 70 ? "text-emerald-400" : engQualityScore > 40 ? "text-amber-400" : "text-red-400", section: "Engagement", detail: { formula: "min(100, (ER / Platform Ceiling) × 100)", source: srcDerived, timestamp: now, type: "Score" } });
+                                  stats.push({ label: "Avg Likes", value: fmtNum(avgLikesP), color: "text-white", section: "Engagement", detail: { formula: "Average likes per post across all competitors", source: srcSB, raw: avgLikesP.toString(), timestamp: now, type: "Average" } });
+                                  if (avgCommentsP > 0) stats.push({ label: "Avg Comments", value: fmtNum(avgCommentsP), color: "text-white", section: "Engagement", detail: { source: srcSB, raw: avgCommentsP.toString(), timestamp: now, type: "Average" } });
+                                  if (avgViewsP > 0) stats.push({ label: "Avg Views", value: fmtNum(avgViewsP), color: "text-[hsl(217,91%,60%)]", section: "Engagement", detail: { source: key === "youtube" ? srcRSS : srcSB, raw: avgViewsP.toString(), timestamp: now, type: "Average" } });
+                                  if (avgSharesP > 0) stats.push({ label: "Avg Shares", value: fmtNum(avgSharesP), color: "text-white", section: "Engagement", detail: { source: srcSB, raw: avgSharesP.toString(), timestamp: now, type: "Average" } });
+                                  stats.push({ label: "Avg Interactions", value: fmtNum(avgInteractions), color: "text-white", section: "Engagement", detail: { formula: "Avg Likes + Avg Comments", source: srcDerived, timestamp: now } });
+                                  if (likesPerK > 0) stats.push({ label: "Likes / 1K Foll.", value: likesPerK.toFixed(1), color: likesPerK > 30 ? "text-emerald-400" : "text-white/70", section: "Engagement", detail: { formula: "Avg Likes / (Avg Followers / 1000)", source: srcDerived, timestamp: now, type: "Ratio" } });
+                                  if (commentsPerK > 0) stats.push({ label: "Comments / 1K", value: commentsPerK.toFixed(1), color: "text-white/70", section: "Engagement", detail: { formula: "Avg Comments / (Avg Followers / 1000)", source: srcDerived, timestamp: now, type: "Ratio" } });
+                                  if (likeCommentRatio > 0) stats.push({ label: "Like:Comment", value: likeCommentRatio.toFixed(1) + ":1", color: "text-white/70", section: "Engagement", detail: { formula: "Avg Likes / Avg Comments", source: srcDerived, timestamp: now, type: "Ratio", note: "High ratio = passive audience, low = engaged community" } });
+                                  if (viralityScore > 0) stats.push({ label: "Virality Score", value: viralityScore.toFixed(2) + "%", color: viralityScore > 5 ? "text-emerald-400" : "text-white/70", section: "Engagement", detail: { formula: "(Avg Likes / Avg Followers) × 100", source: srcDerived, timestamp: now, type: "Percentage" } });
+                                  if (commentRate > 0) stats.push({ label: "Comment Rate", value: commentRate.toFixed(3) + "%", color: "text-white/70", section: "Engagement", detail: { formula: "(Avg Comments / Avg Followers) × 100", source: srcDerived, timestamp: now, type: "Percentage" } });
+                                  stats.push({ label: "Save Potential", value: savePotential, color: savePotential === "High" ? "text-emerald-400" : savePotential === "Medium" ? "text-amber-400" : "text-white/50", section: "Engagement", detail: { formula: "High = Virality >3%, Medium = Virality >1%", source: srcDerived, timestamp: now, type: "Rating" } });
+                                  if (retentionProxy > 0) stats.push({ label: "Retention Score", value: retentionProxy + "%", color: retentionProxy > 50 ? "text-emerald-400" : "text-white/70", section: "Engagement", detail: { formula: "min(100, (Avg Likes / Avg Views × 100) × 2)", source: srcDerived, timestamp: now, type: "Score" } });
+                                  // NEW engagement metrics
+                                  const maxER = Math.max(...cc.map(c => c.engagementRate));
+                                  const minER = Math.min(...cc.map(c => c.engagementRate));
+                                  stats.push({ label: "Top ER", value: maxER.toFixed(2) + "%", color: "text-emerald-400/70", section: "Engagement", detail: { formula: "Highest ER among competitors", source: srcSB, timestamp: now, type: "Max" } });
+                                  if (n > 1) stats.push({ label: "ER Range", value: (maxER - minER).toFixed(2) + "%", color: "text-white/40", section: "Engagement", detail: { formula: "Max ER − Min ER", source: srcDerived, timestamp: now, type: "Range" } });
+                                  const sentimentProxy = likeCommentRatio > 0 ? (likeCommentRatio > 50 ? "Passive" : likeCommentRatio > 10 ? "Balanced" : "Active Community") : "N/A";
+                                  stats.push({ label: "Audience Sentiment", value: sentimentProxy, color: sentimentProxy === "Active Community" ? "text-emerald-400" : sentimentProxy === "Balanced" ? "text-amber-400" : "text-white/50", section: "Engagement", detail: { formula: "Active Community <10:1 L:C, Balanced 10-50:1, Passive >50:1", source: srcDerived, timestamp: now, type: "Rating" } });
+                                  const engDensity = totalPostsP > 0 ? Math.round((totalLikesP + (avgCommentsP * totalPostsP)) / totalPostsP) : 0;
+                                  if (engDensity > 0) stats.push({ label: "Eng. Density/Post", value: fmtNum(engDensity), color: "text-white/60", section: "Engagement", detail: { formula: "(Total Likes + Total Comments) / Total Posts", source: srcDerived, timestamp: now, type: "Average" } });
 
                                   // ── VIEWS & REACH ──
                                   if (avgViewsP > 0 || totalViewsP > 0) {
-                                    if (viewsPerK > 0) stats.push({ label: "Views / 1K Foll.", value: fmtNum(Math.round(viewsPerK)), color: viewsPerK > 1000 ? "text-emerald-400" : "text-white/70", section: "Views" });
-                                    if (viewToFollowerRatio > 0) stats.push({ label: "View:Follower", value: viewToFollowerRatio.toFixed(2) + "x", color: viewToFollowerRatio > 1 ? "text-emerald-400" : "text-white/70", section: "Views" });
-                                    if (avgViewLikeRatio > 0) stats.push({ label: "Like:View Ratio", value: avgViewLikeRatio.toFixed(2) + "%", color: "text-white/70", section: "Views" });
-                                    if (avgViewCommentRatio > 0) stats.push({ label: "Comment:View", value: avgViewCommentRatio.toFixed(3) + "%", color: "text-white/70", section: "Views" });
-                                    if (estTotalViewsPeriod > 0) stats.push({ label: `${periodLabel} Views`, value: fmtNum(estTotalViewsPeriod), color: "text-[hsl(217,91%,60%)]", section: "Views" });
-                                    if (viewGainPeriod > 0) stats.push({ label: `${periodLabel} View Gain`, value: "+" + fmtNum(viewGainPeriod), color: "text-emerald-400", section: "Views" });
-                                    if (totalViewsP > 0) stats.push({ label: "Total Views", value: fmtNum(totalViewsP), color: "text-[hsl(217,91%,60%)]", section: "Views" });
-                                    if (impressionRate > 0) stats.push({ label: "Impression Rate", value: impressionRate + "%", color: impressionRate > 50 ? "text-emerald-400" : "text-white/70", section: "Views" });
+                                    if (viewsPerK > 0) stats.push({ label: "Views / 1K Foll.", value: fmtNum(Math.round(viewsPerK)), color: viewsPerK > 1000 ? "text-emerald-400" : "text-white/70", section: "Views", detail: { formula: "Avg Views / (Avg Followers / 1000)", source: srcDerived, timestamp: now, type: "Ratio" } });
+                                    if (viewToFollowerRatio > 0) stats.push({ label: "View:Follower", value: viewToFollowerRatio.toFixed(2) + "x", color: viewToFollowerRatio > 1 ? "text-emerald-400" : "text-white/70", section: "Views", detail: { formula: "Avg Views / Avg Followers", source: srcDerived, timestamp: now, type: "Ratio", note: ">1x = content reaches beyond followers" } });
+                                    if (avgViewLikeRatio > 0) stats.push({ label: "Like:View Ratio", value: avgViewLikeRatio.toFixed(2) + "%", color: "text-white/70", section: "Views", detail: { formula: "(Avg Likes / Avg Views) × 100", source: srcDerived, timestamp: now, type: "Percentage" } });
+                                    if (avgViewCommentRatio > 0) stats.push({ label: "Comment:View", value: avgViewCommentRatio.toFixed(3) + "%", color: "text-white/70", section: "Views", detail: { formula: "(Avg Comments / Avg Views) × 100", source: srcDerived, timestamp: now, type: "Percentage" } });
+                                    if (!isAllTime && estTotalViewsPeriod > 0) stats.push({ label: `${periodLabel} Views`, value: fmtNum(estTotalViewsPeriod), color: "text-[hsl(217,91%,60%)]", section: "Views", detail: { formula: `Daily View Gain × ${periodDays}`, source: srcDerived, timestamp: now, type: "Projection" } });
+                                    if (!isAllTime && viewGainPeriod > 0) stats.push({ label: `${periodLabel} View Gain`, value: "+" + fmtNum(viewGainPeriod), color: "text-emerald-400", section: "Views", detail: { formula: `30d View Gain × (${periodDays} / 30)`, source: srcSB, timestamp: now, type: "Absolute" } });
+                                    if (totalViewsP > 0) stats.push({ label: "Total Views", value: fmtNum(totalViewsP), color: "text-[hsl(217,91%,60%)]", section: "Views", detail: { source: srcSB, raw: totalViewsP.toString(), timestamp: now, type: "Absolute" } });
+                                    if (impressionRate > 0) stats.push({ label: "Impression Rate", value: impressionRate + "%", color: impressionRate > 50 ? "text-emerald-400" : "text-white/70", section: "Views", detail: { formula: "(ER × 10 + View:Follower × 100) / 2", source: srcDerived, timestamp: now, type: "Score" } });
+                                    // NEW views metrics
+                                    const viewEfficiency = avgViewsP > 0 && avgFollowersEach > 0 ? ((avgViewsP / avgFollowersEach) * 100).toFixed(1) : "0";
+                                    stats.push({ label: "View Efficiency", value: viewEfficiency + "%", color: parseFloat(viewEfficiency) > 100 ? "text-emerald-400" : "text-white/60", section: "Views", detail: { formula: "(Avg Views / Avg Followers) × 100", source: srcDerived, timestamp: now, type: "Percentage", note: ">100% = viral reach beyond followers" } });
+                                    if (totalViewsP > 0 && totalPostsP > 0) {
+                                      const viewsPerPost = Math.round(totalViewsP / totalPostsP);
+                                      stats.push({ label: "Views / Post (All)", value: fmtNum(viewsPerPost), color: "text-[hsl(217,91%,60%)]/70", section: "Views", detail: { formula: "Total Views / Total Posts", source: srcDerived, timestamp: now, type: "Average" } });
+                                    }
+                                    const dailyViewRate = dailyViewGain > 0 ? fmtNum(Math.round(dailyViewGain)) : "0";
+                                    if (dailyViewGain > 0) stats.push({ label: "Daily Views", value: "+" + dailyViewRate, color: "text-emerald-400/60", section: "Views", detail: { formula: "30d View Gain / 30", source: srcSB, timestamp: now, type: "Average" } });
                                   }
 
                                   // ── CONTENT ──
-                                  if (totalPostsP > 0) stats.push({ label: "Total Content", value: fmtNum(totalPostsP), color: "text-[hsl(262,83%,58%)]", section: "Content" });
-                                  stats.push({ label: "Post Frequency", value: avgFreqP.toFixed(1) + "/wk", color: "text-[hsl(262,83%,58%)]", section: "Content" });
-                                  stats.push({ label: "Consistency", value: contentConsistency, color: contentConsistency === "Daily+" ? "text-emerald-400" : contentConsistency === "Frequent" ? "text-[hsl(217,91%,60%)]" : "text-white/50", section: "Content" });
-                                  if (estPostsInPeriod > 0) stats.push({ label: `Est. Posts (${periodLabel})`, value: fmtNum(estPostsInPeriod), color: "text-[hsl(262,83%,58%)]", section: "Content" });
-                                  if (postsPerDay > 0) stats.push({ label: "Posts / Day", value: postsPerDay.toFixed(2), color: "text-white/70", section: "Content" });
-                                  if (contentVelocity > 0) stats.push({ label: "Avg Library Size", value: fmtNum(contentVelocity), color: "text-white/70", section: "Content" });
-                                  if (estReachPerPost > 0) stats.push({ label: "Est. Reach / Post", value: fmtNum(estReachPerPost), color: "text-[hsl(217,91%,60%)]", section: "Content" });
-                                  if (contentLifespan > 0) stats.push({ label: "Content Lifespan", value: contentLifespan + " day" + (contentLifespan !== 1 ? "s" : ""), color: "text-white/70", section: "Content" });
-                                  if (shareRate > 0) stats.push({ label: "Share Rate", value: shareRate.toFixed(3) + "%", color: "text-white/70", section: "Content" });
-                                  if (contentROI > 0) stats.push({ label: "Weekly Content ROI", value: weeklyContentROI, color: "text-amber-400", section: "Content" });
+                                  if (totalPostsP > 0) stats.push({ label: "Total Content", value: fmtNum(totalPostsP), color: "text-[hsl(262,83%,58%)]", section: "Content", detail: { source: srcSB, raw: totalPostsP.toString(), timestamp: now, type: "Absolute" } });
+                                  stats.push({ label: "Post Frequency", value: avgFreqP.toFixed(1) + "/wk", color: "text-[hsl(262,83%,58%)]", section: "Content", detail: { formula: "Posts per 7 days (from posting cadence analysis)", source: srcSB, timestamp: now, type: "Rate" } });
+                                  stats.push({ label: "Consistency", value: contentConsistency, color: contentConsistency === "Daily+" ? "text-emerald-400" : contentConsistency === "Frequent" ? "text-[hsl(217,91%,60%)]" : "text-white/50", section: "Content", detail: { formula: "Daily+ ≥7/wk, Frequent ≥3/wk, Weekly ≥1/wk, Sporadic <1/wk", source: srcDerived, timestamp: now, type: "Rating" } });
+                                  if (!isAllTime && estPostsInPeriod > 0) stats.push({ label: `Est. Posts (${periodLabel})`, value: fmtNum(estPostsInPeriod), color: "text-[hsl(262,83%,58%)]", section: "Content", detail: { formula: `Posts/Day × ${periodDays}`, source: srcDerived, timestamp: now, type: "Projection" } });
+                                  if (postsPerDay > 0) stats.push({ label: "Posts / Day", value: postsPerDay.toFixed(2), color: "text-white/70", section: "Content", detail: { formula: "Post Frequency / 7", source: srcDerived, timestamp: now, type: "Rate" } });
+                                  if (contentVelocity > 0) stats.push({ label: "Avg Library Size", value: fmtNum(contentVelocity), color: "text-white/70", section: "Content", detail: { formula: "Total Posts / Number of competitors", source: srcDerived, timestamp: now, type: "Average" } });
+                                  if (estReachPerPost > 0) stats.push({ label: "Est. Reach / Post", value: fmtNum(estReachPerPost), color: "text-[hsl(217,91%,60%)]", section: "Content", detail: { formula: "Avg Followers × (ER / 100) × 3.5 multiplier", source: srcDerived, timestamp: now, type: "Projection", note: "3.5x multiplier accounts for algorithmic boost + shares" } });
+                                  if (contentLifespan > 0) stats.push({ label: "Content Lifespan", value: contentLifespan + " day" + (contentLifespan !== 1 ? "s" : ""), color: "text-white/70", section: "Content", detail: { formula: "7 / Post Frequency", source: srcDerived, timestamp: now, type: "Duration", note: "Days before next post replaces this in feed" } });
+                                  if (shareRate > 0) stats.push({ label: "Share Rate", value: shareRate.toFixed(3) + "%", color: "text-white/70", section: "Content", detail: { formula: "(Avg Shares / Avg Followers) × 100", source: srcDerived, timestamp: now, type: "Percentage" } });
+                                  if (contentROI > 0) stats.push({ label: "Weekly Content ROI", value: weeklyContentROI, color: "text-amber-400", section: "Content", detail: { formula: "Est. Reach/Post × Post Frequency", source: srcDerived, timestamp: now, type: "Absolute", note: "Estimated weekly impressions from content output" } });
+                                  // NEW content metrics
+                                  const contentAge = totalPostsP > 0 && avgFreqP > 0 ? Math.round((totalPostsP / n) / (avgFreqP / 7)) : 0;
+                                  if (contentAge > 0) stats.push({ label: "Est. Content Age", value: contentAge + " days", color: "text-white/50", section: "Content", detail: { formula: "Avg Library Size / Posts per Day", source: srcDerived, timestamp: now, type: "Duration", note: "Approximate age of content library based on posting cadence" } });
+                                  const monthlyPosts = Math.round(postsPerDay * 30);
+                                  if (monthlyPosts > 0) stats.push({ label: "Monthly Posts", value: fmtNum(monthlyPosts), color: "text-[hsl(262,83%,58%)]/70", section: "Content", detail: { formula: "Posts/Day × 30", source: srcDerived, timestamp: now, type: "Projection" } });
+                                  const yearlyPosts = Math.round(postsPerDay * 365);
+                                  if (yearlyPosts > 0) stats.push({ label: "Yearly Posts", value: fmtNum(yearlyPosts), color: "text-[hsl(262,83%,58%)]/50", section: "Content", detail: { formula: "Posts/Day × 365", source: srcDerived, timestamp: now, type: "Projection" } });
 
                                   // ── VOLUME (period-scaled) ──
-                                  if (totalLikesP > 0) stats.push({ label: "Total Likes", value: fmtNum(totalLikesP), color: "text-white", section: "Volume" });
-                                  if (likeGainPeriod !== 0) stats.push({ label: `${periodLabel} Like Gain`, value: (likeGainPeriod >= 0 ? "+" : "") + fmtNum(likeGainPeriod), color: likeGainPeriod >= 0 ? "text-emerald-400" : "text-red-400", section: "Volume" });
-                                  if (estTotalLikesPeriod !== 0) stats.push({ label: `Est. ${periodLabel} Likes`, value: fmtNum(Math.abs(estTotalLikesPeriod)), color: "text-white/70", section: "Volume" });
-                                  if (engVelocity > 0) stats.push({ label: "Weekly Interactions", value: fmtNum(engVelocity), color: "text-white/70", section: "Volume" });
-                                  if (totalInteractionsPeriod > 0) stats.push({ label: `${periodLabel} Interactions`, value: fmtNum(totalInteractionsPeriod), color: "text-amber-400", section: "Volume" });
-                                  if (interactionsPerPost > 0) stats.push({ label: "Interactions / Post", value: fmtNum(interactionsPerPost), color: "text-white/70", section: "Volume" });
+                                  if (totalLikesP > 0) stats.push({ label: "Total Likes", value: fmtNum(totalLikesP), color: "text-white", section: "Volume", detail: { source: srcSB, raw: totalLikesP.toString(), timestamp: now, type: "Absolute" } });
+                                  if (!isAllTime && likeGainPeriod !== 0) stats.push({ label: `${periodLabel} Like Gain`, value: (likeGainPeriod >= 0 ? "+" : "") + fmtNum(likeGainPeriod), color: likeGainPeriod >= 0 ? "text-emerald-400" : "text-red-400", section: "Volume", detail: { formula: `30d Like Gain × (${periodDays} / 30)`, source: srcSB, timestamp: now, type: "Absolute" } });
+                                  if (!isAllTime && estTotalLikesPeriod !== 0) stats.push({ label: `Est. ${periodLabel} Likes`, value: fmtNum(Math.abs(estTotalLikesPeriod)), color: "text-white/70", section: "Volume", detail: { formula: `Daily Like Gain × ${periodDays}`, source: srcDerived, timestamp: now, type: "Projection" } });
+                                  if (engVelocity > 0) stats.push({ label: "Weekly Interactions", value: fmtNum(engVelocity), color: "text-white/70", section: "Volume", detail: { formula: "Avg Interactions × Post Frequency", source: srcDerived, timestamp: now, type: "Absolute" } });
+                                  if (!isAllTime && totalInteractionsPeriod > 0) stats.push({ label: `${periodLabel} Interactions`, value: fmtNum(totalInteractionsPeriod), color: "text-amber-400", section: "Volume", detail: { formula: `Weekly Interactions × (${periodDays} / 7)`, source: srcDerived, timestamp: now, type: "Projection" } });
+                                  if (interactionsPerPost > 0) stats.push({ label: "Interactions / Post", value: fmtNum(interactionsPerPost), color: "text-white/70", section: "Volume", detail: { formula: "Avg Likes + Avg Comments + Avg Shares", source: srcDerived, timestamp: now, type: "Average" } });
+                                  // NEW volume metrics
+                                  if (dailyLikeGain !== 0) stats.push({ label: "Daily Like Gain", value: (dailyLikeGain >= 0 ? "+" : "") + fmtNum(Math.round(dailyLikeGain)), color: dailyLikeGain >= 0 ? "text-emerald-400/60" : "text-red-400/60", section: "Volume", detail: { formula: "30d Like Gain / 30", source: srcSB, timestamp: now, type: "Average" } });
+                                  const yearlyLikes = Math.round(dailyLikeGain * 365);
+                                  if (yearlyLikes !== 0) stats.push({ label: "Proj. Yearly Likes", value: (yearlyLikes >= 0 ? "+" : "") + fmtNum(Math.abs(yearlyLikes)), color: "text-white/50", section: "Volume", detail: { formula: "Daily Like Gain × 365", source: srcDerived, timestamp: now, type: "Projection" } });
+                                  if (totalLikesP > 0 && totalPostsP > 0) {
+                                    const likesPerAllPost = Math.round(totalLikesP / totalPostsP);
+                                    stats.push({ label: "Lifetime Likes/Post", value: fmtNum(likesPerAllPost), color: "text-white/60", section: "Volume", detail: { formula: "Total Likes / Total Posts", source: srcDerived, timestamp: now, type: "Average" } });
+                                  }
+
+                                  // ── TRAFFIC (from financial/site data if available) ──
+                                  const trafficData = cc.length > 0 ? cc[0] : null;
+                                  const compMeta = trafficData ? competitors.find(c2 => c2.username === trafficData.username)?.metadata : null;
+                                  const traffic = compMeta?.financialData?.trafficEstimates || {};
+                                  if (traffic.monthlyVisitors && traffic.monthlyVisitors !== "Not publicly disclosed") {
+                                    const mv = typeof traffic.monthlyVisitors === 'string' ? traffic.monthlyVisitors : fmtNum(traffic.monthlyVisitors);
+                                    stats.push({ label: "Monthly Visitors", value: mv, color: "text-[hsl(150,60%,50%)]", section: "Traffic", detail: { source: "AI Financial Intelligence (SimilarWeb/public data)", raw: mv, timestamp: now, type: "Estimate", note: "Based on publicly available traffic data" } });
+                                  }
+                                  if (traffic.dailyVisitors && traffic.dailyVisitors !== "Not publicly disclosed") {
+                                    stats.push({ label: "Daily Visitors", value: traffic.dailyVisitors, color: "text-[hsl(150,60%,50%)]/80", section: "Traffic", detail: { source: "AI Financial Intelligence", timestamp: now, type: "Estimate" } });
+                                  }
+                                  if (traffic.yearlyVisitors && traffic.yearlyVisitors !== "Not publicly disclosed") {
+                                    stats.push({ label: "Yearly Visitors", value: traffic.yearlyVisitors, color: "text-[hsl(150,60%,50%)]/60", section: "Traffic", detail: { source: "AI Financial Intelligence", timestamp: now, type: "Estimate" } });
+                                  }
+                                  if (traffic.bounceRate && traffic.bounceRate !== "Not publicly disclosed") {
+                                    stats.push({ label: "Bounce Rate", value: traffic.bounceRate, color: "text-white/60", section: "Traffic", detail: { source: "AI Financial Intelligence", timestamp: now, type: "Percentage" } });
+                                  }
+                                  if (traffic.avgSessionDuration && traffic.avgSessionDuration !== "Not publicly disclosed") {
+                                    stats.push({ label: "Avg Session", value: traffic.avgSessionDuration, color: "text-white/60", section: "Traffic", detail: { source: "AI Financial Intelligence", timestamp: now, type: "Duration" } });
+                                  }
+                                  if (traffic.growthTrend && traffic.growthTrend !== "Not publicly disclosed") {
+                                    stats.push({ label: "Traffic Trend", value: traffic.growthTrend, color: "text-[hsl(150,60%,50%)]", section: "Traffic", detail: { source: "AI Financial Intelligence", timestamp: now, type: "Trend" } });
+                                  }
+                                  if (Array.isArray(traffic.topTrafficSources)) {
+                                    traffic.topTrafficSources.slice(0, 3).forEach((ts: any) => {
+                                      stats.push({ label: `Traffic: ${ts.source}`, value: ts.percentage, color: "text-white/50", section: "Traffic", detail: { source: "AI Financial Intelligence", timestamp: now, type: "Percentage" } });
+                                    });
+                                  }
+                                  if (Array.isArray(traffic.topCountries)) {
+                                    traffic.topCountries.slice(0, 3).forEach((tc: any) => {
+                                      stats.push({ label: `Geo: ${tc.country}`, value: tc.percentage, color: "text-white/50", section: "Traffic", detail: { source: "AI Financial Intelligence", timestamp: now, type: "Percentage" } });
+                                    });
+                                  }
+
+                                  // ── COMPETITIVE ──
+                                  stats.push({ label: "Accounts Tracked", value: n.toString(), color: "text-white/60", section: "Competitive", detail: { formula: "Number of competitors on this platform", source: "User data", timestamp: now, type: "Count" } });
+                                  const dominantComp = cc.reduce((a, b) => a.followers > b.followers ? a : b, cc[0]);
+                                  stats.push({ label: "Dominant Account", value: "@" + dominantComp?.username?.slice(0, 12), color: "text-amber-400", section: "Competitive", detail: { formula: "Competitor with highest followers on this platform", source: srcSB, timestamp: now } });
+                                  const competitiveGap = maxFollowers - minFollowers;
+                                  if (competitiveGap > 0 && n > 1) stats.push({ label: "Competitive Gap", value: fmtNum(competitiveGap), color: "text-white/50", section: "Competitive", detail: { formula: "Max Followers − Min Followers", source: srcDerived, timestamp: now, type: "Range" } });
+                                  const avgThreat = n > 0 ? Math.round(cc.reduce((s, c2) => s + (competitors.find(comp2 => comp2.username === c2.username)?.score || 0), 0) / n) : 0;
+                                  if (avgThreat > 0) stats.push({ label: "Avg Threat Score", value: avgThreat + "/100", color: avgThreat > 70 ? "text-red-400" : avgThreat > 40 ? "text-amber-400" : "text-emerald-400", section: "Competitive", detail: { formula: "Average threat score of competitors on this platform", source: "AI Analysis", timestamp: now, type: "Score" } });
+                                  const platformDominance = totalFollowers > 0 ? ((totalReach / totalFollowers) * 100).toFixed(1) : "0";
+                                  stats.push({ label: "Platform Dominance", value: platformDominance + "%", color: "text-[hsl(217,91%,60%)]", section: "Competitive", detail: { formula: "Platform Reach / Total Cross-Platform Reach × 100", source: srcDerived, timestamp: now, type: "Percentage" } });
 
                                   // Group by section
-                                  const sections = ["Audience", "Growth", "Engagement", "Views", "Content", "Volume"];
+                                  const sections = ["Audience", "Growth", "Engagement", "Views", "Content", "Volume", "Traffic", "Competitive"];
                                   const grouped = sections.map(s => ({ section: s, items: stats.filter(st => st.section === s) })).filter(g => g.items.length > 0);
 
                                   const periodOptions = [
@@ -3614,6 +3720,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                     { key: "monthly", label: "1M" },
                                     { key: "quarterly", label: "3M" },
                                     { key: "yearly", label: "1Y" },
+                                    { key: "alltime", label: "All" },
                                     { key: "custom", label: "Custom" },
                                   ];
 
@@ -3706,10 +3813,72 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                                 <p className="text-[7px] font-semibold text-white/25 uppercase tracking-wider mb-1 px-0.5">{section}</p>
                                                 <div className="grid grid-cols-5 gap-1">
                                                   {items.map((stat) => (
-                                                    <div key={stat.label} className="p-1.5 rounded-md bg-white/[0.02] text-center">
-                                                      <p className="text-[6.5px] text-white/30 leading-tight">{stat.label}</p>
-                                                      <p className={`text-[10px] font-bold ${stat.color}`}>{stat.value}</p>
-                                                    </div>
+                                                    <ContextMenu key={stat.label}>
+                                                      <ContextMenuTrigger>
+                                                        <div className="p-1.5 rounded-md bg-white/[0.02] text-center cursor-context-menu hover:bg-white/[0.04] transition-colors">
+                                                          <p className="text-[6.5px] text-white/30 leading-tight">{stat.label}</p>
+                                                          <p className={`text-[10px] font-bold ${stat.color}`}>{stat.value}</p>
+                                                        </div>
+                                                      </ContextMenuTrigger>
+                                                      <ContextMenuContent className="w-72 bg-[hsl(222,47%,8%)] border-white/10 text-white">
+                                                        <ContextMenuLabel className="text-[11px] font-semibold text-white/90 flex items-center gap-1.5">
+                                                          <Info className="h-3 w-3 text-[hsl(217,91%,60%)]" />
+                                                          {stat.label}
+                                                        </ContextMenuLabel>
+                                                        <ContextMenuSeparator className="bg-white/[0.06]" />
+                                                        <div className="px-2 py-1.5 space-y-1.5">
+                                                          <div className="flex justify-between items-center">
+                                                            <span className="text-[9px] text-white/40">Value</span>
+                                                            <span className={`text-[10px] font-bold ${stat.color}`}>{stat.value}</span>
+                                                          </div>
+                                                          {stat.detail?.type && (
+                                                            <div className="flex justify-between items-center">
+                                                              <span className="text-[9px] text-white/40">Type</span>
+                                                              <Badge variant="outline" className="text-[7px] border-white/10 text-white/50 h-4">{stat.detail.type}</Badge>
+                                                            </div>
+                                                          )}
+                                                          {stat.detail?.raw && (
+                                                            <div className="flex justify-between items-center">
+                                                              <span className="text-[9px] text-white/40">Raw Value</span>
+                                                              <span className="text-[9px] text-white/60 font-mono">{stat.detail.raw}</span>
+                                                            </div>
+                                                          )}
+                                                          {stat.detail?.formula && (
+                                                            <div>
+                                                              <span className="text-[8px] text-white/40 block mb-0.5">Formula / Logic</span>
+                                                              <p className="text-[8px] text-[hsl(217,91%,60%)]/80 bg-white/[0.03] rounded px-1.5 py-1 leading-relaxed">{stat.detail.formula}</p>
+                                                            </div>
+                                                          )}
+                                                          {stat.detail?.source && (
+                                                            <div className="flex justify-between items-center">
+                                                              <span className="text-[9px] text-white/40">Source</span>
+                                                              <span className="text-[8px] text-white/50">{stat.detail.source}</span>
+                                                            </div>
+                                                          )}
+                                                          {stat.detail?.timestamp && (
+                                                            <div className="flex justify-between items-center">
+                                                              <span className="text-[9px] text-white/40">Fetched</span>
+                                                              <span className="text-[8px] text-white/40 font-mono">{stat.detail.timestamp}</span>
+                                                            </div>
+                                                          )}
+                                                          {stat.detail?.note && (
+                                                            <div className="mt-1 pt-1 border-t border-white/[0.04]">
+                                                              <p className="text-[8px] text-amber-400/60 italic">{stat.detail.note}</p>
+                                                            </div>
+                                                          )}
+                                                        </div>
+                                                        <ContextMenuSeparator className="bg-white/[0.06]" />
+                                                        <ContextMenuItem
+                                                          className="text-[9px] text-white/50 hover:text-white cursor-pointer"
+                                                          onClick={() => {
+                                                            navigator.clipboard.writeText(`${stat.label}: ${stat.value}`);
+                                                            toast.success("Copied to clipboard");
+                                                          }}
+                                                        >
+                                                          <Copy className="h-3 w-3 mr-1.5" /> Copy Metric
+                                                        </ContextMenuItem>
+                                                      </ContextMenuContent>
+                                                    </ContextMenu>
                                                   ))}
                                                 </div>
                                               </div>
