@@ -3279,6 +3279,39 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
         </DialogContent>
       </Dialog>
 
+      {/* ========== COMPETITOR BEST TIMES DIALOG ========== */}
+      <Dialog open={showCompetitorBestTimes} onOpenChange={setShowCompetitorBestTimes}>
+        <DialogContent className="bg-popover border-border text-white max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2"><Clock className="h-4 w-4 text-emerald-400" /> Competitor Best Posting Times</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-white/50">Optimal posting times derived from {competitorProfiles.length} tracked competitors</p>
+          <div className="space-y-3">
+            {competitorBestTimes.map((t, i) => (
+              <Card key={i} className="bg-white/[0.03] border-white/[0.06]">
+                <CardContent className="p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold text-white capitalize">{t.platform}</span>
+                    <Badge variant="outline" className="text-[9px] border-emerald-500/20 text-emerald-400">{t.frequency} posts/wk</Badge>
+                  </div>
+                  <div className="flex gap-1.5 flex-wrap mb-2">
+                    {(t.best_hours || []).map((h: string, j: number) => (
+                      <Badge key={j} variant="outline" className="text-[9px] border-primary/20 text-primary">{h}</Badge>
+                    ))}
+                  </div>
+                  <div className="flex gap-1 flex-wrap mb-1.5">
+                    {(t.best_days || []).map((d: string, j: number) => (
+                      <span key={j} className="text-[9px] text-white/40 bg-white/[0.04] px-1.5 py-0.5 rounded">{d}</span>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-white/40">{t.reasoning}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <InsufficientCreditsModal open={insufficientModal.open} onClose={closeInsufficientModal}
         requiredCredits={insufficientModal.requiredCredits} actionName={insufficientModal.actionName} />
     </div>
