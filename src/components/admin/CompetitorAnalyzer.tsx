@@ -4930,6 +4930,7 @@ Return ONLY valid JSON:
   "worstCaseScenario": {"followers": <number>, "timeline": "if momentum stalls", "warning": "early warning signs to watch for"}
 }`);
                           setForecastResult({ ...parseJSON(aiReply), username: s.username, currentFollowers: s.followers, currentER: s.engagementRate });
+                          await refreshAIUsage();
                           return true;
                         });
                       } catch (err: any) { toast.error(err?.message || "Forecast failed"); }
