@@ -1807,9 +1807,26 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           <span className="text-[10px] text-white/50">{[...new Set(competitorProfiles.flatMap(c => c.top_hashtags || []))].length} hashtags available</span>
           <span className="text-[10px] text-white/30">·</span>
           <span className="text-[10px] text-white/50">{[...new Set(competitorProfiles.map(c => c.platform))].length} platforms</span>
-          <Button size="sm" variant="ghost" onClick={loadCompetitorProfiles} className="ml-auto text-[9px] h-5 text-purple-400 hover:text-purple-300 px-2">
-            <RefreshCw className="h-2.5 w-2.5 mr-1" /> Refresh
-          </Button>
+          <div className="ml-auto flex items-center gap-1.5">
+            <Button size="sm" variant="ghost" onClick={async () => {
+              loadCompetitorProfiles();
+              toast.success("Competitor intel refreshed & resynced");
+            }} className="text-[9px] h-5 text-purple-400 hover:text-purple-300 px-2">
+              <RefreshCw className="h-2.5 w-2.5 mr-1" /> Refresh
+            </Button>
+            <Button size="sm" variant="ghost" onClick={async () => {
+              if (!confirm("Remove all synced competitor intel from Content? This won't delete competitor profiles, only the sync here.")) return;
+              // Delete content items sourced from competitor intel
+              const { error } = await supabase.from("content_calendar").delete().filter("metadata->>source", "eq", "competitor_intel");
+              if (error) toast.error(error.message);
+              else {
+                setCompetitorProfiles([]);
+                toast.success("Competitor intel removed from Content");
+              }
+            }} className="text-[9px] h-5 text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2">
+              <X className="h-2.5 w-2.5 mr-1" /> Remove
+            </Button>
+          </div>
         </div>
       )}
 
