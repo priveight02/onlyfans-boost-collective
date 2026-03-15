@@ -1289,29 +1289,43 @@ RULES:
                       <thead>
                         <tr className="border-b border-white/[0.06]">
                           <th className="text-left py-2 text-white/50 font-medium text-xs">Metric</th>
+                          {myStats && <th className="text-center py-2 text-emerald-400 font-medium text-xs">@{myStats.username} (You)</th>}
                           {competitors.map(c => <th key={c.id} className="text-center py-2 text-white/50 font-medium text-xs">@{c.username}</th>)}
                         </tr>
                       </thead>
                       <tbody>
                         {([
-                          { label: "Followers", key: "followers" as keyof Competitor, fmt: (v: number) => fmtNum(v), higher: true },
-                          { label: "Engagement Rate", key: "engagementRate" as keyof Competitor, fmt: (v: number) => `${v}%`, higher: true },
-                          { label: "Avg Likes", key: "avgLikes" as keyof Competitor, fmt: (v: number) => v.toLocaleString(), higher: true },
-                          { label: "Avg Comments", key: "avgComments" as keyof Competitor, fmt: (v: number) => v.toLocaleString(), higher: true },
-                          { label: "Growth/Week", key: "growthRate" as keyof Competitor, fmt: (v: number) => `${v >= 0 ? "+" : ""}${v}%`, higher: true },
-                          { label: "Posts/Week", key: "postFrequency" as keyof Competitor, fmt: (v: number) => `${v}`, higher: true },
-                          { label: "Total Posts", key: "posts" as keyof Competitor, fmt: (v: number) => v.toLocaleString(), higher: true },
-                          { label: "Threat Score", key: "score" as keyof Competitor, fmt: (v: number) => `${v}/100`, higher: false },
+                          { label: "Followers", key: "followers" as keyof Competitor, myKey: "followers" as keyof typeof myStats, fmt: (v: number) => fmtNum(v), higher: true },
+                          { label: "Engagement Rate", key: "engagementRate" as keyof Competitor, myKey: "engagementRate" as keyof typeof myStats, fmt: (v: number) => `${v}%`, higher: true },
+                          { label: "Avg Likes", key: "avgLikes" as keyof Competitor, myKey: "avgLikes" as keyof typeof myStats, fmt: (v: number) => v.toLocaleString(), higher: true },
+                          { label: "Avg Comments", key: "avgComments" as keyof Competitor, myKey: "avgComments" as keyof typeof myStats, fmt: (v: number) => v.toLocaleString(), higher: true },
+                          { label: "Growth/Week", key: "growthRate" as keyof Competitor, myKey: "growthRate" as keyof typeof myStats, fmt: (v: number) => `${v >= 0 ? "+" : ""}${v}%`, higher: true },
+                          { label: "Posts/Week", key: "postFrequency" as keyof Competitor, myKey: "postFrequency" as keyof typeof myStats, fmt: (v: number) => `${v}`, higher: true },
+                          { label: "Total Posts", key: "posts" as keyof Competitor, myKey: "posts" as keyof typeof myStats, fmt: (v: number) => v.toLocaleString(), higher: true },
+                          { label: "Threat Score", key: "score" as keyof Competitor, myKey: null, fmt: (v: number) => `${v}/100`, higher: false },
                         ]).map(row => {
-                          const vals = competitors.map(c => c[row.key] as number);
-                          const best = row.higher ? Math.max(...vals) : Math.min(...vals);
+                          const compVals = competitors.map(c => c[row.key] as number);
+                          const allVals = myStats && row.myKey ? [...compVals, (myStats as any)[row.myKey] as number] : compVals;
+                          const best = row.higher ? Math.max(...allVals) : Math.min(...allVals);
+                          const myVal = myStats && row.myKey ? (myStats as any)[row.myKey] as number : null;
                           return (
                             <tr key={row.label} className="border-b border-white/[0.03]">
                               <td className="py-2.5 text-white/50 text-xs">{row.label}</td>
+                              {myStats && (
+                                <td className={`text-center py-2.5 text-xs font-medium ${myVal !== null && myVal === best ? "text-emerald-400 font-bold" : "text-emerald-400/70"}`}>
+                                  {myVal !== null ? row.fmt(myVal) : "—"}
+                                </td>
+                              )}
                               {competitors.map(c => {
                                 const val = c[row.key] as number;
                                 const isBest = val === best;
-                                return <td key={c.id} className={`text-center py-2.5 text-xs font-medium ${isBest ? "text-emerald-400" : "text-white/70"}`}>{row.fmt(val)}</td>;
+                                const userBeats = myVal !== null && row.higher ? myVal > val : myVal !== null ? myVal < val : false;
+                                return (
+                                  <td key={c.id} className={`text-center py-2.5 text-xs font-medium ${isBest ? "text-emerald-400" : userBeats ? "text-red-400/60" : "text-white/70"}`}>
+                                    {row.fmt(val)}
+                                    {myVal !== null && userBeats && <ArrowDownRight className="inline h-3 w-3 ml-0.5 text-red-400/40" />}
+                                  </td>
+                                );
                               })}
                             </tr>
                           );
