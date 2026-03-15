@@ -2002,26 +2002,26 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             const labels: Record<string, string> = { today: "📅 Today", tomorrow: "📆 Tomorrow", thisWeek: "🗓️ This Week", later: "📋 Later", unscheduled: "📝 Unscheduled" };
             return (
               <div key={group}>
-                <h3 className="text-xs font-semibold text-foreground mb-2">{labels[group] || group}</h3>
+                <h3 className="text-xs font-semibold text-white mb-2">{labels[group] || group}</h3>
                 <div className="space-y-1.5">
                   {groupItems.map(item => (
-                    <Card key={item.id} className="bg-card/50 border-border hover:border-primary/30 transition-all cursor-pointer"
+                    <Card key={item.id} className="bg-white/[0.03] border-white/[0.06] hover:border-primary/30 transition-all cursor-pointer"
                       onClick={() => !bulkMode && setShowDetail(item)}>
                       <CardContent className="p-3 flex items-center gap-3">
                         {bulkMode && (
                           <button onClick={(e) => { e.stopPropagation(); toggleSelectItem(item.id); }}>
                             {selectedItems.has(item.id)
                               ? <CheckSquare className="h-4 w-4 text-primary" />
-                              : <Square className="h-4 w-4 text-muted-foreground" />}
+                              : <Square className="h-4 w-4 text-white/30" />}
                           </button>
                         )}
                         <Badge variant="outline" className={`${statusColor(item.status)} capitalize text-[9px]`}>{item.status}</Badge>
-                        <span className="flex-1 text-xs text-foreground truncate">{item.title}</span>
-                        <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize gap-0.5">
+                        <span className="flex-1 text-xs text-white truncate">{item.title}</span>
+                        <Badge variant="outline" className="text-[9px] border-white/[0.06] text-white/40 capitalize gap-0.5">
                           {platformIcon(item.platform)} {item.platform}
                         </Badge>
                         {item.scheduled_at && (
-                          <span className="text-[9px] text-muted-foreground">{format(new Date(item.scheduled_at), "h:mm a")}</span>
+                          <span className="text-[9px] text-white/30">{format(new Date(item.scheduled_at), "h:mm a")}</span>
                         )}
                         {item.metadata?.series && (
                           <Badge variant="outline" className="text-[9px] border-purple-500/20 text-purple-400">
@@ -2040,22 +2040,22 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
         // Grid View
         <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map(item => (
-            <Card key={item.id} className="bg-card/50 border-border hover:border-primary/30 transition-all cursor-pointer group relative"
+            <Card key={item.id} className="bg-white/[0.03] border-white/[0.06] hover:border-primary/30 transition-all cursor-pointer group relative"
               onClick={() => !bulkMode && setShowDetail(item)}>
               {bulkMode && (
                 <button onClick={(e) => { e.stopPropagation(); toggleSelectItem(item.id); }}
                   className="absolute top-2 left-2 z-10">
                   {selectedItems.has(item.id)
                     ? <CheckSquare className="h-4 w-4 text-primary" />
-                    : <Square className="h-4 w-4 text-muted-foreground" />}
+                    : <Square className="h-4 w-4 text-white/30" />}
                 </button>
               )}
               {/* Media preview */}
               {item.media_urls && Array.isArray(item.media_urls) && item.media_urls.length > 0 && (
                 <div className="h-32 overflow-hidden rounded-t-lg">
                   {/\.(mp4|mov|avi|webm)$/i.test(item.media_urls[0]) ? (
-                    <div className="w-full h-full bg-muted/30 flex items-center justify-center">
-                      <Video className="h-6 w-6 text-muted-foreground" />
+                    <div className="w-full h-full bg-white/[0.02] flex items-center justify-center">
+                      <Video className="h-6 w-6 text-white/20" />
                     </div>
                   ) : (
                     <img src={item.media_urls[0]} alt="" className="w-full h-full object-cover" />
@@ -2070,12 +2070,12 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               <CardContent className="p-3">
                 <div className="flex items-center gap-1.5 mb-1.5 flex-wrap">
                   <Badge variant="outline" className={`${statusColor(item.status)} capitalize text-[9px]`}>{item.status}</Badge>
-                  <Badge variant="outline" className={`text-[9px] border-border capitalize gap-0.5 ${platformConf(item.platform).color}`}>
+                  <Badge variant="outline" className={`text-[9px] border-white/[0.06] capitalize gap-0.5 ${platformConf(item.platform).color}`}>
                     {platformIcon(item.platform)} {item.platform}
                   </Badge>
-                  <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize">{item.content_type}</Badge>
+                  <Badge variant="outline" className="text-[9px] border-white/[0.06] text-white/40 capitalize">{item.content_type}</Badge>
                   {item.viral_score > 0 && (
-                    <Badge variant="outline" className={`text-[9px] ${item.viral_score >= 70 ? "border-emerald-500/20 text-emerald-400" : "border-border text-muted-foreground"}`}>
+                    <Badge variant="outline" className={`text-[9px] ${item.viral_score >= 70 ? "border-emerald-500/20 text-emerald-400" : "border-white/[0.06] text-white/40"}`}>
                       <Flame className="h-2.5 w-2.5 mr-0.5" />{item.viral_score}%
                     </Badge>
                   )}
@@ -2085,18 +2085,18 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                     </Badge>
                   )}
                 </div>
-                <p className="text-xs font-medium text-foreground mb-1 line-clamp-1">{item.title}</p>
-                {item.caption && <p className="text-[10px] text-muted-foreground truncate mb-2">{item.caption.length > 40 ? item.caption.substring(0, 40) + "…" : item.caption}</p>}
+                <p className="text-xs font-medium text-white mb-1 line-clamp-1">{item.title}</p>
+                {item.caption && <p className="text-[10px] text-white/40 truncate mb-2">{item.caption.length > 40 ? item.caption.substring(0, 40) + "…" : item.caption}</p>}
                 {item.hashtags?.length > 0 && (
                   <div className="flex flex-wrap gap-1 mb-1">
                     {(item.hashtags as string[]).slice(0, 4).map((h, i) => (
                       <span key={i} className="text-[9px] text-blue-400/60">#{h}</span>
                     ))}
-                    {item.hashtags.length > 4 && <span className="text-[9px] text-muted-foreground/40">+{item.hashtags.length - 4}</span>}
+                    {item.hashtags.length > 4 && <span className="text-[9px] text-white/20">+{item.hashtags.length - 4}</span>}
                   </div>
                 )}
                 {item.scheduled_at && (
-                  <p className="text-[9px] text-muted-foreground flex items-center gap-1 mt-1">
+                  <p className="text-[9px] text-white/30 flex items-center gap-1 mt-1">
                     <Clock className="h-2.5 w-2.5" /> {format(new Date(item.scheduled_at), "MMM d, h:mm a")}
                   </p>
                 )}
