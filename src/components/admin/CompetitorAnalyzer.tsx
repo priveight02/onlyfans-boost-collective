@@ -468,6 +468,17 @@ const CompetitorAnalyzer = ({
   const [siteInsights, setSiteInsights] = useState<any>(null);
   const [siteInsightsLoading, setSiteInsightsLoading] = useState(false);
 
+  // Head-to-Head comparison state
+  const [h2hCompA, setH2hCompA] = useState<string | null>(null);
+  const [h2hCompB, setH2hCompB] = useState<string | null>(null);
+  const [h2hResult, setH2hResult] = useState<any>(null);
+  const [h2hLoading, setH2hLoading] = useState(false);
+
+  // Growth Forecast state
+  const [forecastTarget, setForecastTarget] = useState<string | null>(null);
+  const [forecastResult, setForecastResult] = useState<any>(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
+
   // Deep analysis section expansion
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     social: true, platforms: true, deepMetrics: false, security: false, performance: false, sensitive: false, financial: true, siteInsights: true,
@@ -1033,13 +1044,16 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
           {[
             { value: "tracker", icon: Crosshair, label: "Tracker" },
             { value: "benchmarks", icon: BarChart3, label: "Benchmarks" },
+            { value: "h2h", icon: Crosshair, label: "Head-to-Head" },
             { value: "keywords", icon: Search, label: "Keyword Search" },
             { value: "gaps", icon: Eye, label: "Gap Analysis" },
             { value: "content", icon: Calendar, label: "Content Intel" },
             { value: "swot", icon: Target, label: "SWOT" },
             { value: "strategy", icon: Brain, label: "AI Strategy" },
             { value: "battleplan", icon: Crown, label: "Battle Plan" },
+            { value: "forecast", icon: TrendingUp, label: "Growth Forecast" },
             { value: "analysis", icon: Globe, label: "Site Analysis" },
+            { value: "export", icon: Download, label: "Export Report" },
           ].map(tab => (
             <TabsTrigger key={tab.value} value={tab.value} className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium">
               <tab.icon className="h-3.5 w-3.5" /> {tab.label}
@@ -3896,6 +3910,620 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               </CardContent>
             </Card>
           )}
+        </TabsContent>
+
+        {/* ═══ HEAD-TO-HEAD TAB ═══ */}
+        <TabsContent value="h2h" className="space-y-5">
+          {competitors.length < 2 ? (
+            <Card className="crm-card"><CardContent className="p-12 text-center">
+              <Crosshair className="h-10 w-10 text-white/20 mx-auto mb-3" />
+              <h3 className="text-white/50 font-medium mb-1">Need at least 2 competitors</h3>
+              <p className="text-white/30 text-sm">Add more competitors in the Tracker tab to run head-to-head comparisons</p>
+            </CardContent></Card>
+          ) : (
+            <>
+              <Card className="crm-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex-1 min-w-[180px] space-y-1.5">
+                      <label className="text-xs font-medium text-white/50">Competitor A</label>
+                      <select value={h2hCompA || ""} onChange={e => setH2hCompA(e.target.value)} className="w-full h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
+                        <option value="">Select...</option>
+                        {competitors.map(c => <option key={c.id} value={c.id}>@{c.username} · {fmtNum(c.followers)}</option>)}
+                        {myStats && <option value="me">@{myStats.username} (You)</option>}
+                      </select>
+                    </div>
+                    <div className="flex items-center pt-5"><span className="text-lg text-white/20 font-bold">VS</span></div>
+                    <div className="flex-1 min-w-[180px] space-y-1.5">
+                      <label className="text-xs font-medium text-white/50">Competitor B</label>
+                      <select value={h2hCompB || ""} onChange={e => setH2hCompB(e.target.value)} className="w-full h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
+                        <option value="">Select...</option>
+                        {competitors.map(c => <option key={c.id} value={c.id}>@{c.username} · {fmtNum(c.followers)}</option>)}
+                        {myStats && <option value="me">@{myStats.username} (You)</option>}
+                      </select>
+                    </div>
+                    <Button className="bg-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,55%)] text-white gap-1.5 h-10 mt-auto" disabled={h2hLoading || !h2hCompA || !h2hCompB || h2hCompA === h2hCompB}
+                      onClick={async () => {
+                        setH2hLoading(true);
+                        setH2hResult(null);
+                        try {
+                          const getStats = (id: string) => {
+                            if (id === "me" && myStats) return { username: myStats.username, followers: myStats.followers, engagementRate: myStats.engagementRate, avgLikes: myStats.avgLikes, avgComments: myStats.avgComments, growthRate: myStats.growthRate, postFrequency: myStats.postFrequency, posts: myStats.posts, niche: enterpriseProfile?.contentNiche || "unknown", platform: enterpriseProfile?.platform || "instagram" };
+                            const c = competitors.find(x => x.id === id);
+                            if (!c) throw new Error("Not found");
+                            return { username: c.username, followers: c.followers, engagementRate: c.engagementRate, avgLikes: c.avgLikes, avgComments: c.avgComments, growthRate: c.growthRate, postFrequency: c.postFrequency, posts: c.posts, niche: c.metadata?.niche || "unknown", platform: c.platform };
+                          };
+                          const a = getStats(h2hCompA!);
+                          const b = getStats(h2hCompB!);
+                          await performAction("competitor_insight", async () => {
+                            const aiReply = await callAI(`You are a competitive intelligence analyst. Do a deep head-to-head comparison between these two accounts:
+
+ACCOUNT A - @${a.username} (${a.platform}):
+Followers: ${a.followers}, ER: ${a.engagementRate}%, Avg Likes: ${a.avgLikes}, Avg Comments: ${a.avgComments}, Growth: ${a.growthRate}%/wk, Posts/wk: ${a.postFrequency}, Total: ${a.posts}, Niche: ${a.niche}
+
+ACCOUNT B - @${b.username} (${b.platform}):
+Followers: ${b.followers}, ER: ${b.engagementRate}%, Avg Likes: ${b.avgLikes}, Avg Comments: ${b.avgComments}, Growth: ${b.growthRate}%/wk, Posts/wk: ${b.postFrequency}, Total: ${b.posts}, Niche: ${b.niche}
+
+Return ONLY valid JSON:
+{
+  "winner": "username of who's winning overall",
+  "verdictSummary": "2-3 sentence verdict explaining who's winning and why",
+  "categories": [
+    {"category": "Audience Size", "winnerUsername": "who wins", "scoreA": <0-100>, "scoreB": <0-100>, "analysis": "brief analysis"},
+    {"category": "Engagement Quality", "winnerUsername": "who wins", "scoreA": <0-100>, "scoreB": <0-100>, "analysis": "brief"},
+    {"category": "Growth Momentum", "winnerUsername": "who wins", "scoreA": <0-100>, "scoreB": <0-100>, "analysis": "brief"},
+    {"category": "Content Consistency", "winnerUsername": "who wins", "scoreA": <0-100>, "scoreB": <0-100>, "analysis": "brief"},
+    {"category": "Community Strength", "winnerUsername": "who wins", "scoreA": <0-100>, "scoreB": <0-100>, "analysis": "brief"},
+    {"category": "Virality Potential", "winnerUsername": "who wins", "scoreA": <0-100>, "scoreB": <0-100>, "analysis": "brief"},
+    {"category": "Monetization Readiness", "winnerUsername": "who wins", "scoreA": <0-100>, "scoreB": <0-100>, "analysis": "brief"},
+    {"category": "Brand Authority", "winnerUsername": "who wins", "scoreA": <0-100>, "scoreB": <0-100>, "analysis": "brief"}
+  ],
+  "aAdvantages": ["specific advantage A has over B"],
+  "bAdvantages": ["specific advantage B has over A"],
+  "switchStrategy": "If you're A, here's exactly how to beat B in 30 days",
+  "keyBattleground": "The single most important area where the fight will be won or lost"
+}`);
+                            setH2hResult({ ...parseJSON(aiReply), usernameA: a.username, usernameB: b.username, statsA: a, statsB: b });
+                            return true;
+                          });
+                        } catch (err: any) { toast.error(err?.message || "Comparison failed"); }
+                        finally { setH2hLoading(false); }
+                      }}>
+                      {h2hLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Crosshair className="h-4 w-4" />}
+                      {h2hLoading ? "Comparing..." : "Compare"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {h2hLoading && (
+                <Card className="crm-card"><CardContent className="p-12 text-center">
+                  <Loader2 className="h-10 w-10 text-[hsl(217,91%,60%)] mx-auto mb-3 animate-spin" />
+                  <p className="text-sm text-white/50">Running deep head-to-head analysis...</p>
+                </CardContent></Card>
+              )}
+
+              {h2hResult && !h2hLoading && (
+                <div className="space-y-4">
+                  {/* Verdict */}
+                  <Card className="crm-card border-[hsl(217,91%,60%)]/20">
+                    <CardContent className="p-5">
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className="flex-1 text-center">
+                          <div className="w-14 h-14 mx-auto rounded-full bg-gradient-to-br from-[hsl(217,91%,60%)]/20 to-[hsl(262,83%,58%)]/20 flex items-center justify-center text-white font-bold text-lg border border-white/[0.06]">
+                            {h2hResult.usernameA?.[0]?.toUpperCase()}
+                          </div>
+                          <p className="text-sm font-medium text-white mt-1">@{h2hResult.usernameA}</p>
+                          <p className="text-[10px] text-white/40">{fmtNum(h2hResult.statsA?.followers || 0)} followers</p>
+                        </div>
+                        <div className="flex-shrink-0 px-4 py-2 rounded-xl bg-amber-400/10 border border-amber-400/20">
+                          <Crown className="h-5 w-5 text-amber-400 mx-auto mb-1" />
+                          <p className="text-[10px] text-amber-400 font-bold text-center">@{h2hResult.winner}</p>
+                          <p className="text-[8px] text-amber-400/60 text-center">WINNER</p>
+                        </div>
+                        <div className="flex-1 text-center">
+                          <div className="w-14 h-14 mx-auto rounded-full bg-gradient-to-br from-[hsl(262,83%,58%)]/20 to-[hsl(350,80%,55%)]/20 flex items-center justify-center text-white font-bold text-lg border border-white/[0.06]">
+                            {h2hResult.usernameB?.[0]?.toUpperCase()}
+                          </div>
+                          <p className="text-sm font-medium text-white mt-1">@{h2hResult.usernameB}</p>
+                          <p className="text-[10px] text-white/40">{fmtNum(h2hResult.statsB?.followers || 0)} followers</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-white/70 text-center">{h2hResult.verdictSummary}</p>
+                    </CardContent>
+                  </Card>
+
+                  {/* Category Breakdown */}
+                  <Card className="crm-card">
+                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Category Breakdown</CardTitle></CardHeader>
+                    <CardContent className="space-y-2">
+                      {(h2hResult.categories || []).map((cat: any, i: number) => (
+                        <div key={i} className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-medium text-white/80">{cat.category}</span>
+                            <Badge className={`text-[9px] ${cat.winnerUsername === h2hResult.usernameA ? "bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)]" : "bg-[hsl(262,83%,58%)]/15 text-[hsl(262,83%,58%)]"}`}>
+                              @{cat.winnerUsername} wins
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-3 mb-1.5">
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-[10px] text-[hsl(217,91%,60%)]/70">@{h2hResult.usernameA}</span>
+                                <span className="text-[10px] text-white/50">{cat.scoreA}</span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+                                <div className="h-full rounded-full bg-[hsl(217,91%,60%)] transition-all" style={{ width: `${cat.scoreA}%` }} />
+                              </div>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-[10px] text-[hsl(262,83%,58%)]/70">@{h2hResult.usernameB}</span>
+                                <span className="text-[10px] text-white/50">{cat.scoreB}</span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-white/[0.05] overflow-hidden">
+                                <div className="h-full rounded-full bg-[hsl(262,83%,58%)] transition-all" style={{ width: `${cat.scoreB}%` }} />
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-white/40">{cat.analysis}</p>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+
+                  {/* Advantages */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Card className="crm-card border-[hsl(217,91%,60%)]/15">
+                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(217,91%,60%)] flex items-center gap-2"><Shield className="h-4 w-4" /> @{h2hResult.usernameA}'s Advantages</CardTitle></CardHeader>
+                      <CardContent className="space-y-1.5">
+                        {(h2hResult.aAdvantages || []).map((a: string, i: number) => (
+                          <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-[hsl(217,91%,60%)]/5">
+                            <ArrowUpRight className="h-3.5 w-3.5 text-[hsl(217,91%,60%)] mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-white/70">{a}</p>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                    <Card className="crm-card border-[hsl(262,83%,58%)]/15">
+                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2"><Shield className="h-4 w-4" /> @{h2hResult.usernameB}'s Advantages</CardTitle></CardHeader>
+                      <CardContent className="space-y-1.5">
+                        {(h2hResult.bAdvantages || []).map((a: string, i: number) => (
+                          <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-[hsl(262,83%,58%)]/5">
+                            <ArrowUpRight className="h-3.5 w-3.5 text-[hsl(262,83%,58%)] mt-0.5 flex-shrink-0" />
+                            <p className="text-xs text-white/70">{a}</p>
+                          </div>
+                        ))}
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Key Battleground + Strategy */}
+                  <Card className="crm-card border-amber-400/15">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="p-3 rounded-lg bg-amber-400/5 border border-amber-400/10">
+                        <p className="text-xs font-medium text-amber-400 flex items-center gap-1 mb-1"><Flame className="h-3.5 w-3.5" /> Key Battleground</p>
+                        <p className="text-xs text-white/70">{h2hResult.keyBattleground}</p>
+                      </div>
+                      <div className="p-3 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                        <p className="text-xs font-medium text-emerald-400 flex items-center gap-1 mb-1"><Zap className="h-3.5 w-3.5" /> 30-Day Domination Strategy</p>
+                        <p className="text-xs text-white/70">{h2hResult.switchStrategy}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Radar overlay */}
+                  <Card className="crm-card">
+                    <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Performance Overlay</CardTitle></CardHeader>
+                    <CardContent>
+                      <div className="h-[280px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RadarChart data={(h2hResult.categories || []).map((c: any) => ({ metric: c.category.replace(/\s+/g, "\n"), [h2hResult.usernameA]: c.scoreA, [h2hResult.usernameB]: c.scoreB }))}>
+                            <PolarGrid stroke="hsl(217 91% 60% / 0.08)" />
+                            <PolarAngleAxis dataKey="metric" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 9 }} />
+                            <PolarRadiusAxis tick={false} axisLine={false} />
+                            <Radar name={`@${h2hResult.usernameA}`} dataKey={h2hResult.usernameA} stroke="hsl(217,91%,60%)" fill="hsl(217,91%,60%)" fillOpacity={0.15} strokeWidth={2} />
+                            <Radar name={`@${h2hResult.usernameB}`} dataKey={h2hResult.usernameB} stroke="hsl(262,83%,58%)" fill="hsl(262,83%,58%)" fillOpacity={0.15} strokeWidth={2} />
+                            <Legend wrapperStyle={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }} />
+                          </RadarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </>
+          )}
+        </TabsContent>
+
+        {/* ═══ GROWTH FORECAST TAB ═══ */}
+        <TabsContent value="forecast" className="space-y-5">
+          {competitors.length === 0 && !myStats ? (
+            <Card className="crm-card"><CardContent className="p-12 text-center">
+              <TrendingUp className="h-10 w-10 text-white/20 mx-auto mb-3" />
+              <p className="text-white/50">Add competitors or set up your enterprise profile to forecast growth</p>
+            </CardContent></Card>
+          ) : (
+            <>
+              <Card className="crm-card">
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-3">
+                    <select value={forecastTarget || ""} onChange={e => setForecastTarget(e.target.value)} className="flex-1 h-10 px-3 rounded-xl bg-[hsl(222,47%,11%)]/60 border border-white/[0.06] text-white text-sm focus:border-[hsl(217,91%,60%)]/40 focus:outline-none">
+                      <option value="">Select account to forecast...</option>
+                      {myStats && <option value="me">@{myStats.username} (You)</option>}
+                      {competitors.map(c => <option key={c.id} value={c.id}>@{c.username} · {fmtNum(c.followers)} followers</option>)}
+                    </select>
+                    <Button onClick={async () => {
+                      if (!forecastTarget) return;
+                      setForecastLoading(true);
+                      setForecastResult(null);
+                      try {
+                        const getStats = (id: string) => {
+                          if (id === "me" && myStats) return { username: myStats.username, followers: myStats.followers, engagementRate: myStats.engagementRate, avgLikes: myStats.avgLikes, growthRate: myStats.growthRate, postFrequency: myStats.postFrequency, posts: myStats.posts };
+                          const c = competitors.find(x => x.id === id);
+                          if (!c) throw new Error("Not found");
+                          return { username: c.username, followers: c.followers, engagementRate: c.engagementRate, avgLikes: c.avgLikes, growthRate: c.growthRate, postFrequency: c.postFrequency, posts: c.posts, history: c.metadata?.analysisHistory };
+                        };
+                        const s = getStats(forecastTarget);
+                        await performAction("competitor_insight", async () => {
+                          const aiReply = await callAI(`You are a growth analytics expert. Forecast the growth trajectory for @${s.username}.
+
+Current stats: ${s.followers} followers, ${s.engagementRate}% ER, ${s.avgLikes} avg likes, ${s.growthRate}% weekly growth, ${s.postFrequency} posts/wk, ${s.posts} total posts.
+${(s as any).history ? `History: ${JSON.stringify((s as any).history.slice(-10))}` : ""}
+
+Return ONLY valid JSON:
+{
+  "currentTrend": "accelerating/stable/decelerating/declining",
+  "trendAnalysis": "2-3 sentences explaining the current trajectory",
+  "projections": {
+    "thirtyDays": {"followers": <number>, "engagementRate": <number>, "totalLikes": <number>},
+    "ninetyDays": {"followers": <number>, "engagementRate": <number>, "totalLikes": <number>},
+    "sixMonths": {"followers": <number>, "engagementRate": <number>, "totalLikes": <number>},
+    "oneYear": {"followers": <number>, "engagementRate": <number>, "totalLikes": <number>}
+  },
+  "milestones": [
+    {"milestone": "10K followers", "estimatedDate": "April 2026", "daysAway": 45, "confidence": "high"},
+    {"milestone": "50K followers", "estimatedDate": "Sep 2026", "daysAway": 200, "confidence": "medium"}
+  ],
+  "growthAccelerators": [
+    {"tactic": "specific growth tactic", "impact": "+15% growth rate", "effort": "low/medium/high", "timeline": "2 weeks"}
+  ],
+  "growthRisks": [
+    {"risk": "specific risk", "probability": "medium", "mitigation": "how to avoid it"}
+  ],
+  "monthlyBreakdown": [
+    {"month": "Apr 2026", "followers": <number>, "engagement": <number>, "revenue": "estimated if applicable"}
+  ],
+  "competitorComparison": "How this growth compares to industry averages and tracked competitors",
+  "bestCaseScenario": {"followers": <number>, "timeline": "if everything goes right", "requirements": "what needs to happen"},
+  "worstCaseScenario": {"followers": <number>, "timeline": "if momentum stalls", "warning": "early warning signs to watch for"}
+}`);
+                          setForecastResult({ ...parseJSON(aiReply), username: s.username, currentFollowers: s.followers, currentER: s.engagementRate });
+                          return true;
+                        });
+                      } catch (err: any) { toast.error(err?.message || "Forecast failed"); }
+                      finally { setForecastLoading(false); }
+                    }} disabled={forecastLoading || !forecastTarget} className="bg-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,55%)] text-white gap-1.5 h-10">
+                      {forecastLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
+                      {forecastLoading ? "Forecasting..." : "Generate Forecast"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {forecastLoading && (
+                <Card className="crm-card"><CardContent className="p-12 text-center">
+                  <Loader2 className="h-10 w-10 text-[hsl(217,91%,60%)] mx-auto mb-3 animate-spin" />
+                  <p className="text-sm text-white/50">Generating growth forecast...</p>
+                </CardContent></Card>
+              )}
+
+              {forecastResult && !forecastLoading && (
+                <div className="space-y-4">
+                  {/* Trend Overview */}
+                  <Card className="crm-card border-[hsl(217,91%,60%)]/15">
+                    <CardContent className="p-5">
+                      <div className="flex items-center gap-4 mb-3">
+                        <div className={`px-3 py-1.5 rounded-lg text-xs font-bold ${forecastResult.currentTrend === "accelerating" ? "bg-emerald-400/15 text-emerald-400" : forecastResult.currentTrend === "stable" ? "bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)]" : forecastResult.currentTrend === "decelerating" ? "bg-amber-400/15 text-amber-400" : "bg-red-400/15 text-red-400"}`}>
+                          {forecastResult.currentTrend === "accelerating" ? "🚀" : forecastResult.currentTrend === "stable" ? "📊" : forecastResult.currentTrend === "decelerating" ? "⚠️" : "📉"} {forecastResult.currentTrend?.toUpperCase()}
+                        </div>
+                        <p className="text-sm font-medium text-white">@{forecastResult.username} Growth Forecast</p>
+                      </div>
+                      <p className="text-xs text-white/70">{forecastResult.trendAnalysis}</p>
+                    </CardContent>
+                  </Card>
+
+                  {/* Projections */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { label: "30 Days", data: forecastResult.projections?.thirtyDays },
+                      { label: "90 Days", data: forecastResult.projections?.ninetyDays },
+                      { label: "6 Months", data: forecastResult.projections?.sixMonths },
+                      { label: "1 Year", data: forecastResult.projections?.oneYear },
+                    ].map((p, i) => (
+                      <Card key={i} className="crm-card">
+                        <CardContent className="p-3 text-center space-y-1">
+                          <p className="text-[10px] text-white/40">{p.label}</p>
+                          <p className="text-lg font-bold text-[hsl(217,91%,60%)]">{fmtNum(p.data?.followers || 0)}</p>
+                          <p className="text-[10px] text-white/50">followers</p>
+                          <p className="text-[10px] text-emerald-400">{p.data?.engagementRate}% ER</p>
+                          <p className="text-[10px] text-white/30">{fmtNum(p.data?.totalLikes || 0)} total likes</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Growth Chart */}
+                  {(forecastResult.monthlyBreakdown || []).length > 0 && (
+                    <Card className="crm-card">
+                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Projected Growth Curve</CardTitle></CardHeader>
+                      <CardContent>
+                        <div className="h-[250px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={forecastResult.monthlyBreakdown}>
+                              <XAxis dataKey="month" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                              <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={(v) => fmtNum(v)} />
+                              <Tooltip contentStyle={chartTooltipStyle} formatter={(v: any) => [fmtNum(v), "Followers"]} />
+                              <defs>
+                                <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="hsl(217,91%,60%)" stopOpacity={0.3} />
+                                  <stop offset="100%" stopColor="hsl(217,91%,60%)" stopOpacity={0} />
+                                </linearGradient>
+                              </defs>
+                              <Area type="monotone" dataKey="followers" stroke="hsl(217,91%,60%)" fill="url(#forecastGrad)" strokeWidth={2} />
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Milestones */}
+                  {(forecastResult.milestones || []).length > 0 && (
+                    <Card className="crm-card">
+                      <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><Star className="h-4 w-4" /> Milestone Projections</CardTitle></CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          {forecastResult.milestones.map((m: any, i: number) => (
+                            <div key={i} className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                              <div className="w-10 h-10 rounded-lg bg-amber-400/10 border border-amber-400/20 flex items-center justify-center flex-shrink-0">
+                                <Star className="h-4 w-4 text-amber-400" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-xs font-medium text-white/80">{m.milestone}</p>
+                                <p className="text-[10px] text-white/40">Est. {m.estimatedDate} · {m.daysAway} days away</p>
+                              </div>
+                              <Badge variant="outline" className={`text-[9px] ${m.confidence === "high" ? "border-emerald-400/30 text-emerald-400" : m.confidence === "medium" ? "border-amber-400/30 text-amber-400" : "border-red-400/30 text-red-400"}`}>{m.confidence}</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Growth Accelerators */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {(forecastResult.growthAccelerators || []).length > 0 && (
+                      <Card className="crm-card">
+                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-400 flex items-center gap-2"><Zap className="h-4 w-4" /> Growth Accelerators</CardTitle></CardHeader>
+                        <CardContent className="space-y-2">
+                          {forecastResult.growthAccelerators.map((a: any, i: number) => (
+                            <div key={i} className="p-2.5 rounded-lg bg-emerald-400/5 border border-emerald-400/10 space-y-1">
+                              <p className="text-xs font-medium text-white/80">{a.tactic}</p>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-[9px] border-emerald-400/20 text-emerald-400">{a.impact}</Badge>
+                                <Badge variant="outline" className={`text-[9px] ${a.effort === "low" ? "border-emerald-400/20 text-emerald-400" : a.effort === "high" ? "border-red-400/20 text-red-400" : "border-amber-400/20 text-amber-400"}`}>{a.effort} effort</Badge>
+                                <span className="text-[9px] text-white/30">⏱ {a.timeline}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    )}
+                    {(forecastResult.growthRisks || []).length > 0 && (
+                      <Card className="crm-card">
+                        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-red-400 flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Growth Risks</CardTitle></CardHeader>
+                        <CardContent className="space-y-2">
+                          {forecastResult.growthRisks.map((r: any, i: number) => (
+                            <div key={i} className="p-2.5 rounded-lg bg-red-400/5 border border-red-400/10 space-y-1">
+                              <p className="text-xs font-medium text-white/80">{r.risk}</p>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className={`text-[9px] ${r.probability === "high" ? "border-red-400/30 text-red-400" : r.probability === "medium" ? "border-amber-400/30 text-amber-400" : "border-white/10 text-white/40"}`}>{r.probability} probability</Badge>
+                              </div>
+                              <p className="text-[10px] text-emerald-400">Mitigation: {r.mitigation}</p>
+                            </div>
+                          ))}
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+
+                  {/* Scenarios */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {forecastResult.bestCaseScenario && (
+                      <Card className="crm-card border-emerald-400/15">
+                        <CardContent className="p-4 space-y-2">
+                          <p className="text-xs font-medium text-emerald-400 flex items-center gap-1"><TrendingUp className="h-3.5 w-3.5" /> Best Case Scenario</p>
+                          <p className="text-lg font-bold text-emerald-400">{fmtNum(forecastResult.bestCaseScenario.followers || 0)} followers</p>
+                          <p className="text-[10px] text-white/50">{forecastResult.bestCaseScenario.timeline}</p>
+                          <p className="text-[10px] text-white/40">Requires: {forecastResult.bestCaseScenario.requirements}</p>
+                        </CardContent>
+                      </Card>
+                    )}
+                    {forecastResult.worstCaseScenario && (
+                      <Card className="crm-card border-red-400/15">
+                        <CardContent className="p-4 space-y-2">
+                          <p className="text-xs font-medium text-red-400 flex items-center gap-1"><TrendingDown className="h-3.5 w-3.5" /> Worst Case Scenario</p>
+                          <p className="text-lg font-bold text-red-400">{fmtNum(forecastResult.worstCaseScenario.followers || 0)} followers</p>
+                          <p className="text-[10px] text-white/50">{forecastResult.worstCaseScenario.timeline}</p>
+                          <p className="text-[10px] text-white/40">Warning: {forecastResult.worstCaseScenario.warning}</p>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </div>
+
+                  {forecastResult.competitorComparison && (
+                    <Card className="crm-card">
+                      <CardContent className="p-4">
+                        <p className="text-xs font-medium text-white/50 mb-1 flex items-center gap-1"><BarChart3 className="h-3.5 w-3.5" /> Industry Comparison</p>
+                        <p className="text-xs text-white/70">{forecastResult.competitorComparison}</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </TabsContent>
+
+        {/* ═══ EXPORT REPORT TAB ═══ */}
+        <TabsContent value="export" className="space-y-5">
+          <Card className="crm-card">
+            <CardHeader>
+              <CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Download className="h-4 w-4" /> Export Competitive Intelligence Report</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-white/50">Generate a comprehensive competitive intelligence document with all your tracked data, analysis, and AI insights.</p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                {[
+                  { label: "Tracked Competitors", count: competitors.length, icon: Crosshair, ready: competitors.length > 0 },
+                  { label: "SWOT Analysis", count: swotResult ? 1 : 0, icon: Target, ready: !!swotResult },
+                  { label: "Gap Analysis", count: gapAnalysis ? 1 : 0, icon: Eye, ready: !!gapAnalysis },
+                  { label: "Content Intel", count: contentRecs ? 1 : 0, icon: Calendar, ready: !!contentRecs },
+                  { label: "Battle Plan", count: battlePlan ? 1 : 0, icon: Crown, ready: !!battlePlan },
+                  { label: "Site Analysis", count: scrapeResult ? 1 : 0, icon: Globe, ready: !!scrapeResult },
+                  { label: "Financial Intel", count: financialData ? 1 : 0, icon: DollarSign, ready: !!financialData },
+                  { label: "AI Intel Report", count: siteInsights ? 1 : 0, icon: Brain, ready: !!siteInsights },
+                  { label: "Growth Forecast", count: forecastResult ? 1 : 0, icon: TrendingUp, ready: !!forecastResult },
+                ].map((item, i) => (
+                  <div key={i} className={`flex items-center gap-3 p-3 rounded-lg border ${item.ready ? "bg-emerald-400/5 border-emerald-400/15" : "bg-white/[0.02] border-white/[0.04]"}`}>
+                    <item.icon className={`h-4 w-4 ${item.ready ? "text-emerald-400" : "text-white/20"}`} />
+                    <div className="flex-1">
+                      <p className={`text-xs ${item.ready ? "text-white/80" : "text-white/40"}`}>{item.label}</p>
+                    </div>
+                    {item.ready ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <XCircle className="h-3.5 w-3.5 text-white/20" />}
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-3">
+                <Button className="bg-[hsl(217,91%,60%)] hover:bg-[hsl(217,91%,55%)] text-white gap-1.5" onClick={() => {
+                  // Build markdown report
+                  let report = `# Competitive Intelligence Report\n`;
+                  report += `Generated: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}\n\n`;
+
+                  if (enterpriseProfile?.companyName) {
+                    report += `## My Enterprise: ${enterpriseProfile.companyName}\n`;
+                    if (enterpriseProfile.industry) report += `Industry: ${enterpriseProfile.industry}\n`;
+                    if (enterpriseProfile.monthlyRevenue) report += `Monthly Revenue: ${enterpriseProfile.monthlyRevenue}\n`;
+                    if (myStats) report += `Social: @${myStats.username} · ${fmtNum(myStats.followers)} followers · ${myStats.engagementRate}% ER\n`;
+                    report += `\n`;
+                  }
+
+                  if (competitors.length > 0) {
+                    report += `## Tracked Competitors (${competitors.length})\n\n`;
+                    competitors.forEach(c => {
+                      report += `### @${c.username} (${c.platform})\n`;
+                      report += `- Followers: ${fmtNum(c.followers)}\n`;
+                      report += `- Engagement Rate: ${c.engagementRate}%\n`;
+                      report += `- Avg Likes: ${fmtNum(c.avgLikes)} · Avg Comments: ${c.avgComments}\n`;
+                      report += `- Weekly Growth: ${c.growthRate}% · Posts/Week: ${c.postFrequency}\n`;
+                      report += `- Threat Score: ${c.score}/100 (${getThreatLabel(c.score)})\n`;
+                      if (c.metadata?.niche) report += `- Niche: ${c.metadata.niche}\n`;
+                      if (c.topHashtags.length) report += `- Top Hashtags: ${c.topHashtags.map(t => `#${t}`).join(", ")}\n`;
+                      report += `\n`;
+                    });
+                  }
+
+                  if (swotResult) {
+                    report += `## SWOT Analysis\n\n`;
+                    report += `### Strengths\n${(swotResult.strengths || []).map(s => `- ${s}`).join("\n")}\n\n`;
+                    report += `### Weaknesses\n${(swotResult.weaknesses || []).map(s => `- ${s}`).join("\n")}\n\n`;
+                    report += `### Opportunities\n${(swotResult.opportunities || []).map(s => `- ${s}`).join("\n")}\n\n`;
+                    report += `### Threats\n${(swotResult.threats || []).map(s => `- ${s}`).join("\n")}\n\n`;
+                  }
+
+                  if (gapAnalysis) {
+                    report += `## Gap Analysis (Score: ${gapAnalysis.overallScore}/100)\n\n`;
+                    if (gapAnalysis.hashtagGaps?.length) {
+                      report += `### Hashtag Gaps\n`;
+                      gapAnalysis.hashtagGaps.forEach((g: any) => { report += `- ${g.hashtag}: Reach ${g.potentialReach}, Usage: ${g.competitorUsage} — ${g.recommendation}\n`; });
+                      report += `\n`;
+                    }
+                    if (gapAnalysis.topicGaps?.length) {
+                      report += `### Topic Gaps\n`;
+                      gapAnalysis.topicGaps.forEach((g: any) => { report += `- ${g.topic} (Demand: ${g.demandLevel}): ${g.actionItem}\n`; });
+                      report += `\n`;
+                    }
+                  }
+
+                  if (siteInsights) {
+                    report += `## AI Competitive Intelligence\n`;
+                    report += `Score: ${siteInsights.competitiveScore}/100 · Position: ${siteInsights.marketPosition?.tier}\n\n`;
+                    report += `${siteInsights.executiveSummary}\n\n`;
+                    if (siteInsights.immediateActions?.length) {
+                      report += `### Immediate Actions\n`;
+                      siteInsights.immediateActions.forEach((a: any) => { report += `- [${a.impact}] ${a.action} (${a.timeNeeded}): ${a.details}\n`; });
+                      report += `\n`;
+                    }
+                  }
+
+                  if (forecastResult) {
+                    report += `## Growth Forecast (@${forecastResult.username})\n`;
+                    report += `Trend: ${forecastResult.currentTrend}\n`;
+                    report += `${forecastResult.trendAnalysis}\n\n`;
+                    if (forecastResult.projections) {
+                      report += `### Projections\n`;
+                      report += `- 30 Days: ${fmtNum(forecastResult.projections.thirtyDays?.followers || 0)} followers\n`;
+                      report += `- 90 Days: ${fmtNum(forecastResult.projections.ninetyDays?.followers || 0)} followers\n`;
+                      report += `- 6 Months: ${fmtNum(forecastResult.projections.sixMonths?.followers || 0)} followers\n`;
+                      report += `- 1 Year: ${fmtNum(forecastResult.projections.oneYear?.followers || 0)} followers\n\n`;
+                    }
+                  }
+
+                  if (aiInsight) {
+                    report += `## AI Strategy Brief\n\n${aiInsight}\n\n`;
+                  }
+
+                  report += `---\nGenerated by Uplyze Competitor Analyzer\n`;
+
+                  // Download as markdown
+                  const blob = new Blob([report], { type: "text/markdown" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `competitive-intel-${new Date().toISOString().slice(0, 10)}.md`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast.success("Report exported as Markdown");
+                }}>
+                  <Download className="h-4 w-4" /> Export as Markdown
+                </Button>
+
+                <Button variant="outline" className="gap-1.5 border-white/10 text-white/60 hover:text-white" onClick={() => {
+                  // Copy to clipboard
+                  const sections: string[] = [];
+                  sections.push(`📊 COMPETITIVE INTELLIGENCE REPORT — ${new Date().toLocaleDateString()}`);
+                  if (competitors.length) {
+                    sections.push(`\n👥 ${competitors.length} TRACKED COMPETITORS`);
+                    competitors.forEach(c => { sections.push(`  @${c.username} (${c.platform}): ${fmtNum(c.followers)} followers, ${c.engagementRate}% ER, Threat: ${c.score}/100`); });
+                  }
+                  if (siteInsights) {
+                    sections.push(`\n🧠 AI INTELLIGENCE SCORE: ${siteInsights.competitiveScore}/100 (${siteInsights.marketPosition?.tier})`);
+                    sections.push(siteInsights.executiveSummary);
+                  }
+                  if (forecastResult) {
+                    sections.push(`\n📈 GROWTH FORECAST: ${forecastResult.currentTrend}`);
+                    sections.push(`  30d: ${fmtNum(forecastResult.projections?.thirtyDays?.followers || 0)} · 1yr: ${fmtNum(forecastResult.projections?.oneYear?.followers || 0)}`);
+                  }
+                  navigator.clipboard.writeText(sections.join("\n"));
+                  toast.success("Summary copied to clipboard");
+                }}>
+                  <Copy className="h-4 w-4" /> Copy Summary
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>
