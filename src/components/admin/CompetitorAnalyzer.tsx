@@ -2305,30 +2305,56 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
           {swotResult ? (
             <div className="space-y-4">
-              {/* SWOT Quadrant Score Visual */}
-              <Card className="crm-card">
-                <CardContent className="p-5">
-                  <div className="grid grid-cols-2 gap-0.5 max-w-md mx-auto">
-                    {[
-                      { key: "strengths", label: "S", fullLabel: "Strengths", color: "from-emerald-500/20 to-emerald-500/5", border: "border-emerald-400/20", text: "text-emerald-400" },
-                      { key: "weaknesses", label: "W", fullLabel: "Weaknesses", color: "from-red-400/20 to-red-400/5", border: "border-red-400/20", text: "text-red-400" },
-                      { key: "opportunities", label: "O", fullLabel: "Opportunities", color: "from-[hsl(217,91%,60%)]/20 to-[hsl(217,91%,60%)]/5", border: "border-[hsl(217,91%,60%)]/20", text: "text-[hsl(217,91%,60%)]" },
-                      { key: "threats", label: "T", fullLabel: "Threats", color: "from-amber-400/20 to-amber-400/5", border: "border-amber-400/20", text: "text-amber-400" },
-                    ].map((q) => {
-                      const items = (swotResult as any)[q.key] || [];
-                      const highCount = items.filter((i: any) => typeof i !== "string" && i.priority === "high").length;
-                      return (
-                        <div key={q.key} className={`p-4 rounded-xl bg-gradient-to-br ${q.color} border ${q.border} text-center space-y-1`}>
-                          <span className={`text-2xl font-black ${q.text}`}>{q.label}</span>
-                          <p className={`text-[10px] font-medium ${q.text}`}>{q.fullLabel}</p>
-                          <p className="text-lg font-bold text-white">{items.length}</p>
-                          {highCount > 0 && <Badge className="bg-red-400/15 text-red-400 text-[8px]">{highCount} critical</Badge>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
+              {/* SWOT Quadrant Score Visual + Radar */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Card className="crm-card">
+                  <CardContent className="p-5">
+                    <div className="grid grid-cols-2 gap-0.5 max-w-md mx-auto">
+                      {[
+                        { key: "strengths", label: "S", fullLabel: "Strengths", color: "from-emerald-500/20 to-emerald-500/5", border: "border-emerald-400/20", text: "text-emerald-400" },
+                        { key: "weaknesses", label: "W", fullLabel: "Weaknesses", color: "from-red-400/20 to-red-400/5", border: "border-red-400/20", text: "text-red-400" },
+                        { key: "opportunities", label: "O", fullLabel: "Opportunities", color: "from-[hsl(217,91%,60%)]/20 to-[hsl(217,91%,60%)]/5", border: "border-[hsl(217,91%,60%)]/20", text: "text-[hsl(217,91%,60%)]" },
+                        { key: "threats", label: "T", fullLabel: "Threats", color: "from-amber-400/20 to-amber-400/5", border: "border-amber-400/20", text: "text-amber-400" },
+                      ].map((q) => {
+                        const items = (swotResult as any)[q.key] || [];
+                        const highCount = items.filter((i: any) => typeof i !== "string" && i.priority === "high").length;
+                        return (
+                          <div key={q.key} className={`p-4 rounded-xl bg-gradient-to-br ${q.color} border ${q.border} text-center space-y-1`}>
+                            <span className={`text-2xl font-black ${q.text}`}>{q.label}</span>
+                            <p className={`text-[10px] font-medium ${q.text}`}>{q.fullLabel}</p>
+                            <p className="text-lg font-bold text-white">{items.length}</p>
+                            {highCount > 0 && <Badge className="bg-red-400/15 text-red-400 text-[8px]">{highCount} critical</Badge>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* SWOT Radar Chart */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">SWOT Impact Radar</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[220px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart data={[
+                          { metric: "Strengths", value: Math.min(((swotResult as any).strengths || []).length * 18, 100), highPriority: ((swotResult as any).strengths || []).filter((i: any) => i.priority === "high").length * 25 },
+                          { metric: "Weaknesses", value: Math.min(((swotResult as any).weaknesses || []).length * 18, 100), highPriority: ((swotResult as any).weaknesses || []).filter((i: any) => i.priority === "high").length * 25 },
+                          { metric: "Opportunities", value: Math.min(((swotResult as any).opportunities || []).length * 18, 100), highPriority: ((swotResult as any).opportunities || []).filter((i: any) => i.priority === "high").length * 25 },
+                          { metric: "Threats", value: Math.min(((swotResult as any).threats || []).length * 18, 100), highPriority: ((swotResult as any).threats || []).filter((i: any) => i.priority === "high").length * 25 },
+                        ]}>
+                          <PolarGrid stroke="hsl(217 91% 60% / 0.08)" />
+                          <PolarAngleAxis dataKey="metric" tick={{ fill: "rgba(255,255,255,0.5)", fontSize: 11 }} />
+                          <PolarRadiusAxis tick={false} axisLine={false} />
+                          <Radar name="Total Items" dataKey="value" stroke="hsl(217,91%,60%)" fill="hsl(217,91%,60%)" fillOpacity={0.15} strokeWidth={2} />
+                          <Radar name="High Priority" dataKey="highPriority" stroke="hsl(350,80%,55%)" fill="hsl(350,80%,55%)" fillOpacity={0.1} strokeWidth={2} strokeDasharray="4 4" />
+                          <Legend wrapperStyle={{ fontSize: 10, color: "rgba(255,255,255,0.4)" }} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
 
               {/* Verdict + Top Action */}
               {(swotResult as any).overallVerdict && (
