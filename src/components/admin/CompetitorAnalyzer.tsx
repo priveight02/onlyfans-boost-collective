@@ -3347,6 +3347,16 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                               <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid hsl(0 0% 100% / 0.04)", background: "hsl(0 0% 100% / 0.01)" }}>
                                 <BarChart3 className="h-3.5 w-3.5 text-white/40" />
                                 <span className="text-[10px] md:text-[11px] font-semibold text-white/60">Platform Performance Breakdown</span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="ml-auto h-6 px-2 text-[9px] gap-1 border-white/10 text-white/60 hover:text-white"
+                                  onClick={refreshPlatformBreakdown}
+                                  disabled={refreshingBreakdown}
+                                >
+                                  <RefreshCw className={`h-3 w-3 ${refreshingBreakdown ? "animate-spin" : ""}`} />
+                                  {refreshingBreakdown ? "Refreshing" : "Refresh Live"}
+                                </Button>
                               </div>
                               <div className="p-2.5 md:p-3 space-y-2">
                                 {/* Best platforms callout */}
