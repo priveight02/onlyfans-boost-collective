@@ -5670,7 +5670,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         {/* Content Strategy Intel */}
                         {siteInsights.contentStrategy && (
                           <div className="p-3 rounded-lg bg-pink-400/5 border border-pink-400/10">
-                            <p className="text-xs font-medium text-pink-400 mb-2 flex items-center gap-1"><Calendar className="h-3.5 w-3.5" /> Content Strategy Intel</p>
+                            <p className="text-xs font-medium text-pink-400 mb-2 flex items-center gap-1"><CalendarIcon className="h-3.5 w-3.5" /> Content Strategy Intel</p>
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                               <div className="p-2 rounded-lg bg-white/[0.02]">
                                 <p className="text-[10px] text-white/40">Tone</p>
