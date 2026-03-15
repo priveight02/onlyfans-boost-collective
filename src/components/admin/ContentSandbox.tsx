@@ -1052,6 +1052,100 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Push to Platform Dialog */}
+      <Dialog open={showPushPlatform} onOpenChange={setShowPushPlatform}>
+        <DialogContent className="max-w-lg border-white/8 bg-[hsl(222,30%,10%)] text-white">
+          <DialogHeader><DialogTitle className="text-white/90 flex items-center gap-2"><Layers className="h-4 w-4 text-emerald-400" />Push to Platform Tabs</DialogTitle></DialogHeader>
+
+          <div className="space-y-3">
+            {/* Scope */}
+            <div>
+              <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Cards to Push</label>
+              <div className="flex gap-2">
+                <button onClick={() => setPushScope("all")} className={cn("rounded-md px-3 py-1.5 text-[10px] border", pushScope === "all" ? "border-primary/30 bg-primary/10 text-primary" : "border-white/8 text-white/40")}>
+                  All Content ({elements.filter(e => e.kind === "content" && e.data).length})
+                </button>
+                <button onClick={() => setPushScope("selected")} disabled={!selectedIds.size} className={cn("rounded-md px-3 py-1.5 text-[10px] border", pushScope === "selected" ? "border-primary/30 bg-primary/10 text-primary" : "border-white/8 text-white/40 disabled:opacity-30")}>
+                  Selected ({elements.filter(e => selectedIds.has(e.id) && e.kind === "content" && e.data).length})
+                </button>
+              </div>
+            </div>
+
+            {/* Platforms */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-[10px] text-white/40 uppercase tracking-wider">Target Platforms</label>
+                <button onClick={() => {
+                  const connected = pushAvailablePlatforms.filter(p => p.connected).map(p => p.platform);
+                  setPushSelectedPlatforms(prev => prev.size === connected.length ? new Set() : new Set(connected));
+                }} className="text-[10px] text-primary hover:underline">Toggle All</button>
+              </div>
+              <div className="space-y-1">
+                {pushAvailablePlatforms.map(p => (
+                  <div key={p.platform} onClick={() => {
+                    if (!p.connected) return;
+                    setPushSelectedPlatforms(prev => {
+                      const next = new Set(prev);
+                      next.has(p.platform) ? next.delete(p.platform) : next.add(p.platform);
+                      return next;
+                    });
+                  }} className={cn("flex items-center justify-between p-2 rounded-lg border cursor-pointer transition-all",
+                    !p.connected ? "opacity-40 cursor-not-allowed border-white/4" :
+                    pushSelectedPlatforms.has(p.platform) ? "border-emerald-500/25 bg-emerald-500/5" : "border-white/6 hover:border-white/12")}>
+                    <div className="flex items-center gap-2">
+                      <div className={cn("w-3.5 h-3.5 rounded border flex items-center justify-center",
+                        pushSelectedPlatforms.has(p.platform) ? "bg-emerald-500/20 border-emerald-500/40" : "border-white/15")}>
+                        {pushSelectedPlatforms.has(p.platform) && <Check className="h-2.5 w-2.5 text-emerald-400" />}
+                      </div>
+                      <span className="text-xs text-white capitalize">{p.platform}</span>
+                    </div>
+                    {p.connected ? <span className="text-[9px] text-emerald-400/60">@{p.username || "connected"}</span> : <span className="text-[9px] text-white/30">Not connected</span>}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Mode */}
+            <div>
+              <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Execution Mode</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => setPushMode("manual")} className={cn("p-2.5 rounded-lg border text-left", pushMode === "manual" ? "border-primary/30 bg-primary/10" : "border-white/6")}>
+                  <p className={cn("text-[11px] font-semibold", pushMode === "manual" ? "text-primary" : "text-white/50")}>Manual</p>
+                  <p className="text-[9px] text-white/30 mt-0.5">Push as drafts for manual scheduling</p>
+                </button>
+                <button onClick={() => setPushMode("automated")} className={cn("p-2.5 rounded-lg border text-left", pushMode === "automated" ? "border-emerald-500/30 bg-emerald-500/10" : "border-white/6")}>
+                  <p className={cn("text-[11px] font-semibold", pushMode === "automated" ? "text-emerald-400" : "text-white/50")}>Automated</p>
+                  <p className="text-[9px] text-white/30 mt-0.5">Auto-schedule at best posting hours</p>
+                </button>
+              </div>
+            </div>
+
+            <button disabled={pushingToPlatform || pushSelectedPlatforms.size === 0} onClick={async () => {
+              setPushingToPlatform(true);
+              try {
+                const cards = (pushScope === "selected"
+                  ? elements.filter(e => selectedIds.has(e.id) && e.kind === "content" && e.data)
+                  : elements.filter(e => e.kind === "content" && e.data)
+                ).map(e => ({
+                  title: e.data?.title, caption: e.data?.caption, platform: e.data?.platform,
+                  type: e.data?.content_type, hashtags: e.data?.hashtags, annotation: e.annotation,
+                }));
+                if (!cards.length) { toast.info("No content cards to push"); return; }
+                const result = await pushSandboxDirectToPlatforms(cards, Array.from(pushSelectedPlatforms), pushMode);
+                toast.success(`${result.total_created} posts pushed to ${result.platforms_processed.length} platform(s)${pushMode === "automated" ? ` (${result.total_scheduled} auto-scheduled)` : " as drafts"}`);
+                setShowPushPlatform(false);
+                onRefresh();
+              } catch (e: any) { toast.error(e.message || "Push failed"); }
+              finally { setPushingToPlatform(false); }
+            }} className={cn("w-full rounded-md py-2 text-[11px] font-medium border disabled:opacity-50",
+              pushMode === "automated" ? "bg-emerald-500/15 border-emerald-500/20 text-emerald-400" : "bg-primary/15 border-primary/20 text-primary")}>
+              {pushingToPlatform ? <Loader2 className="inline h-3 w-3 animate-spin mr-1" /> : null}
+              {pushingToPlatform ? "Pushing..." : pushMode === "automated" ? `Push & Auto-Schedule to ${pushSelectedPlatforms.size} Platform(s)` : `Push as Drafts to ${pushSelectedPlatforms.size} Platform(s)`}
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
