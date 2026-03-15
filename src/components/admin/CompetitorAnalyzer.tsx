@@ -468,6 +468,17 @@ const CompetitorAnalyzer = ({
   const [siteInsights, setSiteInsights] = useState<any>(null);
   const [siteInsightsLoading, setSiteInsightsLoading] = useState(false);
 
+  // Head-to-Head comparison state
+  const [h2hCompA, setH2hCompA] = useState<string | null>(null);
+  const [h2hCompB, setH2hCompB] = useState<string | null>(null);
+  const [h2hResult, setH2hResult] = useState<any>(null);
+  const [h2hLoading, setH2hLoading] = useState(false);
+
+  // Growth Forecast state
+  const [forecastTarget, setForecastTarget] = useState<string | null>(null);
+  const [forecastResult, setForecastResult] = useState<any>(null);
+  const [forecastLoading, setForecastLoading] = useState(false);
+
   // Deep analysis section expansion
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     social: true, platforms: true, deepMetrics: false, security: false, performance: false, sensitive: false, financial: true, siteInsights: true,
