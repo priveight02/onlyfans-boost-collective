@@ -1589,7 +1589,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
                     <div className="grid grid-cols-3 gap-2">
                       {[
-                        { label: "Followers", value: fmtNum(comp.followers) },
+                        { label: comp.platform === "internet" ? "Traffic/Reach" : "Followers", value: fmtNum(comp.followers) },
                         { label: "Eng. Rate", value: `${comp.engagementRate}%` },
                         { label: "Growth", value: null },
                       ].map((m, i) => (
