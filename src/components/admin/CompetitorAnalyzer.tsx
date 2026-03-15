@@ -4605,6 +4605,182 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                           </div>
                         )}
 
+                        {/* ═══ EMAIL AUTOMATION INTEL ═══ */}
+                        {siteInsights.emailAutomationIntel && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-sky-400/5 to-blue-400/5 border border-sky-400/15">
+                            <p className="text-xs font-medium text-sky-400 mb-3 flex items-center gap-1"><Activity className="h-3.5 w-3.5" /> Email & Automation Intelligence</p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                              {[
+                                { label: "Email Capture", value: siteInsights.emailAutomationIntel.hasEmailCapture ? "Active" : "None", color: siteInsights.emailAutomationIntel.hasEmailCapture ? "text-emerald-400" : "text-red-400" },
+                                { label: "Method", value: siteInsights.emailAutomationIntel.captureMethod || "N/A", color: "text-white/80" },
+                                { label: "Est. List Size", value: siteInsights.emailAutomationIntel.estimatedListSize || "?", color: "text-sky-400" },
+                                { label: "Automation", value: siteInsights.emailAutomationIntel.automationLevel || "?", color: "text-white/80" },
+                              ].map((m, i) => (
+                                <div key={i} className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                  <p className="text-[10px] text-white/40">{m.label}</p>
+                                  <p className={`text-xs font-bold ${m.color}`}>{m.value}</p>
+                                </div>
+                              ))}
+                            </div>
+                            {siteInsights.emailAutomationIntel.leadMagnet && (
+                              <div className="p-2 rounded-lg bg-white/[0.02] mb-2">
+                                <p className="text-[10px] text-white/40">Lead Magnet</p>
+                                <p className="text-xs text-white/70">{siteInsights.emailAutomationIntel.leadMagnet}</p>
+                              </div>
+                            )}
+                            {siteInsights.emailAutomationIntel.espPlatform && (
+                              <Badge variant="outline" className="text-[8px] border-sky-400/20 text-sky-400 mb-2">ESP: {siteInsights.emailAutomationIntel.espPlatform}</Badge>
+                            )}
+                            {siteInsights.emailAutomationIntel.yourOpportunity && (
+                              <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                                <p className="text-[10px] text-emerald-400">🎯 {siteInsights.emailAutomationIntel.yourOpportunity}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ═══ SEO KEYWORD GAPS ═══ */}
+                        {(siteInsights.seoKeywordGaps || []).length > 0 && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-green-400/5 to-emerald-400/5 border border-green-400/15">
+                            <p className="text-xs font-medium text-green-400 mb-3 flex items-center gap-1"><Search className="h-3.5 w-3.5" /> SEO Keyword Gaps — Keywords to Steal</p>
+                            <div className="space-y-2">
+                              {siteInsights.seoKeywordGaps.map((k: any, i: number) => (
+                                <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs font-bold text-white/90">{k.keyword}</span>
+                                    <div className="flex items-center gap-1.5">
+                                      <Badge variant="outline" className="text-[8px] border-white/10 text-white/40">Vol: {k.searchVolume}</Badge>
+                                      <Badge variant="outline" className={`text-[8px] ${k.difficulty === "easy" ? "border-emerald-400/20 text-emerald-400" : k.difficulty === "hard" ? "border-red-400/20 text-red-400" : "border-amber-400/20 text-amber-400"}`}>{k.difficulty}</Badge>
+                                      {k.estimatedPosition && <Badge variant="outline" className="text-[8px] border-sky-400/20 text-sky-400">Pos ~{k.estimatedPosition}</Badge>}
+                                    </div>
+                                  </div>
+                                  <p className="text-[10px] text-white/50">{k.yourAction}</p>
+                                  {k.contentToCreate && <p className="text-[10px] text-emerald-400 mt-0.5">📝 Create: {k.contentToCreate}</p>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ═══ COMPETITIVE MOAT ═══ */}
+                        {siteInsights.competitiveMoat && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-amber-400/5 to-yellow-400/5 border border-amber-400/15">
+                            <p className="text-xs font-medium text-amber-400 mb-3 flex items-center gap-1"><Shield className="h-3.5 w-3.5" /> Competitive Moat Analysis</p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Moat Type</p>
+                                <p className="text-xs font-bold text-amber-400 capitalize">{siteInsights.competitiveMoat.moatType || "none"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Strength</p>
+                                <p className={`text-xs font-bold capitalize ${siteInsights.competitiveMoat.moatStrength === "strong" ? "text-red-400" : siteInsights.competitiveMoat.moatStrength === "moderate" ? "text-amber-400" : "text-emerald-400"}`}>{siteInsights.competitiveMoat.moatStrength || "?"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Time to Break</p>
+                                <p className="text-xs font-bold text-white/80">{siteInsights.competitiveMoat.timeToBreak || "?"}</p>
+                              </div>
+                            </div>
+                            {siteInsights.competitiveMoat.howToBreachIt && (
+                              <div className="p-2 rounded-lg bg-red-400/5 border border-red-400/10 mb-2">
+                                <p className="text-[10px] text-red-400 font-medium">🔓 How to Breach: {siteInsights.competitiveMoat.howToBreachIt}</p>
+                              </div>
+                            )}
+                            {siteInsights.competitiveMoat.yourMoatAdvice && (
+                              <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                                <p className="text-[10px] text-emerald-400">🏰 Build Your Moat: {siteInsights.competitiveMoat.yourMoatAdvice}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ═══ BRAND PERCEPTION ═══ */}
+                        {siteInsights.brandPerception && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-rose-400/5 to-pink-400/5 border border-rose-400/15">
+                            <p className="text-xs font-medium text-rose-400 mb-3 flex items-center gap-1"><Star className="h-3.5 w-3.5" /> Brand Perception Analysis</p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Brand Strength</p>
+                                <p className="text-lg font-black text-rose-400">{siteInsights.brandPerception.brandStrength || "?"}<span className="text-[9px] text-white/30">/100</span></p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Personality</p>
+                                <p className="text-xs text-white/80">{siteInsights.brandPerception.brandPersonality || "N/A"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Emotional Appeal</p>
+                                <p className="text-xs text-white/80">{siteInsights.brandPerception.emotionalAppeal || "N/A"}</p>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                              {(siteInsights.brandPerception.brandWeaknesses || []).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-[10px] text-red-400 font-medium">Brand Weak Spots</p>
+                                  {siteInsights.brandPerception.brandWeaknesses.map((w: string, i: number) => (
+                                    <p key={i} className="text-[10px] text-white/60 pl-2">• {w}</p>
+                                  ))}
+                                </div>
+                              )}
+                              {(siteInsights.brandPerception.messagingGaps || []).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-[10px] text-amber-400 font-medium">Messaging Angles They Miss</p>
+                                  {siteInsights.brandPerception.messagingGaps.map((g: string, i: number) => (
+                                    <p key={i} className="text-[10px] text-white/60 pl-2">• {g}</p>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {siteInsights.brandPerception.yourBrandStrategy && (
+                              <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                                <p className="text-[10px] text-emerald-400">✨ Your Brand Strategy: {siteInsights.brandPerception.yourBrandStrategy}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ═══ RETENTION SIGNALS ═══ */}
+                        {siteInsights.retentionSignals && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-400/5 to-teal-400/5 border border-emerald-400/15">
+                            <p className="text-xs font-medium text-emerald-400 mb-3 flex items-center gap-1"><Users className="h-3.5 w-3.5" /> Retention & Loyalty Intelligence</p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Loyalty Program</p>
+                                <p className={`text-xs font-bold ${siteInsights.retentionSignals.hasLoyaltyProgram ? "text-emerald-400" : "text-white/40"}`}>{siteInsights.retentionSignals.hasLoyaltyProgram ? "Active" : "None"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Community</p>
+                                <p className={`text-xs font-bold capitalize ${siteInsights.retentionSignals.communityEngagement === "strong" ? "text-emerald-400" : siteInsights.retentionSignals.communityEngagement === "moderate" ? "text-amber-400" : "text-red-400"}`}>{siteInsights.retentionSignals.communityEngagement || "?"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40">Repeat Purchase</p>
+                                <p className="text-[10px] text-white/70">{siteInsights.retentionSignals.repeatPurchaseSignals || "N/A"}</p>
+                              </div>
+                            </div>
+                            {(siteInsights.retentionSignals.retentionTactics || []).length > 0 && (
+                              <div className="mb-2">
+                                <p className="text-[10px] text-white/50 mb-1">Their Retention Tactics:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {siteInsights.retentionSignals.retentionTactics.map((t: string, i: number) => (
+                                    <Badge key={i} variant="outline" className="text-[8px] border-white/10 text-white/50">{t}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {(siteInsights.retentionSignals.churnVulnerabilities || []).length > 0 && (
+                              <div className="p-2 rounded-lg bg-red-400/5 border border-red-400/10 mb-2">
+                                <p className="text-[10px] text-red-400 font-medium mb-1">Why Their Customers Might Leave:</p>
+                                {siteInsights.retentionSignals.churnVulnerabilities.map((v: string, i: number) => (
+                                  <p key={i} className="text-[10px] text-white/60">• {v}</p>
+                                ))}
+                              </div>
+                            )}
+                            {siteInsights.retentionSignals.yourRetentionPlay && (
+                              <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                                <p className="text-[10px] text-emerald-400">🔄 Your Retention Play: {siteInsights.retentionSignals.yourRetentionPlay}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {/* Re-analyze */}
                         <div className="flex items-center justify-between pt-2 border-t border-white/[0.04]">
                           <div className="flex items-center gap-2">
