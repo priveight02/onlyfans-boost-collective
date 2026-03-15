@@ -948,43 +948,98 @@ const normalizePlatformMetric = (metric: Record<string, unknown>) => ({
   likeGain30d: parseMetricNumber(metric?.likeGain30d),
 });
 
-/** Extract social handles from a website homepage */
+/** Extract social handles from a website homepage — uses Jina for JS-heavy sites + direct fetch */
 const extractSocialHandlesFromWebsite = async (websiteUrl: string): Promise<Record<string, string>> => {
   const handles: Record<string, string> = {};
+  const normalizeHandle = (raw: string) => raw.replace(/^@/, "").replace(/[/?#].*$/, "").trim();
+  const excludeHandles = new Set(["share", "sharer", "intent", "hashtag", "search", "home", "watch", "channel", "embed", "privacy", "terms", "help", "login", "signup", "about", "explore", "settings", "p", "reel", "stories", "live", "company", "in", "pages", "groups", "events", "marketplace"]);
+  const isValidHandle = (h: string) => {
+    const clean = normalizeHandle(h);
+    return clean.length >= 2 && clean.length <= 60 && !excludeHandles.has(clean.toLowerCase()) && !/^[\d]+$/.test(clean);
+  };
+
+  const extractFromHtml = (html: string) => {
+    // Core 6 platforms
+    const ig = html.match(/(?:instagram\.com|instagr\.am)\/([a-zA-Z0-9_.]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (ig && isValidHandle(ig) && !handles.instagram) handles.instagram = normalizeHandle(ig);
+
+    const tt = html.match(/tiktok\.com\/@?([a-zA-Z0-9_.]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (tt && isValidHandle(tt) && !handles.tiktok) handles.tiktok = normalizeHandle(tt);
+
+    const tw = html.match(/(?:twitter\.com|x\.com)\/([a-zA-Z0-9_]{1,15})(?:[/?#]|$)/i)?.[1];
+    if (tw && isValidHandle(tw) && !handles.twitter) handles.twitter = normalizeHandle(tw);
+
+    const yt = html.match(/youtube\.com\/(?:@|channel\/|c\/)?([a-zA-Z0-9_-]{2,50})(?:[/?#]|$)/i)?.[1];
+    if (yt && isValidHandle(yt) && !handles.youtube) handles.youtube = normalizeHandle(yt);
+
+    const li = html.match(/linkedin\.com\/(?:company|in)\/([a-zA-Z0-9_-]{2,50})(?:[/?#]|$)/i)?.[1];
+    if (li && isValidHandle(li) && !handles.linkedin) handles.linkedin = normalizeHandle(li);
+
+    const fb = html.match(/facebook\.com\/([a-zA-Z0-9_.]{2,50})(?:[/?#]|$)/i)?.[1];
+    if (fb && isValidHandle(fb) && !handles.facebook) handles.facebook = normalizeHandle(fb);
+
+    // Extended platforms
+    const pin = html.match(/pinterest\.com\/([a-zA-Z0-9_]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (pin && isValidHandle(pin) && !handles.pinterest) handles.pinterest = normalizeHandle(pin);
+
+    const snap = html.match(/snapchat\.com\/add\/([a-zA-Z0-9_.]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (snap && isValidHandle(snap) && !handles.snapchat) handles.snapchat = normalizeHandle(snap);
+
+    const threads = html.match(/threads\.net\/@?([a-zA-Z0-9_.]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (threads && isValidHandle(threads) && !handles.threads) handles.threads = normalizeHandle(threads);
+
+    const discord = html.match(/discord\.(?:gg|com\/invite)\/([a-zA-Z0-9_-]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (discord && !handles.discord) handles.discord = discord;
+
+    const twitch = html.match(/twitch\.tv\/([a-zA-Z0-9_]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (twitch && isValidHandle(twitch) && !handles.twitch) handles.twitch = normalizeHandle(twitch);
+
+    const reddit = html.match(/reddit\.com\/(?:r|u|user)\/([a-zA-Z0-9_]{2,30})(?:[/?#]|$)/i)?.[1];
+    if (reddit && isValidHandle(reddit) && !handles.reddit) handles.reddit = normalizeHandle(reddit);
+
+    const spotify = html.match(/open\.spotify\.com\/(?:artist|show|user)\/([a-zA-Z0-9]{22})(?:[/?#]|$)/i)?.[1];
+    if (spotify && !handles.spotify) handles.spotify = spotify;
+
+    const whatsapp = html.match(/(?:wa\.me|api\.whatsapp\.com\/send\?phone=)\/?\+?(\d{7,15})(?:[/?#]|$)/i)?.[1];
+    if (whatsapp && !handles.whatsapp) handles.whatsapp = whatsapp;
+
+    const telegram = html.match(/t\.me\/([a-zA-Z0-9_]{2,32})(?:[/?#]|$)/i)?.[1];
+    if (telegram && isValidHandle(telegram) && !handles.telegram) handles.telegram = normalizeHandle(telegram);
+  };
+
   try {
+    // 1) Try direct fetch first (faster)
     const ctrl = new AbortController();
     const tid = setTimeout(() => ctrl.abort(), 7000);
     const res = await fetch(websiteUrl, {
       signal: ctrl.signal,
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; ContentAnalyzer/1.0)" },
+      headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36" },
     });
     clearTimeout(tid);
-    if (!res.ok) return handles;
+    if (res.ok) {
+      const html = (await res.text()).slice(0, 200000);
+      extractFromHtml(html);
+    }
+  } catch { /* noop */ }
 
-    const html = (await res.text()).slice(0, 120000);
-
-    const normalizeHandle = (raw: string) => raw.replace(/^@/, "").replace(/[/?#].*$/, "").trim();
-
-    const ig = html.match(/instagram\.com\/([a-zA-Z0-9_.]+)/i)?.[1];
-    if (ig) handles.instagram = normalizeHandle(ig);
-
-    const tt = html.match(/tiktok\.com\/@?([a-zA-Z0-9_.]+)/i)?.[1];
-    if (tt) handles.tiktok = normalizeHandle(tt);
-
-    const tw = html.match(/(?:twitter|x)\.com\/([a-zA-Z0-9_]+)/i)?.[1];
-    if (tw) handles.twitter = normalizeHandle(tw);
-
-    const yt = html.match(/youtube\.com\/(?:@|channel\/|c\/)?([a-zA-Z0-9_-]+)/i)?.[1];
-    if (yt) handles.youtube = normalizeHandle(yt);
-
-    const li = html.match(/linkedin\.com\/company\/([a-zA-Z0-9_-]+)/i)?.[1];
-    if (li) handles.linkedin = normalizeHandle(li);
-
-    const fb = html.match(/facebook\.com\/([a-zA-Z0-9_.]+)/i)?.[1];
-    if (fb) handles.facebook = normalizeHandle(fb);
-  } catch {
-    // noop
+  // 2) If we found fewer than 3 platforms, also try Jina (renders JS, catches dynamically loaded links)
+  if (Object.keys(handles).length < 3) {
+    try {
+      const jinaCtrl = new AbortController();
+      const jinaTid = setTimeout(() => jinaCtrl.abort(), 12000);
+      const jinaRes = await fetch(`https://r.jina.ai/${websiteUrl}`, {
+        signal: jinaCtrl.signal,
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; ContentAnalyzer/1.0)" },
+      });
+      clearTimeout(jinaTid);
+      if (jinaRes.ok) {
+        const md = (await jinaRes.text()).slice(0, 200000);
+        extractFromHtml(md);
+      }
+    } catch { /* noop */ }
   }
+
+  console.log(`[SCRAPE] Extracted ${Object.keys(handles).length} social handles from ${websiteUrl}:`, JSON.stringify(handles));
   return handles;
 };
 
@@ -1335,48 +1390,42 @@ STRICT OUTPUT RULES:
             if (websiteMatch) {
               const siteUrl = websiteMatch[1].startsWith("http") ? websiteMatch[1] : `https://${websiteMatch[1]}`;
               try {
-                const siteCtrl = new AbortController();
-                const siteTid = setTimeout(() => siteCtrl.abort(), 6000);
-                const siteRes = await fetch(siteUrl, {
-                  signal: siteCtrl.signal,
-                  headers: { "User-Agent": "Mozilla/5.0 (compatible; ContentAnalyzer/1.0)" },
-                });
-                clearTimeout(siteTid);
-                if (siteRes.ok) {
-                  const siteHtml = (await siteRes.text()).slice(0, 80000);
-                  // Extract social links from the website
-                  const socialHandles: Record<string, string> = {};
-                  const igMatch = siteHtml.match(/instagram\.com\/([a-zA-Z0-9_.]+)/i);
-                  if (igMatch) socialHandles.instagram = igMatch[1];
-                  const ttMatch = siteHtml.match(/tiktok\.com\/@?([a-zA-Z0-9_.]+)/i);
-                  if (ttMatch) socialHandles.tiktok = ttMatch[1];
-                  const twMatch = siteHtml.match(/(?:twitter|x)\.com\/([a-zA-Z0-9_]+)/i);
-                  if (twMatch) socialHandles.twitter = twMatch[1];
-                  const ytMatch = siteHtml.match(/youtube\.com\/(?:@|channel\/|c\/)?([a-zA-Z0-9_-]+)/i);
-                  if (ytMatch) socialHandles.youtube = ytMatch[1];
-                  const liMatch = siteHtml.match(/linkedin\.com\/company\/([a-zA-Z0-9_-]+)/i);
-                  if (liMatch) socialHandles.linkedin = liMatch[1];
-                  const fbMatch = siteHtml.match(/facebook\.com\/([a-zA-Z0-9_.]+)/i);
-                  if (fbMatch) socialHandles.facebook = fbMatch[1];
+                // Use the enhanced extractSocialHandlesFromWebsite (Jina + direct)
+                const socialHandles = await extractSocialHandlesFromWebsite(siteUrl);
 
-                  if (Object.keys(socialHandles).length > 0) {
-                    console.log("[SCRAPE] Found social handles on website:", JSON.stringify(socialHandles));
-                    scrapedData = await scrapeSocialProfiles(socialHandles);
-                    if (Object.keys(scrapedData).length > 0) {
-                      scrapeContext = "\n\n=== VERIFIED SOCIAL PROFILE DATA (scraped directly from platform pages - USE THESE EXACT NUMBERS for platformMetrics) ===\n";
-                      for (const [plat, data] of Object.entries(scrapedData)) {
-                        const parts = [];
-                        if (data.followers) parts.push(`followers: ${data.followers.toLocaleString()}`);
-                        if (data.posts) parts.push(`posts: ${data.posts.toLocaleString()}`);
-                        if (data.description) parts.push(`bio: "${data.description.slice(0, 200)}"`);
-                        scrapeContext += `${plat}: ${parts.join(", ")}\n`;
-                      }
-                      scrapeContext += "=== END VERIFIED DATA ===\nIMPORTANT: Use the above VERIFIED follower counts in platformMetrics. Do NOT make up different numbers.\n";
+                if (Object.keys(socialHandles).length > 0) {
+                  console.log("[SCRAPE] Found social handles on website:", JSON.stringify(socialHandles));
+                  // Only scrape the 6 core platforms that have SocialBlade support
+                  const scrapeable: Record<string, string> = {};
+                  for (const [k, v] of Object.entries(socialHandles)) {
+                    if (["instagram", "tiktok", "youtube", "twitter", "facebook", "linkedin"].includes(k)) {
+                      scrapeable[k] = v;
                     }
+                  }
+                  scrapedData = await scrapeSocialProfiles(scrapeable);
+                  if (Object.keys(scrapedData).length > 0 || Object.keys(socialHandles).length > 0) {
+                    scrapeContext = "\n\n=== VERIFIED SOCIAL PROFILE DATA (scraped directly from platform pages - USE THESE EXACT NUMBERS for platformMetrics) ===\n";
+                    for (const [plat, data] of Object.entries(scrapedData)) {
+                      const parts = [];
+                      if (data.followers) parts.push(`followers: ${data.followers.toLocaleString()}`);
+                      if (data.posts) parts.push(`posts: ${data.posts.toLocaleString()}`);
+                      if (data.description) parts.push(`bio: "${data.description.slice(0, 200)}"`);
+                      scrapeContext += `${plat}: ${parts.join(", ")}\n`;
+                    }
+                    // Include non-scrapeable platforms as presence-only
+                    for (const [plat, handle] of Object.entries(socialHandles)) {
+                      if (!scrapedData[plat]) {
+                        scrapeContext += `${plat}: handle found = @${handle} (no detailed metrics scraped)\n`;
+                      }
+                    }
+                    scrapeContext += "=== END VERIFIED DATA ===\n";
+                    scrapeContext += "IMPORTANT: Use the above VERIFIED follower counts in platformMetrics. Do NOT make up different numbers.\n";
+                    scrapeContext += `ALL DISCOVERED SOCIAL PLATFORMS: ${JSON.stringify(socialHandles)}\n`;
+                    scrapeContext += "Include ALL discovered platforms in socialPresence even if no metrics were scraped.\n";
                   }
                 }
               } catch (e) {
-                console.log("[SCRAPE] Website fetch failed:", e);
+                console.log("[SCRAPE] Website social extraction failed:", e);
               }
             }
           } catch (e) {
@@ -1409,6 +1458,15 @@ STRICT OUTPUT RULES:
                     tiktok: { type: "string" },
                     youtube: { type: "string" },
                     facebook: { type: "string" },
+                    pinterest: { type: "string" },
+                    snapchat: { type: "string" },
+                    threads: { type: "string" },
+                    discord: { type: "string" },
+                    twitch: { type: "string" },
+                    reddit: { type: "string" },
+                    spotify: { type: "string" },
+                    telegram: { type: "string" },
+                    whatsapp: { type: "string" },
                   },
                 },
                 platformMetrics: {
