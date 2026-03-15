@@ -250,9 +250,29 @@ const financialTool = {
   },
 };
 
-/** Batch-scrape social profiles (platform pages + SocialBlade fallback) for live follower/post metrics */
-const scrapeSocialProfiles = async (socialPresence: Record<string, string | null>): Promise<Record<string, { followers?: number; description?: string; posts?: number }>> => {
-  const results: Record<string, { followers?: number; description?: string; posts?: number }> = {};
+/** Batch-scrape social profiles (platform pages + SocialBlade fallback) for live platform metrics */
+const scrapeSocialProfiles = async (
+  socialPresence: Record<string, string | null>,
+): Promise<Record<string, {
+  followers?: number;
+  description?: string;
+  posts?: number;
+  engagementRate?: number;
+  avgLikes?: number;
+  avgComments?: number;
+  postFrequency?: number;
+  growthRate?: number;
+}>> => {
+  const results: Record<string, {
+    followers?: number;
+    description?: string;
+    posts?: number;
+    engagementRate?: number;
+    avgLikes?: number;
+    avgComments?: number;
+    postFrequency?: number;
+    growthRate?: number;
+  }> = {};
 
   const parseMetricFromPatterns = (text: string, patterns: RegExp[]): number | undefined => {
     for (const pattern of patterns) {
@@ -265,6 +285,19 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
     return undefined;
   };
 
+  const parsePercent = (value: string): number | undefined => {
+    const cleaned = String(value || "").replace(/[^\d.-]/g, "").trim();
+    if (!cleaned) return undefined;
+    const n = Number(cleaned);
+    return Number.isFinite(n) ? n : undefined;
+  };
+
+  const parseLikeOrCount = (value: string): number | undefined => {
+    if (!value) return undefined;
+    const n = parseHumanNumber(value.replace(/likes?|comments?|views?|followers?/gi, "").trim());
+    return Number.isFinite(n) && n >= 0 ? n : undefined;
+  };
+
   const extractMetaDescription = (html: string): string | undefined => {
     const desc = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i)?.[1]
       || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:description["']/i)?.[1]
@@ -272,6 +305,19 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
       || "";
     const cleaned = desc.replace(/\s+/g, " ").trim();
     return cleaned || undefined;
+  };
+
+  const htmlToText = (html: string): string => {
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&#39;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/\s+/g, " ")
+      .trim();
   };
 
   const fetchWithTimeout = async (
@@ -300,14 +346,94 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
     }
   };
 
+  const extractLast30Gains = (text: string): number[] => {
+    const row = text.match(/Last\s*30\s*days\s*\|\s*([^\n\r]+)/i)?.[1] || "";
+    if (!row) return [];
+    return [...row.matchAll(/[-+]?\d[\d,.]*\s*[KMBkmb]?/g)]
+      .map((m) => parseHumanNumber(m[0]))
+      .filter((n) => Number.isFinite(n));
+  };
+
+  const enrichYoutubeFromRecentVideos = async (
+    handle: string,
+    knownFollowers: number,
+    current: { avgLikes?: number; avgComments?: number; postFrequency?: number; engagementRate?: number },
+  ) => {
+    if (current.avgLikes && current.postFrequency) return current;
+
+    let channelId = "";
+    const channelPage = await fetchWithTimeout(`https://www.youtube.com/@${handle}`, { ms: 8000, maxChars: 450000 });
+    if (channelPage) {
+      channelId = channelPage.match(/youtube\.com\/channel\/(UC[\w-]{20,})/i)?.[1]
+        || channelPage.match(/"channelId":"(UC[\w-]{20,})"/i)?.[1]
+        || "";
+    }
+
+    if (!channelId) return current;
+
+    const rss = await fetchWithTimeout(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, { ms: 8000, maxChars: 220000 });
+    if (!rss) return current;
+
+    const videos: { id: string; published: string }[] = [];
+    for (const match of rss.matchAll(/<yt:videoId>([^<]+)<\/yt:videoId>[\s\S]{0,260}?<published>([^<]+)<\/published>/g)) {
+      videos.push({ id: match[1], published: match[2] });
+      if (videos.length >= 4) break;
+    }
+    if (videos.length === 0) return current;
+
+    const details = await Promise.allSettled(videos.map(async (v) => {
+      const watch = await fetchWithTimeout(`https://www.youtube.com/watch?v=${v.id}`, { ms: 8000, maxChars: 500000 });
+      if (!watch) return { likes: 0, comments: 0 };
+      const likesRaw = watch.match(/"likeCount":"(\d+)"/i)?.[1]
+        || watch.match(/"label":"([^\"]+) likes"/i)?.[1]
+        || "";
+      const commentsRaw = watch.match(/"commentCount":"(\d+)"/i)?.[1] || "";
+      return {
+        likes: parseLikeOrCount(likesRaw) || 0,
+        comments: parseLikeOrCount(commentsRaw) || 0,
+      };
+    }));
+
+    const likes = details
+      .map((d) => d.status === "fulfilled" ? d.value.likes : 0)
+      .filter((n) => Number.isFinite(n) && n > 0);
+    const comments = details
+      .map((d) => d.status === "fulfilled" ? d.value.comments : 0)
+      .filter((n) => Number.isFinite(n) && n > 0);
+
+    if (!current.avgLikes && likes.length) current.avgLikes = likes.reduce((a, b) => a + b, 0) / likes.length;
+    if (!current.avgComments && comments.length) current.avgComments = comments.reduce((a, b) => a + b, 0) / comments.length;
+
+    if (!current.postFrequency && videos.length >= 2) {
+      const first = new Date(videos[videos.length - 1].published).getTime();
+      const last = new Date(videos[0].published).getTime();
+      const days = Math.max((last - first) / (1000 * 60 * 60 * 24), 1);
+      current.postFrequency = (videos.length / days) * 7;
+    }
+
+    if (!current.engagementRate && knownFollowers > 0 && current.avgLikes) {
+      const avgComments = current.avgComments || 0;
+      current.engagementRate = ((current.avgLikes + avgComments) / knownFollowers) * 100;
+    }
+
+    return current;
+  };
+
   const scrapeOnePlatform = async (platform: string, rawHandle: string) => {
     const handle = rawHandle.replace(/^@/, "").trim();
     if (!handle) return;
 
     const key = platform.toLowerCase() === "x" ? "twitter" : platform.toLowerCase();
-    let followers: number | undefined;
-    let posts: number | undefined;
-    let description: string | undefined;
+    const merged: {
+      followers?: number;
+      posts?: number;
+      description?: string;
+      engagementRate?: number;
+      avgLikes?: number;
+      avgComments?: number;
+      postFrequency?: number;
+      growthRate?: number;
+    } = {};
 
     const sources: { url: string; headers?: Record<string, string> }[] = [];
 
@@ -329,6 +455,7 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
       sources.push(
         { url: `https://www.youtube.com/@${handle}/about` },
         { url: `https://www.youtube.com/@${handle}` },
+        { url: `https://socialblade.com/youtube/handle/${encodeURIComponent(handle)}` },
         { url: `https://socialblade.com/youtube/user/${encodeURIComponent(handle)}` },
       );
     } else if (key === "twitter") {
@@ -339,7 +466,10 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
         { url: `https://socialblade.com/twitter/user/${encodeURIComponent(handle)}` },
       );
     } else if (key === "linkedin") {
-      sources.push({ url: `https://www.linkedin.com/company/${handle}/` });
+      sources.push(
+        { url: `https://www.linkedin.com/company/${handle}/` },
+        { url: `https://r.jina.ai/http://www.linkedin.com/company/${handle}` },
+      );
     } else if (key === "facebook") {
       sources.push(
         { url: `https://www.facebook.com/${handle}/` },
@@ -353,33 +483,26 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
       instagram: [
         /"edge_followed_by"\s*:\s*\{\s*"count"\s*:\s*(\d+)/i,
         /"followers_count"\s*:\s*(\d+)/i,
-        /"followers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
-        /([\d,.\sKMBkmb]+)\s*Followers/i,
+        /([\d,.\sKMBkmb]+)\s*followers/i,
       ],
       tiktok: [
         /"followerCount"\s*:\s*(\d+)/i,
         /"follower_count"\s*:\s*(\d+)/i,
-        /"followers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
-        /([\d,.\sKMBkmb]+)\s*Followers/i,
+        /([\d,.\sKMBkmb]+)\s*followers/i,
       ],
       youtube: [
         /"subscriberCount"\s*:\s*"?(\d+)/i,
-        /"subscribers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
-        /"subscriberCountText"\s*:\s*\{\s*"simpleText"\s*:\s*"([^"]+)"/i,
-        /"subscriberCountText"[\s\S]{0,220}?"label"\s*:\s*"([^"]+)"/i,
         /([\d,.\sKMBkmb]+)\s*subscribers/i,
       ],
       twitter: [
         /followers_count["']?\s*[:=]\s*"?(\d+)/i,
-        /"followers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
-        /([\d,.\sKMBkmb]+)\s*Followers/i,
+        /([\d,.\sKMBkmb]+)\s*followers/i,
       ],
       linkedin: [
-        /([\d,.\sKMBkmb]+)\s*followers?\s+on\s+LinkedIn/i,
-        /([\d,.\sKMBkmb]+)\s*Followers/i,
+        /([\d,.\sKMBkmb]+)\s*followers?\s+on\s+linkedin/i,
+        /([\d,.\sKMBkmb]+)\s*followers/i,
       ],
       facebook: [
-        /"followers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
         /([\d,.\sKMBkmb]+)\s*followers/i,
         /([\d,.\sKMBkmb]+)\s*likes/i,
       ],
@@ -388,56 +511,106 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
     const postPatternsByPlatform: Record<string, RegExp[]> = {
       instagram: [
         /"edge_owner_to_timeline_media"\s*:\s*\{\s*"count"\s*:\s*(\d+)/i,
-        /"posts_count"\s*:\s*(\d+)/i,
         /"media_count"\s*:\s*(\d+)/i,
-        /([\d,.\sKMBkmb]+)\s*Posts/i,
+        /([\d,.\sKMBkmb]+)\s*media count/i,
       ],
       tiktok: [
         /"videoCount"\s*:\s*(\d+)/i,
-        /"video_count"\s*:\s*(\d+)/i,
-        /"videos"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
-        /([\d,.\sKMBkmb]+)\s*Videos?/i,
+        /([\d,.\sKMBkmb]+)\s*videos/i,
       ],
       youtube: [
         /"videoCount"\s*:\s*"?(\d+)/i,
-        /"videoCountText"[\s\S]{0,140}?"text"\s*:\s*"([^"]+)"/i,
         /([\d,.\sKMBkmb]+)\s*videos/i,
       ],
       twitter: [
-        /tweets?["']?\s*[:=]\s*"?(\d+)/i,
-        /([\d,.\sKMBkmb]+)\s*Tweets?/i,
+        /([\d,.\sKMBkmb]+)\s*tweets?/i,
       ],
       linkedin: [],
       facebook: [
-        /"posts"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
         /([\d,.\sKMBkmb]+)\s*posts/i,
       ],
     };
 
     for (const source of sources) {
-      const html = await fetchWithTimeout(source.url, { headers: source.headers });
-      if (!html) continue;
+      const raw = await fetchWithTimeout(source.url, { headers: source.headers, ms: 10000, maxChars: 450000 });
+      if (!raw) continue;
 
-      if (!description) description = extractMetaDescription(html);
+      const text = htmlToText(raw);
 
-      if (!followers) {
-        followers = parseMetricFromPatterns(html, followerPatternsByPlatform[key] || []);
+      if (!merged.description) merged.description = extractMetaDescription(raw);
+      if (!merged.followers) merged.followers = parseMetricFromPatterns(raw, followerPatternsByPlatform[key] || []);
+      if (merged.posts === undefined) merged.posts = parseMetricFromPatterns(raw, postPatternsByPlatform[key] || []);
+
+      if (key === "instagram") {
+        const er = parsePercent((raw.match(/engagement\s*rate[^\d]{0,40}([\d.,]+%)/i)?.[1]) || (text.match(/engagement\s*rate\s*([\d.,]+%)/i)?.[1]) || "");
+        const avgLikes = parseLikeOrCount((raw.match(/average\s*likes[^\d]{0,50}([\d.,KMBkmb]+)/i)?.[1]) || (text.match(/average\s*likes\s*([\d.,KMBkmb]+)/i)?.[1]) || "");
+        const avgComments = parseLikeOrCount((raw.match(/average\s*comments[^\d]{0,50}([\d.,KMBkmb]+)/i)?.[1]) || (text.match(/average\s*comments\s*([\d.,KMBkmb]+)/i)?.[1]) || "");
+        if (!merged.engagementRate && er !== undefined) merged.engagementRate = er;
+        if (!merged.avgLikes && avgLikes !== undefined) merged.avgLikes = avgLikes;
+        if (!merged.avgComments && avgComments !== undefined) merged.avgComments = avgComments;
       }
 
-      if (posts === undefined) {
-        const parsedPosts = parseMetricFromPatterns(html, postPatternsByPlatform[key] || []);
-        if (typeof parsedPosts === "number" && parsedPosts >= 0) posts = parsedPosts;
+      if (key === "tiktok") {
+        const totalLikes = parseLikeOrCount((raw.match(/likes[^\d]{0,30}([\d.,KMBkmb]+)/i)?.[1]) || (text.match(/likes\s*([\d.,KMBkmb]+)/i)?.[1]) || "");
+        const gains = extractLast30Gains(raw) || extractLast30Gains(text);
+        if (gains.length >= 4) {
+          const followerGain = gains[0];
+          const videoGain = gains[3];
+          if (!merged.postFrequency && Number.isFinite(videoGain)) merged.postFrequency = (videoGain / 30) * 7;
+          if (!merged.growthRate && merged.followers && followerGain > 0 && merged.followers > followerGain) {
+            merged.growthRate = (followerGain / (merged.followers - followerGain)) * 100;
+          }
+        }
+        if (!merged.avgLikes && totalLikes && merged.posts && merged.posts > 0) merged.avgLikes = totalLikes / merged.posts;
       }
 
-      if (followers && posts !== undefined) break;
+      if (key === "youtube") {
+        const gains = extractLast30Gains(raw) || extractLast30Gains(text);
+        if (gains.length >= 3) {
+          const subGain = gains[0];
+          const videoGain = gains[2];
+          if (!merged.postFrequency && Number.isFinite(videoGain)) merged.postFrequency = (videoGain / 30) * 7;
+          if (!merged.growthRate && merged.followers && subGain > 0 && merged.followers > subGain) {
+            merged.growthRate = (subGain / (merged.followers - subGain)) * 100;
+          }
+        }
+      }
+
+      if (key === "linkedin" && source.url.includes("r.jina.ai")) {
+        const reactionValues = [...raw.matchAll(/\)\s*([\d,]+)\]\([^\)]*social-actions-reactions/gi)]
+          .map((m) => parseHumanNumber(m[1]))
+          .filter((n) => Number.isFinite(n) && n > 0)
+          .slice(0, 8);
+        const commentValues = [...raw.matchAll(/\[(\d[\d,]*)\s+Comments\]\([^\)]*social-actions-comments/gi)]
+          .map((m) => parseHumanNumber(m[1]))
+          .filter((n) => Number.isFinite(n) && n >= 0)
+          .slice(0, 8);
+        const recency = [...raw.matchAll(/\s(\d+)\s*(d|w|mo)\s/gi)]
+          .map((m) => ({ n: Number(m[1]), u: m[2].toLowerCase() }))
+          .filter((r) => Number.isFinite(r.n) && r.n > 0)
+          .slice(0, 10);
+
+        if (!merged.avgLikes && reactionValues.length) merged.avgLikes = reactionValues.reduce((a, b) => a + b, 0) / reactionValues.length;
+        if (!merged.avgComments && commentValues.length) merged.avgComments = commentValues.reduce((a, b) => a + b, 0) / commentValues.length;
+        if (!merged.postFrequency && recency.length) {
+          const maxDays = Math.max(...recency.map((r) => r.u === "mo" ? r.n * 30 : r.u === "w" ? r.n * 7 : r.n));
+          merged.postFrequency = maxDays > 0 ? (recency.length / maxDays) * 7 : undefined;
+        }
+      }
     }
 
-    if (followers || description || posts !== undefined) {
-      results[key] = {
-        ...(typeof followers === "number" && followers > 0 ? { followers } : {}),
-        ...(typeof posts === "number" && posts >= 0 ? { posts } : {}),
-        ...(description ? { description } : {}),
-      };
+    if (key === "youtube" && merged.followers) {
+      await enrichYoutubeFromRecentVideos(handle, merged.followers, merged);
+    }
+
+    if (!merged.engagementRate && merged.followers && (merged.avgLikes || merged.avgComments)) {
+      const likes = merged.avgLikes || 0;
+      const comments = merged.avgComments || 0;
+      merged.engagementRate = ((likes + comments) / merged.followers) * 100;
+    }
+
+    if (Object.keys(merged).length > 0) {
+      results[key] = merged;
     }
   };
 
