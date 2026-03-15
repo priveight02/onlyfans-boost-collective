@@ -329,8 +329,8 @@ const ContentCommandCenter = () => {
       try {
         const compData = competitorProfiles.map(c => ({ username: c.username, platform: c.platform, postFrequency: c.post_frequency, engagementRate: c.engagement_rate, followers: c.followers }));
         const content = await callAI(`Analyze these competitor profiles and determine optimal posting times.\n\nCompetitors: ${JSON.stringify(compData)}\n\nFor each platform: platform, best_hours (4-5 times like "9:00 AM"), best_days, frequency (posts/week), reasoning.\n\nReturn ONLY JSON array.`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) { setCompetitorBestTimes(JSON.parse(jsonMatch[0])); setShowCompetitorBestTimes(true); toast.success("Best posting times analyzed"); }
+        const parsed = safeParseJSON(content);
+        if (Array.isArray(parsed)) { setCompetitorBestTimes(parsed); setShowCompetitorBestTimes(true); toast.success("Best posting times analyzed"); }
       } catch (e: any) { toast.error(e.message); }
       setGeneratingBestTimes(false);
     });
