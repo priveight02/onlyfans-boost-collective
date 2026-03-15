@@ -449,20 +449,42 @@ const ContentCommandCenter = () => {
     return urls;
   };
 
+  // ─── Safe JSON parser for AI responses ───
+  const safeParseJSON = (raw: string): any => {
+    // Strip markdown code fences
+    let cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "");
+    // Remove leading/trailing whitespace
+    cleaned = cleaned.trim();
+    // Try direct parse first
+    try { return JSON.parse(cleaned); } catch {}
+    // Try extracting array
+    const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (arrMatch) {
+      try { return JSON.parse(arrMatch[0]); } catch {}
+      // Fix trailing commas
+      try { return JSON.parse(arrMatch[0].replace(/,\s*([\]}])/g, "$1")); } catch {}
+    }
+    // Try extracting object
+    const objMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (objMatch) {
+      try { return JSON.parse(objMatch[0]); } catch {}
+      try { return JSON.parse(objMatch[0].replace(/,\s*([\]}])/g, "$1")); } catch {}
+    }
+    throw new Error("Could not parse AI response as JSON");
+  };
+
   // ─── Helper: call AI and parse streamed response ───
   const callAI = async (prompt: string): Promise<string> => {
     const { data, error } = await supabase.functions.invoke("agency-copilot", {
       body: { messages: [{ role: "user", content: prompt }] },
     });
     if (error) throw error;
-    // Handle various response types: string, ArrayBuffer, or already-parsed JSON
     let text: string;
     if (typeof data === "string") {
       text = data;
     } else if (data instanceof ArrayBuffer || (data && typeof data.byteLength === 'number')) {
       text = new TextDecoder().decode(data as ArrayBuffer);
     } else if (typeof data === "object" && data !== null) {
-      // Already parsed JSON from edge function
       const choices = data.choices;
       if (choices?.[0]?.message?.content) return choices[0].message.content;
       if (choices?.[0]?.delta?.content) return choices[0].delta.content;
