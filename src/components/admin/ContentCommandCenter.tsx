@@ -2118,9 +2118,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       {/* ========== DETAIL DIALOG ========== */}
       <Dialog open={!!showDetail} onOpenChange={v => { if (!v) setShowDetail(null); }}>
         {showDetail && (
-          <DialogContent className="bg-popover border-border text-foreground max-w-xl max-h-[85vh] overflow-y-auto">
+          <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="text-foreground flex items-center gap-2">
+              <DialogTitle className="text-white flex items-center gap-2">
                 {platformIcon(showDetail.platform)} {showDetail.title}
               </DialogTitle>
             </DialogHeader>
@@ -2128,10 +2128,10 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             <div className="space-y-4">
               <div className="flex gap-2 flex-wrap">
                 <Badge variant="outline" className={`${statusColor(showDetail.status)} capitalize`}>{showDetail.status}</Badge>
-                <Badge variant="outline" className="border-border text-muted-foreground capitalize gap-1">
+                <Badge variant="outline" className="border-white/[0.06] text-white/50 capitalize gap-1">
                   {platformIcon(showDetail.platform)} {platformConf(showDetail.platform).label}
                 </Badge>
-                <Badge variant="outline" className="border-border text-muted-foreground capitalize">{showDetail.content_type}</Badge>
+                <Badge variant="outline" className="border-white/[0.06] text-white/50 capitalize">{showDetail.content_type}</Badge>
                 {showDetail.viral_score > 0 && (
                   <Badge variant="outline" className="border-purple-500/20 text-purple-400">
                     <Flame className="h-3 w-3 mr-0.5" />{showDetail.viral_score}% viral
@@ -2147,7 +2147,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               {showDetail.media_urls && Array.isArray(showDetail.media_urls) && showDetail.media_urls.length > 0 && (
                 <div className="grid gap-2" style={{ gridTemplateColumns: showDetail.media_urls.length > 1 ? "1fr 1fr" : "1fr" }}>
                   {showDetail.media_urls.map((url: string, i: number) => (
-                    <div key={i} className="rounded-lg overflow-hidden border border-border">
+                    <div key={i} className="rounded-lg overflow-hidden border border-white/[0.06]">
                       {/\.(mp4|mov|avi|webm)$/i.test(url) ? (
                         <video src={url} controls className="w-full max-h-48 object-cover" />
                       ) : (
@@ -2159,9 +2159,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               )}
 
               {showDetail.caption && (
-                <div className="bg-muted/30 rounded-lg p-3">
-                  <p className="text-[10px] text-muted-foreground mb-1 uppercase tracking-wider">{platformConf(showDetail.platform).captionLabel}</p>
-                  <p className="text-xs text-foreground/80 whitespace-pre-wrap">{showDetail.caption}</p>
+                <div className="bg-white/[0.03] rounded-lg p-3">
+                  <p className="text-[10px] text-white/40 mb-1 uppercase tracking-wider">{platformConf(showDetail.platform).captionLabel}</p>
+                  <p className="text-xs text-white/80 whitespace-pre-wrap">{showDetail.caption}</p>
                 </div>
               )}
 
@@ -2175,34 +2175,34 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
               <div className="grid gap-2 grid-cols-2">
                 {showDetail.metadata?.location && (
-                  <div className="bg-muted/30 rounded-lg p-2">
-                    <p className="text-[9px] text-muted-foreground">Location</p>
-                    <p className="text-xs text-foreground/70 flex items-center gap-1"><MapPin className="h-3 w-3" /> {showDetail.metadata.location}</p>
+                  <div className="bg-white/[0.03] rounded-lg p-2">
+                    <p className="text-[9px] text-white/40">Location</p>
+                    <p className="text-xs text-white/70 flex items-center gap-1"><MapPin className="h-3 w-3" /> {showDetail.metadata.location}</p>
                   </div>
                 )}
                 {showDetail.cta && (
-                  <div className="bg-muted/30 rounded-lg p-2">
-                    <p className="text-[9px] text-muted-foreground">CTA</p>
-                    <p className="text-xs text-foreground/70">{showDetail.cta}</p>
+                  <div className="bg-white/[0.03] rounded-lg p-2">
+                    <p className="text-[9px] text-white/40">CTA</p>
+                    <p className="text-xs text-white/70">{showDetail.cta}</p>
                   </div>
                 )}
                 {showDetail.scheduled_at && (
-                  <div className="bg-muted/30 rounded-lg p-2">
-                    <p className="text-[9px] text-muted-foreground">Scheduled</p>
-                    <p className="text-xs text-foreground/70 flex items-center gap-1"><Clock className="h-3 w-3" /> {format(new Date(showDetail.scheduled_at), "MMM d, h:mm a")}</p>
+                  <div className="bg-white/[0.03] rounded-lg p-2">
+                    <p className="text-[9px] text-white/40">Scheduled</p>
+                    <p className="text-xs text-white/70 flex items-center gap-1"><Clock className="h-3 w-3" /> {format(new Date(showDetail.scheduled_at), "MMM d, h:mm a")}</p>
                   </div>
                 )}
                 {showDetail.description && (
-                  <div className="bg-muted/30 rounded-lg p-2 col-span-2">
-                    <p className="text-[9px] text-muted-foreground">Notes</p>
-                    <p className="text-xs text-foreground/70">{showDetail.description}</p>
+                  <div className="bg-white/[0.03] rounded-lg p-2 col-span-2">
+                    <p className="text-[9px] text-white/40">Notes</p>
+                    <p className="text-xs text-white/70">{showDetail.description}</p>
                   </div>
                 )}
               </div>
 
               {/* Best posting times */}
-              <div className="bg-muted/30 rounded-lg p-2">
-                <p className="text-[9px] text-muted-foreground mb-1 flex items-center gap-1"><Target className="h-3 w-3" /> Best Times for {platformConf(showDetail.platform).label}</p>
+              <div className="bg-white/[0.03] rounded-lg p-2">
+                <p className="text-[9px] text-white/40 mb-1 flex items-center gap-1"><Target className="h-3 w-3" /> Best Times for {platformConf(showDetail.platform).label}</p>
                 <div className="flex gap-1.5">
                   {platformConf(showDetail.platform).bestTimes.map((t, i) => (
                     <Badge key={i} variant="outline" className="text-[9px] border-primary/20 text-primary">{t}</Badge>
@@ -2212,12 +2212,12 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
               {/* Cross-post + Recycle */}
               {showDetail.status !== "published" && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground mb-1.5 flex items-center gap-1"><Copy className="h-3 w-3" /> Cross-post to other platforms</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 mb-1.5 flex items-center gap-1"><Copy className="h-3 w-3" /> Cross-post to other platforms</p>
                   <div className="flex gap-1.5 flex-wrap">
                     {availablePlatforms.filter(p => p !== showDetail.platform).map(p => (
                       <Button key={p} size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); duplicateForPlatform(showDetail, p); }}
-                        className="text-[10px] h-6 border-border text-muted-foreground capitalize">
+                        className="text-[10px] h-6 border-white/[0.06] text-white/50 capitalize">
                         {platformIcon(p)} {p}
                       </Button>
                     ))}
@@ -2226,12 +2226,12 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               )}
 
               {showDetail.status === "published" && (
-                <div className="bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground mb-1.5 flex items-center gap-1"><Repeat className="h-3 w-3" /> Recycle to another platform (AI-adapted)</p>
+                <div className="bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 mb-1.5 flex items-center gap-1"><Repeat className="h-3 w-3" /> Recycle to another platform (AI-adapted)</p>
                   <div className="flex gap-1.5 flex-wrap">
                     {availablePlatforms.filter(p => p !== showDetail.platform).map(p => (
                       <Button key={p} size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); recycleContent(showDetail, p); }}
-                        className="text-[10px] h-6 border-border text-muted-foreground capitalize">
+                        className="text-[10px] h-6 border-white/[0.06] text-white/50 capitalize">
                         {platformIcon(p)} {p}
                       </Button>
                     ))}
@@ -2240,7 +2240,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               )}
 
               {/* Actions */}
-              <div className="flex gap-2 pt-2 border-t border-border flex-wrap">
+              <div className="flex gap-2 pt-2 border-t border-white/[0.06] flex-wrap">
                 {showDetail.status === "draft" && (
                   <Button size="sm" variant="outline" onClick={() => moveToReview(showDetail.id)}
                     className="border-primary/20 text-primary text-xs h-9">
@@ -2255,7 +2255,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 )}
                 {showDetail.caption && (
                   <Button size="sm" variant="outline" onClick={() => saveCaptionToLibrary(showDetail.caption, showDetail.platform, showDetail.title)}
-                    className="border-border text-muted-foreground text-xs h-9">
+                    className="border-white/[0.06] text-white/50 text-xs h-9">
                     <BookOpen className="h-3 w-3 mr-1" /> Save Caption
                   </Button>
                 )}
@@ -2289,7 +2289,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                   </div>
                 )}
                 <Button size="sm" variant="outline" onClick={() => { setShowDetail(null); editItem(showDetail); }}
-                  className="border-border text-muted-foreground hover:text-foreground text-xs h-9">
+                  className="border-white/[0.06] text-white/50 hover:text-white text-xs h-9">
                   <Edit2 className="h-3 w-3 mr-1" /> Edit
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => deleteItem(showDetail.id)}
