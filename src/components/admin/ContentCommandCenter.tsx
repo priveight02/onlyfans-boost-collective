@@ -2335,9 +2335,9 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== TRENDS DIALOG ========== */}
       <Dialog open={showTrends} onOpenChange={setShowTrends}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Trending Content Ideas</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Trending Content Ideas</DialogTitle>
           </DialogHeader>
           <div className="space-y-2 max-h-[60vh] overflow-y-auto">
             {trendIdeas.map((idea, i) => (
