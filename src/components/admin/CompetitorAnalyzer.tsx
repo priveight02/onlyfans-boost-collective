@@ -3914,24 +3914,56 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                       </div>
                     ) : siteInsights ? (
                       <div className="space-y-4">
-                        {/* Executive Summary + Score */}
-                        <div className="flex gap-4">
-                          <div className="flex-shrink-0 w-20 h-20 rounded-xl bg-purple-500/10 border border-purple-400/20 flex flex-col items-center justify-center">
-                            <span className="text-2xl font-black text-purple-400">{siteInsights.competitiveScore || "?"}</span>
-                            <span className="text-[9px] text-purple-400/60">/ 100</span>
+                         {/* Executive Summary + Score Ring */}
+                        <div className="flex gap-4 items-start">
+                          <div className="flex-shrink-0 relative w-24 h-24">
+                            <svg className="w-24 h-24 -rotate-90" viewBox="0 0 96 96" style={{ filter: "drop-shadow(0 0 12px hsl(270,70%,60%,0.3))" }}>
+                              <circle cx="48" cy="48" r="42" fill="none" stroke="hsl(0,0%,100%,0.04)" strokeWidth="4" />
+                              <circle cx="48" cy="48" r="42" fill="none" stroke="url(#intelGrad)" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${((siteInsights.competitiveScore || 0) / 100) * (2 * Math.PI * 42)} ${2 * Math.PI * 42}`} className="transition-all duration-1000" />
+                              <defs>
+                                <linearGradient id="intelGrad" x1="0" y1="0" x2="1" y2="1">
+                                  <stop offset="0%" stopColor="hsl(262,83%,58%)" />
+                                  <stop offset="100%" stopColor="hsl(217,91%,60%)" />
+                                </linearGradient>
+                              </defs>
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                              <span className="text-2xl font-black text-white">{siteInsights.competitiveScore || "?"}</span>
+                              <span className="text-[8px] text-purple-400/60 font-medium">/ 100</span>
+                            </div>
                           </div>
                           <div className="flex-1 space-y-1.5">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <Badge className={`text-[9px] ${siteInsights.marketPosition?.tier === "leader" ? "bg-red-400/15 text-red-400" : siteInsights.marketPosition?.tier === "challenger" ? "bg-amber-400/15 text-amber-400" : "bg-emerald-400/15 text-emerald-400"}`}>
                                 {siteInsights.marketPosition?.tier?.toUpperCase() || "UNKNOWN"}
                               </Badge>
                               <Badge variant="outline" className={`text-[9px] ${siteInsights.riskAssessment?.overallThreat === "critical" || siteInsights.riskAssessment?.overallThreat === "high" ? "border-red-400/30 text-red-400" : "border-amber-400/30 text-amber-400"}`}>
                                 Threat: {siteInsights.riskAssessment?.overallThreat || "unknown"}
                               </Badge>
+                              {siteInsights.strengthsToFear && <Badge variant="outline" className="text-[9px] border-red-400/20 text-red-400/60">{(siteInsights.strengthsToFear || []).length} strengths</Badge>}
+                              {siteInsights.weaknessesToExploit && <Badge variant="outline" className="text-[9px] border-emerald-400/20 text-emerald-400/60">{(siteInsights.weaknessesToExploit || []).length} exploits</Badge>}
                             </div>
-                            <p className="text-xs text-white/70">{siteInsights.executiveSummary}</p>
+                            <p className="text-xs text-white/70 leading-relaxed">{siteInsights.executiveSummary}</p>
                             {siteInsights.marketPosition?.reasoning && <p className="text-[10px] text-white/40 italic">{siteInsights.marketPosition.reasoning}</p>}
                           </div>
+                        </div>
+
+                        {/* Intelligence Category Scores */}
+                        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                          {[
+                            { label: "SEO", count: (siteInsights.seoOpportunities || []).length, icon: "🔍", color: "text-[hsl(217,91%,60%)]" },
+                            { label: "Content", count: siteInsights.contentStrategy ? 1 : 0, icon: "📝", color: "text-pink-400" },
+                            { label: "Marketing", count: siteInsights.marketingIntel ? 1 : 0, icon: "📣", color: "text-amber-400" },
+                            { label: "Pricing", count: siteInsights.pricingIntel ? 1 : 0, icon: "💰", color: "text-green-400" },
+                            { label: "Audience", count: siteInsights.audienceIntel ? 1 : 0, icon: "👥", color: "text-cyan-400" },
+                            { label: "Tech", count: (siteInsights.techAdvantages || []).length, icon: "⚡", color: "text-purple-400" },
+                          ].map((cat, i) => (
+                            <div key={i} className="p-2 rounded-xl bg-white/[0.02] border border-white/[0.04] text-center">
+                              <span className="text-sm">{cat.icon}</span>
+                              <p className={`text-[10px] font-medium mt-0.5 ${cat.color}`}>{cat.label}</p>
+                              <p className="text-[10px] text-white/30">{cat.count > 0 ? "✓ Analyzed" : "—"}</p>
+                            </div>
+                          ))}
                         </div>
 
                         {/* Immediate Actions */}
