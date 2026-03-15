@@ -69,6 +69,8 @@ const chartTooltipStyle = {
   boxShadow: "0 12px 40px hsl(0 0% 0% / 0.6)",
   padding: "8px 12px",
 };
+const chartTooltipLabelStyle = { color: "rgba(255,255,255,0.9)", fontWeight: 600 };
+const chartTooltipItemStyle = { color: "rgba(255,255,255,0.75)" };
 
 const PIE_COLORS = ["hsl(217,91%,60%)", "hsl(262,83%,58%)", "hsl(150,60%,50%)", "hsl(30,95%,60%)", "hsl(350,80%,55%)"];
 
