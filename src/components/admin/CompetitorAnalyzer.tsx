@@ -452,11 +452,63 @@ const CompetitorAnalyzer = ({
   const [copyingPlan, setCopyingPlan] = useState(false);
   const [copyingPlanFor, setCopyingPlanFor] = useState<string | null>(null); // per-competitor plan gen
   // Generated plans: { competitorId: [{ id, entries, createdAt, label }] }
-  const [generatedPlans, setGeneratedPlans] = useState<Record<string, { id: string; entries: any[]; createdAt: string; label: string }[]>>(() => {
-    try { const s = localStorage.getItem("competitor_generated_plans"); return s ? JSON.parse(s) : {}; } catch { return {}; }
-  });
+  const [generatedPlans, setGeneratedPlans] = useState<Record<string, { id: string; entries: any[]; createdAt: string; label: string }[]>>({});
   const [selectedPlanIds, setSelectedPlanIds] = useState<Set<string>>(new Set());
-  const saveGeneratedPlans = (plans: Record<string, any[]>) => { setGeneratedPlans(plans); try { localStorage.setItem("competitor_generated_plans", JSON.stringify(plans)); } catch {} };
+  const [plansLoaded, setPlansLoaded] = useState(false);
+
+  // Load plans from database on mount
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setPlansLoaded(true); return; }
+      const res = await fetch(`${SUPA_URL}/rest/v1/competitor_generated_plans?user_id=eq.${user.id}&order=created_at.desc`, {
+        headers: { apikey: SUPA_KEY, Authorization: `Bearer ${await getAuthHeader()}` },
+      });
+      const rows = await res.json();
+      if (Array.isArray(rows)) {
+        const grouped: Record<string, any[]> = {};
+        rows.forEach((r: any) => {
+          const key = r.competitor_key || "all";
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push({ id: r.id, entries: r.entries || [], createdAt: r.created_at, label: r.label });
+        });
+        setGeneratedPlans(grouped);
+      }
+      setPlansLoaded(true);
+    })();
+  }, []);
+
+  const saveGeneratedPlans = (plans: Record<string, any[]>) => { setGeneratedPlans(plans); };
+  const dbInsertPlan = async (competitorKey: string, plan: { id: string; entries: any[]; createdAt: string; label: string }) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await fetch(`${SUPA_URL}/rest/v1/competitor_generated_plans`, {
+      method: "POST",
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${await getAuthHeader()}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ id: plan.id, user_id: user.id, competitor_key: competitorKey, label: plan.label, entries: plan.entries, created_at: plan.createdAt }),
+    });
+  };
+  const dbDeletePlan = async (planId: string) => {
+    await fetch(`${SUPA_URL}/rest/v1/competitor_generated_plans?id=eq.${planId}`, {
+      method: "DELETE",
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${await getAuthHeader()}` },
+    });
+  };
+  const dbDeleteAllPlans = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await fetch(`${SUPA_URL}/rest/v1/competitor_generated_plans?user_id=eq.${user.id}`, {
+      method: "DELETE",
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${await getAuthHeader()}` },
+    });
+  };
+  const dbUpdatePlan = async (planId: string, plan: { entries: any[]; label: string; createdAt: string }) => {
+    await fetch(`${SUPA_URL}/rest/v1/competitor_generated_plans?id=eq.${planId}`, {
+      method: "PATCH",
+      headers: { apikey: SUPA_KEY, Authorization: `Bearer ${await getAuthHeader()}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ entries: plan.entries, label: plan.label, created_at: plan.createdAt }),
+    });
+  };
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [platformTimePeriods, setPlatformTimePeriods] = useState<Record<string, string>>({});
   const [platformCustomDates, setPlatformCustomDates] = useState<Record<string, Date[]>>({});
@@ -3875,7 +3927,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
                                   return (
                                     <div className="space-y-2">
-                                      {/* ── Generate All Competitors Plan ── */}
+                                      {/* ── Generate Full Content & Posting Plan from ALL Competitors ── */}
                                       <Button
                                         size="sm"
                                         className="w-full h-8 gap-2 text-[10px] font-bold bg-gradient-to-r from-[hsl(262,83%,58%)] to-[hsl(217,91%,60%)] hover:from-[hsl(262,83%,48%)] hover:to-[hsl(217,91%,50%)] text-white border-0"
@@ -3883,21 +3935,19 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                         onClick={async () => {
                                           setCopyingPlan(true);
                                           try {
-                                            const result = await generatePlanForCompetitors(competitors, `All Competitors — ${new Date().toLocaleDateString()}`);
-                                            // Save to generated plans under "all"
+                                            const result = await generatePlanForCompetitors(competitors, `Full Content & Posting Plan — All Competitors — ${new Date().toLocaleDateString()}`);
                                             const updated = { ...generatedPlans, all: [...(generatedPlans.all || []), result] };
                                             saveGeneratedPlans(updated);
-                                            // Also push to content_calendar
-                                            const count = await pushPlanToCalendar(result.entries);
-                                            toast.success(`🎯 ${count} posts generated & pushed to Content Calendar!`);
+                                            await dbInsertPlan("all", result);
+                                            toast.success(`🎯 Full Content & Posting Plan generated with ${result.entries.length} posts! Use "Push to Content Tab" to export.`);
                                           } catch (err: any) { toast.error(err.message); }
                                           finally { setCopyingPlan(false); }
                                         }}
                                       >
-                                        {copyingPlan && !copyingPlanFor ? <><Loader2 className="h-3 w-3 animate-spin" /> Generating plan for all competitors...</> : <><Copy className="h-3 w-3" /> Generate Plan from ALL Competitors</>}
+                                        {copyingPlan && !copyingPlanFor ? <><Loader2 className="h-3 w-3 animate-spin" /> Generating Full Content & Posting Plan...</> : <><Copy className="h-3 w-3" /> Generate Full Content & Posting Plan from ALL Competitors</>}
                                       </Button>
 
-                                      {/* ── Per-Competitor Plan Generation ── */}
+                                      {/* ── Per-Competitor Full Content & Posting Plan Generation ── */}
                                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                                         {competitors.map(comp => {
                                           const compPlans = generatedPlans[comp.id] || [];
@@ -3918,15 +3968,16 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                                   setCopyingPlanFor(comp.id);
                                                   setCopyingPlan(true);
                                                   try {
-                                                    const result = await generatePlanForCompetitors([comp], `@${comp.username} — ${new Date().toLocaleDateString()}`);
+                                                    const result = await generatePlanForCompetitors([comp], `Full Content & Posting Plan — @${comp.username} — ${new Date().toLocaleDateString()}`);
                                                     const updated = { ...generatedPlans, [comp.id]: [...compPlans, result] };
                                                     saveGeneratedPlans(updated);
+                                                    await dbInsertPlan(comp.id, result);
                                                     toast.success(`🎯 ${result.entries.length} posts generated for @${comp.username}`);
                                                   } catch (err: any) { toast.error(err.message); }
                                                   finally { setCopyingPlan(false); setCopyingPlanFor(null); }
                                                 }}
                                               >
-                                                {isGenerating ? <><Loader2 className="h-2.5 w-2.5 animate-spin" /> Generating...</> : <><Sparkles className="h-2.5 w-2.5" /> Generate Clone Plan</>}
+                                                {isGenerating ? <><Loader2 className="h-2.5 w-2.5 animate-spin" /> Generating...</> : <><Sparkles className="h-2.5 w-2.5" /> Generate Full Content & Posting Clone Plan</>}
                                               </Button>
 
                                               {/* Existing plans for this competitor */}
@@ -3943,23 +3994,25 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                                       <Badge variant="outline" className="text-[7px] border-emerald-500/15 text-emerald-400 px-1">{plan.entries.length} posts</Badge>
                                                       {/* Push this plan to /content */}
                                                       <button title="Push to Content Tab" onClick={async () => {
-                                                        try { const c = await pushPlanToCalendar(plan.entries); toast.success(`${c} posts pushed to Content Calendar`); } catch (err: any) { toast.error(err.message); }
+                                                        try { const c = await pushPlanToCalendar(plan.entries); toast.success(`${c} posts pushed to Content Tab`); } catch (err: any) { toast.error(err.message); }
                                                       }} className="p-0.5 rounded hover:bg-primary/15 transition-colors"><ArrowUpRight className="h-2.5 w-2.5 text-primary/60" /></button>
                                                       {/* Regenerate */}
-                                                      <button title="Regenerate" onClick={async () => {
+                                                      <button title="Regenerate Full Content & Posting Plan" onClick={async () => {
                                                         setCopyingPlanFor(comp.id); setCopyingPlan(true);
                                                         try {
-                                                          const result = await generatePlanForCompetitors([comp], `@${comp.username} — ${new Date().toLocaleDateString()} (regen)`);
+                                                          const result = await generatePlanForCompetitors([comp], `Full Content & Posting Plan — @${comp.username} — ${new Date().toLocaleDateString()} (regen)`);
                                                           const updatedPlans = compPlans.map(p => p.id === plan.id ? result : p);
                                                           saveGeneratedPlans({ ...generatedPlans, [comp.id]: updatedPlans });
-                                                          toast.success(`♻️ Plan regenerated with ${result.entries.length} posts`);
+                                                          await dbUpdatePlan(plan.id, result);
+                                                          toast.success(`♻️ Full Content & Posting Plan regenerated with ${result.entries.length} posts`);
                                                         } catch (err: any) { toast.error(err.message); }
                                                         finally { setCopyingPlan(false); setCopyingPlanFor(null); }
                                                       }} className="p-0.5 rounded hover:bg-amber-500/15 transition-colors"><RefreshCw className="h-2.5 w-2.5 text-amber-400/60" /></button>
                                                       {/* Delete */}
-                                                      <button title="Delete" onClick={() => {
+                                                      <button title="Delete" onClick={async () => {
                                                         const updatedPlans = compPlans.filter(p => p.id !== plan.id);
                                                         saveGeneratedPlans({ ...generatedPlans, [comp.id]: updatedPlans });
+                                                        await dbDeletePlan(plan.id);
                                                         selectedPlanIds.delete(plan.id); setSelectedPlanIds(new Set(selectedPlanIds));
                                                         toast.success("Plan deleted");
                                                       }} className="p-0.5 rounded hover:bg-destructive/15 transition-colors"><Trash2 className="h-2.5 w-2.5 text-destructive/60" /></button>
@@ -3976,7 +4029,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                       {/* ── "All" group plans ── */}
                                       {(generatedPlans.all || []).length > 0 && (
                                         <div className="rounded-lg border border-white/[0.06] bg-white/[0.015] p-2 space-y-1.5">
-                                          <p className="text-[9px] text-white/40 font-semibold uppercase tracking-wider">All-Competitor Plans</p>
+                                          <p className="text-[9px] text-white/40 font-semibold uppercase tracking-wider">All-Competitor Full Content & Posting Plans</p>
                                           {(generatedPlans.all || []).map(plan => (
                                             <div key={plan.id} className={cn("rounded-md border p-1.5 flex items-center justify-between", selectedPlanIds.has(plan.id) ? "border-primary/30 bg-primary/5" : "border-white/[0.06] bg-white/[0.02]")}>
                                               <button onClick={() => { const s = new Set(selectedPlanIds); s.has(plan.id) ? s.delete(plan.id) : s.add(plan.id); setSelectedPlanIds(s); }} className="flex items-center gap-1.5 min-w-0">
@@ -3987,8 +4040,19 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                               </button>
                                               <div className="flex items-center gap-0.5 shrink-0">
                                                 <Badge variant="outline" className="text-[7px] border-emerald-500/15 text-emerald-400 px-1">{plan.entries.length}</Badge>
-                                                <button title="Push to Content" onClick={async () => { try { const c = await pushPlanToCalendar(plan.entries); toast.success(`${c} posts pushed`); } catch (err: any) { toast.error(err.message); } }} className="p-0.5 rounded hover:bg-primary/15"><ArrowUpRight className="h-2.5 w-2.5 text-primary/60" /></button>
-                                                <button title="Delete" onClick={() => { saveGeneratedPlans({ ...generatedPlans, all: (generatedPlans.all || []).filter(p => p.id !== plan.id) }); toast.success("Plan deleted"); }} className="p-0.5 rounded hover:bg-destructive/15"><Trash2 className="h-2.5 w-2.5 text-destructive/60" /></button>
+                                                <button title="Push to Content Tab" onClick={async () => { try { const c = await pushPlanToCalendar(plan.entries); toast.success(`${c} posts pushed to Content Tab`); } catch (err: any) { toast.error(err.message); } }} className="p-0.5 rounded hover:bg-primary/15"><ArrowUpRight className="h-2.5 w-2.5 text-primary/60" /></button>
+                                                <button title="Regenerate" onClick={async () => {
+                                                  setCopyingPlan(true);
+                                                  try {
+                                                    const result = await generatePlanForCompetitors(competitors, `Full Content & Posting Plan — All Competitors — ${new Date().toLocaleDateString()} (regen)`);
+                                                    const updatedAll = (generatedPlans.all || []).map(p => p.id === plan.id ? result : p);
+                                                    saveGeneratedPlans({ ...generatedPlans, all: updatedAll });
+                                                    await dbUpdatePlan(plan.id, result);
+                                                    toast.success(`♻️ Plan regenerated with ${result.entries.length} posts`);
+                                                  } catch (err: any) { toast.error(err.message); }
+                                                  finally { setCopyingPlan(false); }
+                                                }} className="p-0.5 rounded hover:bg-amber-500/15"><RefreshCw className="h-2.5 w-2.5 text-amber-400/60" /></button>
+                                                <button title="Delete" onClick={async () => { saveGeneratedPlans({ ...generatedPlans, all: (generatedPlans.all || []).filter(p => p.id !== plan.id) }); await dbDeletePlan(plan.id); toast.success("Plan deleted"); }} className="p-0.5 rounded hover:bg-destructive/15"><Trash2 className="h-2.5 w-2.5 text-destructive/60" /></button>
                                               </div>
                                             </div>
                                           ))}
@@ -4004,28 +4068,30 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                               const selected = allPlans.filter(p => selectedPlanIds.has(p.id));
                                               const allEntries = selected.flatMap(p => p.entries);
                                               if (!allEntries.length) return;
-                                              try { const c = await pushPlanToCalendar(allEntries); toast.success(`${c} posts from ${selected.length} plan(s) pushed to Content Calendar`); } catch (err: any) { toast.error(err.message); }
+                                              try { const c = await pushPlanToCalendar(allEntries); toast.success(`${c} posts from ${selected.length} plan(s) pushed to Content Tab`); } catch (err: any) { toast.error(err.message); }
                                             }}
-                                          ><ArrowUpRight className="h-2 w-2" /> Push Selected ({selectedCount})</Button>
+                                          ><ArrowUpRight className="h-2 w-2" /> Push Selected to Content Tab ({selectedCount})</Button>
                                           <Button size="sm" variant="outline" className="h-6 text-[8px] gap-1 border-emerald-500/20 text-emerald-400"
                                             onClick={async () => {
                                               const allEntries = allPlans.flatMap(p => p.entries);
                                               if (!allEntries.length) return;
-                                              try { const c = await pushPlanToCalendar(allEntries); toast.success(`${c} posts from ALL plans pushed to Content Calendar`); } catch (err: any) { toast.error(err.message); }
+                                              try { const c = await pushPlanToCalendar(allEntries); toast.success(`${c} posts from ALL plans pushed to Content Tab`); } catch (err: any) { toast.error(err.message); }
                                             }}
-                                          ><ArrowUpRight className="h-2 w-2" /> Push All Plans ({allPlans.length})</Button>
+                                          ><ArrowUpRight className="h-2 w-2" /> Push All Plans to Content Tab ({allPlans.length})</Button>
                                           <Button size="sm" variant="outline" className="h-6 text-[8px] gap-1 border-destructive/20 text-destructive"
                                             disabled={selectedCount === 0}
-                                            onClick={() => {
+                                            onClick={async () => {
+                                              const toDelete = allPlans.filter(p => selectedPlanIds.has(p.id));
                                               const updated = { ...generatedPlans };
                                               for (const key of Object.keys(updated)) { updated[key] = updated[key].filter(p => !selectedPlanIds.has(p.id)); }
                                               saveGeneratedPlans(updated);
+                                              await Promise.all(toDelete.map(p => dbDeletePlan(p.id)));
                                               setSelectedPlanIds(new Set());
                                               toast.success(`${selectedCount} plan(s) deleted`);
                                             }}
                                           ><Trash2 className="h-2 w-2" /> Delete Selected</Button>
                                           <Button size="sm" variant="outline" className="h-6 text-[8px] gap-1 border-destructive/20 text-destructive/60"
-                                            onClick={() => { saveGeneratedPlans({}); setSelectedPlanIds(new Set()); toast.success("All plans deleted"); }}
+                                            onClick={async () => { saveGeneratedPlans({}); await dbDeleteAllPlans(); setSelectedPlanIds(new Set()); toast.success("All plans deleted"); }}
                                           ><Trash2 className="h-2 w-2" /> Delete All</Button>
                                         </div>
                                       )}
