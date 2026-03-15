@@ -1390,48 +1390,42 @@ STRICT OUTPUT RULES:
             if (websiteMatch) {
               const siteUrl = websiteMatch[1].startsWith("http") ? websiteMatch[1] : `https://${websiteMatch[1]}`;
               try {
-                const siteCtrl = new AbortController();
-                const siteTid = setTimeout(() => siteCtrl.abort(), 6000);
-                const siteRes = await fetch(siteUrl, {
-                  signal: siteCtrl.signal,
-                  headers: { "User-Agent": "Mozilla/5.0 (compatible; ContentAnalyzer/1.0)" },
-                });
-                clearTimeout(siteTid);
-                if (siteRes.ok) {
-                  const siteHtml = (await siteRes.text()).slice(0, 80000);
-                  // Extract social links from the website
-                  const socialHandles: Record<string, string> = {};
-                  const igMatch = siteHtml.match(/instagram\.com\/([a-zA-Z0-9_.]+)/i);
-                  if (igMatch) socialHandles.instagram = igMatch[1];
-                  const ttMatch = siteHtml.match(/tiktok\.com\/@?([a-zA-Z0-9_.]+)/i);
-                  if (ttMatch) socialHandles.tiktok = ttMatch[1];
-                  const twMatch = siteHtml.match(/(?:twitter|x)\.com\/([a-zA-Z0-9_]+)/i);
-                  if (twMatch) socialHandles.twitter = twMatch[1];
-                  const ytMatch = siteHtml.match(/youtube\.com\/(?:@|channel\/|c\/)?([a-zA-Z0-9_-]+)/i);
-                  if (ytMatch) socialHandles.youtube = ytMatch[1];
-                  const liMatch = siteHtml.match(/linkedin\.com\/company\/([a-zA-Z0-9_-]+)/i);
-                  if (liMatch) socialHandles.linkedin = liMatch[1];
-                  const fbMatch = siteHtml.match(/facebook\.com\/([a-zA-Z0-9_.]+)/i);
-                  if (fbMatch) socialHandles.facebook = fbMatch[1];
+                // Use the enhanced extractSocialHandlesFromWebsite (Jina + direct)
+                const socialHandles = await extractSocialHandlesFromWebsite(siteUrl);
 
-                  if (Object.keys(socialHandles).length > 0) {
-                    console.log("[SCRAPE] Found social handles on website:", JSON.stringify(socialHandles));
-                    scrapedData = await scrapeSocialProfiles(socialHandles);
-                    if (Object.keys(scrapedData).length > 0) {
-                      scrapeContext = "\n\n=== VERIFIED SOCIAL PROFILE DATA (scraped directly from platform pages - USE THESE EXACT NUMBERS for platformMetrics) ===\n";
-                      for (const [plat, data] of Object.entries(scrapedData)) {
-                        const parts = [];
-                        if (data.followers) parts.push(`followers: ${data.followers.toLocaleString()}`);
-                        if (data.posts) parts.push(`posts: ${data.posts.toLocaleString()}`);
-                        if (data.description) parts.push(`bio: "${data.description.slice(0, 200)}"`);
-                        scrapeContext += `${plat}: ${parts.join(", ")}\n`;
-                      }
-                      scrapeContext += "=== END VERIFIED DATA ===\nIMPORTANT: Use the above VERIFIED follower counts in platformMetrics. Do NOT make up different numbers.\n";
+                if (Object.keys(socialHandles).length > 0) {
+                  console.log("[SCRAPE] Found social handles on website:", JSON.stringify(socialHandles));
+                  // Only scrape the 6 core platforms that have SocialBlade support
+                  const scrapeable: Record<string, string> = {};
+                  for (const [k, v] of Object.entries(socialHandles)) {
+                    if (["instagram", "tiktok", "youtube", "twitter", "facebook", "linkedin"].includes(k)) {
+                      scrapeable[k] = v;
                     }
+                  }
+                  scrapedData = await scrapeSocialProfiles(scrapeable);
+                  if (Object.keys(scrapedData).length > 0 || Object.keys(socialHandles).length > 0) {
+                    scrapeContext = "\n\n=== VERIFIED SOCIAL PROFILE DATA (scraped directly from platform pages - USE THESE EXACT NUMBERS for platformMetrics) ===\n";
+                    for (const [plat, data] of Object.entries(scrapedData)) {
+                      const parts = [];
+                      if (data.followers) parts.push(`followers: ${data.followers.toLocaleString()}`);
+                      if (data.posts) parts.push(`posts: ${data.posts.toLocaleString()}`);
+                      if (data.description) parts.push(`bio: "${data.description.slice(0, 200)}"`);
+                      scrapeContext += `${plat}: ${parts.join(", ")}\n`;
+                    }
+                    // Include non-scrapeable platforms as presence-only
+                    for (const [plat, handle] of Object.entries(socialHandles)) {
+                      if (!scrapedData[plat]) {
+                        scrapeContext += `${plat}: handle found = @${handle} (no detailed metrics scraped)\n`;
+                      }
+                    }
+                    scrapeContext += "=== END VERIFIED DATA ===\n";
+                    scrapeContext += "IMPORTANT: Use the above VERIFIED follower counts in platformMetrics. Do NOT make up different numbers.\n";
+                    scrapeContext += `ALL DISCOVERED SOCIAL PLATFORMS: ${JSON.stringify(socialHandles)}\n`;
+                    scrapeContext += "Include ALL discovered platforms in socialPresence even if no metrics were scraped.\n";
                   }
                 }
               } catch (e) {
-                console.log("[SCRAPE] Website fetch failed:", e);
+                console.log("[SCRAPE] Website social extraction failed:", e);
               }
             }
           } catch (e) {
