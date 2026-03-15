@@ -733,6 +733,7 @@ Return ONLY valid JSON with 4-6 items per category. Each item must have "text" a
         const normalize = (arr: any[]) => arr.map((item: any) => typeof item === "string" ? { text: item, priority: "medium", action: "" } : item);
         setSwotResult({ ...parsed, strengths: normalize(parsed.strengths), weaknesses: normalize(parsed.weaknesses), opportunities: normalize(parsed.opportunities), threats: normalize(parsed.threats) });
         setSwotResult(parsed);
+        await refreshAIUsage();
         return true;
       } catch (err) {
         toast.error("SWOT analysis failed. Please try again.");
