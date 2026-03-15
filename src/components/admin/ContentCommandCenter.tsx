@@ -1047,8 +1047,7 @@ Respond ONLY with JSON array: [{"name":"", "description":"", "percentage": numbe
 ${competitorHandle ? `Inspired by: @${competitorHandle}` : "Based on current viral patterns"}
 For each: title, strategy, caption (full), content_type, hashtags[], why_it_works, difficulty (easy/medium/hard), estimated_reach (low/medium/high/viral)
 Respond ONLY with JSON array.`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) { setCompetitorIdeas(JSON.parse(jsonMatch[0]).map((i: any) => ({ ...i, platform }))); setShowCompetitorInspire(true); toast.success("Competitor-inspired ideas ready"); }
+        try { setCompetitorIdeas(safeParseJSON(content).map((i: any) => ({ ...i, platform }))); setShowCompetitorInspire(true); toast.success("Competitor-inspired ideas ready"); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingCompetitor(false);
     });
