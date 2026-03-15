@@ -4434,6 +4434,77 @@ ONLY the JSON array.`;
           )}
         </DialogContent>
       </Dialog>
+
+      {/* ═══ Platform Coverage Audit Dialog ═══ */}
+      <Dialog open={showCoverageAudit} onOpenChange={setShowCoverageAudit}>
+        <DialogContent className="bg-[hsl(222,47%,8%)] border-white/10 max-w-lg">
+          <DialogHeader><DialogTitle className="text-white flex items-center gap-2"><Globe className="h-4 w-4 text-orange-400" /> Platform Coverage Audit</DialogTitle></DialogHeader>
+          <div className="space-y-2 max-h-[400px] overflow-y-auto">
+            {platformCoverageAudit.map((a, i) => (
+              <div key={i} className={`flex items-center justify-between p-2.5 rounded-lg border ${a.priority === "high" ? "border-red-500/30 bg-red-500/5" : a.priority === "medium" ? "border-amber-500/20 bg-amber-500/5" : a.priority === "low" ? "border-blue-500/20 bg-blue-500/5" : "border-emerald-500/20 bg-emerald-500/5"}`}>
+                <div><p className="text-xs font-semibold text-white capitalize">{a.platform}</p><p className="text-[10px] text-white/40">{a.competitorCount} competitor{a.competitorCount !== 1 ? "s" : ""}: {a.competitors.slice(0, 3).map((c: string) => `@${c}`).join(", ")}</p></div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={`text-[9px] ${a.youHaveIt ? "border-emerald-500/20 text-emerald-400" : "border-red-500/20 text-red-400"}`}>{a.youHaveIt ? "Connected" : "Missing"}</Badge>
+                  <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{a.myContentCount} posts</Badge>
+                  <Badge variant="outline" className={`text-[9px] ${a.priority === "high" ? "border-red-500/30 text-red-400" : a.priority === "medium" ? "border-amber-500/20 text-amber-400" : "border-emerald-500/20 text-emerald-400"}`}>{a.priority}</Badge>
+                </div>
+              </div>
+            ))}
+            {platformCoverageAudit.length === 0 && <p className="text-white/30 text-xs text-center py-4">No audit data yet</p>}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ Viral Score Benchmark Dialog ═══ */}
+      <Dialog open={showViralBenchmark} onOpenChange={setShowViralBenchmark}>
+        <DialogContent className="bg-[hsl(222,47%,8%)] border-white/10 max-w-lg">
+          <DialogHeader><DialogTitle className="text-white flex items-center gap-2"><TrendingUp className="h-4 w-4 text-rose-400" /> Viral Score Benchmark</DialogTitle></DialogHeader>
+          {viralBenchmark && (<div className="space-y-3">
+            <div className="grid grid-cols-3 gap-2">
+              {[{v: `${viralBenchmark.overallAvg}%`, l: "Your Avg Viral"}, {v: viralBenchmark.totalItems, l: "Scored Items"}, {v: `${viralBenchmark.competitorAvgER.toFixed(1)}%`, l: "Comp Avg ER"}].map((s, i) => (
+                <div key={i} className="rounded-lg border border-white/[0.06] bg-white/[0.03] p-3 text-center"><p className="text-2xl font-bold text-white">{s.v}</p><p className="text-[10px] text-white/40">{s.l}</p></div>
+              ))}
+            </div>
+            <div className="space-y-1.5">
+              {viralBenchmark.platforms.map((p: any, i: number) => (
+                <div key={i} className="flex items-center justify-between p-2 rounded border border-white/[0.06] bg-white/[0.02]">
+                  <div><span className="text-xs text-white font-medium capitalize">{p.platform}</span><span className="text-[10px] text-white/30 ml-2">{p.compNames.slice(0, 2).join(", ")}</span></div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="text-[9px] border-white/10 text-white/50">You: {p.myAvg}%</Badge>
+                    <Badge variant="outline" className="text-[9px] border-white/10 text-white/50">Comp ER: {p.compAvgER.toFixed(1)}%</Badge>
+                    <Badge variant="outline" className={`text-[9px] ${p.status === "outperforming" ? "border-emerald-500/20 text-emerald-400" : p.status === "competitive" ? "border-blue-500/20 text-blue-400" : p.status === "below" ? "border-amber-500/20 text-amber-400" : "border-red-500/20 text-red-400"}`}>{p.status}</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>)}
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══ Intel Plans Import Dialog ═══ */}
+      <Dialog open={showIntelPlans} onOpenChange={setShowIntelPlans}>
+        <DialogContent className="bg-[hsl(222,47%,8%)] border-white/10 max-w-lg">
+          <DialogHeader><DialogTitle className="text-white flex items-center gap-2"><Brain className="h-4 w-4 text-sky-400" /> Content Intel Plans</DialogTitle></DialogHeader>
+          <p className="text-[11px] text-white/40">Plans generated in Competitor Analyzer → Content Intel. Import directly into your content calendar.</p>
+          <ScrollArea className="max-h-[400px]">
+            <div className="space-y-2">
+              {generatedPlansFromIntel.map((plan: any) => {
+                const entries = Array.isArray(plan.entries) ? plan.entries : [];
+                const platforms = [...new Set(entries.map((e: any) => e.platform).filter(Boolean))];
+                return (
+                  <div key={plan.id} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 space-y-1.5">
+                    <div className="flex items-center justify-between"><p className="text-xs font-semibold text-white truncate flex-1">{plan.label}</p><Badge variant="outline" className="text-[9px] border-primary/20 text-primary ml-2">{entries.length} posts</Badge></div>
+                    <div className="flex gap-1 flex-wrap">{platforms.map((p: string) => (<Badge key={p} variant="outline" className="text-[8px] border-white/[0.06] text-white/40 capitalize">{p}</Badge>))}</div>
+                    <p className="text-[10px] text-white/30">{new Date(plan.created_at).toLocaleString()}</p>
+                    <Button size="sm" onClick={() => importIntelPlanToCalendar(plan)} className="w-full h-6 text-[10px] bg-primary/15 border border-primary/20 text-primary hover:bg-primary/25 mt-1"><ArrowRight className="h-2.5 w-2.5 mr-1" /> Import to Content Calendar</Button>
+                  </div>
+                );
+              })}
+              {generatedPlansFromIntel.length === 0 && <p className="text-white/30 text-xs text-center py-4">No plans found. Generate plans in Competitor Analyzer → Content Intel first.</p>}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
