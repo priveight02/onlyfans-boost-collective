@@ -1711,7 +1711,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           </div>
           <p className="text-xs text-white/30 mt-0.5">{sandboxMode ? "Your creative canvas – drag, draw, link, and evolve ideas" : "Create, schedule, and publish across all platforms"}</p>
         </div>
-        <div className="flex gap-1.5 flex-wrap">
+        {!sandboxMode && <div className="flex gap-1.5 flex-wrap">
           <Button size="sm" variant="outline" onClick={() => setShowContentBrief(true)}
             className="border-white/[0.06] text-white/50 text-xs h-8 hover:text-white hover:border-white/20">
             <FileText className="h-3.5 w-3.5 mr-1" /> Brief
