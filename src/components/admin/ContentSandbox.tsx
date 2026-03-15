@@ -57,7 +57,8 @@ type InteractionState =
   | { type: "pan"; originClient: Point; originViewport: Viewport }
   | { type: "draw"; tool: "pen" | "eraser"; color: string; size: number; points: Point[] }
   | { type: "drag"; anchor: Point; originPositions: Record<string, Point> }
-  | { type: "resize"; elementId: string; anchor: Point; originRect: Pick<SandboxElement, "x" | "y" | "width" | "height"> };
+  | { type: "resize"; elementId: string; anchor: Point; originRect: Pick<SandboxElement, "x" | "y" | "width" | "height"> }
+  | { type: "marquee"; origin: Point; current: Point };
 
 interface SandboxSnapshot { elements: SandboxElement[]; strokes: SandboxStroke[]; }
 
@@ -302,6 +303,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [fontFamily, setFontFamily] = useState("Inter, sans-serif");
   const [locked, setLocked] = useState(true);
   const [zoomSpeed, setZoomSpeed] = useState(1);
+  const [marqueeRect, setMarqueeRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
 
   const HISTORY_KEY = STORAGE_KEY + "_history";
   const undoStack = useRef<SandboxSnapshot[]>([]);
@@ -688,6 +690,14 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       return;
     }
     if (["note", "text", "rectangle", "ellipse", "triangle", "diamond", "arrow"].includes(tool)) { addEl(tool, pt); return; }
+    // Start marquee selection on empty canvas with select tool
+    if (tool === "select") {
+      interactionRef.current = { type: "marquee", origin: pt, current: pt };
+      setMarqueeRect(null);
+      setSelectedIds(new Set());
+      setLinkSourceId(null);
+      return;
+    }
     setSelectedIds(new Set());
     setLinkSourceId(null);
   }, [tool, activeColor, addEl, brushSize]);
@@ -698,6 +708,22 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (!ix) return;
       if (ix.type === "pan") { setViewport({ ...ix.originViewport, x: ix.originViewport.x + e.clientX - ix.originClient.x, y: ix.originViewport.y + e.clientY - ix.originClient.y }); return; }
       const pt = scenePoint(e.clientX, e.clientY, boardRef.current, vpRef.current);
+      if (ix.type === "marquee") {
+        ix.current = pt;
+        const mx = Math.min(ix.origin.x, pt.x), my = Math.min(ix.origin.y, pt.y);
+        const mw = Math.abs(pt.x - ix.origin.x), mh = Math.abs(pt.y - ix.origin.y);
+        setMarqueeRect({ x: mx, y: my, w: mw, h: mh });
+        // Live-select elements intersecting the marquee
+        const hit = new Set<string>();
+        for (const el of elsRef.current) {
+          if (el.x + el.width > mx && el.x < mx + mw && el.y + el.height > my && el.y < my + mh) {
+            hit.add(el.id);
+            if (el.groupId) elsRef.current.filter(g => g.groupId === el.groupId).forEach(g => hit.add(g.id));
+          }
+        }
+        setSelectedIds(hit);
+        return;
+      }
       if (ix.type === "draw") { ix.points.push(pt); setDraftStroke({ id: "draft", tool: ix.tool, color: ix.color, size: ix.size, points: [...ix.points] }); return; }
       if (ix.type === "drag") {
         const dx = pt.x - ix.anchor.x, dy = pt.y - ix.anchor.y;
@@ -715,6 +741,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (ix.type === "draw" && ix.points.length > 1) {
         pushUndo();
         setStrokes(p => [...p, { id: crypto.randomUUID(), tool: ix.tool, color: ix.color, size: ix.size, points: ix.points }]);
+      }
+      if (ix.type === "marquee") {
+        setMarqueeRect(null);
       }
       interactionRef.current = null;
       setDraftStroke(null);
@@ -960,6 +989,16 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           }}
         >
           <canvas ref={canvasRef} className="absolute inset-0 h-full w-full pointer-events-none" />
+          {/* Marquee selection rectangle */}
+          {marqueeRect && marqueeRect.w > 2 && marqueeRect.h > 2 && (
+            <div className="absolute pointer-events-none border-2 border-blue-400/60 bg-blue-400/10 rounded-sm" style={{
+              left: viewport.x + marqueeRect.x * viewport.zoom,
+              top: viewport.y + marqueeRect.y * viewport.zoom,
+              width: marqueeRect.w * viewport.zoom,
+              height: marqueeRect.h * viewport.zoom,
+              zIndex: 999999,
+            }} />
+          )}
           <div className="absolute inset-0" style={{ transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0" }}>
             {ordered.map(el => (
               <ElementView key={el.id} el={el} selected={selectedIds.has(el.id)} linkSrc={linkSourceId === el.id}
