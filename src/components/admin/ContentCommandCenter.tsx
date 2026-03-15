@@ -1800,6 +1800,51 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
     await publishToNetwork(item);
   };
 
+  // ═══ PUSH TO SOCIAL HUB ═══
+  const openPushToSocial = async () => {
+    setShowPushToSocial(true);
+    // Load connected accounts for the selected platform
+    const accts = await getConnectedAccounts(pushPlatform);
+    setPushAccounts(accts);
+    if (accts.length > 0 && !pushSelectedAccount) setPushSelectedAccount(accts[0].account_id);
+  };
+
+  const handlePushToSocial = async () => {
+    if (!pushSelectedAccount) { toast.error("Select a connected account"); return; }
+    setPushingToSocial(true);
+    try {
+      let itemsToPush: any[] = [];
+      if (pushItemFilter === "all_drafts") itemsToPush = items.filter(i => i.status === "draft" && i.platform === pushPlatform);
+      else if (pushItemFilter === "scheduled") itemsToPush = items.filter(i => (i.status === "scheduled" || i.status === "planned") && i.platform === pushPlatform);
+      else if (pushItemFilter === "competitor") itemsToPush = items.filter(i => COMPETITOR_SYNC_SOURCES.includes(getContentSource(i) as any) && i.platform === pushPlatform);
+      else if (pushItemFilter === "selected") itemsToPush = items.filter(i => selectedItems.has(i.id) && i.platform === pushPlatform);
+
+      if (itemsToPush.length === 0) { toast.error(`No ${pushPlatform} ${pushItemFilter.replace("_", " ")} items to push`); return; }
+
+      const customTimes = pushCustomTimes.trim() ? pushCustomTimes.split(",").map(t => t.trim()) : undefined;
+      const { created, errors } = await pushToSocialHub(itemsToPush, pushSelectedAccount, pushAutoSchedule, customTimes || DEFAULT_BEST_TIMES[pushPlatform]);
+
+      if (created > 0) {
+        toast.success(`${created} posts pushed to ${pushPlatform} Social Hub${pushAutoSchedule ? " with auto-scheduling" : ""}`);
+        await loadItems();
+      }
+      if (errors.length > 0) toast.error(`${errors.length} items failed`);
+      setShowPushToSocial(false);
+    } catch (e: any) { toast.error(e.message); }
+    finally { setPushingToSocial(false); }
+  };
+
+  // Refresh push accounts when platform changes
+  useEffect(() => {
+    if (showPushToSocial) {
+      getConnectedAccounts(pushPlatform).then(accts => {
+        setPushAccounts(accts);
+        if (accts.length > 0) setPushSelectedAccount(accts[0].account_id);
+        else setPushSelectedAccount("");
+      });
+    }
+  }, [pushPlatform, showPushToSocial]);
+
   return (
     <div className="space-y-4">
       {/* Header */}
