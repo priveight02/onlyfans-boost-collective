@@ -275,6 +275,107 @@ const ContentCommandCenter = () => {
     setItems(data || []);
   };
 
+  const loadCompetitorProfiles = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user?.id) return;
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/competitor_profiles?user_id=eq.${session.user.id}&order=created_at.desc`, {
+        headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${session.access_token}` },
+      });
+      const profiles = await res.json();
+      if (Array.isArray(profiles)) setCompetitorProfiles(profiles);
+    } catch { /* silent */ }
+  };
+
+  // ═══ INTER-TAB 1: Import Competitor Posting Plan ═══
+  const importCompetitorPlan = async () => {
+    if (competitorProfiles.length === 0) { toast.error("No competitors tracked · Add competitors in Competitor Analyzer first"); return; }
+    await performAction('ai_generate_ideas', async () => {
+      setImportingCompetitorPlan(true);
+      try {
+        const compData = competitorProfiles.map(c => ({ username: c.username, platform: c.platform, followers: c.followers, engagementRate: c.engagement_rate, avgLikes: c.avg_likes, postFrequency: c.post_frequency, topHashtags: c.top_hashtags || [], contentTypes: c.content_types || [] }));
+        const totalFreq = compData.reduce((s, c) => s + (c.postFrequency || 3), 0);
+        const content = await callAI(`You are a social media strategist. Based on these real competitor profiles, generate a 2-week content calendar that COPIES their posting strategy exactly.\n\nCompetitor data:\n${JSON.stringify(compData, null, 2)}\n\nMatch their posting frequency, content types, top hashtags, and optimal times.\nGenerate ${Math.max(totalFreq * 2, 14)} entries.\nEach: {"title":"...", "platform":"instagram/tiktok/twitter/facebook/threads", "content_type":"post/reel/story/tweet", "caption":"full caption with emojis", "hashtags":["tag1"], "scheduled_at":"ISO date next 2 weeks", "viral_score": 40-90, "description":"Based on @competitor strategy"}\n\nReturn ONLY a JSON array.`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const entries = JSON.parse(jsonMatch[0]);
+          for (const e of entries) {
+            await supabase.from("content_calendar").insert({ title: String(e.title || "Competitor Strategy Post").slice(0, 200), platform: String(e.platform || "instagram").toLowerCase(), content_type: String(e.content_type || "post"), caption: String(e.caption || ""), hashtags: Array.isArray(e.hashtags) ? e.hashtags.map((h: string) => h.replace("#", "")) : [], scheduled_at: e.scheduled_at || new Date(Date.now() + Math.random() * 14 * 86400000).toISOString(), status: "draft", viral_score: e.viral_score || 0, description: e.description || "Imported from Competitor Intel", metadata: { source: "competitor_intel" } });
+          }
+          toast.success(`${entries.length} posts imported from competitor strategy`);
+        }
+      } catch (e: any) { toast.error(e.message || "Failed to import plan"); }
+      setImportingCompetitorPlan(false);
+    });
+  };
+
+  // ═══ INTER-TAB 2: Import Competitor Hashtags ═══
+  const importCompetitorHashtags = () => {
+    if (competitorProfiles.length === 0) { toast.error("No competitors tracked · Add them in Competitor Analyzer first"); return; }
+    setImportingCompetitorHashtags(true);
+    const allTags = [...new Set(competitorProfiles.flatMap(c => c.top_hashtags || []))];
+    if (allTags.length === 0) { toast.error("No hashtags in competitor data"); setImportingCompetitorHashtags(false); return; }
+    const newSets = competitorProfiles.filter(c => c.top_hashtags?.length).map(c => ({ name: `Competitor · @${c.username}`, tags: c.top_hashtags, platform: "all" as const }));
+    newSets.unshift({ name: "All Competitors · Merged", tags: allTags.slice(0, 30), platform: "all" });
+    setHashtagSets(prev => [...prev, ...newSets]);
+    toast.success(`${newSets.length} hashtag sets imported (${allTags.length} unique tags)`);
+    setImportingCompetitorHashtags(false);
+  };
+
+  // ═══ INTER-TAB 3: Competitor Best Times ═══
+  const analyzeCompetitorBestTimes = async () => {
+    if (competitorProfiles.length === 0) { toast.error("No competitors tracked yet"); return; }
+    await performAction('ai_analysis', async () => {
+      setGeneratingBestTimes(true);
+      try {
+        const compData = competitorProfiles.map(c => ({ username: c.username, platform: c.platform, postFrequency: c.post_frequency, engagementRate: c.engagement_rate, followers: c.followers }));
+        const content = await callAI(`Analyze these competitor profiles and determine optimal posting times.\n\nCompetitors: ${JSON.stringify(compData)}\n\nFor each platform: platform, best_hours (4-5 times like "9:00 AM"), best_days, frequency (posts/week), reasoning.\n\nReturn ONLY JSON array.`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) { setCompetitorBestTimes(JSON.parse(jsonMatch[0])); setShowCompetitorBestTimes(true); toast.success("Best posting times analyzed"); }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingBestTimes(false);
+    });
+  };
+
+  // ═══ INTER-TAB 4: SWOT Content Ideas ═══
+  const generateSwotContent = async () => {
+    if (competitorProfiles.length === 0) { toast.error("No competitors tracked yet"); return; }
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingSwotContent(true);
+      try {
+        const compSummary = competitorProfiles.map(c => `@${c.username} (${c.platform}): ${c.followers} followers, ${c.engagement_rate}% ER, ${c.post_frequency} posts/wk`).join("\n");
+        const content = await callAI(`Based on competitive SWOT analysis, generate 8 content ideas exploiting competitor weaknesses.\n\nCompetitors:\n${compSummary}\n\nFor each: title, platform, content_type, caption (full), hashtags array, swot_angle (strength/weakness/opportunity/threat), strategy, viral_score 40-95.\n\nReturn ONLY a JSON array.`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const ideas = JSON.parse(jsonMatch[0]);
+          for (const idea of ideas) { await supabase.from("content_calendar").insert({ title: idea.title, caption: idea.caption, platform: idea.platform || "instagram", content_type: idea.content_type || "post", hashtags: (idea.hashtags || []).map((h: string) => h.replace("#", "")), viral_score: idea.viral_score || 0, description: `SWOT: ${idea.swot_angle} · ${idea.strategy || ""}`, status: "draft", metadata: { source: "swot_analysis" } }); }
+          toast.success(`${ideas.length} SWOT-driven content ideas created`);
+        }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingSwotContent(false);
+    });
+  };
+
+  // ═══ INTER-TAB 5: Gap Analysis Content ═══
+  const generateGapContent = async () => {
+    if (competitorProfiles.length === 0) { toast.error("No competitors tracked yet"); return; }
+    await performAction('ai_generate_ideas', async () => {
+      setGeneratingGapContent(true);
+      try {
+        const myContent = items.slice(0, 20).map(i => `${i.platform}/${i.content_type}: "${i.title}"`).join("\n");
+        const compSummary = competitorProfiles.map(c => `@${c.username} (${c.platform}): ${c.followers} followers, types: ${JSON.stringify(c.content_types || [])}`).join("\n");
+        const content = await callAI(`Content gap analysis: Find what I'm MISSING vs competitors.\n\nMY CONTENT:\n${myContent || "No content yet"}\n\nCOMPETITORS:\n${compSummary}\n\nFind 6 gaps. Each: title, platform, content_type, caption, hashtags, gap_identified, competitor_doing_it, estimated_impact (high/medium/critical), viral_score 50-90.\n\nReturn ONLY JSON array.`);
+        const jsonMatch = content.match(/\[[\s\S]*\]/);
+        if (jsonMatch) {
+          const ideas = JSON.parse(jsonMatch[0]);
+          for (const idea of ideas) { await supabase.from("content_calendar").insert({ title: idea.title, caption: idea.caption, platform: idea.platform || "instagram", content_type: idea.content_type || "post", hashtags: (idea.hashtags || []).map((h: string) => h.replace("#", "")), viral_score: idea.viral_score || 0, description: `Gap: ${idea.gap_identified} · Impact: ${idea.estimated_impact}`, status: "draft", metadata: { source: "gap_analysis" } }); }
+          toast.success(`${ideas.length} gap analysis posts created`);
+        }
+      } catch (e: any) { toast.error(e.message); }
+      setGeneratingGapContent(false);
+    });
+  };
+
   const availablePlatforms = useMemo(() => {
     const platforms = new Set<string>();
     connections.forEach(c => platforms.add(c.platform));
