@@ -1765,6 +1765,16 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
   // Draft storage items
   const draftItems = useMemo(() => items.filter(i => i.status === "draft"), [items]);
+  const competitorSyncedItems = useMemo(() => {
+    return items.filter(item => COMPETITOR_SYNC_SOURCES.includes(getContentSource(item) as (typeof COMPETITOR_SYNC_SOURCES)[number]));
+  }, [items]);
+  const competitorSyncBreakdown = useMemo(() => {
+    return competitorSyncedItems.reduce((acc, item) => {
+      const source = getContentSource(item) as keyof typeof acc;
+      if (source in acc) acc[source] += 1;
+      return acc;
+    }, { competitor_intel: 0, swot_analysis: 0, gap_analysis: 0 });
+  }, [competitorSyncedItems]);
 
   // Quick publish a draft directly
   const quickPublishDraft = async (item: any) => {
