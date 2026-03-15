@@ -236,15 +236,19 @@ const getEnterpriseContextForPrompt = (): string => {
 };
 
 const callAI = async (prompt: string, analysisType?: string): Promise<any> => {
+  // Pre-check usage before making the call
+  const preCheck = await checkAIUsage();
+  if (preCheck.limited) throw new Error(`Daily AI analysis limit reached (${RATE_LIMIT_MAX}/day). Resets at midnight UTC.`);
+  
   const enrichedPrompt = prompt + getEnterpriseContextForPrompt();
   const { data, error } = await supabase.functions.invoke("competitor-analyze", {
     body: { prompt: enrichedPrompt, analysisType },
   });
   if (error) {
-    if (error.message?.includes("limit")) throw new Error("Daily AI analysis limit reached (20/day). AI-powered fields will be left blank until reset.");
+    if (error.message?.includes("limit")) throw new Error(`Daily AI analysis limit reached (${RATE_LIMIT_MAX}/day). Resets at midnight UTC.`);
     throw new Error(error.message || "AI request failed");
   }
-  if (data?.limited) throw new Error("Daily AI analysis limit reached (20/day). AI-powered fields will be left blank until reset.");
+  if (data?.limited) throw new Error(`Daily AI analysis limit reached (${RATE_LIMIT_MAX}/day). Resets at midnight UTC.`);
   if (!data?.reply) throw new Error("No AI response received");
   return data.reply;
 };
