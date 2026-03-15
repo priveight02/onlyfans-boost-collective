@@ -2793,73 +2793,118 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
           ) : (
             <>
               {/* Full-width Device Social Intelligence Panels — iPad on desktop, iPhone on mobile */}
-               {competitors.map(comp => {
-                const social = comp.metadata?.socialPresence || {};
-                const platformEntries: { platform: string; username: string; color: string; icon: string; url: string }[] = [];
-                
-                // Build real social platform entries from metadata
-                if (social.instagram) platformEntries.push({ platform: "Instagram", username: social.instagram, color: "#E1306C", icon: "IG", url: `https://www.instagram.com/${social.instagram}/` });
-                if (social.tiktok) platformEntries.push({ platform: "TikTok", username: social.tiktok, color: "#fe2c55", icon: "TT", url: `https://www.tiktok.com/@${social.tiktok}` });
-                if (social.twitter) platformEntries.push({ platform: "X / Twitter", username: social.twitter, color: "#1DA1F2", icon: "X", url: `https://x.com/${social.twitter}` });
-                if (social.youtube) platformEntries.push({ platform: "YouTube", username: social.youtube, color: "#FF0000", icon: "YT", url: `https://www.youtube.com/@${social.youtube}` });
-                if (social.linkedin) platformEntries.push({ platform: "LinkedIn", username: social.linkedin, color: "#0A66C2", icon: "LI", url: `https://www.linkedin.com/company/${social.linkedin}` });
-                if (social.facebook) platformEntries.push({ platform: "Facebook", username: social.facebook, color: "#1877F2", icon: "FB", url: `https://www.facebook.com/${social.facebook}` });
-                if (social.pinterest) platformEntries.push({ platform: "Pinterest", username: social.pinterest, color: "#E60023", icon: "PI", url: `https://www.pinterest.com/${social.pinterest}` });
-                if (social.snapchat) platformEntries.push({ platform: "Snapchat", username: social.snapchat, color: "#FFFC00", icon: "SC", url: `https://www.snapchat.com/add/${social.snapchat}` });
+              {competitors.map((comp) => {
+                const normalizeHandle = (value: unknown) => {
+                  const raw = String(value ?? "").trim();
+                  if (!raw) return "";
 
-                // If no social data found, create entries from the competitor's own platform
+                  const cleaned = raw
+                    .replace(/^https?:\/\//i, "")
+                    .replace(/^www\./i, "")
+                    .replace(/^instagram\.com\//i, "")
+                    .replace(/^tiktok\.com\/@/i, "")
+                    .replace(/^x\.com\//i, "")
+                    .replace(/^twitter\.com\//i, "")
+                    .replace(/^youtube\.com\/@/i, "")
+                    .replace(/^youtube\.com\/channel\//i, "")
+                    .replace(/^linkedin\.com\/company\//i, "")
+                    .replace(/^facebook\.com\//i, "")
+                    .replace(/^pinterest\.com\//i, "")
+                    .replace(/^snapchat\.com\/add\//i, "")
+                    .replace(/^@/i, "")
+                    .split(/[/?#]/)[0];
+
+                  return cleaned.trim();
+                };
+
+                const social = comp.metadata?.socialPresence || {};
+                const platformEntries: { platform: string; username: string; color: string; icon: string; url: string; previewUrl: string }[] = [];
+
+                const pushEntry = (
+                  platform: string,
+                  rawHandle: unknown,
+                  color: string,
+                  icon: string,
+                  toCanonical: (username: string) => string,
+                  toPreview: (username: string) => string = toCanonical,
+                ) => {
+                  const username = normalizeHandle(rawHandle);
+                  if (!username) return;
+                  const alreadyAdded = platformEntries.some((entry) => entry.platform === platform && entry.username.toLowerCase() === username.toLowerCase());
+                  if (alreadyAdded) return;
+                  platformEntries.push({
+                    platform,
+                    username,
+                    color,
+                    icon,
+                    url: toCanonical(username),
+                    previewUrl: toPreview(username),
+                  });
+                };
+
+                pushEntry("Instagram", social.instagram, "hsl(330 81% 55%)", "IG", (u) => `https://www.instagram.com/${u}/`);
+                pushEntry("TikTok", social.tiktok, "hsl(347 100% 58%)", "TT", (u) => `https://www.tiktok.com/@${u}`);
+                pushEntry("X / Twitter", social.twitter, "hsl(203 89% 53%)", "X", (u) => `https://x.com/${u}`, (u) => `https://nitter.net/${u}`);
+                pushEntry("YouTube", social.youtube, "hsl(0 100% 50%)", "YT", (u) => (/^UC[a-zA-Z0-9_-]+$/.test(u) ? `https://www.youtube.com/channel/${u}` : `https://www.youtube.com/@${u}`));
+                pushEntry("LinkedIn", social.linkedin, "hsl(210 90% 40%)", "LI", (u) => `https://www.linkedin.com/company/${u}`);
+                pushEntry("Facebook", social.facebook, "hsl(221 83% 53%)", "FB", (u) => `https://www.facebook.com/${u}`);
+                pushEntry("Pinterest", social.pinterest, "hsl(348 91% 45%)", "PI", (u) => `https://www.pinterest.com/${u}`);
+                pushEntry("Snapchat", social.snapchat, "hsl(60 100% 50%)", "SC", (u) => `https://www.snapchat.com/add/${u}`);
+
+                // If no social data found, create entries from competitor username + platform context
                 if (platformEntries.length === 0) {
-                  const p = comp.platform.toLowerCase();
-                  if (p === "instagram" || p === "internet") platformEntries.push({ platform: "Instagram", username: comp.username, color: "#E1306C", icon: "IG", url: `https://www.instagram.com/${comp.username}/` });
-                  if (p === "tiktok" || p === "internet") platformEntries.push({ platform: "TikTok", username: comp.username, color: "#fe2c55", icon: "TT", url: `https://www.tiktok.com/@${comp.username}` });
-                  if (p === "twitter" || p === "internet") platformEntries.push({ platform: "X / Twitter", username: comp.username, color: "#1DA1F2", icon: "X", url: `https://x.com/${comp.username}` });
-                  if (p === "youtube" || p === "internet") platformEntries.push({ platform: "YouTube", username: comp.username, color: "#FF0000", icon: "YT", url: `https://www.youtube.com/@${comp.username}` });
-                  if (p === "internet") platformEntries.push({ platform: "LinkedIn", username: comp.username, color: "#0A66C2", icon: "LI", url: `https://www.linkedin.com/company/${comp.username}` });
+                  const p = (comp.platform || "").toLowerCase();
+                  if (p === "instagram" || p === "internet") pushEntry("Instagram", comp.username, "hsl(330 81% 55%)", "IG", (u) => `https://www.instagram.com/${u}/`);
+                  if (p === "tiktok" || p === "internet") pushEntry("TikTok", comp.username, "hsl(347 100% 58%)", "TT", (u) => `https://www.tiktok.com/@${u}`);
+                  if (p === "twitter" || p === "internet" || p === "x") pushEntry("X / Twitter", comp.username, "hsl(203 89% 53%)", "X", (u) => `https://x.com/${u}`, (u) => `https://nitter.net/${u}`);
+                  if (p === "youtube" || p === "internet") pushEntry("YouTube", comp.username, "hsl(0 100% 50%)", "YT", (u) => `https://www.youtube.com/@${u}`);
+                  if (p === "linkedin" || p === "internet") pushEntry("LinkedIn", comp.username, "hsl(210 90% 40%)", "LI", (u) => `https://www.linkedin.com/company/${u}`);
                 }
 
-                // Free screenshot proxy — no API key needed
+                // No-key fallback screenshot only when platform refuses embedded rendering
                 const getScreenshot = (url: string) => `https://image.thum.io/get/width/600/crop/900/noanimate/${encodeURIComponent(url)}`;
 
                 return (
-                  <div key={comp.id} className="w-full">
+                  <div key={comp.id} className="w-full" style={{ contentVisibility: "auto", contain: "layout paint style" }}>
                     {/* ── iPad frame (desktop) / iPhone frame (mobile) ── */}
                     <div
                       className="relative w-full rounded-[2rem] md:rounded-[2.2rem] overflow-hidden will-change-transform"
                       style={{
-                        background: "linear-gradient(145deg, #2c2c2e, #1c1c1e, #2c2c2e)",
-                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1.5px #3a3a3c, 0 0 0 3px #1c1c1e, 0 30px 80px rgba(0,0,0,0.6), 0 0 60px hsl(var(--primary) / 0.03)",
+                        background: "linear-gradient(145deg, hsl(240 2% 18%), hsl(240 4% 10%), hsl(240 2% 18%))",
+                        boxShadow:
+                          "inset 0 1px 0 hsl(0 0% 100% / 0.06), 0 0 0 1.5px hsl(240 4% 24%), 0 0 0 3px hsl(240 5% 10%), 0 30px 80px hsl(0 0% 0% / 0.6), 0 0 60px hsl(var(--primary) / 0.03)",
                       }}
                     >
                       {/* Device top bezel */}
-                      <div className="h-[28px] md:h-[32px] flex items-center justify-between px-5 md:px-6 relative" style={{ background: "linear-gradient(180deg, #2a2a2c, #1c1c1e)" }}>
+                      <div className="h-[28px] md:h-[32px] flex items-center justify-between px-5 md:px-6 relative" style={{ background: "linear-gradient(180deg, hsl(240 3% 17%), hsl(240 4% 10%))" }}>
                         {/* Camera (iPad) / Dynamic Island (iPhone on mobile) */}
-                        <div className="hidden md:block absolute left-1/2 top-[9px] -translate-x-1/2 w-[7px] h-[7px] rounded-full" style={{ background: "radial-gradient(circle, #1a1a1c 40%, #0d0d0f 100%)", boxShadow: "inset 0 0 2px rgba(255,255,255,0.08), 0 0 3px rgba(0,0,0,0.5)" }} />
-                        <div className="md:hidden absolute left-1/2 top-[6px] -translate-x-1/2 w-[90px] h-[22px] rounded-full bg-black" style={{ boxShadow: "inset 0 0 3px rgba(0,0,0,0.8)" }} />
-                        
+                        <div className="hidden md:block absolute left-1/2 top-[9px] -translate-x-1/2 w-[7px] h-[7px] rounded-full" style={{ background: "radial-gradient(circle, hsl(240 4% 12%) 40%, hsl(240 8% 5%) 100%)", boxShadow: "inset 0 0 2px hsl(0 0% 100% / 0.08), 0 0 3px hsl(0 0% 0% / 0.5)" }} />
+                        <div className="md:hidden absolute left-1/2 top-[6px] -translate-x-1/2 w-[90px] h-[22px] rounded-full" style={{ background: "hsl(240 10% 2%)", boxShadow: "inset 0 0 3px hsl(0 0% 0% / 0.8)" }} />
+
                         {/* Status bar */}
                         <span className="text-[10px] text-white/60 font-semibold tabular-nums" style={{ fontFamily: "-apple-system, system-ui" }}>9:41</span>
                         <div className="flex gap-[3px] items-center">
                           <div className="flex gap-[1.5px] items-end h-[9px]">
                             {[3, 4.5, 6, 8].map((h, i) => (
-                              <div key={i} className="w-[2.5px] rounded-[1px]" style={{ height: h, background: i < 3 ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.25)" }} />
+                              <div key={i} className="w-[2.5px] rounded-[1px]" style={{ height: h, background: i < 3 ? "hsl(0 0% 100% / 0.7)" : "hsl(0 0% 100% / 0.25)" }} />
                             ))}
                           </div>
-                          <svg className="h-[9px] w-[13px] ml-1" viewBox="0 0 16 12" fill="rgba(255,255,255,0.65)"><path d="M8 9.6a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4zM3.76 7.04a5.92 5.92 0 018.48 0l-1.2 1.2a4.16 4.16 0 00-6.08 0l-1.2-1.2zM1.04 4.32a9.44 9.44 0 0113.92 0l-1.2 1.2a7.68 7.68 0 00-11.52 0l-1.2-1.2z"/></svg>
+                          <svg className="h-[9px] w-[13px] ml-1" viewBox="0 0 16 12" fill="hsl(0 0% 100% / 0.65)"><path d="M8 9.6a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4zM3.76 7.04a5.92 5.92 0 018.48 0l-1.2 1.2a4.16 4.16 0 00-6.08 0l-1.2-1.2zM1.04 4.32a9.44 9.44 0 0113.92 0l-1.2 1.2a7.68 7.68 0 00-11.52 0l-1.2-1.2z"/></svg>
                           <div className="w-[20px] h-[9px] border border-white/35 rounded-[2.5px] ml-1.5 relative overflow-hidden">
-                            <div className="absolute inset-[1.5px] right-[3px] rounded-[1px]" style={{ background: "linear-gradient(90deg, #34c759, #30d158)" }} />
+                            <div className="absolute inset-[1.5px] right-[3px] rounded-[1px]" style={{ background: "linear-gradient(90deg, hsl(142 71% 45%), hsl(143 64% 49%))" }} />
                             <div className="absolute right-[-2px] top-1/2 -translate-y-1/2 w-[1.5px] h-[4px] bg-white/35 rounded-r-[1px]" />
                           </div>
                         </div>
                       </div>
 
                       {/* Safari-style tab bar */}
-                      <div className="h-[38px] md:h-[40px] flex items-center px-3 md:px-4 gap-2 md:gap-3 border-b border-white/[0.05]" style={{ background: "linear-gradient(180deg, #1c1c1e, #161618)" }}>
+                      <div className="h-[38px] md:h-[40px] flex items-center px-3 md:px-4 gap-2 md:gap-3 border-b border-white/[0.05]" style={{ background: "linear-gradient(180deg, hsl(240 4% 10%), hsl(240 5% 8%))" }}>
                         <div className="hidden md:flex gap-[5px]">
-                          <div className="w-[10px] h-[10px] rounded-full" style={{ background: "radial-gradient(circle at 35% 35%, #ff6961, #ff5f57)" }} />
-                          <div className="w-[10px] h-[10px] rounded-full" style={{ background: "radial-gradient(circle at 35% 35%, #ffd04b, #febc2e)" }} />
-                          <div className="w-[10px] h-[10px] rounded-full" style={{ background: "radial-gradient(circle at 35% 35%, #4cd964, #28c840)" }} />
+                          <div className="w-[10px] h-[10px] rounded-full" style={{ background: "radial-gradient(circle at 35% 35%, hsl(6 96% 69%), hsl(3 100% 67%))" }} />
+                          <div className="w-[10px] h-[10px] rounded-full" style={{ background: "radial-gradient(circle at 35% 35%, hsl(45 100% 65%), hsl(41 99% 56%))" }} />
+                          <div className="w-[10px] h-[10px] rounded-full" style={{ background: "radial-gradient(circle at 35% 35%, hsl(128 71% 66%), hsl(120 64% 49%))" }} />
                         </div>
-                        <div className="flex-1 h-[26px] md:h-[28px] rounded-lg flex items-center px-3 gap-1.5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div className="flex-1 h-[26px] md:h-[28px] rounded-lg flex items-center px-3 gap-1.5" style={{ background: "hsl(0 0% 100% / 0.04)", border: "1px solid hsl(0 0% 100% / 0.04)" }}>
                           <Lock className="h-2.5 w-2.5 text-emerald-400/80" />
                           <span className="text-[10px] text-white/35 font-mono truncate">{comp.metadata?.websiteUrl || `${comp.username}.com`}</span>
                         </div>
@@ -2870,10 +2915,10 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                       </div>
 
                       {/* Screen content area */}
-                      <div className="p-3 md:p-4" style={{ background: "linear-gradient(180deg, #0c0c0e, #0a0a0c)" }}>
+                      <div className="p-3 md:p-4" style={{ background: "linear-gradient(180deg, hsl(240 10% 5%), hsl(240 10% 4%))" }}>
                         {/* Competitor header banner */}
-                        <div className="flex items-center gap-3 md:gap-4 mb-3 md:mb-4 p-2.5 md:p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
-                          <div className="w-11 h-11 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center text-white font-bold text-base md:text-lg shrink-0" style={{ background: `linear-gradient(135deg, hsl(var(--primary)), hsl(262, 83%, 58%))` }}>
+                        <div className="flex items-center gap-3 md:gap-4 mb-3 md:mb-4 p-2.5 md:p-3 rounded-xl" style={{ background: "hsl(0 0% 100% / 0.02)", border: "1px solid hsl(0 0% 100% / 0.05)" }}>
+                          <div className="w-11 h-11 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center text-white font-bold text-base md:text-lg shrink-0" style={{ background: "linear-gradient(135deg, hsl(var(--primary)), hsl(262 83% 58%))" }}>
                             {comp.username.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
@@ -2888,63 +2933,71 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                           <Badge className="bg-emerald-400/10 text-emerald-400 border-0 text-[8px] md:text-[9px]">{platformEntries.length} platforms</Badge>
                         </div>
 
-                        {/* Social platforms grid — screenshot previews */}
+                        {/* Social platforms grid — interactive embed first, screenshot fallback second */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 md:gap-3">
                           {platformEntries.map((entry, idx) => (
-                            <a key={idx} href={entry.url} target="_blank" rel="noopener noreferrer" className="rounded-xl overflow-hidden border border-white/[0.05] bg-white/[0.015] hover:border-white/[0.15] transition-all duration-200 group cursor-pointer block">
+                            <div key={idx} className="rounded-xl overflow-hidden border border-white/[0.05] bg-white/[0.015] hover:border-white/[0.15] transition-all duration-200 group">
                               {/* Platform header */}
-                              <div className="flex items-center justify-between px-2.5 py-1.5 md:px-3 md:py-2" style={{ background: `linear-gradient(135deg, ${entry.color}08, ${entry.color}04)`, borderBottom: `1px solid rgba(255,255,255,0.03)` }}>
-                                <div className="flex items-center gap-2">
-                                  <div className="w-5 h-5 md:w-6 md:h-6 rounded-md flex items-center justify-center text-[8px] md:text-[9px] font-black text-white" style={{ background: entry.color }}>
+                              <div className="flex items-center justify-between px-2.5 py-1.5 md:px-3 md:py-2" style={{ background: `linear-gradient(135deg, ${entry.color}20, ${entry.color}08)`, borderBottom: "1px solid hsl(0 0% 100% / 0.03)" }}>
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <div className="w-5 h-5 md:w-6 md:h-6 rounded-md flex items-center justify-center text-[8px] md:text-[9px] font-black text-white shrink-0" style={{ background: entry.color }}>
                                     {entry.icon}
                                   </div>
-                                  <div>
-                                    <p className="text-[10px] md:text-[11px] font-semibold text-white">{entry.platform}</p>
-                                    <p className="text-[8px] md:text-[9px] text-white/40">@{entry.username}</p>
+                                  <div className="min-w-0">
+                                    <p className="text-[10px] md:text-[11px] font-semibold text-white truncate">{entry.platform}</p>
+                                    <p className="text-[8px] md:text-[9px] text-white/40 truncate">@{entry.username}</p>
                                   </div>
                                 </div>
-                                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[7px] md:text-[8px] font-semibold text-white/60 group-hover:text-white bg-white/[0.05] group-hover:bg-white/[0.1] transition-colors">
+                                <a href={entry.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[7px] md:text-[8px] font-semibold text-white/60 hover:text-white bg-white/[0.05] hover:bg-white/[0.1] transition-colors shrink-0">
                                   <ExternalLink className="h-2 w-2 md:h-2.5 md:w-2.5" /> Open
-                                </span>
+                                </a>
                               </div>
 
-                              {/* Screenshot preview of actual profile */}
-                              <div className="relative h-[240px] md:h-[320px] bg-[#0a0a0a] overflow-hidden">
-                                <img
-                                  src={getScreenshot(entry.url)}
-                                  alt={`${entry.platform} profile of @${entry.username}`}
-                                  className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.02]"
-                                  loading="lazy"
-                                  decoding="async"
-                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
-                                />
-                                {/* Fallback if screenshot fails */}
-                                <div className="hidden absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: `linear-gradient(135deg, ${entry.color}15, #0a0a0c)` }}>
-                                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${entry.color}, ${entry.color}cc)` }}>
-                                    {entry.icon}
+                              {/* Interactive preview */}
+                              <div className="relative h-[240px] md:h-[320px] overflow-hidden bg-black/80">
+                                <object
+                                  data={entry.previewUrl}
+                                  type="text/html"
+                                  className="h-full w-full"
+                                  aria-label={`Interactive ${entry.platform} preview for @${entry.username}`}
+                                >
+                                  <div className="relative h-full w-full">
+                                    <img
+                                      src={getScreenshot(entry.url)}
+                                      alt={`${entry.platform} profile of @${entry.username}`}
+                                      className="h-full w-full object-cover object-top"
+                                      loading="lazy"
+                                      decoding="async"
+                                    />
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-3" style={{ background: `linear-gradient(135deg, ${entry.color}20, hsl(240 10% 4%) 70%)` }}>
+                                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${entry.color}, ${entry.color})` }}>
+                                        {entry.icon}
+                                      </div>
+                                      <p className="text-xs text-white/75 font-medium text-center">Interactive embed blocked by this platform</p>
+                                      <a href={entry.url} target="_blank" rel="noopener noreferrer" className="text-[9px] text-white/80 px-2 py-1 rounded-md bg-white/[0.12] hover:bg-white/[0.18] transition-colors">
+                                        Open live profile
+                                      </a>
+                                    </div>
                                   </div>
-                                  <p className="text-xs text-white/60 font-medium">@{entry.username}</p>
-                                  <span className="text-[9px] text-white/30 px-2 py-1 rounded-md bg-white/[0.04]">Click to view on {entry.platform}</span>
-                                </div>
-                                {/* Bottom gradient fade */}
-                                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#0a0a0c] to-transparent pointer-events-none" />
+                                </object>
+                                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/80 to-transparent pointer-events-none" />
                               </div>
 
                               {/* Quick stats bar */}
-                              <div className="px-2.5 py-1.5 md:px-3 md:py-2 flex items-center justify-between" style={{ borderTop: "1px solid rgba(255,255,255,0.03)", background: "rgba(255,255,255,0.01)" }}>
+                              <div className="px-2.5 py-1.5 md:px-3 md:py-2 flex items-center justify-between" style={{ borderTop: "1px solid hsl(0 0% 100% / 0.03)", background: "hsl(0 0% 100% / 0.01)" }}>
                                 <div className="flex items-center gap-2 md:gap-3">
                                   <span className="text-[8px] md:text-[9px] text-white/40 flex items-center gap-1"><Users className="h-2.5 w-2.5" />{fmtNum(comp.followers)}</span>
                                   <span className="text-[8px] md:text-[9px] text-white/40 flex items-center gap-1"><Activity className="h-2.5 w-2.5" />{comp.engagementRate}% ER</span>
                                   <span className="text-[8px] md:text-[9px] text-white/40 flex items-center gap-1"><Zap className="h-2.5 w-2.5" />{comp.postFrequency}/wk</span>
                                 </div>
-                                <span className="text-[7px] md:text-[8px] text-white/20">Live preview</span>
+                                <span className="text-[7px] md:text-[8px] text-white/20">Interactive preview</span>
                               </div>
-                            </a>
+                            </div>
                           ))}
                         </div>
 
                         {/* Content breakdown row */}
-                        <div className="mt-2.5 md:mt-3 p-2.5 md:p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                        <div className="mt-2.5 md:mt-3 p-2.5 md:p-3 rounded-xl" style={{ background: "hsl(0 0% 100% / 0.015)", border: "1px solid hsl(0 0% 100% / 0.04)" }}>
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-[9px] md:text-[10px] text-white/40 font-medium">Content Mix</span>
                             <span className="text-[9px] md:text-[10px] text-white/40">Top Hashtags</span>
@@ -2960,7 +3013,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                               ))}
                             </div>
                             <div className="flex gap-1 flex-wrap justify-start sm:justify-end">
-                              {comp.topHashtags.slice(0, 5).map(tag => (
+                              {comp.topHashtags.slice(0, 5).map((tag) => (
                                 <span key={tag} className="text-[8px] md:text-[9px] px-1.5 py-0.5 rounded bg-[hsl(217,91%,60%)]/10 text-[hsl(217,91%,60%)]">#{tag.replace("#", "")}</span>
                               ))}
                             </div>
@@ -2969,8 +3022,8 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                       </div>
 
                       {/* Device bottom — home indicator */}
-                      <div className="h-[14px] md:h-[18px] flex items-center justify-center" style={{ background: "linear-gradient(180deg, #1c1c1e, #2a2a2c)" }}>
-                        <div className="w-[80px] md:w-[120px] h-[3.5px] md:h-[4px] rounded-full" style={{ background: "rgba(255,255,255,0.12)" }} />
+                      <div className="h-[14px] md:h-[18px] flex items-center justify-center" style={{ background: "linear-gradient(180deg, hsl(240 4% 10%), hsl(240 3% 17%))" }}>
+                        <div className="w-[80px] md:w-[120px] h-[3.5px] md:h-[4px] rounded-full" style={{ background: "hsl(0 0% 100% / 0.12)" }} />
                       </div>
                     </div>
                   </div>
