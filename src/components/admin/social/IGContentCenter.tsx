@@ -414,6 +414,10 @@ const IGContentCenter = ({ selectedAccount: parentAccount, onNavigateToConnect, 
             <Button size="sm" variant="outline" onClick={fetchMedia} disabled={loading || !selectedAccount} className="text-foreground">
               <Download className="h-3.5 w-3.5 mr-1" />Pull Media
             </Button>
+            <Button size="sm" variant="outline" onClick={openImportPlan} disabled={!selectedAccount}
+              className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10">
+              <FileDown className="h-3.5 w-3.5 mr-1" />Import from Content Plan
+            </Button>
           </div>
 
           {!igConnected && <ConnectIGCTA />}
