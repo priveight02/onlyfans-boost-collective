@@ -2846,12 +2846,12 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
             {/* Cross-post to other platforms */}
             {!editingId && formPlatform && (
-              <div className="bg-muted/30 rounded-lg p-2">
-                <p className="text-[9px] text-muted-foreground mb-1.5 flex items-center gap-1"><Copy className="h-2.5 w-2.5" /> Also create for:</p>
+              <div className="bg-white/[0.03] rounded-lg p-2">
+                <p className="text-[9px] text-white/40 mb-1.5 flex items-center gap-1"><Copy className="h-2.5 w-2.5" /> Also create for:</p>
                 <div className="flex gap-1.5 flex-wrap">
                   {availablePlatforms.filter(p => p !== formPlatform).map(p => (
                     <button key={p} onClick={() => setCrossPostPlatforms(prev => prev.includes(p) ? prev.filter(x => x !== p) : [...prev, p])}
-                      className={`text-[10px] px-2 py-0.5 rounded-md border capitalize transition-colors ${crossPostPlatforms.includes(p) ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/50"}`}>
+                      className={`text-[10px] px-2 py-0.5 rounded-md border capitalize transition-colors ${crossPostPlatforms.includes(p) ? "border-primary bg-primary/10 text-primary" : "border-white/[0.08] text-white/40 hover:border-primary/50"}`}>
                       {p}
                     </button>
                   ))}
