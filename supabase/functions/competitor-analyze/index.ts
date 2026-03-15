@@ -516,37 +516,96 @@ const scrapeSocialProfiles = async (
     knownFollowers: number,
     current: ScrapedMetrics,
   ) => {
-    if (current.avgLikes && current.postFrequency && current.engagementRate) return current;
-
+    // Always try to enrich - don't skip even if some data exists
     let channelId = "";
-    const channelPage = await fetchWithTimeout(`https://www.youtube.com/@${handle}`, { ms: 8000, maxChars: 450000 });
-    if (channelPage) {
-      channelId = channelPage.match(/youtube\.com\/channel\/(UC[\w-]{20,})/i)?.[1]
-        || channelPage.match(/"channelId":"(UC[\w-]{20,})"/i)?.[1]
+
+    // Try multiple approaches to find channelId
+    // 1) Via Jina (rendered page, bypasses bot protection)
+    const jinaPage = await fetchJina(`https://www.youtube.com/@${handle}`);
+    if (jinaPage) {
+      channelId = jinaPage.match(/youtube\.com\/channel\/(UC[\w-]{20,})/i)?.[1]
+        || jinaPage.match(/"channelId":"(UC[\w-]{20,})"/i)?.[1]
+        || jinaPage.match(/UC[\w-]{20,}/)?.[0]
         || "";
+
+      // Extract additional data from channel page markdown
+      if (!current.followers) {
+        const subMatch = jinaPage.match(/([\d,.KMBkmb]+)\s*subscribers/i);
+        if (subMatch) current.followers = parseHumanNumber(subMatch[1]);
+      }
+      if (!current.posts) {
+        const vidMatch = jinaPage.match(/([\d,.KMBkmb]+)\s*videos/i);
+        if (vidMatch) current.posts = parseHumanNumber(vidMatch[1]);
+      }
+      if (!current.description) {
+        const descMatch = jinaPage.match(/about[^]*?subscribers[^]*?\n+([^\n]{10,200})/i);
+        if (descMatch) current.description = descMatch[1].trim().slice(0, 200);
+      }
     }
-    if (!channelId) return current;
+
+    // 2) Direct fetch fallback
+    if (!channelId) {
+      const channelPage = await fetchWithTimeout(`https://www.youtube.com/@${handle}`, { ms: 8000, maxChars: 450000 });
+      if (channelPage) {
+        channelId = channelPage.match(/youtube\.com\/channel\/(UC[\w-]{20,})/i)?.[1]
+          || channelPage.match(/"channelId":"(UC[\w-]{20,})"/i)?.[1]
+          || channelPage.match(/"externalId":"(UC[\w-]{20,})"/i)?.[1]
+          || "";
+
+        if (!current.followers) {
+          const subRaw = channelPage.match(/"subscriberCountText"\s*:\s*\{[^}]*"simpleText"\s*:\s*"([^"]+)"/i)?.[1]
+            || channelPage.match(/"subscriberCount"\s*:\s*"?(\d+)/i)?.[1] || "";
+          if (subRaw) { const v = parseHumanNumber(subRaw); if (v > 0) current.followers = v; }
+        }
+        if (!current.totalViews) {
+          const viewsRaw = channelPage.match(/"viewCount"\s*:\s*"(\d+)"/i)?.[1] || "";
+          if (viewsRaw) { const v = parseHumanNumber(viewsRaw); if (v > 0) current.totalViews = v; }
+        }
+      }
+    }
+
+    if (!channelId) {
+      console.log(`[SCRAPE] YouTube: Could not find channelId for @${handle}`);
+      return current;
+    }
+
+    console.log(`[SCRAPE] YouTube: Found channelId=${channelId} for @${handle}`);
 
     const rss = await fetchWithTimeout(`https://www.youtube.com/feeds/videos.xml?channel_id=${channelId}`, { ms: 8000, maxChars: 220000 });
     if (!rss) return current;
 
     const videos: { id: string; published: string }[] = [];
-    for (const match of rss.matchAll(/<yt:videoId>([^<]+)<\/yt:videoId>[\s\S]{0,260}?<published>([^<]+)<\/published>/g)) {
+    for (const match of rss.matchAll(/<yt:videoId>([^<]+)<\/yt:videoId>[\s\S]{0,500}?<published>([^<]+)<\/published>/g)) {
       videos.push({ id: match[1], published: match[2] });
-      if (videos.length >= 4) break;
+      if (videos.length >= 6) break;
     }
     if (videos.length === 0) return current;
 
+    console.log(`[SCRAPE] YouTube: Found ${videos.length} recent videos, scraping engagement...`);
+
     const details = await Promise.allSettled(videos.map(async (v) => {
-      const watch = await fetchWithTimeout(`https://www.youtube.com/watch?v=${v.id}`, { ms: 8000, maxChars: 500000 });
-      if (!watch) return { likes: 0, comments: 0, views: 0 };
-      const likesRaw = watch.match(/"likeCount":"(\d+)"/i)?.[1] || "";
-      const commentsRaw = watch.match(/"commentCount":"(\d+)"/i)?.[1] || "";
-      const viewsRaw = watch.match(/"viewCount":"(\d+)"/i)?.[1] || "";
+      // Use Jina for watch pages too (more reliable)
+      const watch = await fetchJina(`https://www.youtube.com/watch?v=${v.id}`);
+      if (!watch) {
+        // Direct fallback
+        const rawWatch = await fetchWithTimeout(`https://www.youtube.com/watch?v=${v.id}`, { ms: 8000, maxChars: 500000 });
+        if (!rawWatch) return { likes: 0, comments: 0, views: 0 };
+        return {
+          likes: parseHumanNumber(rawWatch.match(/"likeCount":"(\d+)"/i)?.[1] || ""),
+          comments: parseHumanNumber(rawWatch.match(/"commentCount":"(\d+)"/i)?.[1] || ""),
+          views: parseHumanNumber(rawWatch.match(/"viewCount":"(\d+)"/i)?.[1] || ""),
+        };
+      }
+      // Parse from Jina markdown
+      const viewsJina = watch.match(/([\d,.KMBkmb]+)\s*views/i)?.[1] || "";
+      const likesJina = watch.match(/([\d,.KMBkmb]+)\s*likes?/i)?.[1]
+        || watch.match(/"likeCount":"(\d+)"/i)?.[1] || "";
+      const commentsJina = watch.match(/([\d,.KMBkmb]+)\s*comments?/i)?.[1]
+        || watch.match(/"commentCount":"(\d+)"/i)?.[1] || "";
       return {
-        likes: parseHumanNumber(likesRaw),
-        comments: parseHumanNumber(commentsRaw),
-        views: parseHumanNumber(viewsRaw),
+        likes: parseHumanNumber(likesJina),
+        comments: parseHumanNumber(commentsJina),
+        views: parseHumanNumber(viewsJina),
       };
     }));
 
@@ -554,19 +613,24 @@ const scrapeSocialProfiles = async (
     const comments = details.map(d => d.status === "fulfilled" ? d.value.comments : 0).filter(n => n > 0);
     const views = details.map(d => d.status === "fulfilled" ? d.value.views : 0).filter(n => n > 0);
 
-    if (!current.avgLikes && likes.length) current.avgLikes = Math.round(likes.reduce((a, b) => a + b, 0) / likes.length);
-    if (!current.avgComments && comments.length) current.avgComments = Math.round(comments.reduce((a, b) => a + b, 0) / comments.length);
-    if (!current.avgViews && views.length) current.avgViews = Math.round(views.reduce((a, b) => a + b, 0) / views.length);
+    console.log(`[SCRAPE] YouTube @${handle} video stats: likes=[${likes.join(",")}] comments=[${comments.join(",")}] views=[${views.join(",")}]`);
 
-    if (!current.postFrequency && videos.length >= 2) {
+    if (likes.length) current.avgLikes = Math.round(likes.reduce((a, b) => a + b, 0) / likes.length);
+    if (comments.length) current.avgComments = Math.round(comments.reduce((a, b) => a + b, 0) / comments.length);
+    if (views.length) current.avgViews = Math.round(views.reduce((a, b) => a + b, 0) / views.length);
+
+    if (videos.length >= 2) {
       const first = new Date(videos[videos.length - 1].published).getTime();
       const last = new Date(videos[0].published).getTime();
       const days = Math.max((last - first) / (1000 * 60 * 60 * 24), 1);
-      current.postFrequency = (videos.length / days) * 7;
+      if (!current.postFrequency || current.postFrequency === 0) {
+        current.postFrequency = (videos.length / days) * 7;
+      }
     }
 
-    if (!current.engagementRate && knownFollowers > 0 && current.avgLikes) {
-      current.engagementRate = ((current.avgLikes + (current.avgComments || 0)) / knownFollowers) * 100;
+    const effectiveFollowers = current.followers || knownFollowers;
+    if (effectiveFollowers > 0 && current.avgLikes) {
+      current.engagementRate = ((current.avgLikes + (current.avgComments || 0)) / effectiveFollowers) * 100;
     }
 
     return current;
@@ -662,9 +726,9 @@ const scrapeSocialProfiles = async (
       }
     }
 
-    // ── TERTIARY: YouTube RSS enrichment for real engagement ──
-    if (key === "youtube" && merged.followers) {
-      await enrichYoutubeFromRecentVideos(handle, merged.followers, merged);
+    // ── TERTIARY: YouTube RSS enrichment for real engagement (always run for YouTube) ──
+    if (key === "youtube") {
+      await enrichYoutubeFromRecentVideos(handle, merged.followers || 0, merged);
     }
 
     // ── FALLBACK: Direct platform page scraping (for followers/posts if SB failed) ──
