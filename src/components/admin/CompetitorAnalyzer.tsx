@@ -322,6 +322,16 @@ const CompetitorAnalyzer = ({
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
+  // User's own stats for comparison
+  const [myStats, setMyStats] = useState<{
+    username: string; followers: number; engagementRate: number; avgLikes: number;
+    avgComments: number; growthRate: number; postFrequency: number; posts: number;
+  }>(() => {
+    try { const s = localStorage.getItem("competitor_my_stats"); return s ? JSON.parse(s) : null; } catch { return null; }
+  });
+  const [showMyStatsForm, setShowMyStatsForm] = useState(false);
+  const saveMyStats = (stats: typeof myStats) => { setMyStats(stats); localStorage.setItem("competitor_my_stats", JSON.stringify(stats)); setShowMyStatsForm(false); toast.success("Your stats saved for comparison"); };
+
   // Keyword search state
   const [keywordQuery, setKeywordQuery] = useState("");
   const [keywordPlatform, setKeywordPlatform] = useState("instagram");
@@ -343,9 +353,21 @@ const CompetitorAnalyzer = ({
   const [financialData, setFinancialData] = useState<any>(null);
   const [financialLoading, setFinancialLoading] = useState(false);
 
+  // Battle plan state
+  const [battlePlan, setBattlePlan] = useState<any>(null);
+  const [battlePlanLoading, setBattlePlanLoading] = useState(false);
+
+  // Content recommendations state
+  const [contentRecs, setContentRecs] = useState<any>(null);
+  const [contentRecsLoading, setContentRecsLoading] = useState(false);
+
+  // Site AI insights state
+  const [siteInsights, setSiteInsights] = useState<any>(null);
+  const [siteInsightsLoading, setSiteInsightsLoading] = useState(false);
+
   // Deep analysis section expansion
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    social: true, platforms: true, deepMetrics: false, security: false, performance: false, sensitive: false, financial: true,
+    social: true, platforms: true, deepMetrics: false, security: false, performance: false, sensitive: false, financial: true, siteInsights: true,
   });
   const toggleSection = (key: string) => setExpandedSections(prev => ({ ...prev, [key]: !prev[key] }));
 
@@ -842,6 +864,7 @@ RULES:
             { value: "content", icon: Calendar, label: "Content Intel" },
             { value: "swot", icon: Target, label: "SWOT" },
             { value: "strategy", icon: Brain, label: "AI Strategy" },
+            { value: "battleplan", icon: Crown, label: "Battle Plan" },
             { value: "analysis", icon: Globe, label: "Site Analysis" },
           ].map(tab => (
             <TabsTrigger key={tab.value} value={tab.value} className="data-[state=active]:bg-[hsl(217,91%,60%)]/10 data-[state=active]:text-[hsl(217,91%,60%)] text-white/35 rounded-lg gap-1.5 text-xs font-medium">
@@ -877,6 +900,86 @@ RULES:
                   {analyzing ? "Analyzing..." : "Add & Analyze"}
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* ─── YOUR STATS COMPARISON CARD ─── */}
+          <Card className="crm-card border-emerald-400/20">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Crown className="h-4 w-4 text-emerald-400" />
+                  <span className="text-sm font-medium text-emerald-400">Your Stats</span>
+                  {myStats && <Badge variant="outline" className="text-[9px] border-emerald-400/20 text-emerald-400">@{myStats.username}</Badge>}
+                </div>
+                <Button size="sm" variant="outline" className="text-xs gap-1 border-emerald-400/20 text-emerald-400 hover:bg-emerald-400/10 h-7" onClick={() => setShowMyStatsForm(!showMyStatsForm)}>
+                  {myStats ? "Edit" : "Set My Stats"}
+                </Button>
+              </div>
+              {myStats && !showMyStatsForm && (
+                <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+                  {[
+                    { label: "Followers", value: fmtNum(myStats.followers) },
+                    { label: "Eng. Rate", value: `${myStats.engagementRate}%` },
+                    { label: "Avg Likes", value: fmtNum(myStats.avgLikes) },
+                    { label: "Avg Comments", value: `${myStats.avgComments}` },
+                    { label: "Growth/Wk", value: `${myStats.growthRate >= 0 ? "+" : ""}${myStats.growthRate}%` },
+                    { label: "Posts/Wk", value: `${myStats.postFrequency}` },
+                    { label: "Total Posts", value: fmtNum(myStats.posts) },
+                    { label: "vs Top", value: competitors.length > 0 ? `${Math.round((myStats.followers / Math.max(...competitors.map(c => c.followers), 1)) * 100)}%` : "—" },
+                  ].map((s, i) => (
+                    <div key={i} className="text-center p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                      <p className="text-[10px] text-white/40">{s.label}</p>
+                      <p className="text-xs font-semibold text-emerald-400">{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showMyStatsForm && (
+                <div className="space-y-3 mt-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {[
+                      { key: "username", label: "Username", type: "text", placeholder: "your_username" },
+                      { key: "followers", label: "Followers", type: "number", placeholder: "10000" },
+                      { key: "engagementRate", label: "Engagement Rate %", type: "number", placeholder: "3.5" },
+                      { key: "avgLikes", label: "Avg Likes", type: "number", placeholder: "500" },
+                      { key: "avgComments", label: "Avg Comments", type: "number", placeholder: "25" },
+                      { key: "growthRate", label: "Growth/Week %", type: "number", placeholder: "1.5" },
+                      { key: "postFrequency", label: "Posts/Week", type: "number", placeholder: "5" },
+                      { key: "posts", label: "Total Posts", type: "number", placeholder: "200" },
+                    ].map(f => (
+                      <div key={f.key} className="space-y-1">
+                        <label className="text-[10px] text-white/40">{f.label}</label>
+                        <Input
+                          type={f.type}
+                          placeholder={f.placeholder}
+                          defaultValue={(myStats as any)?.[f.key] || ""}
+                          className="crm-input h-8 text-xs"
+                          id={`mystat-${f.key}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 text-xs" onClick={() => {
+                    const get = (k: string) => (document.getElementById(`mystat-${k}`) as HTMLInputElement)?.value || "";
+                    saveMyStats({
+                      username: get("username") || "me",
+                      followers: parseFloat(get("followers")) || 0,
+                      engagementRate: parseFloat(get("engagementRate")) || 0,
+                      avgLikes: parseFloat(get("avgLikes")) || 0,
+                      avgComments: parseFloat(get("avgComments")) || 0,
+                      growthRate: parseFloat(get("growthRate")) || 0,
+                      postFrequency: parseFloat(get("postFrequency")) || 0,
+                      posts: parseFloat(get("posts")) || 0,
+                    });
+                  }}>
+                    <CheckCircle className="h-3 w-3" /> Save My Stats
+                  </Button>
+                </div>
+              )}
+              {!myStats && !showMyStatsForm && (
+                <p className="text-xs text-white/30">Set your own stats to see how you compare in Benchmarks, charts, and get personalized action items</p>
+              )}
             </CardContent>
           </Card>
 
@@ -1029,34 +1132,96 @@ RULES:
             <Card className="crm-card"><CardContent className="p-12 text-center"><p className="text-white/50">Add competitors first to see benchmarks</p></CardContent></Card>
           ) : (
             <>
-              {/* Radar */}
+               {/* Radar - includes user data */}
               <Card className="crm-card">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-white/60">Performance Radar · All Competitors</CardTitle>
+                  <CardTitle className="text-sm font-medium text-white/60">Performance Radar {myStats ? "· You vs Competitors" : "· All Competitors"}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="h-[320px]">
                     <ResponsiveContainer width="100%" height="100%">
-                      <RadarChart data={[
-                        { metric: "Engagement", ...Object.fromEntries(competitors.map(c => [c.username, Math.min(c.engagementRate * 10, 100)])) },
-                        { metric: "Growth", ...Object.fromEntries(competitors.map(c => [c.username, Math.min(Math.max(c.growthRate * 15 + 50, 0), 100)])) },
-                        { metric: "Frequency", ...Object.fromEntries(competitors.map(c => [c.username, Math.min(c.postFrequency * 10, 100)])) },
-                        { metric: "Reach", ...Object.fromEntries(competitors.map(c => [c.username, Math.min((c.followers / Math.max(...competitors.map(x => x.followers))) * 100, 100)])) },
-                        { metric: "Community", ...Object.fromEntries(competitors.map(c => [c.username, Math.min(c.avgComments * 1.5, 100)])) },
-                        { metric: "Virality", ...Object.fromEntries(competitors.map(c => [c.username, Math.min(c.avgLikes / Math.max(...competitors.map(x => x.avgLikes)) * 100, 100)])) },
-                      ]}>
-                        <PolarGrid stroke="hsl(217 91% 60% / 0.08)" />
-                        <PolarAngleAxis dataKey="metric" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} />
-                        <PolarRadiusAxis tick={false} axisLine={false} />
-                        {competitors.map((c, i) => (
-                          <Radar key={c.id} name={`@${c.username}`} dataKey={c.username} stroke={PIE_COLORS[i % PIE_COLORS.length]} fill={PIE_COLORS[i % PIE_COLORS.length]} fillOpacity={0.1} strokeWidth={2} />
-                        ))}
-                        <Legend wrapperStyle={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }} />
-                      </RadarChart>
+                      {(() => {
+                        const allEntries = [...competitors.map(c => ({ key: c.username, followers: c.followers, engagementRate: c.engagementRate, postFrequency: c.postFrequency, avgComments: c.avgComments, avgLikes: c.avgLikes, growthRate: c.growthRate }))];
+                        if (myStats) allEntries.push({ key: myStats.username, followers: myStats.followers, engagementRate: myStats.engagementRate, postFrequency: myStats.postFrequency, avgComments: myStats.avgComments, avgLikes: myStats.avgLikes, growthRate: myStats.growthRate });
+                        const maxFollowers = Math.max(...allEntries.map(e => e.followers), 1);
+                        const maxLikes = Math.max(...allEntries.map(e => e.avgLikes), 1);
+                        return (
+                          <RadarChart data={[
+                            { metric: "Engagement", ...Object.fromEntries(allEntries.map(e => [e.key, Math.min(e.engagementRate * 10, 100)])) },
+                            { metric: "Growth", ...Object.fromEntries(allEntries.map(e => [e.key, Math.min(Math.max(e.growthRate * 15 + 50, 0), 100)])) },
+                            { metric: "Frequency", ...Object.fromEntries(allEntries.map(e => [e.key, Math.min(e.postFrequency * 10, 100)])) },
+                            { metric: "Reach", ...Object.fromEntries(allEntries.map(e => [e.key, Math.min((e.followers / maxFollowers) * 100, 100)])) },
+                            { metric: "Community", ...Object.fromEntries(allEntries.map(e => [e.key, Math.min(e.avgComments * 1.5, 100)])) },
+                            { metric: "Virality", ...Object.fromEntries(allEntries.map(e => [e.key, Math.min(e.avgLikes / maxLikes * 100, 100)])) },
+                          ]}>
+                            <PolarGrid stroke="hsl(217 91% 60% / 0.08)" />
+                            <PolarAngleAxis dataKey="metric" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11 }} />
+                            <PolarRadiusAxis tick={false} axisLine={false} />
+                            {myStats && (
+                              <Radar name={`@${myStats.username} (You)`} dataKey={myStats.username} stroke="hsl(150,60%,50%)" fill="hsl(150,60%,50%)" fillOpacity={0.15} strokeWidth={3} strokeDasharray="0" />
+                            )}
+                            {competitors.map((c, i) => (
+                              <Radar key={c.id} name={`@${c.username}`} dataKey={c.username} stroke={PIE_COLORS[i % PIE_COLORS.length]} fill={PIE_COLORS[i % PIE_COLORS.length]} fillOpacity={0.1} strokeWidth={2} />
+                            ))}
+                            <Legend wrapperStyle={{ fontSize: 11, color: "rgba(255,255,255,0.5)" }} />
+                          </RadarChart>
+                        );
+                      })()}
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
+
+              {/* Win/Loss Summary */}
+              {myStats && (
+                <Card className="crm-card border-emerald-400/15">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-400 flex items-center gap-2"><Crown className="h-4 w-4" /> Your Competitive Standing</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                      {competitors.map(comp => {
+                        const wins = [
+                          myStats.followers > comp.followers,
+                          myStats.engagementRate > comp.engagementRate,
+                          myStats.avgLikes > comp.avgLikes,
+                          myStats.growthRate > comp.growthRate,
+                          myStats.postFrequency > comp.postFrequency,
+                        ].filter(Boolean).length;
+                        const total = 5;
+                        const pct = Math.round((wins / total) * 100);
+                        return (
+                          <div key={comp.id} className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-medium text-white/80">vs @{comp.username}</span>
+                              <Badge variant="outline" className={`text-[9px] ${pct >= 60 ? "border-emerald-400/30 text-emerald-400" : pct >= 40 ? "border-amber-400/30 text-amber-400" : "border-red-400/30 text-red-400"}`}>
+                                {pct >= 60 ? "Winning" : pct >= 40 ? "Close" : "Behind"} · {wins}/{total}
+                              </Badge>
+                            </div>
+                            <div className="w-full bg-white/[0.06] rounded-full h-1.5">
+                              <div className={`h-1.5 rounded-full transition-all ${pct >= 60 ? "bg-emerald-400" : pct >= 40 ? "bg-amber-400" : "bg-red-400"}`} style={{ width: `${pct}%` }} />
+                            </div>
+                            <div className="grid grid-cols-5 gap-1 text-center">
+                              {[
+                                { l: "Reach", w: myStats.followers > comp.followers },
+                                { l: "Eng.", w: myStats.engagementRate > comp.engagementRate },
+                                { l: "Likes", w: myStats.avgLikes > comp.avgLikes },
+                                { l: "Growth", w: myStats.growthRate > comp.growthRate },
+                                { l: "Freq.", w: myStats.postFrequency > comp.postFrequency },
+                              ].map((m, i) => (
+                                <div key={i} className="space-y-0.5">
+                                  <div className={`h-4 w-4 mx-auto rounded-full flex items-center justify-center ${m.w ? "bg-emerald-400/20" : "bg-red-400/20"}`}>
+                                    {m.w ? <ArrowUpRight className="h-2.5 w-2.5 text-emerald-400" /> : <ArrowDownRight className="h-2.5 w-2.5 text-red-400" />}
+                                  </div>
+                                  <p className="text-[8px] text-white/30">{m.l}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Follower comparison bar */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1124,29 +1289,43 @@ RULES:
                       <thead>
                         <tr className="border-b border-white/[0.06]">
                           <th className="text-left py-2 text-white/50 font-medium text-xs">Metric</th>
+                          {myStats && <th className="text-center py-2 text-emerald-400 font-medium text-xs">@{myStats.username} (You)</th>}
                           {competitors.map(c => <th key={c.id} className="text-center py-2 text-white/50 font-medium text-xs">@{c.username}</th>)}
                         </tr>
                       </thead>
                       <tbody>
                         {([
-                          { label: "Followers", key: "followers" as keyof Competitor, fmt: (v: number) => fmtNum(v), higher: true },
-                          { label: "Engagement Rate", key: "engagementRate" as keyof Competitor, fmt: (v: number) => `${v}%`, higher: true },
-                          { label: "Avg Likes", key: "avgLikes" as keyof Competitor, fmt: (v: number) => v.toLocaleString(), higher: true },
-                          { label: "Avg Comments", key: "avgComments" as keyof Competitor, fmt: (v: number) => v.toLocaleString(), higher: true },
-                          { label: "Growth/Week", key: "growthRate" as keyof Competitor, fmt: (v: number) => `${v >= 0 ? "+" : ""}${v}%`, higher: true },
-                          { label: "Posts/Week", key: "postFrequency" as keyof Competitor, fmt: (v: number) => `${v}`, higher: true },
-                          { label: "Total Posts", key: "posts" as keyof Competitor, fmt: (v: number) => v.toLocaleString(), higher: true },
-                          { label: "Threat Score", key: "score" as keyof Competitor, fmt: (v: number) => `${v}/100`, higher: false },
+                          { label: "Followers", key: "followers" as keyof Competitor, myKey: "followers" as keyof typeof myStats, fmt: (v: number) => fmtNum(v), higher: true },
+                          { label: "Engagement Rate", key: "engagementRate" as keyof Competitor, myKey: "engagementRate" as keyof typeof myStats, fmt: (v: number) => `${v}%`, higher: true },
+                          { label: "Avg Likes", key: "avgLikes" as keyof Competitor, myKey: "avgLikes" as keyof typeof myStats, fmt: (v: number) => v.toLocaleString(), higher: true },
+                          { label: "Avg Comments", key: "avgComments" as keyof Competitor, myKey: "avgComments" as keyof typeof myStats, fmt: (v: number) => v.toLocaleString(), higher: true },
+                          { label: "Growth/Week", key: "growthRate" as keyof Competitor, myKey: "growthRate" as keyof typeof myStats, fmt: (v: number) => `${v >= 0 ? "+" : ""}${v}%`, higher: true },
+                          { label: "Posts/Week", key: "postFrequency" as keyof Competitor, myKey: "postFrequency" as keyof typeof myStats, fmt: (v: number) => `${v}`, higher: true },
+                          { label: "Total Posts", key: "posts" as keyof Competitor, myKey: "posts" as keyof typeof myStats, fmt: (v: number) => v.toLocaleString(), higher: true },
+                          { label: "Threat Score", key: "score" as keyof Competitor, myKey: null, fmt: (v: number) => `${v}/100`, higher: false },
                         ]).map(row => {
-                          const vals = competitors.map(c => c[row.key] as number);
-                          const best = row.higher ? Math.max(...vals) : Math.min(...vals);
+                          const compVals = competitors.map(c => c[row.key] as number);
+                          const allVals = myStats && row.myKey ? [...compVals, (myStats as any)[row.myKey] as number] : compVals;
+                          const best = row.higher ? Math.max(...allVals) : Math.min(...allVals);
+                          const myVal = myStats && row.myKey ? (myStats as any)[row.myKey] as number : null;
                           return (
                             <tr key={row.label} className="border-b border-white/[0.03]">
                               <td className="py-2.5 text-white/50 text-xs">{row.label}</td>
+                              {myStats && (
+                                <td className={`text-center py-2.5 text-xs font-medium ${myVal !== null && myVal === best ? "text-emerald-400 font-bold" : "text-emerald-400/70"}`}>
+                                  {myVal !== null ? row.fmt(myVal) : "—"}
+                                </td>
+                              )}
                               {competitors.map(c => {
                                 const val = c[row.key] as number;
                                 const isBest = val === best;
-                                return <td key={c.id} className={`text-center py-2.5 text-xs font-medium ${isBest ? "text-emerald-400" : "text-white/70"}`}>{row.fmt(val)}</td>;
+                                const userBeats = myVal !== null && row.higher ? myVal > val : myVal !== null ? myVal < val : false;
+                                return (
+                                  <td key={c.id} className={`text-center py-2.5 text-xs font-medium ${isBest ? "text-emerald-400" : userBeats ? "text-red-400/60" : "text-white/70"}`}>
+                                    {row.fmt(val)}
+                                    {myVal !== null && userBeats && <ArrowDownRight className="inline h-3 w-3 ml-0.5 text-red-400/40" />}
+                                  </td>
+                                );
                               })}
                             </tr>
                           );
@@ -1437,6 +1616,118 @@ RULES:
                   </div>
                 </CardContent>
               </Card>
+
+              {/* AI Content Recommendations */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2"><Brain className="h-4 w-4" /> AI Content Recommendations</CardTitle>
+                    <Button size="sm" variant="outline" className="text-xs gap-1 border-[hsl(262,83%,58%)]/20 text-[hsl(262,83%,58%)] hover:bg-[hsl(262,83%,58%)]/10 h-7" disabled={contentRecsLoading}
+                      onClick={async () => {
+                        setContentRecsLoading(true);
+                        try {
+                          const compData = competitors.map(c => `@${c.username}: ${c.followers} followers, ${c.engagementRate}% ER, top content: ${c.contentTypes.map(ct => `${ct.type}(${ct.pct}%)`).join(",")}, hashtags: ${c.topHashtags.slice(0,3).join(",")}, niche: ${c.metadata?.niche || "unknown"}`).join("\n");
+                          const myContext = myStats ? `\nMY STATS: @${myStats.username}: ${myStats.followers} followers, ${myStats.engagementRate}% ER, ${myStats.postFrequency} posts/wk` : "";
+                          const aiReply = await callAI(`Analyze these competitors' content and give me specific recommendations to outperform them.${myContext}\n\nCOMPETITORS:\n${compData}\n\nReturn ONLY valid JSON:\n{"contentPillars":[{"pillar":"name","description":"why","frequency":"posts/week","expectedEngagement":"X%"}],"hookFormulas":[{"formula":"the hook template","example":"concrete example","whyItWorks":"reason"}],"postingSchedule":{"bestDays":["Mon","Wed"],"bestTimes":["9am","7pm"],"reasoning":"why"},"contentCalendar":[{"day":"Monday","contentType":"Reel","topic":"specific topic","hashtags":["tag1","tag2"],"hookIdea":"specific hook"}],"stealableStrategies":[{"from":"@competitor","strategy":"what they do","howToAdapt":"how to do it better"}]}`);
+                          setContentRecs(parseJSON(aiReply));
+                          toast.success("Content recommendations generated");
+                        } catch (err: any) { toast.error(err?.message || "Failed"); }
+                        finally { setContentRecsLoading(false); }
+                      }}>
+                      {contentRecsLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                      {contentRecsLoading ? "Analyzing..." : "Generate Recs"}
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {contentRecsLoading ? (
+                    <div className="text-center py-6"><Loader2 className="h-6 w-6 text-[hsl(262,83%,58%)] mx-auto animate-spin" /><p className="text-xs text-white/40 mt-2">Analyzing competitor content patterns...</p></div>
+                  ) : contentRecs ? (
+                    <div className="space-y-4">
+                      {/* Content Pillars */}
+                      <div>
+                        <p className="text-xs font-medium text-white/50 mb-2">Content Pillars to Own</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {(contentRecs.contentPillars || []).map((p: any, i: number) => (
+                            <div key={i} className="p-2.5 rounded-lg bg-[hsl(262,83%,58%)]/5 border border-[hsl(262,83%,58%)]/15 space-y-1">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium text-white/80">{p.pillar}</span>
+                                <Badge variant="outline" className="text-[9px] border-[hsl(262,83%,58%)]/20 text-[hsl(262,83%,58%)]">{p.frequency}</Badge>
+                              </div>
+                              <p className="text-[10px] text-white/50">{p.description}</p>
+                              <p className="text-[10px] text-emerald-400">Expected: {p.expectedEngagement}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Hook Formulas */}
+                      <div>
+                        <p className="text-xs font-medium text-white/50 mb-2">Proven Hook Formulas</p>
+                        <div className="space-y-2">
+                          {(contentRecs.hookFormulas || []).map((h: any, i: number) => (
+                            <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1">
+                              <p className="text-xs font-medium text-amber-400">"{h.formula}"</p>
+                              <p className="text-[10px] text-white/60 italic">Example: {h.example}</p>
+                              <p className="text-[10px] text-white/40">{h.whyItWorks}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Posting Schedule */}
+                      {contentRecs.postingSchedule && (
+                        <div className="p-3 rounded-lg bg-[hsl(217,91%,60%)]/5 border border-[hsl(217,91%,60%)]/15">
+                          <p className="text-xs font-medium text-[hsl(217,91%,60%)] mb-1">Optimal Posting Schedule</p>
+                          <div className="flex gap-2 mb-1">
+                            {(contentRecs.postingSchedule.bestDays || []).map((d: string) => <Badge key={d} variant="outline" className="text-[9px] border-[hsl(217,91%,60%)]/20 text-[hsl(217,91%,60%)]">{d}</Badge>)}
+                            {(contentRecs.postingSchedule.bestTimes || []).map((t: string) => <Badge key={t} variant="outline" className="text-[9px] border-emerald-400/20 text-emerald-400">{t}</Badge>)}
+                          </div>
+                          <p className="text-[10px] text-white/40">{contentRecs.postingSchedule.reasoning}</p>
+                        </div>
+                      )}
+
+                      {/* Weekly Content Calendar */}
+                      {(contentRecs.contentCalendar || []).length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-white/50 mb-2">Weekly Content Calendar</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+                            {contentRecs.contentCalendar.map((day: any, i: number) => (
+                              <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <Badge className="bg-[hsl(217,91%,60%)]/15 text-[hsl(217,91%,60%)] text-[9px]">{day.day}</Badge>
+                                  <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{day.contentType}</Badge>
+                                </div>
+                                <p className="text-xs text-white/70">{day.topic}</p>
+                                <p className="text-[10px] text-amber-400/70">Hook: {day.hookIdea}</p>
+                                <div className="flex gap-1 flex-wrap">{(day.hashtags || []).map((t: string) => <span key={t} className="text-[9px] text-[hsl(217,91%,60%)]/50">#{t}</span>)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Stealable Strategies */}
+                      {(contentRecs.stealableStrategies || []).length > 0 && (
+                        <div>
+                          <p className="text-xs font-medium text-white/50 mb-2">Strategies to Steal & Improve</p>
+                          {contentRecs.stealableStrategies.map((s: any, i: number) => (
+                            <div key={i} className="p-2.5 rounded-lg bg-amber-400/5 border border-amber-400/15 space-y-1 mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-white/70">From <span className="text-amber-400 font-medium">{s.from}</span></span>
+                              </div>
+                              <p className="text-[10px] text-white/60">They do: {s.strategy}</p>
+                              <p className="text-[10px] text-emerald-400">Your version: {s.howToAdapt}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-white/30 text-center py-4">Click "Generate Recs" for AI-powered content strategy based on competitor analysis</p>
+                  )}
+                </CardContent>
+              </Card>
             </>
           )}
         </TabsContent>
@@ -1558,6 +1849,169 @@ RULES:
             </Card>
           )}
         </TabsContent>
+
+        {/* ═══ BATTLE PLAN TAB ═══ */}
+        <TabsContent value="battleplan" className="space-y-5">
+          <Card className="crm-card">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-medium text-white/80 flex items-center gap-2"><Crown className="h-4 w-4 text-amber-400" /> Weekly Battle Plan</h3>
+                  <p className="text-xs text-white/40 mt-0.5">AI generates a specific weekly action plan to outperform all tracked competitors</p>
+                </div>
+                <Button disabled={battlePlanLoading || competitors.length === 0} className="bg-gradient-to-r from-amber-500 to-orange-500 hover:opacity-90 text-white gap-1.5"
+                  onClick={async () => {
+                    setBattlePlanLoading(true);
+                    try {
+                      const compData = competitors.map(c => `@${c.username}(${c.platform}): ${c.followers} followers, ${c.engagementRate}% ER, ${c.growthRate}% growth, ${c.postFrequency} posts/wk, niche: ${c.metadata?.niche || "?"}, hashtags: ${c.topHashtags.slice(0,3).join(",")}`).join("\n");
+                      const myContext = myStats ? `\nMY STATS: @${myStats.username}: ${myStats.followers} followers, ${myStats.engagementRate}% ER, ${myStats.avgLikes} avg likes, ${myStats.growthRate}% growth, ${myStats.postFrequency} posts/wk` : "\nNo user stats provided.";
+                      const aiReply = await callAI(`Create an aggressive weekly battle plan to outperform these competitors.${myContext}\n\nCOMPETITORS:\n${compData}\n\nReturn ONLY valid JSON:\n{"weeklyGoals":[{"goal":"specific measurable goal","metric":"what to track","target":"specific number"}],"dailyActions":{"monday":{"morning":"action","afternoon":"action","evening":"action"},"tuesday":{"morning":"action","afternoon":"action","evening":"action"},"wednesday":{"morning":"action","afternoon":"action","evening":"action"},"thursday":{"morning":"action","afternoon":"action","evening":"action"},"friday":{"morning":"action","afternoon":"action","evening":"action"},"saturday":{"morning":"action","evening":"action"},"sunday":{"morning":"action","evening":"action"}},"quickWins":[{"action":"do this now","impact":"high/medium","timeNeeded":"30min","expectedResult":"what happens"}],"competitorVulnerabilities":[{"competitor":"@name","vulnerability":"their weakness","exploit":"how to exploit it","priority":"high/medium/low"}],"growthHacks":[{"hack":"specific tactic","difficulty":"easy/medium/hard","expectedGrowth":"X% or X followers","timeline":"1 week"}],"contentBombs":[{"title":"viral content idea","format":"reel/carousel/story","hook":"opening hook","whyViral":"reason it would go viral"}]}`);
+                      setBattlePlan(parseJSON(aiReply));
+                      toast.success("Battle plan generated!");
+                    } catch (err: any) { toast.error(err?.message || "Failed"); }
+                    finally { setBattlePlanLoading(false); }
+                  }}>
+                  {battlePlanLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Flame className="h-4 w-4" />}
+                  {battlePlanLoading ? "Planning..." : "Generate Battle Plan"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {battlePlanLoading ? (
+            <Card className="crm-card"><CardContent className="p-12 text-center"><Loader2 className="h-8 w-8 text-amber-400 mx-auto animate-spin mb-3" /><p className="text-white/50 text-sm">Crafting your dominance strategy...</p></CardContent></Card>
+          ) : battlePlan ? (
+            <div className="space-y-4">
+              {/* Weekly Goals */}
+              <Card className="crm-card border-amber-400/15">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><Target className="h-4 w-4" /> Weekly Goals</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    {(battlePlan.weeklyGoals || []).map((g: any, i: number) => (
+                      <div key={i} className="p-3 rounded-lg bg-amber-400/5 border border-amber-400/15 space-y-1">
+                        <p className="text-xs font-medium text-white/80">{g.goal}</p>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-[9px] border-amber-400/20 text-amber-400">{g.metric}</Badge>
+                          <span className="text-[10px] text-emerald-400 font-bold">{g.target}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Quick Wins */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-emerald-400 flex items-center gap-2"><Zap className="h-4 w-4" /> Quick Wins (Do Now)</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  {(battlePlan.quickWins || []).map((w: any, i: number) => (
+                    <div key={i} className="flex items-start gap-3 p-2.5 rounded-lg bg-emerald-400/5 border border-emerald-400/15">
+                      <div className={`mt-0.5 px-1.5 py-0.5 rounded text-[9px] font-bold ${w.impact === "high" ? "bg-red-400/20 text-red-400" : "bg-amber-400/20 text-amber-400"}`}>{w.impact}</div>
+                      <div className="flex-1 space-y-0.5">
+                        <p className="text-xs font-medium text-white/80">{w.action}</p>
+                        <div className="flex items-center gap-3">
+                          <span className="text-[10px] text-white/40">⏱ {w.timeNeeded}</span>
+                          <span className="text-[10px] text-emerald-400">→ {w.expectedResult}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* Competitor Vulnerabilities */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-red-400 flex items-center gap-2"><AlertTriangle className="h-4 w-4" /> Competitor Vulnerabilities to Exploit</CardTitle></CardHeader>
+                <CardContent className="space-y-2">
+                  {(battlePlan.competitorVulnerabilities || []).map((v: any, i: number) => (
+                    <div key={i} className="p-2.5 rounded-lg bg-red-400/5 border border-red-400/15 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-white/80">{v.competitor}</span>
+                        <Badge variant="outline" className={`text-[9px] ${v.priority === "high" ? "border-red-400/30 text-red-400" : "border-white/10 text-white/40"}`}>{v.priority}</Badge>
+                      </div>
+                      <p className="text-[10px] text-white/50">Weakness: {v.vulnerability}</p>
+                      <p className="text-[10px] text-amber-400">→ {v.exploit}</p>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {/* Growth Hacks */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(217,91%,60%)] flex items-center gap-2"><TrendingUp className="h-4 w-4" /> Growth Hacks</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {(battlePlan.growthHacks || []).map((h: any, i: number) => (
+                      <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1">
+                        <p className="text-xs font-medium text-white/80">{h.hack}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className={`text-[9px] ${h.difficulty === "easy" ? "border-emerald-400/20 text-emerald-400" : h.difficulty === "hard" ? "border-red-400/20 text-red-400" : "border-amber-400/20 text-amber-400"}`}>{h.difficulty}</Badge>
+                          <span className="text-[10px] text-emerald-400">+{h.expectedGrowth}</span>
+                          <span className="text-[10px] text-white/30">{h.timeline}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+
+                {/* Content Bombs */}
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2"><Flame className="h-4 w-4" /> Viral Content Bombs</CardTitle></CardHeader>
+                  <CardContent className="space-y-2">
+                    {(battlePlan.contentBombs || []).map((b: any, i: number) => (
+                      <div key={i} className="p-2.5 rounded-lg bg-[hsl(262,83%,58%)]/5 border border-[hsl(262,83%,58%)]/15 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-medium text-white/80">{b.title}</span>
+                          <Badge variant="outline" className="text-[9px] border-white/10 text-white/40">{b.format}</Badge>
+                        </div>
+                        <p className="text-[10px] text-amber-400">Hook: "{b.hook}"</p>
+                        <p className="text-[10px] text-white/40">{b.whyViral}</p>
+                      </div>
+                    ))}
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Daily Actions */}
+              {battlePlan.dailyActions && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60 flex items-center gap-2"><Calendar className="h-4 w-4" /> Daily Action Schedule</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+                      {Object.entries(battlePlan.dailyActions).map(([day, actions]: [string, any]) => (
+                        <div key={day} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1.5">
+                          <p className="text-xs font-medium text-white/80 capitalize">{day}</p>
+                          {Object.entries(actions || {}).map(([time, action]: [string, any]) => (
+                            <div key={time} className="flex items-start gap-2">
+                              <span className="text-[9px] text-white/30 uppercase w-14 shrink-0 pt-0.5">{time}</span>
+                              <span className="text-[10px] text-white/60">{String(action)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="flex justify-end">
+                <Button size="sm" variant="outline" className="text-xs gap-1 border-white/10 text-white/50" onClick={() => {
+                  navigator.clipboard.writeText(JSON.stringify(battlePlan, null, 2));
+                  toast.success("Battle plan copied");
+                }}><Copy className="h-3 w-3" /> Copy Plan</Button>
+              </div>
+            </div>
+          ) : (
+            <Card className="crm-card">
+              <CardContent className="p-12 text-center">
+                <Crown className="h-10 w-10 text-white/20 mx-auto mb-3" />
+                <h3 className="text-white/50 font-medium mb-1">{competitors.length === 0 ? "Add competitors first" : "Generate your battle plan"}</h3>
+                <p className="text-white/30 text-sm">Get a specific weekly action plan with quick wins, growth hacks, and competitor vulnerabilities to exploit</p>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
         {/* ═══ SITE ANALYSIS TAB ═══ */}
         <TabsContent value="analysis" className="space-y-5 w-full overflow-x-hidden overflow-y-auto" style={{ maxWidth: 'calc(100vw - 340px)' }}>
           <Card className="crm-card">
