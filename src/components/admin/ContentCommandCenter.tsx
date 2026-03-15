@@ -1987,11 +1987,11 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       {loading ? (
         <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>
       ) : filtered.length === 0 ? (
-        <Card className="bg-card/50 border-border">
+        <Card className="bg-white/[0.03] border-white/[0.06]">
           <CardContent className="py-16 text-center">
-            <Calendar className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-            <p className="text-muted-foreground text-sm">No content yet</p>
-            <p className="text-muted-foreground/60 text-xs mt-1">Create a draft, use a template, or auto-generate with AI</p>
+            <Calendar className="h-10 w-10 text-white/10 mx-auto mb-3" />
+            <p className="text-white/50 text-sm">No content yet</p>
+            <p className="text-white/30 text-xs mt-1">Create a draft, use a template, or auto-generate with AI</p>
           </CardContent>
         </Card>
       ) : viewMode === "calendar" ? (
