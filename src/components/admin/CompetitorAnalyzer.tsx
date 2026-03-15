@@ -2792,8 +2792,8 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
             <Card className="crm-card"><CardContent className="p-12 text-center"><p className="text-white/50">Add competitors first</p></CardContent></Card>
           ) : (
             <>
-              {/* Full-width iPad Social Intelligence Panels — 1 per competitor */}
-              {competitors.map(comp => {
+              {/* Full-width Device Social Intelligence Panels — iPad on desktop, iPhone on mobile */}
+               {competitors.map(comp => {
                 const social = comp.metadata?.socialPresence || {};
                 const platformEntries: { platform: string; username: string; color: string; icon: string; url: string }[] = [];
                 
@@ -2817,159 +2817,160 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                   if (p === "internet") platformEntries.push({ platform: "LinkedIn", username: comp.username, color: "#0A66C2", icon: "LI", url: `https://www.linkedin.com/company/${comp.username}` });
                 }
 
+                // Free screenshot proxy — no API key needed
+                const getScreenshot = (url: string) => `https://image.thum.io/get/width/600/crop/900/noanimate/${encodeURIComponent(url)}`;
+
                 return (
                   <div key={comp.id} className="w-full">
-                    {/* iPad Frame */}
+                    {/* ── iPad frame (desktop) / iPhone frame (mobile) ── */}
                     <div
-                      className="relative w-full rounded-[1.8rem] bg-[#1a1a1a] overflow-hidden border border-white/[0.08]"
+                      className="relative w-full rounded-[2rem] md:rounded-[2.2rem] overflow-hidden will-change-transform"
                       style={{
-                        boxShadow: "0 0 0 3px #2a2a2a, 0 0 0 5px #181818, 0 25px 80px rgba(0,0,0,0.5), 0 0 100px hsl(var(--primary) / 0.04)",
+                        background: "linear-gradient(145deg, #2c2c2e, #1c1c1e, #2c2c2e)",
+                        boxShadow: "inset 0 1px 0 rgba(255,255,255,0.06), 0 0 0 1.5px #3a3a3c, 0 0 0 3px #1c1c1e, 0 30px 80px rgba(0,0,0,0.6), 0 0 60px hsl(var(--primary) / 0.03)",
                       }}
                     >
-                      {/* iPad top bezel with camera */}
-                      <div className="h-[32px] bg-[#1a1a1a] flex items-center justify-between px-6 relative">
-                        <div className="absolute left-1/2 top-[10px] -translate-x-1/2 w-[8px] h-[8px] rounded-full bg-[#2a2a2a] border border-[#333]" />
-                        <span className="text-[10px] text-white/50 font-semibold" style={{ fontFamily: "system-ui" }}>9:41</span>
-                        <div className="flex gap-[2px] items-center">
-                          <div className="flex gap-[1px] items-end h-[8px]">
-                            {[2.5, 4, 5.5, 7].map((h, i) => (
-                              <div key={i} className="w-[2.5px] rounded-[0.5px] bg-white/60" style={{ height: h }} />
+                      {/* Device top bezel */}
+                      <div className="h-[28px] md:h-[32px] flex items-center justify-between px-5 md:px-6 relative" style={{ background: "linear-gradient(180deg, #2a2a2c, #1c1c1e)" }}>
+                        {/* Camera (iPad) / Dynamic Island (iPhone on mobile) */}
+                        <div className="hidden md:block absolute left-1/2 top-[9px] -translate-x-1/2 w-[7px] h-[7px] rounded-full" style={{ background: "radial-gradient(circle, #1a1a1c 40%, #0d0d0f 100%)", boxShadow: "inset 0 0 2px rgba(255,255,255,0.08), 0 0 3px rgba(0,0,0,0.5)" }} />
+                        <div className="md:hidden absolute left-1/2 top-[6px] -translate-x-1/2 w-[90px] h-[22px] rounded-full bg-black" style={{ boxShadow: "inset 0 0 3px rgba(0,0,0,0.8)" }} />
+                        
+                        {/* Status bar */}
+                        <span className="text-[10px] text-white/60 font-semibold tabular-nums" style={{ fontFamily: "-apple-system, system-ui" }}>9:41</span>
+                        <div className="flex gap-[3px] items-center">
+                          <div className="flex gap-[1.5px] items-end h-[9px]">
+                            {[3, 4.5, 6, 8].map((h, i) => (
+                              <div key={i} className="w-[2.5px] rounded-[1px]" style={{ height: h, background: i < 3 ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.25)" }} />
                             ))}
                           </div>
-                          <svg className="h-[9px] w-[12px] ml-[2px]" viewBox="0 0 16 12" fill="rgba(255,255,255,0.6)"><path d="M8 9.6a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4zM3.76 7.04a5.92 5.92 0 018.48 0l-1.2 1.2a4.16 4.16 0 00-6.08 0l-1.2-1.2zM1.04 4.32a9.44 9.44 0 0113.92 0l-1.2 1.2a7.68 7.68 0 00-11.52 0l-1.2-1.2z"/></svg>
-                          <div className="w-[18px] h-[8px] border border-white/40 rounded-[2px] ml-[2px] relative">
-                            <div className="absolute inset-[1.5px] right-[2px] bg-white/60 rounded-[0.5px]" />
+                          <svg className="h-[9px] w-[13px] ml-1" viewBox="0 0 16 12" fill="rgba(255,255,255,0.65)"><path d="M8 9.6a1.2 1.2 0 110 2.4 1.2 1.2 0 010-2.4zM3.76 7.04a5.92 5.92 0 018.48 0l-1.2 1.2a4.16 4.16 0 00-6.08 0l-1.2-1.2zM1.04 4.32a9.44 9.44 0 0113.92 0l-1.2 1.2a7.68 7.68 0 00-11.52 0l-1.2-1.2z"/></svg>
+                          <div className="w-[20px] h-[9px] border border-white/35 rounded-[2.5px] ml-1.5 relative overflow-hidden">
+                            <div className="absolute inset-[1.5px] right-[3px] rounded-[1px]" style={{ background: "linear-gradient(90deg, #34c759, #30d158)" }} />
+                            <div className="absolute right-[-2px] top-1/2 -translate-y-1/2 w-[1.5px] h-[4px] bg-white/35 rounded-r-[1px]" />
                           </div>
                         </div>
                       </div>
 
-                      {/* iPad Safari-style address bar */}
-                      <div className="h-[36px] bg-[#111] border-b border-white/[0.06] flex items-center px-4 gap-3">
+                      {/* Safari-style tab bar */}
+                      <div className="h-[38px] md:h-[40px] flex items-center px-3 md:px-4 gap-2 md:gap-3 border-b border-white/[0.05]" style={{ background: "linear-gradient(180deg, #1c1c1e, #161618)" }}>
+                        <div className="hidden md:flex gap-[5px]">
+                          <div className="w-[10px] h-[10px] rounded-full" style={{ background: "radial-gradient(circle at 35% 35%, #ff6961, #ff5f57)" }} />
+                          <div className="w-[10px] h-[10px] rounded-full" style={{ background: "radial-gradient(circle at 35% 35%, #ffd04b, #febc2e)" }} />
+                          <div className="w-[10px] h-[10px] rounded-full" style={{ background: "radial-gradient(circle at 35% 35%, #4cd964, #28c840)" }} />
+                        </div>
+                        <div className="flex-1 h-[26px] md:h-[28px] rounded-lg flex items-center px-3 gap-1.5" style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.04)" }}>
+                          <Lock className="h-2.5 w-2.5 text-emerald-400/80" />
+                          <span className="text-[10px] text-white/35 font-mono truncate">{comp.metadata?.websiteUrl || `${comp.username}.com`}</span>
+                        </div>
                         <div className="flex gap-1.5">
-                          <div className="w-[10px] h-[10px] rounded-full bg-[#ff5f57]" />
-                          <div className="w-[10px] h-[10px] rounded-full bg-[#febc2e]" />
-                          <div className="w-[10px] h-[10px] rounded-full bg-[#28c840]" />
-                        </div>
-                        <div className="flex-1 h-[24px] rounded-lg bg-white/[0.06] flex items-center px-3 gap-2">
-                          <Lock className="h-2.5 w-2.5 text-emerald-400/70" />
-                          <span className="text-[10px] text-white/40 font-mono">{comp.metadata?.websiteUrl || `${comp.username}.com`}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <ExternalLink className="h-3.5 w-3.5 text-white/30" />
-                          <RefreshCw className="h-3.5 w-3.5 text-white/30" />
+                          <ExternalLink className="h-3.5 w-3.5 text-white/25 hover:text-white/50 transition-colors cursor-pointer" />
+                          <RefreshCw className="h-3.5 w-3.5 text-white/25 hover:text-white/50 transition-colors cursor-pointer" />
                         </div>
                       </div>
 
-                      {/* iPad content area */}
-                      <div className="bg-[#0a0a0a] p-4">
+                      {/* Screen content area */}
+                      <div className="p-3 md:p-4" style={{ background: "linear-gradient(180deg, #0c0c0e, #0a0a0c)" }}>
                         {/* Competitor header banner */}
-                        <div className="flex items-center gap-4 mb-4 p-3 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-                          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-lg shrink-0" style={{ background: `linear-gradient(135deg, hsl(var(--primary)), hsl(262, 83%, 58%))` }}>
+                        <div className="flex items-center gap-3 md:gap-4 mb-3 md:mb-4 p-2.5 md:p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+                          <div className="w-11 h-11 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center text-white font-bold text-base md:text-lg shrink-0" style={{ background: `linear-gradient(135deg, hsl(var(--primary)), hsl(262, 83%, 58%))` }}>
                             {comp.username.charAt(0).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">
-                            <h3 className="text-sm font-bold text-white">{comp.displayName || comp.username}</h3>
-                            <p className="text-[10px] text-white/40">@{comp.username} · {comp.metadata?.industry || comp.platform}</p>
-                            <div className="flex items-center gap-3 mt-1">
-                              <span className="text-[10px] text-white/50"><span className="text-white font-semibold">{fmtNum(comp.followers)}</span> followers</span>
-                              <span className="text-[10px] text-white/50"><span className="text-emerald-400 font-semibold">{comp.engagementRate}%</span> ER</span>
-                              <span className="text-[10px] text-white/50"><span className="font-semibold" style={{ color: "hsl(var(--primary))" }}>{comp.growthRate}%</span>/wk</span>
+                            <h3 className="text-xs md:text-sm font-bold text-white truncate">{comp.displayName || comp.username}</h3>
+                            <p className="text-[9px] md:text-[10px] text-white/40">@{comp.username} · {comp.metadata?.industry || comp.platform}</p>
+                            <div className="flex items-center gap-2 md:gap-3 mt-1">
+                              <span className="text-[9px] md:text-[10px] text-white/50"><span className="text-white font-semibold">{fmtNum(comp.followers)}</span> followers</span>
+                              <span className="text-[9px] md:text-[10px] text-white/50"><span className="text-emerald-400 font-semibold">{comp.engagementRate}%</span> ER</span>
+                              <span className="text-[9px] md:text-[10px] text-white/50"><span className="font-semibold" style={{ color: "hsl(var(--primary))" }}>{comp.growthRate}%</span>/wk</span>
                             </div>
                           </div>
-                          <Badge className="bg-emerald-400/10 text-emerald-400 border-0 text-[9px]">{platformEntries.length} platforms</Badge>
+                          <Badge className="bg-emerald-400/10 text-emerald-400 border-0 text-[8px] md:text-[9px]">{platformEntries.length} platforms</Badge>
                         </div>
 
-                        {/* Social platforms grid — real embedded profiles */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {/* Social platforms grid — screenshot previews */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-2.5 md:gap-3">
                           {platformEntries.map((entry, idx) => (
-                            <div key={idx} className="rounded-xl overflow-hidden border border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] transition-colors group">
+                            <a key={idx} href={entry.url} target="_blank" rel="noopener noreferrer" className="rounded-xl overflow-hidden border border-white/[0.05] bg-white/[0.015] hover:border-white/[0.15] transition-all duration-200 group cursor-pointer block">
                               {/* Platform header */}
-                              <div className="flex items-center justify-between px-3 py-2 border-b border-white/[0.04]" style={{ background: `${entry.color}10` }}>
+                              <div className="flex items-center justify-between px-2.5 py-1.5 md:px-3 md:py-2" style={{ background: `linear-gradient(135deg, ${entry.color}08, ${entry.color}04)`, borderBottom: `1px solid rgba(255,255,255,0.03)` }}>
                                 <div className="flex items-center gap-2">
-                                  <div className="w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-black text-white" style={{ background: entry.color }}>
+                                  <div className="w-5 h-5 md:w-6 md:h-6 rounded-md flex items-center justify-center text-[8px] md:text-[9px] font-black text-white" style={{ background: entry.color }}>
                                     {entry.icon}
                                   </div>
                                   <div>
-                                    <p className="text-[11px] font-semibold text-white">{entry.platform}</p>
-                                    <p className="text-[9px] text-white/40">@{entry.username}</p>
+                                    <p className="text-[10px] md:text-[11px] font-semibold text-white">{entry.platform}</p>
+                                    <p className="text-[8px] md:text-[9px] text-white/40">@{entry.username}</p>
                                   </div>
                                 </div>
-                                <a href={entry.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[8px] font-semibold text-white/70 hover:text-white bg-white/[0.06] hover:bg-white/[0.1] transition-colors">
-                                  <ExternalLink className="h-2.5 w-2.5" /> Open
-                                </a>
+                                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[7px] md:text-[8px] font-semibold text-white/60 group-hover:text-white bg-white/[0.05] group-hover:bg-white/[0.1] transition-colors">
+                                  <ExternalLink className="h-2 w-2 md:h-2.5 md:w-2.5" /> Open
+                                </span>
                               </div>
 
-                              {/* Live embedded iframe of the real profile */}
-                              <div className="relative h-[320px] bg-[#000] overflow-hidden">
-                                <iframe
-                                  src={entry.url}
-                                  title={`${entry.platform} - @${entry.username}`}
-                                  className="w-full h-full border-0 pointer-events-none"
-                                  style={{ transform: "scale(0.65)", transformOrigin: "top left", width: "154%", height: "154%" }}
-                                  sandbox="allow-scripts allow-same-origin"
+                              {/* Screenshot preview of actual profile */}
+                              <div className="relative h-[240px] md:h-[320px] bg-[#0a0a0a] overflow-hidden">
+                                <img
+                                  src={getScreenshot(entry.url)}
+                                  alt={`${entry.platform} profile of @${entry.username}`}
+                                  className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.02]"
                                   loading="lazy"
+                                  decoding="async"
+                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden'); }}
                                 />
-                                {/* Clickable overlay to open in new tab */}
-                                <a
-                                  href={entry.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="absolute inset-0 z-10 bg-transparent hover:bg-white/[0.02] transition-colors cursor-pointer flex items-end justify-center pb-3 opacity-0 group-hover:opacity-100"
-                                >
-                                  <span className="px-3 py-1.5 rounded-lg text-[10px] font-semibold text-white bg-black/60 backdrop-blur-md border border-white/10 flex items-center gap-1.5">
-                                    <ExternalLink className="h-3 w-3" /> View full profile on {entry.platform}
-                                  </span>
-                                </a>
-                                {/* Fallback overlay if iframe blocked */}
-                                <div className="absolute inset-0 z-5 flex flex-col items-center justify-center gap-2 bg-gradient-to-b from-[#111] to-[#0a0a0a] opacity-0 [iframe:not([src])~&]:opacity-100">
-                                  <div className="w-12 h-12 rounded-xl flex items-center justify-center text-lg font-black text-white" style={{ background: entry.color }}>
+                                {/* Fallback if screenshot fails */}
+                                <div className="hidden absolute inset-0 flex flex-col items-center justify-center gap-3" style={{ background: `linear-gradient(135deg, ${entry.color}15, #0a0a0c)` }}>
+                                  <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-black text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${entry.color}, ${entry.color}cc)` }}>
                                     {entry.icon}
                                   </div>
-                                  <p className="text-[11px] text-white/50">@{entry.username}</p>
+                                  <p className="text-xs text-white/60 font-medium">@{entry.username}</p>
+                                  <span className="text-[9px] text-white/30 px-2 py-1 rounded-md bg-white/[0.04]">Click to view on {entry.platform}</span>
                                 </div>
+                                {/* Bottom gradient fade */}
+                                <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[#0a0a0c] to-transparent pointer-events-none" />
                               </div>
 
                               {/* Quick stats bar */}
-                              <div className="px-3 py-2 flex items-center justify-between border-t border-white/[0.04] bg-white/[0.01]">
-                                <div className="flex items-center gap-3">
-                                  <span className="text-[9px] text-white/40 flex items-center gap-1"><Users className="h-2.5 w-2.5" />{fmtNum(comp.followers)}</span>
-                                  <span className="text-[9px] text-white/40 flex items-center gap-1"><Activity className="h-2.5 w-2.5" />{comp.engagementRate}% ER</span>
-                                  <span className="text-[9px] text-white/40 flex items-center gap-1"><Zap className="h-2.5 w-2.5" />{comp.postFrequency}/wk</span>
+                              <div className="px-2.5 py-1.5 md:px-3 md:py-2 flex items-center justify-between" style={{ borderTop: "1px solid rgba(255,255,255,0.03)", background: "rgba(255,255,255,0.01)" }}>
+                                <div className="flex items-center gap-2 md:gap-3">
+                                  <span className="text-[8px] md:text-[9px] text-white/40 flex items-center gap-1"><Users className="h-2.5 w-2.5" />{fmtNum(comp.followers)}</span>
+                                  <span className="text-[8px] md:text-[9px] text-white/40 flex items-center gap-1"><Activity className="h-2.5 w-2.5" />{comp.engagementRate}% ER</span>
+                                  <span className="text-[8px] md:text-[9px] text-white/40 flex items-center gap-1"><Zap className="h-2.5 w-2.5" />{comp.postFrequency}/wk</span>
                                 </div>
-                                <span className="text-[8px] text-white/20">Live preview</span>
+                                <span className="text-[7px] md:text-[8px] text-white/20">Live preview</span>
                               </div>
-                            </div>
+                            </a>
                           ))}
                         </div>
 
                         {/* Content breakdown row */}
-                        <div className="mt-3 p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                        <div className="mt-2.5 md:mt-3 p-2.5 md:p-3 rounded-xl" style={{ background: "rgba(255,255,255,0.015)", border: "1px solid rgba(255,255,255,0.04)" }}>
                           <div className="flex items-center justify-between mb-2">
-                            <span className="text-[10px] text-white/40 font-medium">Content Mix</span>
-                            <span className="text-[10px] text-white/40">Top Hashtags</span>
+                            <span className="text-[9px] md:text-[10px] text-white/40 font-medium">Content Mix</span>
+                            <span className="text-[9px] md:text-[10px] text-white/40">Top Hashtags</span>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <div className="flex gap-2 flex-1">
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+                            <div className="flex gap-1.5 md:gap-2 flex-1 flex-wrap">
                               {comp.contentTypes.slice(0, 4).map((ct, i) => (
-                                <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/[0.03]">
-                                  {ct.type.toLowerCase().includes("video") || ct.type.toLowerCase().includes("reel") ? <Activity className="h-3 w-3 text-white/40" /> : <ImageIcon className="h-3 w-3 text-white/40" />}
-                                  <span className="text-[9px] text-white/60">{ct.type}</span>
-                                  <span className="text-[9px] font-bold text-white">{ct.pct}%</span>
+                                <div key={i} className="flex items-center gap-1 md:gap-1.5 px-1.5 md:px-2 py-0.5 md:py-1 rounded-lg bg-white/[0.03]">
+                                  {ct.type.toLowerCase().includes("video") || ct.type.toLowerCase().includes("reel") ? <Activity className="h-2.5 w-2.5 md:h-3 md:w-3 text-white/40" /> : <ImageIcon className="h-2.5 w-2.5 md:h-3 md:w-3 text-white/40" />}
+                                  <span className="text-[8px] md:text-[9px] text-white/60">{ct.type}</span>
+                                  <span className="text-[8px] md:text-[9px] font-bold text-white">{ct.pct}%</span>
                                 </div>
                               ))}
                             </div>
-                            <div className="flex gap-1 flex-wrap justify-end">
+                            <div className="flex gap-1 flex-wrap justify-start sm:justify-end">
                               {comp.topHashtags.slice(0, 5).map(tag => (
-                                <span key={tag} className="text-[9px] px-1.5 py-0.5 rounded bg-[hsl(217,91%,60%)]/10 text-[hsl(217,91%,60%)]">#{tag.replace("#", "")}</span>
+                                <span key={tag} className="text-[8px] md:text-[9px] px-1.5 py-0.5 rounded bg-[hsl(217,91%,60%)]/10 text-[hsl(217,91%,60%)]">#{tag.replace("#", "")}</span>
                               ))}
                             </div>
                           </div>
                         </div>
                       </div>
 
-                      {/* iPad bottom bezel — home indicator */}
-                      <div className="h-[16px] bg-[#1a1a1a] flex items-center justify-center">
-                        <div className="w-[100px] h-[4px] bg-white/15 rounded-full" />
+                      {/* Device bottom — home indicator */}
+                      <div className="h-[14px] md:h-[18px] flex items-center justify-center" style={{ background: "linear-gradient(180deg, #1c1c1e, #2a2a2c)" }}>
+                        <div className="w-[80px] md:w-[120px] h-[3.5px] md:h-[4px] rounded-full" style={{ background: "rgba(255,255,255,0.12)" }} />
                       </div>
                     </div>
                   </div>
