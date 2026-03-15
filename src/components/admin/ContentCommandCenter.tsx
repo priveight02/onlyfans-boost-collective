@@ -2408,31 +2408,31 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== SERIES PLANNER DIALOG ========== */}
       <Dialog open={showSeriesPlanner} onOpenChange={setShowSeriesPlanner}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-md">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" /> Content Series Planner</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><BookOpen className="h-4 w-4 text-primary" /> Content Series Planner</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">AI generates a multi-part content series with scheduled cadence.</p>
+          <p className="text-xs text-white/50">AI generates a multi-part content series with scheduled cadence.</p>
           <div className="space-y-3">
             <Input value={seriesTitle} onChange={e => setSeriesTitle(e.target.value)}
-              placeholder="Series topic (e.g., '5 Tips for Growth')" className="bg-card/50 border-border text-foreground text-xs" />
+              placeholder="Series topic (e.g., '5 Tips for Growth')" className="bg-white/[0.03] border-white/[0.06] text-white text-xs placeholder:text-white/20" />
             <div className="flex gap-3 items-center">
-              <span className="text-xs text-muted-foreground">Parts:</span>
+              <span className="text-xs text-white/50">Parts:</span>
               {[3, 5, 7].map(n => (
                 <Button key={n} size="sm" variant={seriesCount === n ? "default" : "outline"}
                   onClick={() => setSeriesCount(n)}
-                  className={`text-xs h-7 ${seriesCount === n ? "bg-primary text-primary-foreground" : "border-border text-muted-foreground"}`}>
+                  className={`text-xs h-7 ${seriesCount === n ? "bg-primary text-primary-foreground" : "border-white/[0.06] text-white/50"}`}>
                   {n}
                 </Button>
               ))}
             </div>
             <Select value={formPlatform || "instagram"} onValueChange={v => setFormPlatform(v)}>
-              <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8">
+              <SelectTrigger className="bg-white/[0.03] border-white/[0.06] text-white text-xs h-8">
                 <SelectValue placeholder="Platform" />
               </SelectTrigger>
-              <SelectContent className="bg-popover border-border">
+              <SelectContent className="bg-[hsl(222,35%,9%)] border-white/[0.08]">
                 {availablePlatforms.map(p => (
-                  <SelectItem key={p} value={p} className="text-xs capitalize">{p}</SelectItem>
+                  <SelectItem key={p} value={p} className="text-xs capitalize text-white/70">{p}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
