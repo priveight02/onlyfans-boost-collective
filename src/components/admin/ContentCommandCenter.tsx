@@ -2116,15 +2116,15 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
         // Grid View
         <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
           {filtered.map(item => (
-            <Card key={item.id} className="bg-white/[0.03] border-white/[0.06] hover:border-primary/30 transition-all cursor-pointer group relative"
-              onClick={() => !bulkMode && setShowDetail(item)}>
+            <Card key={item.id}
+              className={`bg-white/[0.03] border-white/[0.06] hover:border-primary/30 transition-all cursor-pointer group relative ${bulkMode && selectedItems.has(item.id) ? "ring-1 ring-primary border-primary/40" : ""}`}
+              onClick={() => bulkMode ? toggleSelectItem(item.id) : setShowDetail(item)}>
               {bulkMode && (
-                <button onClick={(e) => { e.stopPropagation(); toggleSelectItem(item.id); }}
-                  className="absolute top-2 left-2 z-10">
+                <div className="absolute top-2 left-2 z-10">
                   {selectedItems.has(item.id)
                     ? <CheckSquare className="h-4 w-4 text-primary" />
                     : <Square className="h-4 w-4 text-white/30" />}
-                </button>
+                </div>
               )}
               {/* Media preview */}
               {item.media_urls && Array.isArray(item.media_urls) && item.media_urls.length > 0 && (
