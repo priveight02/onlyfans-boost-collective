@@ -1029,8 +1029,7 @@ Platforms: ${connPlatforms.join(", ") || "instagram, tiktok"}
 Existing content: ${items.length} posts
 For each: name (2-3 words), description, percentage (sum=100), content_types array, posting_frequency, example_topics (3), platforms array, color (text-pink-400/text-blue-400/text-emerald-400/text-amber-400/text-purple-400)
 Respond ONLY with JSON array: [{"name":"", "description":"", "percentage": number, "content_types":[], "posting_frequency":"", "example_topics":[], "platforms":[], "color":""}]`);
-        const jsonMatch = content.match(/\[[\s\S]*\]/);
-        if (jsonMatch) { setContentPillars(JSON.parse(jsonMatch[0])); setShowPillars(true); toast.success("Content pillar strategy generated"); }
+        try { setContentPillars(safeParseJSON(content)); setShowPillars(true); toast.success("Content pillar strategy generated"); } catch {}
       } catch (e: any) { toast.error(e.message); }
       setGeneratingPillars(false);
     });
