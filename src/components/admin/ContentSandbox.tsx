@@ -989,6 +989,16 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           }}
         >
           <canvas ref={canvasRef} className="absolute inset-0 h-full w-full pointer-events-none" />
+          {/* Marquee selection rectangle */}
+          {marqueeRect && marqueeRect.w > 2 && marqueeRect.h > 2 && (
+            <div className="absolute pointer-events-none border-2 border-blue-400/60 bg-blue-400/10 rounded-sm" style={{
+              left: viewport.x + marqueeRect.x * viewport.zoom,
+              top: viewport.y + marqueeRect.y * viewport.zoom,
+              width: marqueeRect.w * viewport.zoom,
+              height: marqueeRect.h * viewport.zoom,
+              zIndex: 999999,
+            }} />
+          )}
           <div className="absolute inset-0" style={{ transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0" }}>
             {ordered.map(el => (
               <ElementView key={el.id} el={el} selected={selectedIds.has(el.id)} linkSrc={linkSourceId === el.id}
