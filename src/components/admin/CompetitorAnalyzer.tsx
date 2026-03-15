@@ -1402,7 +1402,18 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {competitors.map(comp => {
+              {competitors
+                .filter(c => trackerFilter === "all" || c.platform === trackerFilter)
+                .sort((a, b) => {
+                  switch (trackerSort) {
+                    case "followers": return b.followers - a.followers;
+                    case "growth": return b.growthRate - a.growthRate;
+                    case "engagement": return b.engagementRate - a.engagementRate;
+                    case "recent": return new Date(b.lastAnalyzed).getTime() - new Date(a.lastAnalyzed).getTime();
+                    default: return b.score - a.score;
+                  }
+                })
+                .map(comp => {
                 const historyData = comp.metadata?.analysisHistory || [];
                 const threatPct = Math.min(comp.score, 100);
                 const circumference = 2 * Math.PI * 32;
