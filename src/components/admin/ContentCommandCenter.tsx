@@ -72,7 +72,7 @@ const PLATFORM_CONFIG: Record<string, {
     label: "Threads", supportedTypes: ["post"],
     fields: { hashtags: true },
     publishAction: "create_text_thread", captionLabel: "Thread text", maxCaption: 500,
-    color: "text-foreground", bestTimes: ["8:00 AM", "12:00 PM", "6:00 PM"],
+    color: "text-white", bestTimes: ["8:00 AM", "12:00 PM", "6:00 PM"],
     hashtagLimit: 10, mediaSpecs: "1080×1080",
   },
   onlyfans: {
