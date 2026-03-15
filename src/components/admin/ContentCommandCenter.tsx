@@ -1848,7 +1848,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 const hasMedia = mediaUrls.length > 0;
                 const isVideo = hasMedia && /\.(mp4|mov|avi|webm)$/i.test(mediaUrls[0]);
                 return (
-                  <div key={item.id} className="bg-muted/20 border border-border rounded-lg overflow-hidden hover:border-primary/30 transition-all">
+                  <div key={item.id} className="bg-white/[0.02] border border-white/[0.06] rounded-lg overflow-hidden hover:border-primary/30 transition-all">
                     {/* Media thumbnail */}
                     {hasMedia && (
                       <div className="h-24 overflow-hidden relative">
@@ -1863,8 +1863,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                       </div>
                     )}
                     {!hasMedia && (
-                      <div className="h-16 bg-muted/30 flex items-center justify-center">
-                        <FileText className="h-5 w-5 text-muted-foreground/30" />
+                      <div className="h-16 bg-white/[0.02] flex items-center justify-center">
+                        <FileText className="h-5 w-5 text-white/10" />
                       </div>
                     )}
                     <div className="p-2.5 space-y-1.5">
@@ -1872,29 +1872,29 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                         <Badge variant="outline" className={`text-[8px] capitalize gap-0.5 ${platformConf(item.platform).color}`}>
                           {platformIcon(item.platform)} {item.platform}
                         </Badge>
-                        <Badge variant="outline" className="text-[8px] border-border text-muted-foreground capitalize">{item.content_type}</Badge>
+                        <Badge variant="outline" className="text-[8px] border-white/[0.06] text-white/40 capitalize">{item.content_type}</Badge>
                         {item.viral_score > 0 && (
                           <Badge variant="outline" className="text-[8px] border-pink-500/20 text-pink-400">
                             <Flame className="h-2 w-2 mr-0.5" />{item.viral_score}%
                           </Badge>
                         )}
                       </div>
-                      <p className="text-xs font-medium text-foreground truncate">{item.title}</p>
-                      {item.caption && <p className="text-[10px] text-muted-foreground truncate">{item.caption.length > 40 ? item.caption.substring(0, 40) + "…" : item.caption}</p>}
+                      <p className="text-xs font-medium text-white truncate">{item.title}</p>
+                      {item.caption && <p className="text-[10px] text-white/40 truncate">{item.caption.length > 40 ? item.caption.substring(0, 40) + "…" : item.caption}</p>}
                       {item.hashtags?.length > 0 && (
                         <div className="flex gap-0.5 flex-wrap">
                           {item.hashtags.slice(0, 4).map((h: string, i: number) => (
                             <span key={i} className="text-[8px] text-primary/50">#{h}</span>
                           ))}
-                          {item.hashtags.length > 4 && <span className="text-[8px] text-muted-foreground">+{item.hashtags.length - 4}</span>}
+                          {item.hashtags.length > 4 && <span className="text-[8px] text-white/30">+{item.hashtags.length - 4}</span>}
                         </div>
                       )}
                       {item.scheduled_at && (
-                        <p className="text-[9px] text-muted-foreground flex items-center gap-0.5">
+                        <p className="text-[9px] text-white/30 flex items-center gap-0.5">
                           <Clock className="h-2.5 w-2.5" /> {format(new Date(item.scheduled_at), "MMM d, h:mm a")}
                         </p>
                       )}
-                      <div className="flex gap-1.5 pt-1.5 border-t border-border/30">
+                      <div className="flex gap-1.5 pt-1.5 border-t border-white/[0.04]">
                         {conn ? (
                           <Button size="sm" onClick={(e) => { e.stopPropagation(); quickPublishDraft(item); }}
                             disabled={publishing}
@@ -1908,7 +1908,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                           </div>
                         )}
                         <Button size="sm" variant="outline" onClick={() => editItem(item)}
-                          className="text-[10px] h-7 border-border text-muted-foreground">
+                          className="text-[10px] h-7 border-white/[0.06] text-white/50">
                           <Edit2 className="h-2.5 w-2.5" />
                         </Button>
                         <Button size="sm" variant="outline" onClick={() => deleteItem(item.id)}
