@@ -855,6 +855,7 @@ Return ONLY valid JSON:
         );
         const parsed = parseJSON(aiReply);
         setGapAnalysis(parsed);
+        await refreshAIUsage();
         return true;
       } catch (err) {
         toast.error("Gap analysis failed");
