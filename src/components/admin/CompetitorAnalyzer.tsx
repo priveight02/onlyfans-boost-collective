@@ -5482,6 +5482,9 @@ Return ONLY valid JSON:
                         <p className="text-sm font-medium text-white">@{forecastResult.username} Growth Forecast</p>
                       </div>
                       <p className="text-xs text-white/70">{forecastResult.trendAnalysis}</p>
+                      {forecastResult.competitorComparison && (
+                        <p className="text-[10px] text-[hsl(217,91%,60%)]/70 mt-2 p-2 rounded-lg bg-[hsl(217,91%,60%)]/5 border border-[hsl(217,91%,60%)]/10">{forecastResult.competitorComparison}</p>
+                      )}
                     </CardContent>
                   </Card>
 
@@ -5492,18 +5495,47 @@ Return ONLY valid JSON:
                       { label: "90 Days", data: forecastResult.projections?.ninetyDays },
                       { label: "6 Months", data: forecastResult.projections?.sixMonths },
                       { label: "1 Year", data: forecastResult.projections?.oneYear },
-                    ].map((p, i) => (
-                      <Card key={i} className="crm-card">
-                        <CardContent className="p-3 text-center space-y-1">
-                          <p className="text-[10px] text-white/40">{p.label}</p>
-                          <p className="text-lg font-bold text-[hsl(217,91%,60%)]">{fmtNum(p.data?.followers || 0)}</p>
-                          <p className="text-[10px] text-white/50">followers</p>
-                          <p className="text-[10px] text-emerald-400">{p.data?.engagementRate}% ER</p>
-                          <p className="text-[10px] text-white/30">{fmtNum(p.data?.totalLikes || 0)} total likes</p>
-                        </CardContent>
-                      </Card>
-                    ))}
+                    ].map((p, i) => {
+                      const growthPct = forecastResult.currentFollowers > 0 ? (((p.data?.followers || 0) - forecastResult.currentFollowers) / forecastResult.currentFollowers * 100).toFixed(0) : "0";
+                      return (
+                        <Card key={i} className="crm-card">
+                          <CardContent className="p-3 text-center space-y-1">
+                            <p className="text-[10px] text-white/40">{p.label}</p>
+                            <p className="text-lg font-bold text-[hsl(217,91%,60%)]">{fmtNum(p.data?.followers || 0)}</p>
+                            <p className="text-[10px] text-emerald-400">+{growthPct}% growth</p>
+                            <p className="text-[10px] text-white/50">{p.data?.engagementRate}% ER</p>
+                            <p className="text-[10px] text-white/30">{fmtNum(p.data?.totalLikes || 0)} total likes</p>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
+
+                  {/* Best/Worst Case Scenarios */}
+                  {(forecastResult.bestCaseScenario || forecastResult.worstCaseScenario) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {forecastResult.bestCaseScenario && (
+                        <Card className="crm-card border-emerald-400/15">
+                          <CardContent className="p-4 space-y-2">
+                            <p className="text-xs font-medium text-emerald-400 flex items-center gap-1.5">🚀 Best Case Scenario</p>
+                            <p className="text-xl font-black text-emerald-400">{fmtNum(forecastResult.bestCaseScenario.followers || 0)} <span className="text-xs font-normal text-white/40">followers</span></p>
+                            <p className="text-[10px] text-white/60">{forecastResult.bestCaseScenario.timeline}</p>
+                            <p className="text-[10px] text-emerald-400/70">Requires: {forecastResult.bestCaseScenario.requirements}</p>
+                          </CardContent>
+                        </Card>
+                      )}
+                      {forecastResult.worstCaseScenario && (
+                        <Card className="crm-card border-red-400/15">
+                          <CardContent className="p-4 space-y-2">
+                            <p className="text-xs font-medium text-red-400 flex items-center gap-1.5">⚠️ Worst Case Scenario</p>
+                            <p className="text-xl font-black text-red-400">{fmtNum(forecastResult.worstCaseScenario.followers || 0)} <span className="text-xs font-normal text-white/40">followers</span></p>
+                            <p className="text-[10px] text-white/60">{forecastResult.worstCaseScenario.timeline}</p>
+                            <p className="text-[10px] text-red-400/70">Warning: {forecastResult.worstCaseScenario.warning}</p>
+                          </CardContent>
+                        </Card>
+                      )}
+                    </div>
+                  )}
 
                   {/* Growth Chart */}
                   {(forecastResult.monthlyBreakdown || []).length > 0 && (
