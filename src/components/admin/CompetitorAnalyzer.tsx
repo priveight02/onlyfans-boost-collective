@@ -1789,6 +1789,62 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 </Card>
               </div>
 
+              {/* Engagement Efficiency - Likes per 1K Followers */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Engagement Efficiency (Likes per 1K Followers)</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={[
+                        ...(myStats ? [{ name: `@${myStats.username}`, efficiency: myStats.followers > 0 ? Math.round((myStats.avgLikes / myStats.followers) * 1000 * 10) / 10 : 0 }] : []),
+                        ...competitors.map(c => ({ name: `@${c.username}`, efficiency: c.followers > 0 ? Math.round((c.avgLikes / c.followers) * 1000 * 10) / 10 : 0 })),
+                      ].sort((a, b) => b.efficiency - a.efficiency)} barCategoryGap="25%">
+                        <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number) => `${v} likes/1K`} />
+                        <Bar dataKey="efficiency" fill="hsl(150,60%,50%)" radius={[4, 4, 0, 0]} name="Likes/1K Followers">
+                          {[...(myStats ? [myStats] : []), ...competitors].map((_, i) => (
+                            <Cell key={i} fill={i === 0 && myStats ? "hsl(150,60%,50%)" : PIE_COLORS[(myStats ? i - 1 : i) % PIE_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Content Format Comparison - Stacked Bar */}
+              {competitors.some(c => c.contentTypes.length > 0) && (
+                <Card className="crm-card">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Content Format Distribution</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="h-[260px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        {(() => {
+                          const allFormats = [...new Set(competitors.flatMap(c => c.contentTypes.map(ct => ct.type)))];
+                          const data = competitors.map(c => {
+                            const entry: any = { name: `@${c.username}` };
+                            allFormats.forEach(f => { entry[f] = c.contentTypes.find(ct => ct.type === f)?.pct || 0; });
+                            return entry;
+                          });
+                          return (
+                            <BarChart data={data} barCategoryGap="25%">
+                              <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                              <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
+                              <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number) => `${v}%`} />
+                              {allFormats.map((f, i) => (
+                                <Bar key={f} dataKey={f} stackId="content" fill={PIE_COLORS[i % PIE_COLORS.length]} name={f} />
+                              ))}
+                              <Legend wrapperStyle={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }} />
+                            </BarChart>
+                          );
+                        })()}
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Side-by-Side Comparison */}
               <Card className="crm-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Side-by-Side Comparison</CardTitle></CardHeader>
@@ -1812,6 +1868,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                           { label: "Posts/Week", key: "postFrequency" as keyof Competitor, myKey: "postFrequency" as keyof typeof myStats, fmt: (v: number) => `${v}`, higher: true },
                           { label: "Total Posts", key: "posts" as keyof Competitor, myKey: "posts" as keyof typeof myStats, fmt: (v: number) => v.toLocaleString(), higher: true },
                           { label: "Threat Score", key: "score" as keyof Competitor, myKey: null, fmt: (v: number) => `${v}/100`, higher: false },
+                          { label: "Likes/1K Followers", key: "avgLikes" as keyof Competitor, myKey: "avgLikes" as keyof typeof myStats, fmt: (v: number, c?: Competitor) => { const f = c ? c.followers : (myStats?.followers || 1); return `${(f > 0 ? (v / f * 1000) : 0).toFixed(1)}`; }, higher: true },
                         ]).map(row => {
                           const compVals = competitors.map(c => c[row.key] as number);
                           const allVals = myStats && row.myKey ? [...compVals, (myStats as any)[row.myKey] as number] : compVals;
@@ -1831,7 +1888,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                 const userBeats = myVal !== null && row.higher ? myVal > val : myVal !== null ? myVal < val : false;
                                 return (
                                   <td key={c.id} className={`text-center py-2.5 text-xs font-medium ${isBest ? "text-emerald-400" : userBeats ? "text-red-400/60" : "text-white/70"}`}>
-                                    {row.fmt(val)}
+                                    {row.fmt(val, c)}
                                     {myVal !== null && userBeats && <ArrowDownRight className="inline h-3 w-3 ml-0.5 text-red-400/40" />}
                                   </td>
                                 );
