@@ -3875,7 +3875,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                     className={cn("p-3 rounded-lg border text-left transition-all",
                       orchMode === "automated" ? "border-emerald-500/30 bg-emerald-500/10" : "border-white/6 bg-white/[0.02] hover:border-white/12")}>
                     <p className={cn("text-xs font-semibold", orchMode === "automated" ? "text-emerald-400" : "text-white/60")}>Automated Mode</p>
-                    <p className="text-[10px] text-white/35 mt-0.5">Auto-schedule at optimal hours per platform. Posts are ready to go.</p>
+                    <p className="text-[10px] text-white/35 mt-0.5">AI generates captions, schedules at optimal hours, queues media generation — fully automated.</p>
                   </button>
                 </div>
               </div>
