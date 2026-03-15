@@ -1956,6 +1956,10 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" /> : <Zap className="h-3.5 w-3.5 mr-1" />}
             AI Generate
           </Button>
+          <Button size="sm" variant="outline" onClick={openPushToSocial}
+            className="border-emerald-500/20 text-emerald-400 text-xs h-8 hover:bg-emerald-500/10">
+            <Send className="h-3.5 w-3.5 mr-1" /> Push to Social
+          </Button>
           <Button size="sm" onClick={() => { resetForm(); setShowCreate(true); }} className="bg-primary text-primary-foreground text-xs h-8">
             <Plus className="h-3.5 w-3.5 mr-1" /> Create
           </Button>
