@@ -2989,24 +2989,24 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== STORYBOARD DIALOG ========== */}
       <Dialog open={showStoryboard} onOpenChange={setShowStoryboard}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Sparkle className="h-4 w-4 text-primary" /> Storyboard</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Sparkle className="h-4 w-4 text-primary" /> Storyboard</DialogTitle>
           </DialogHeader>
           <div className="space-y-2">
             {storyboardScenes.map((scene, i) => (
-              <div key={i} className="bg-card/50 border border-border rounded-lg p-3">
+              <div key={i} className="bg-white/[0.04] border border-white/[0.06] rounded-lg p-3">
                 <div className="flex justify-between items-center mb-1">
                   <span className="text-xs font-bold text-primary">Scene {scene.scene_number || i + 1}</span>
-                  <span className="text-[9px] text-muted-foreground">{scene.duration}</span>
+                  <span className="text-[9px] text-white/40">{scene.duration}</span>
                 </div>
-                <p className="text-[10px] text-foreground/80">📹 {scene.visual}</p>
-                {scene.text_overlay && <p className="text-[10px] text-primary/70">📝 {scene.text_overlay}</p>}
-                {scene.audio && <p className="text-[9px] text-muted-foreground">🎵 {scene.audio}</p>}
-                {scene.engagement && <p className="text-[9px] text-amber-400">✨ {scene.engagement}</p>}
+                <p className="text-[10px] text-white/70">Visual: {scene.visual}</p>
+                {scene.text_overlay && <p className="text-[10px] text-primary/70">Text: {scene.text_overlay}</p>}
+                {scene.audio && <p className="text-[9px] text-white/40">Audio: {scene.audio}</p>}
+                {scene.engagement && <p className="text-[9px] text-amber-400">{scene.engagement}</p>}
                 <div className="flex justify-between mt-1">
-                  <span className="text-[8px] text-muted-foreground/60">🎥 {scene.camera}</span>
-                  <span className="text-[8px] text-muted-foreground/60">→ {scene.transition}</span>
+                  <span className="text-[8px] text-white/30">Camera: {scene.camera}</span>
+                  <span className="text-[8px] text-white/30">Transition: {scene.transition}</span>
                 </div>
               </div>
             ))}
