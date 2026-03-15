@@ -1455,6 +1455,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 </Card>
               ))}
             </div>
+            </>
           )}
         </TabsContent>
 
