@@ -981,6 +981,8 @@ RULES:
                 <p className="text-xs text-white/30">Set your own stats to see how you compare in Benchmarks, charts, and get personalized action items</p>
               )}
             </CardContent>
+          </Card>
+
           {competitors.length === 0 ? (
             <Card className="crm-card">
               <CardContent className="p-12 text-center">
