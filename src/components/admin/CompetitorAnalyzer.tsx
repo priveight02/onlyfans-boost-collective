@@ -2998,7 +2998,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                       <img
                                         src={getScreenshot(entry.url)}
                                         alt={`${entry.platform} preview fallback for @${entry.username}`}
-                                        className="absolute inset-0 h-full w-full object-cover object-top"
+                                        className={`absolute inset-0 h-full w-full object-cover origin-top ${getScreenshotZoomClass(entry.platform)}`}
                                         loading="lazy"
                                         decoding="async"
                                       />
