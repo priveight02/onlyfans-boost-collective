@@ -4245,8 +4245,262 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                           </div>
                         )}
 
+                        {/* ═══ CONVERSION FUNNEL ANALYSIS ═══ */}
+                        {siteInsights.conversionFunnel && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-cyan-400/5 to-blue-400/5 border border-cyan-400/15">
+                            <p className="text-xs font-medium text-cyan-400 mb-3 flex items-center gap-1"><Activity className="h-3.5 w-3.5" /> Conversion Funnel Analysis</p>
+                            <div className="space-y-2">
+                              {[
+                                { label: "Top of Funnel", value: siteInsights.conversionFunnel.topOfFunnel, color: "border-l-emerald-400", icon: "🎯" },
+                                { label: "Middle of Funnel", value: siteInsights.conversionFunnel.middleOfFunnel, color: "border-l-amber-400", icon: "🔄" },
+                                { label: "Bottom of Funnel", value: siteInsights.conversionFunnel.bottomOfFunnel, color: "border-l-red-400", icon: "💰" },
+                              ].map((step, i) => (
+                                <div key={i} className={`p-2.5 rounded-lg bg-white/[0.02] border-l-2 ${step.color}`}>
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className="text-sm">{step.icon}</span>
+                                    <span className="text-[10px] font-medium text-white/60">{step.label}</span>
+                                  </div>
+                                  <p className="text-xs text-white/70">{step.value || "N/A"}</p>
+                                </div>
+                              ))}
+                              {(siteInsights.conversionFunnel.leaks || []).length > 0 && (
+                                <div className="p-2 rounded-lg bg-red-400/5 border border-red-400/10">
+                                  <p className="text-[10px] font-medium text-red-400 mb-1">🚰 Funnel Leaks</p>
+                                  {siteInsights.conversionFunnel.leaks.map((leak: string, i: number) => (
+                                    <p key={i} className="text-[10px] text-white/60 flex items-start gap-1"><span className="text-red-400 mt-px">•</span> {leak}</p>
+                                  ))}
+                                </div>
+                              )}
+                              {siteInsights.conversionFunnel.yourAdvantage && (
+                                <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                                  <p className="text-[10px] text-emerald-400">✨ Your Advantage: {siteInsights.conversionFunnel.yourAdvantage}</p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ═══ UX/DESIGN ANALYSIS ═══ */}
+                        {siteInsights.uxDesignAnalysis && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-pink-400/5 to-purple-400/5 border border-pink-400/15">
+                            <p className="text-xs font-medium text-pink-400 mb-3 flex items-center gap-1"><Eye className="h-3.5 w-3.5" /> UX & Design Analysis</p>
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3">
+                              {[
+                                { label: "Design Quality", value: siteInsights.uxDesignAnalysis.designQuality, max: 100 },
+                                { label: "Navigation", value: siteInsights.uxDesignAnalysis.navigationClarity, max: 100 },
+                                { label: "Mobile", value: siteInsights.uxDesignAnalysis.mobileExperience, isText: true },
+                                { label: "Speed", value: siteInsights.uxDesignAnalysis.loadSpeed, isText: true },
+                                { label: "CTA Power", value: siteInsights.uxDesignAnalysis.ctaEffectiveness, isText: true },
+                              ].map((m, i) => (
+                                <div key={i} className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                  <p className="text-[10px] text-white/40">{m.label}</p>
+                                  {(m as any).isText ? (
+                                    <p className={`text-xs font-bold mt-0.5 ${m.value === "good" || m.value === "fast" || m.value === "strong" ? "text-emerald-400" : m.value === "poor" || m.value === "slow" || m.value === "weak" || m.value === "missing" ? "text-red-400" : "text-amber-400"}`}>{String(m.value || "?")}</p>
+                                  ) : (
+                                    <p className="text-sm font-bold text-white mt-0.5">{m.value || "?"}<span className="text-[9px] text-white/30">/{m.max}</span></p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {(siteInsights.uxDesignAnalysis.designStrengths || []).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-[10px] text-emerald-400 font-medium">✓ Design Strengths</p>
+                                  {siteInsights.uxDesignAnalysis.designStrengths.map((s: string, i: number) => (
+                                    <p key={i} className="text-[10px] text-white/60 pl-2">• {s}</p>
+                                  ))}
+                                </div>
+                              )}
+                              {(siteInsights.uxDesignAnalysis.designWeaknesses || []).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-[10px] text-red-400 font-medium">✗ Design Weaknesses</p>
+                                  {siteInsights.uxDesignAnalysis.designWeaknesses.map((w: string, i: number) => (
+                                    <p key={i} className="text-[10px] text-white/60 pl-2">• {w}</p>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ═══ SOCIAL PROOF ANALYSIS ═══ */}
+                        {siteInsights.socialProofAnalysis && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-amber-400/5 to-orange-400/5 border border-amber-400/15">
+                            <p className="text-xs font-medium text-amber-400 mb-3 flex items-center gap-1"><Star className="h-3.5 w-3.5" /> Social Proof & Trust Analysis</p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Trust Score</p>
+                                <p className="text-lg font-bold text-amber-400">{siteInsights.socialProofAnalysis.socialProofScore || "?"}<span className="text-[9px] text-white/30">/100</span></p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Testimonials</p>
+                                <p className="text-sm font-bold text-white">{siteInsights.socialProofAnalysis.testimonialCount || "0"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40 mb-1">Trust Signals</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {(siteInsights.socialProofAnalysis.trustSignals || []).map((s: string, i: number) => (
+                                    <Badge key={i} variant="outline" className="text-[8px] border-emerald-400/20 text-emerald-400">{s}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40 mb-1">Missing Trust</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {(siteInsights.socialProofAnalysis.missingTrust || []).map((s: string, i: number) => (
+                                    <Badge key={i} variant="outline" className="text-[8px] border-red-400/20 text-red-400">{s}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            {siteInsights.socialProofAnalysis.yourOpportunity && (
+                              <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                                <p className="text-[10px] text-emerald-400">🎯 {siteInsights.socialProofAnalysis.yourOpportunity}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ═══ CUSTOMER INTELLIGENCE ═══ */}
+                        {siteInsights.customerIntel && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-green-400/5 to-teal-400/5 border border-green-400/15">
+                            <p className="text-xs font-medium text-green-400 mb-3 flex items-center gap-1"><Users className="h-3.5 w-3.5" /> Customer Intelligence</p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Sentiment</p>
+                                <p className={`text-xs font-bold ${siteInsights.customerIntel.reviewSentiment === "positive" ? "text-emerald-400" : siteInsights.customerIntel.reviewSentiment === "negative" ? "text-red-400" : "text-amber-400"}`}>{siteInsights.customerIntel.reviewSentiment || "unknown"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">NPS Estimate</p>
+                                <p className="text-sm font-bold text-white">{siteInsights.customerIntel.npsEstimate || "?"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40 mb-1">Churn Signals</p>
+                                {(siteInsights.customerIntel.churnSignals || []).map((s: string, i: number) => (
+                                  <p key={i} className="text-[9px] text-red-400/70">⚠ {s}</p>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {(siteInsights.customerIntel.commonComplaints || []).length > 0 && (
+                                <div className="p-2 rounded-lg bg-red-400/5 border border-red-400/10">
+                                  <p className="text-[10px] text-red-400 font-medium mb-1">Common Complaints</p>
+                                  {siteInsights.customerIntel.commonComplaints.map((c: string, i: number) => (
+                                    <p key={i} className="text-[10px] text-white/60">• {c}</p>
+                                  ))}
+                                </div>
+                              )}
+                              {(siteInsights.customerIntel.commonPraise || []).length > 0 && (
+                                <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                                  <p className="text-[10px] text-emerald-400 font-medium mb-1">What They Love</p>
+                                  {siteInsights.customerIntel.commonPraise.map((c: string, i: number) => (
+                                    <p key={i} className="text-[10px] text-white/60">• {c}</p>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {siteInsights.customerIntel.yourOpportunity && (
+                              <div className="p-2 mt-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                                <p className="text-[10px] text-emerald-400">🎯 Steal Their Customers: {siteInsights.customerIntel.yourOpportunity}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ═══ BACKLINK OPPORTUNITIES ═══ */}
+                        {(siteInsights.backlinksStrategy || []).length > 0 && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-indigo-400/5 to-blue-400/5 border border-indigo-400/15">
+                            <p className="text-xs font-medium text-indigo-400 mb-3 flex items-center gap-1"><Link className="h-3.5 w-3.5" /> Backlink Opportunities</p>
+                            <div className="space-y-2">
+                              {siteInsights.backlinksStrategy.map((b: any, i: number) => (
+                                <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-white/80">{b.opportunity}</span>
+                                    <div className="flex items-center gap-1.5">
+                                      <Badge variant="outline" className="text-[8px] border-white/10 text-white/40">{b.type}</Badge>
+                                      <Badge variant="outline" className={`text-[8px] ${b.difficulty === "easy" ? "border-emerald-400/20 text-emerald-400" : b.difficulty === "hard" ? "border-red-400/20 text-red-400" : "border-amber-400/20 text-amber-400"}`}>{b.difficulty}</Badge>
+                                    </div>
+                                  </div>
+                                  {b.domainAuthority && <p className="text-[10px] text-white/40">DA: {b.domainAuthority}</p>}
+                                  <p className="text-[10px] text-white/60">{b.action}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ═══ HIRING SIGNALS ═══ */}
+                        {siteInsights.hiringSignals && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-violet-400/5 to-fuchsia-400/5 border border-violet-400/15">
+                            <p className="text-xs font-medium text-violet-400 mb-2 flex items-center gap-1"><Briefcase className="h-3.5 w-3.5" /> Hiring & Team Signals</p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-2">
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Hiring?</p>
+                                <p className={`text-xs font-bold ${siteInsights.hiringSignals.isHiring ? "text-emerald-400" : "text-white/40"}`}>{siteInsights.hiringSignals.isHiring ? "Yes" : "No"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Team Size</p>
+                                <p className="text-xs font-bold text-white">{siteInsights.hiringSignals.teamSize || "?"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02] col-span-2">
+                                <p className="text-[10px] text-white/40 mb-1">Open Roles</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {(siteInsights.hiringSignals.openRoles || []).map((r: string, i: number) => (
+                                    <Badge key={i} variant="outline" className="text-[8px] border-violet-400/20 text-violet-400">{r}</Badge>
+                                  ))}
+                                  {(siteInsights.hiringSignals.openRoles || []).length === 0 && <span className="text-[10px] text-white/30">None detected</span>}
+                                </div>
+                              </div>
+                            </div>
+                            {siteInsights.hiringSignals.growthSignal && (
+                              <p className="text-[10px] text-white/60 p-2 rounded-lg bg-white/[0.02]">📊 {siteInsights.hiringSignals.growthSignal}</p>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ═══ PARTNERSHIP MAP ═══ */}
+                        {(siteInsights.partnershipMap || []).length > 0 && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-teal-400/5 to-cyan-400/5 border border-teal-400/15">
+                            <p className="text-xs font-medium text-teal-400 mb-3 flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> Partnership & Integration Map</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {siteInsights.partnershipMap.map((p: any, i: number) => (
+                                <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1">
+                                  <div className="flex items-center justify-between">
+                                    <span className="text-xs font-medium text-white/80">{p.partner}</span>
+                                    <Badge variant="outline" className="text-[8px] border-teal-400/20 text-teal-400">{p.type}</Badge>
+                                  </div>
+                                  <p className="text-[10px] text-white/50">{p.strength}</p>
+                                  <p className="text-[10px] text-emerald-400">→ {p.yourAction}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ═══ THREAT TIMELINE ═══ */}
+                        {(siteInsights.threatTimeline || []).length > 0 && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-red-400/5 to-orange-400/5 border border-red-400/15">
+                            <p className="text-xs font-medium text-red-400 mb-3 flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Threat Timeline — What They Might Do Next</p>
+                            <div className="space-y-2">
+                              {siteInsights.threatTimeline.map((t: any, i: number) => (
+                                <div key={i} className="flex items-start gap-3 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                                  <div className={`px-2 py-1 rounded text-[9px] font-bold flex-shrink-0 ${t.probability === "high" ? "bg-red-400/20 text-red-400" : t.probability === "medium" ? "bg-amber-400/20 text-amber-400" : "bg-white/10 text-white/40"}`}>{t.timeframe}</div>
+                                  <div className="flex-1 space-y-0.5">
+                                    <p className="text-xs text-white/80">{t.threat}</p>
+                                    <p className="text-[10px] text-emerald-400">Preempt: {t.preemptiveAction}</p>
+                                  </div>
+                                  <Badge variant="outline" className={`text-[8px] flex-shrink-0 ${t.probability === "high" ? "border-red-400/30 text-red-400" : "border-white/10 text-white/40"}`}>{t.probability}</Badge>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Re-analyze */}
-                        <div className="flex items-center justify-end pt-2 border-t border-white/[0.04]">
+                        <div className="flex items-center justify-between pt-2 border-t border-white/[0.04]">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-white/30">{Object.keys(siteInsights).filter(k => siteInsights[k] && k !== "competitiveScore" && k !== "executiveSummary").length} intelligence modules loaded</span>
+                          </div>
                           <Button size="sm" variant="ghost" className="h-6 text-[10px] text-purple-400/60 hover:text-purple-400" onClick={() => { setSiteInsights(null); generateSiteInsights(); }}>
                             <RefreshCw className="h-3 w-3 mr-1" /> Re-analyze
                           </Button>
