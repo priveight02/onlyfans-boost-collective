@@ -3117,11 +3117,11 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== WEEKLY HEATMAP DIALOG ========== */}
       <Dialog open={showHeatmap} onOpenChange={setShowHeatmap}>
-        <DialogContent className="bg-popover border-border text-foreground max-w-2xl">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2"><Flame className="h-4 w-4 text-primary" /> Weekly Posting Heatmap</DialogTitle>
+            <DialogTitle className="text-white flex items-center gap-2"><Flame className="h-4 w-4 text-primary" /> Weekly Posting Heatmap</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Your posting density by day and hour — find gaps and optimize cadence.</p>
+          <p className="text-xs text-white/50">Your posting density by day and hour · find gaps and optimize cadence.</p>
           <div className="overflow-x-auto">
             <div className="min-w-[600px]">
               <div className="flex">
