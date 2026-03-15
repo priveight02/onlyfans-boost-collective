@@ -1913,36 +1913,46 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       {!sandboxMode && (<>
 
       {/* Competitor Intel Sync Bar */}
-      {competitorProfiles.length > 0 && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-purple-500/5 border border-purple-500/10">
-          <Brain className="h-3.5 w-3.5 text-purple-400 shrink-0" />
-          <span className="text-[10px] text-white/50">Competitor Intel synced:</span>
-          <span className="text-[10px] font-semibold text-white/70">{competitorProfiles.length} competitors tracked</span>
-          <span className="text-[10px] text-white/30">·</span>
-          <span className="text-[10px] text-white/50">{[...new Set(competitorProfiles.flatMap(c => c.top_hashtags || []))].length} hashtags available</span>
-          <span className="text-[10px] text-white/30">·</span>
-          <span className="text-[10px] text-white/50">{[...new Set(competitorProfiles.map(c => c.platform))].length} platforms</span>
-          <div className="ml-auto flex items-center gap-1.5">
-            <Button size="sm" variant="ghost" onClick={async () => {
-              loadCompetitorProfiles();
-              toast.success("Competitor intel refreshed & resynced");
-            }} className="text-[9px] h-5 text-purple-400 hover:text-purple-300 px-2">
-              <RefreshCw className="h-2.5 w-2.5 mr-1" /> Refresh
-            </Button>
-            <Button size="sm" variant="ghost" onClick={async () => {
-              if (!confirm("Remove all synced competitor intel from Content? This won't delete competitor profiles, only the sync here.")) return;
-              // Delete content items sourced from competitor intel
-              const { error } = await supabase.from("content_calendar").delete().filter("metadata->>source", "eq", "competitor_intel");
-              if (error) toast.error(error.message);
-              else {
-                setCompetitorProfiles([]);
-                toast.success("Competitor intel removed from Content");
-              }
-            }} className="text-[9px] h-5 text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2">
-              <X className="h-2.5 w-2.5 mr-1" /> Remove
-            </Button>
-          </div>
-        </div>
+      {(competitorProfiles.length > 0 || competitorSyncedItems.length > 0) && (
+        <Card className="border-border bg-card/70">
+          <CardContent className="flex flex-wrap items-center gap-3 p-3">
+            <Brain className="h-4 w-4 text-primary shrink-0" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                <span className="text-xs font-semibold text-foreground">Competitor Intel</span>
+                <Badge variant="outline" className="border-primary/20 text-primary text-[10px]">{competitorProfiles.length} tracked</Badge>
+                <Badge variant="outline" className="border-accent/20 text-accent text-[10px]">{competitorSyncedItems.length} synced</Badge>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {competitorSyncedItems.length > 0
+                  ? `Plan ${competitorSyncBreakdown.competitor_intel} · SWOT ${competitorSyncBreakdown.swot_analysis} · Gap ${competitorSyncBreakdown.gap_analysis}. Remove deletes synced items permanently from the database.`
+                  : "Competitor data is available here. Refresh & Resync Plan will rebuild synced content from your tracked competitors."}
+              </p>
+            </div>
+            <div className="ml-auto flex items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={refreshCompetitorIntelPlan}
+                disabled={resyncingCompetitorPlan || competitorProfiles.length === 0}
+                className="h-7 border-primary/20 text-primary hover:bg-primary/10 text-[10px]"
+              >
+                {resyncingCompetitorPlan ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <RefreshCw className="h-3 w-3 mr-1" />}
+                Refresh & Resync
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => removeSyncedCompetitorIntel()}
+                disabled={removingCompetitorIntel || competitorSyncedItems.length === 0}
+                className="h-7 border-destructive/20 text-destructive hover:bg-destructive/10 text-[10px]"
+              >
+                {removingCompetitorIntel ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                Remove from DB
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Stats */}
