@@ -2341,12 +2341,12 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
           </DialogHeader>
           <div className="space-y-2 max-h-[60vh] overflow-y-auto">
             {trendIdeas.map((idea, i) => (
-              <Card key={i} className="bg-card/50 border-border hover:border-primary/30 transition-all">
+              <Card key={i} className="bg-white/[0.03] border-white/[0.06] hover:border-primary/30 transition-all">
                 <CardContent className="p-3">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-foreground">{idea.title}</p>
+                    <p className="text-sm font-medium text-white">{idea.title}</p>
                     <div className="flex items-center gap-1.5">
-                      <Badge variant="outline" className={`text-[9px] ${idea.urgency === "now" ? "border-destructive/30 text-destructive" : idea.urgency === "this_week" ? "border-amber-500/20 text-amber-400" : "border-border text-muted-foreground"}`}>
+                      <Badge variant="outline" className={`text-[9px] ${idea.urgency === "now" ? "border-destructive/30 text-destructive" : idea.urgency === "this_week" ? "border-amber-500/20 text-amber-400" : "border-white/[0.06] text-white/40"}`}>
                         {idea.urgency === "now" ? "🔥 Now" : idea.urgency === "this_week" ? "⏰ This Week" : "♻️ Evergreen"}
                       </Badge>
                       <Badge variant="outline" className="text-[9px] border-purple-500/20 text-purple-400">
@@ -2354,10 +2354,10 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                       </Badge>
                     </div>
                   </div>
-                  <p className="text-[10px] text-muted-foreground line-clamp-2 mb-1.5">{idea.caption}</p>
+                  <p className="text-[10px] text-white/40 line-clamp-2 mb-1.5">{idea.caption}</p>
                   {idea.trend_source && <p className="text-[9px] text-blue-400/60 mb-1.5">Trend: {idea.trend_source}</p>}
                   <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="text-[9px] border-border text-muted-foreground capitalize gap-0.5">
+                    <Badge variant="outline" className="text-[9px] border-white/[0.06] text-white/40 capitalize gap-0.5">
                       {platformIcon(idea.platform)} {idea.platform} · {idea.content_type}
                     </Badge>
                     <Button size="sm" onClick={() => applyTrendIdea(idea)} className="text-[10px] h-6 bg-primary text-primary-foreground">
