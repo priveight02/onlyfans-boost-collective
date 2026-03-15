@@ -14,6 +14,7 @@ import {
   DollarSign, TrendingUp as TrendUp, Building2, Briefcase,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis,
