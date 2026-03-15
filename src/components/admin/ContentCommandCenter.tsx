@@ -2224,6 +2224,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
         </div>
       )}
 
+      </>)}
+
       {/* ========== DETAIL DIALOG ========== */}
       <Dialog open={!!showDetail} onOpenChange={v => { if (!v) setShowDetail(null); }}>
         {showDetail && (
