@@ -903,6 +903,84 @@ RULES:
             </CardContent>
           </Card>
 
+          {/* ─── YOUR STATS COMPARISON CARD ─── */}
+          <Card className="crm-card border-emerald-400/20">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Crown className="h-4 w-4 text-emerald-400" />
+                  <span className="text-sm font-medium text-emerald-400">Your Stats</span>
+                  {myStats && <Badge variant="outline" className="text-[9px] border-emerald-400/20 text-emerald-400">@{myStats.username}</Badge>}
+                </div>
+                <Button size="sm" variant="outline" className="text-xs gap-1 border-emerald-400/20 text-emerald-400 hover:bg-emerald-400/10 h-7" onClick={() => setShowMyStatsForm(!showMyStatsForm)}>
+                  {myStats ? "Edit" : "Set My Stats"}
+                </Button>
+              </div>
+              {myStats && !showMyStatsForm && (
+                <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+                  {[
+                    { label: "Followers", value: fmtNum(myStats.followers) },
+                    { label: "Eng. Rate", value: `${myStats.engagementRate}%` },
+                    { label: "Avg Likes", value: fmtNum(myStats.avgLikes) },
+                    { label: "Avg Comments", value: `${myStats.avgComments}` },
+                    { label: "Growth/Wk", value: `${myStats.growthRate >= 0 ? "+" : ""}${myStats.growthRate}%` },
+                    { label: "Posts/Wk", value: `${myStats.postFrequency}` },
+                    { label: "Total Posts", value: fmtNum(myStats.posts) },
+                    { label: "vs Top", value: competitors.length > 0 ? `${Math.round((myStats.followers / Math.max(...competitors.map(c => c.followers), 1)) * 100)}%` : "—" },
+                  ].map((s, i) => (
+                    <div key={i} className="text-center p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                      <p className="text-[10px] text-white/40">{s.label}</p>
+                      <p className="text-xs font-semibold text-emerald-400">{s.value}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showMyStatsForm && (
+                <div className="space-y-3 mt-2">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {[
+                      { key: "username", label: "Username", type: "text", placeholder: "your_username" },
+                      { key: "followers", label: "Followers", type: "number", placeholder: "10000" },
+                      { key: "engagementRate", label: "Engagement Rate %", type: "number", placeholder: "3.5" },
+                      { key: "avgLikes", label: "Avg Likes", type: "number", placeholder: "500" },
+                      { key: "avgComments", label: "Avg Comments", type: "number", placeholder: "25" },
+                      { key: "growthRate", label: "Growth/Week %", type: "number", placeholder: "1.5" },
+                      { key: "postFrequency", label: "Posts/Week", type: "number", placeholder: "5" },
+                      { key: "posts", label: "Total Posts", type: "number", placeholder: "200" },
+                    ].map(f => (
+                      <div key={f.key} className="space-y-1">
+                        <label className="text-[10px] text-white/40">{f.label}</label>
+                        <Input
+                          type={f.type}
+                          placeholder={f.placeholder}
+                          defaultValue={(myStats as any)?.[f.key] || ""}
+                          className="crm-input h-8 text-xs"
+                          id={`mystat-${f.key}`}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1 text-xs" onClick={() => {
+                    const get = (k: string) => (document.getElementById(`mystat-${k}`) as HTMLInputElement)?.value || "";
+                    saveMyStats({
+                      username: get("username") || "me",
+                      followers: parseFloat(get("followers")) || 0,
+                      engagementRate: parseFloat(get("engagementRate")) || 0,
+                      avgLikes: parseFloat(get("avgLikes")) || 0,
+                      avgComments: parseFloat(get("avgComments")) || 0,
+                      growthRate: parseFloat(get("growthRate")) || 0,
+                      postFrequency: parseFloat(get("postFrequency")) || 0,
+                      posts: parseFloat(get("posts")) || 0,
+                    });
+                  }}>
+                    <CheckCircle className="h-3 w-3" /> Save My Stats
+                  </Button>
+                </div>
+              )}
+              {!myStats && !showMyStatsForm && (
+                <p className="text-xs text-white/30">Set your own stats to see how you compare in Benchmarks, charts, and get personalized action items</p>
+              )}
+            </CardContent>
           {competitors.length === 0 ? (
             <Card className="crm-card">
               <CardContent className="p-12 text-center">
