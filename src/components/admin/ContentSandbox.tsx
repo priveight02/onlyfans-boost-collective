@@ -1,605 +1,795 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  Plus, Trash2, Edit2, CheckSquare, Square, GripVertical,
-  Calendar, Clock, User, Tag, Flag, Search, Filter,
-  LayoutGrid, List, Kanban, MoreHorizontal, ChevronDown,
-  FileText, MessageSquare, Sparkles, X, Check, ArrowRight,
-  Layers, Star, AlertTriangle, Zap, Eye, Copy,
+  Plus, Trash2, Move, Type, Pencil, Eraser, Square, Circle,
+  ArrowRight, Sparkles, Download, ZoomIn, ZoomOut, RotateCcw,
+  Loader2, Link2, Unlink, MousePointer, Grip, Layers,
+  PaintBucket, StickyNote, X, Check, Copy, Maximize2,
+  Triangle, Star, Hexagon, Diamond,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { format } from "date-fns";
 
-// ── Types ──
-type Priority = "urgent" | "high" | "medium" | "low" | "none";
-type TaskStatus = "backlog" | "todo" | "in_progress" | "review" | "done";
-type ViewMode = "board" | "list" | "table";
+type Tool = "select" | "move" | "pen" | "text" | "eraser" | "rect" | "circle" | "arrow" | "triangle" | "star" | "diamond" | "note";
 
-interface SandboxTask {
+interface CanvasCard {
   id: string;
-  title: string;
-  description: string;
-  status: TaskStatus;
-  priority: Priority;
-  labels: string[];
-  assignee: string;
-  due_date: string | null;
-  created_at: string;
-  updated_at: string;
-  subtasks: { id: string; text: string; done: boolean }[];
-  notes: string;
-  order: number;
+  type: "content" | "note" | "shape" | "text";
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  data?: any; // content_calendar item
+  text?: string;
+  color?: string;
+  shape?: string;
+  linkedTo?: string[];
+  fontSize?: number;
 }
 
-const STATUS_CONFIG: Record<TaskStatus, { label: string; color: string; icon: any }> = {
-  backlog: { label: "Backlog", color: "text-white/30 border-white/10 bg-white/[0.03]", icon: Layers },
-  todo: { label: "To Do", color: "text-blue-400 border-blue-500/20 bg-blue-500/5", icon: Square },
-  in_progress: { label: "In Progress", color: "text-amber-400 border-amber-500/20 bg-amber-500/5", icon: Zap },
-  review: { label: "Review", color: "text-purple-400 border-purple-500/20 bg-purple-500/5", icon: Eye },
-  done: { label: "Done", color: "text-emerald-400 border-emerald-500/20 bg-emerald-500/5", icon: Check },
-};
+interface DrawStroke {
+  id: string;
+  points: { x: number; y: number }[];
+  color: string;
+  width: number;
+  tool: "pen" | "eraser";
+}
 
-const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; icon: any }> = {
-  urgent: { label: "Urgent", color: "text-red-400 border-red-500/20", icon: AlertTriangle },
-  high: { label: "High", color: "text-orange-400 border-orange-500/20", icon: Flag },
-  medium: { label: "Medium", color: "text-amber-400 border-amber-500/20", icon: Flag },
-  low: { label: "Low", color: "text-blue-400 border-blue-500/20", icon: Flag },
-  none: { label: "None", color: "text-white/30 border-white/10", icon: Flag },
-};
+const COLORS = ["#3b82f6", "#8b5cf6", "#ec4899", "#f59e0b", "#10b981", "#ef4444", "#ffffff", "#6b7280"];
+const SANDBOX_KEY = "content_sandbox_state";
 
-const STATUSES: TaskStatus[] = ["backlog", "todo", "in_progress", "review", "done"];
-const STORAGE_KEY = "sandbox_tasks";
-const LABELS_KEY = "sandbox_labels";
+const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => void }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
-const ContentSandbox = () => {
-  const [tasks, setTasks] = useState<SandboxTask[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>("board");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filterPriority, setFilterPriority] = useState<string>("all");
-  const [filterLabel, setFilterLabel] = useState<string>("all");
-  const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [editingTask, setEditingTask] = useState<SandboxTask | null>(null);
-  const [selectedTasks, setSelectedTasks] = useState<Set<string>>(new Set());
-  const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<TaskStatus | null>(null);
-  const [customLabels, setCustomLabels] = useState<string[]>(["bug", "feature", "content", "marketing", "design", "urgent", "research"]);
+  // Canvas state
+  const [cards, setCards] = useState<CanvasCard[]>([]);
+  const [strokes, setStrokes] = useState<DrawStroke[]>([]);
+  const [activeTool, setActiveTool] = useState<Tool>("select");
+  const [activeColor, setActiveColor] = useState("#3b82f6");
+  const [brushSize, setBrushSize] = useState(3);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [selectedCard, setSelectedCard] = useState<string | null>(null);
+  const [draggingCard, setDraggingCard] = useState<string | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [currentStroke, setCurrentStroke] = useState<{ x: number; y: number }[]>([]);
+  const [isPanning, setIsPanning] = useState(false);
+  const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [linkingFrom, setLinkingFrom] = useState<string | null>(null);
+  const [selectedCards, setSelectedCards] = useState<Set<string>>(new Set());
+  const [evolving, setEvolving] = useState(false);
+  const [showImport, setShowImport] = useState(false);
+  const [textInput, setTextInput] = useState("");
+  const [textPos, setTextPos] = useState<{ x: number; y: number } | null>(null);
 
-  // Form state
-  const [formTitle, setFormTitle] = useState("");
-  const [formDescription, setFormDescription] = useState("");
-  const [formStatus, setFormStatus] = useState<TaskStatus>("todo");
-  const [formPriority, setFormPriority] = useState<Priority>("medium");
-  const [formLabels, setFormLabels] = useState<string[]>([]);
-  const [formAssignee, setFormAssignee] = useState("");
-  const [formDueDate, setFormDueDate] = useState("");
-  const [formNotes, setFormNotes] = useState("");
-  const [newLabelInput, setNewLabelInput] = useState("");
-
-  // Load from localStorage
+  // Load/save
   useEffect(() => {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setTasks(JSON.parse(saved));
-      const savedLabels = localStorage.getItem(LABELS_KEY);
-      if (savedLabels) setCustomLabels(JSON.parse(savedLabels));
+      const saved = localStorage.getItem(SANDBOX_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setCards(parsed.cards || []);
+        setStrokes(parsed.strokes || []);
+      }
     } catch {}
   }, []);
 
-  // Save
   useEffect(() => {
-    if (tasks.length > 0 || localStorage.getItem(STORAGE_KEY)) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    const timeout = setTimeout(() => {
+      localStorage.setItem(SANDBOX_KEY, JSON.stringify({ cards, strokes }));
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [cards, strokes]);
+
+  // Draw canvas strokes
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const rect = canvas.parentElement?.getBoundingClientRect();
+    if (rect) {
+      canvas.width = rect.width;
+      canvas.height = rect.height;
     }
-  }, [tasks]);
 
-  useEffect(() => {
-    localStorage.setItem(LABELS_KEY, JSON.stringify(customLabels));
-  }, [customLabels]);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(pan.x, pan.y);
+    ctx.scale(zoom, zoom);
 
-  // Filtered tasks
-  const filtered = useMemo(() => {
-    return tasks.filter(t => {
-      if (searchQuery && !t.title.toLowerCase().includes(searchQuery.toLowerCase()) && !t.description.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-      if (filterPriority !== "all" && t.priority !== filterPriority) return false;
-      if (filterLabel !== "all" && !t.labels.includes(filterLabel)) return false;
-      return true;
-    }).sort((a, b) => a.order - b.order);
-  }, [tasks, searchQuery, filterPriority, filterLabel]);
+    // Draw strokes
+    for (const stroke of strokes) {
+      if (stroke.points.length < 2) continue;
+      ctx.beginPath();
+      ctx.strokeStyle = stroke.tool === "eraser" ? "rgba(10,12,20,1)" : stroke.color;
+      ctx.lineWidth = stroke.width;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.globalCompositeOperation = stroke.tool === "eraser" ? "destination-out" : "source-over";
+      ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (let i = 1; i < stroke.points.length; i++) {
+        ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      }
+      ctx.stroke();
+      ctx.globalCompositeOperation = "source-over";
+    }
 
-  const tasksByStatus = useMemo(() => {
-    const map: Record<TaskStatus, SandboxTask[]> = { backlog: [], todo: [], in_progress: [], review: [], done: [] };
-    filtered.forEach(t => map[t.status]?.push(t));
-    return map;
-  }, [filtered]);
+    // Draw current stroke
+    if (currentStroke.length > 1) {
+      ctx.beginPath();
+      ctx.strokeStyle = activeTool === "eraser" ? "rgba(200,200,200,0.5)" : activeColor;
+      ctx.lineWidth = brushSize;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.moveTo(currentStroke[0].x, currentStroke[0].y);
+      for (let i = 1; i < currentStroke.length; i++) {
+        ctx.lineTo(currentStroke[i].x, currentStroke[i].y);
+      }
+      ctx.stroke();
+    }
 
-  // Stats
-  const stats = useMemo(() => ({
-    total: tasks.length,
-    done: tasks.filter(t => t.status === "done").length,
-    inProgress: tasks.filter(t => t.status === "in_progress").length,
-    overdue: tasks.filter(t => t.due_date && new Date(t.due_date) < new Date() && t.status !== "done").length,
-  }), [tasks]);
+    // Draw links between cards
+    for (const card of cards) {
+      if (!card.linkedTo?.length) continue;
+      for (const targetId of card.linkedTo) {
+        const target = cards.find(c => c.id === targetId);
+        if (!target) continue;
+        ctx.beginPath();
+        ctx.strokeStyle = "rgba(139,92,246,0.4)";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([6, 4]);
+        const fromX = card.x + card.width / 2;
+        const fromY = card.y + card.height / 2;
+        const toX = target.x + target.width / 2;
+        const toY = target.y + target.height / 2;
+        ctx.moveTo(fromX, fromY);
+        ctx.lineTo(toX, toY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Arrow head
+        const angle = Math.atan2(toY - fromY, toX - fromX);
+        const headLen = 10;
+        ctx.beginPath();
+        ctx.fillStyle = "rgba(139,92,246,0.6)";
+        ctx.moveTo(toX, toY);
+        ctx.lineTo(toX - headLen * Math.cos(angle - Math.PI / 6), toY - headLen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(toX - headLen * Math.cos(angle + Math.PI / 6), toY - headLen * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
 
-  // CRUD
-  const createTask = () => {
-    if (!formTitle.trim()) { toast.error("Title is required"); return; }
-    const task: SandboxTask = {
-      id: crypto.randomUUID(),
-      title: formTitle.trim(),
-      description: formDescription,
-      status: formStatus,
-      priority: formPriority,
-      labels: formLabels,
-      assignee: formAssignee,
-      due_date: formDueDate || null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      subtasks: [],
-      notes: formNotes,
-      order: tasks.length,
+    ctx.restore();
+  }, [strokes, currentStroke, cards, zoom, pan, activeColor, brushSize, activeTool]);
+
+  // Mouse helpers
+  const getCanvasPos = useCallback((e: React.MouseEvent) => {
+    const rect = canvasRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return { x: (e.clientX - rect.left - pan.x) / zoom, y: (e.clientY - rect.top - pan.y) / zoom };
+  }, [pan, zoom]);
+
+  const findCardAt = useCallback((x: number, y: number) => {
+    for (let i = cards.length - 1; i >= 0; i--) {
+      const c = cards[i];
+      if (x >= c.x && x <= c.x + c.width && y >= c.y && y <= c.y + c.height) return c;
+    }
+    return null;
+  }, [cards]);
+
+  // Mouse events
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const pos = getCanvasPos(e);
+
+    // Middle mouse or space+click = pan
+    if (e.button === 1 || (e.button === 0 && activeTool === "move")) {
+      setIsPanning(true);
+      setPanStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+      return;
+    }
+
+    if (activeTool === "select") {
+      const card = findCardAt(pos.x, pos.y);
+      if (card) {
+        if (linkingFrom) {
+          // Linking mode
+          if (linkingFrom !== card.id) {
+            setCards(prev => prev.map(c => c.id === linkingFrom ? { ...c, linkedTo: [...(c.linkedTo || []).filter(id => id !== card.id), card.id] } : c));
+            toast.success("Cards linked");
+          }
+          setLinkingFrom(null);
+          return;
+        }
+        if (e.shiftKey) {
+          setSelectedCards(prev => {
+            const next = new Set(prev);
+            if (next.has(card.id)) next.delete(card.id); else next.add(card.id);
+            return next;
+          });
+        } else {
+          setSelectedCard(card.id);
+          setSelectedCards(new Set([card.id]));
+        }
+        setDraggingCard(card.id);
+        setDragOffset({ x: pos.x - card.x, y: pos.y - card.y });
+      } else {
+        setSelectedCard(null);
+        setSelectedCards(new Set());
+        setLinkingFrom(null);
+      }
+      return;
+    }
+
+    if (activeTool === "text") {
+      setTextPos(pos);
+      setTextInput("");
+      return;
+    }
+
+    if (activeTool === "note") {
+      addNote(pos.x, pos.y);
+      return;
+    }
+
+    if (["rect", "circle", "triangle", "star", "diamond"].includes(activeTool)) {
+      addShape(activeTool, pos.x, pos.y);
+      return;
+    }
+
+    if (activeTool === "pen" || activeTool === "eraser") {
+      setIsDrawing(true);
+      setCurrentStroke([pos]);
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isPanning) {
+      setPan({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
+      return;
+    }
+    const pos = getCanvasPos(e);
+    if (draggingCard) {
+      const dx = pos.x - dragOffset.x;
+      const dy = pos.y - dragOffset.y;
+      if (selectedCards.size > 1 && selectedCards.has(draggingCard)) {
+        const draggedCard = cards.find(c => c.id === draggingCard);
+        if (draggedCard) {
+          const moveX = dx - draggedCard.x;
+          const moveY = dy - draggedCard.y;
+          setCards(prev => prev.map(c => selectedCards.has(c.id) ? { ...c, x: c.x + moveX, y: c.y + moveY } : c));
+        }
+      } else {
+        setCards(prev => prev.map(c => c.id === draggingCard ? { ...c, x: dx, y: dy } : c));
+      }
+      return;
+    }
+    if (isDrawing) {
+      setCurrentStroke(prev => [...prev, pos]);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (isPanning) { setIsPanning(false); return; }
+    if (draggingCard) { setDraggingCard(null); return; }
+    if (isDrawing && currentStroke.length > 1) {
+      setStrokes(prev => [...prev, {
+        id: crypto.randomUUID(),
+        points: currentStroke,
+        color: activeColor,
+        width: brushSize,
+        tool: activeTool === "eraser" ? "eraser" : "pen",
+      }]);
+    }
+    setIsDrawing(false);
+    setCurrentStroke([]);
+  };
+
+  // Add items
+  const importContentCard = (item: any, x: number, y: number) => {
+    const card: CanvasCard = {
+      id: `card-${item.id}`,
+      type: "content",
+      x, y,
+      width: 240, height: 160,
+      data: item,
+      linkedTo: [],
     };
-    setTasks(prev => [...prev, task]);
-    resetForm();
-    setShowCreateDialog(false);
-    toast.success("Task created");
+    setCards(prev => [...prev, card]);
   };
 
-  const updateTask = () => {
-    if (!editingTask) return;
-    setTasks(prev => prev.map(t => t.id === editingTask.id ? {
-      ...t,
-      title: formTitle,
-      description: formDescription,
-      status: formStatus,
-      priority: formPriority,
-      labels: formLabels,
-      assignee: formAssignee,
-      due_date: formDueDate || null,
-      notes: formNotes,
-      updated_at: new Date().toISOString(),
-    } : t));
-    resetForm();
-    setEditingTask(null);
-    toast.success("Task updated");
+  const addNote = (x: number, y: number) => {
+    setCards(prev => [...prev, {
+      id: `note-${crypto.randomUUID()}`,
+      type: "note",
+      x, y,
+      width: 200, height: 120,
+      text: "",
+      color: activeColor,
+      linkedTo: [],
+    }]);
+    setActiveTool("select");
   };
 
-  const deleteTask = (id: string) => {
-    setTasks(prev => prev.filter(t => t.id !== id));
-    toast.success("Task deleted");
+  const addShape = (shape: string, x: number, y: number) => {
+    setCards(prev => [...prev, {
+      id: `shape-${crypto.randomUUID()}`,
+      type: "shape",
+      x, y,
+      width: 100, height: 100,
+      shape, color: activeColor,
+      linkedTo: [],
+    }]);
+    setActiveTool("select");
   };
 
-  const bulkDelete = () => {
-    if (selectedTasks.size === 0) return;
-    if (!confirm(`Delete ${selectedTasks.size} tasks?`)) return;
-    setTasks(prev => prev.filter(t => !selectedTasks.has(t.id)));
-    setSelectedTasks(new Set());
-    toast.success("Tasks deleted");
+  const addTextBlock = () => {
+    if (!textPos || !textInput.trim()) { setTextPos(null); return; }
+    setCards(prev => [...prev, {
+      id: `text-${crypto.randomUUID()}`,
+      type: "text",
+      x: textPos.x, y: textPos.y,
+      width: 200, height: 40,
+      text: textInput,
+      color: activeColor,
+      fontSize: 14,
+      linkedTo: [],
+    }]);
+    setTextPos(null);
+    setTextInput("");
+    setActiveTool("select");
   };
 
-  const bulkChangeStatus = (status: TaskStatus) => {
-    setTasks(prev => prev.map(t => selectedTasks.has(t.id) ? { ...t, status, updated_at: new Date().toISOString() } : t));
-    setSelectedTasks(new Set());
-    toast.success(`${selectedTasks.size} tasks → ${STATUS_CONFIG[status].label}`);
+  const deleteSelected = () => {
+    if (selectedCards.size === 0) return;
+    setCards(prev => prev.filter(c => !selectedCards.has(c.id)).map(c => ({
+      ...c,
+      linkedTo: c.linkedTo?.filter(id => !selectedCards.has(id)),
+    })));
+    setSelectedCards(new Set());
+    setSelectedCard(null);
   };
 
-  const moveTask = (taskId: string, newStatus: TaskStatus) => {
-    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus, updated_at: new Date().toISOString() } : t));
+  const duplicateSelected = () => {
+    const newCards = cards.filter(c => selectedCards.has(c.id)).map(c => ({
+      ...c,
+      id: `dup-${crypto.randomUUID()}`,
+      x: c.x + 30,
+      y: c.y + 30,
+      linkedTo: [],
+    }));
+    setCards(prev => [...prev, ...newCards]);
   };
 
-  const duplicateTask = (task: SandboxTask) => {
-    const dup: SandboxTask = { ...task, id: crypto.randomUUID(), title: `${task.title} (copy)`, status: "todo", created_at: new Date().toISOString(), updated_at: new Date().toISOString(), order: tasks.length };
-    setTasks(prev => [...prev, dup]);
-    toast.success("Task duplicated");
+  // AI Evolver
+  const evolveCards = async () => {
+    const selected = cards.filter(c => selectedCards.has(c.id));
+    if (selected.length < 2) { toast.error("Select 2+ cards to evolve"); return; }
+    setEvolving(true);
+    try {
+      const cardDescriptions = selected.map(c => {
+        if (c.type === "content" && c.data) return `Content: "${c.data.title}" - ${c.data.caption || ""} [${c.data.platform}/${c.data.content_type}] hashtags: ${(c.data.hashtags || []).join(", ")}`;
+        if (c.type === "note") return `Note: "${c.text}"`;
+        if (c.type === "text") return `Text: "${c.text}"`;
+        return `Shape: ${c.shape}`;
+      }).join("\n");
+
+      const { data, error } = await supabase.functions.invoke("agency-copilot", {
+        body: {
+          messages: [{
+            role: "user",
+            content: `You are a creative content strategist. I have these ${selected.length} content cards on my sandbox:\n\n${cardDescriptions}\n\nCOMBINE and EVOLVE them into something greater. Create a new evolved concept that merges the best of all cards into a superior piece of content.\n\nReturn ONLY a JSON object:\n{"title":"evolved title","caption":"full evolved caption with emojis","platform":"best platform","content_type":"post/reel/story","hashtags":["tag1","tag2"],"evolution_notes":"explain how you combined and elevated the ideas","viral_score":70-95}`
+          }]
+        }
+      });
+
+      if (error) throw error;
+      const text = typeof data === "string" ? data : data?.choices?.[0]?.message?.content || JSON.stringify(data);
+      
+      // Parse response
+      let evolved: any;
+      try {
+        const cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+        const match = cleaned.match(/\{[\s\S]*\}/);
+        evolved = JSON.parse(match ? match[0].replace(/,\s*([\]}])/g, "$1") : cleaned);
+      } catch { evolved = { title: "Evolved Concept", caption: text, platform: "instagram", content_type: "post", hashtags: [], evolution_notes: "AI combined your ideas", viral_score: 80 }; }
+
+      // Create new content item in DB
+      const { data: newItem, error: insertError } = await supabase.from("content_calendar").insert({
+        title: evolved.title || "Evolved Content",
+        caption: evolved.caption || "",
+        platform: evolved.platform || "instagram",
+        content_type: evolved.content_type || "post",
+        hashtags: evolved.hashtags || [],
+        status: "draft",
+        viral_score: evolved.viral_score || 80,
+        description: evolved.evolution_notes || "Evolved from sandbox cards",
+        metadata: { source: "sandbox_evolver", evolved_from: selected.map(c => c.id) },
+      }).select().single();
+
+      if (insertError) throw insertError;
+
+      // Place evolved card in center of selected cards
+      const avgX = selected.reduce((s, c) => s + c.x, 0) / selected.length;
+      const avgY = selected.reduce((s, c) => s + c.y, 0) / selected.length - 200;
+
+      if (newItem) {
+        const evolvedCard: CanvasCard = {
+          id: `card-${newItem.id}`,
+          type: "content",
+          x: avgX, y: avgY,
+          width: 280, height: 180,
+          data: newItem,
+          linkedTo: selected.map(c => c.id),
+        };
+        setCards(prev => [...prev, evolvedCard]);
+      }
+
+      onRefresh();
+      toast.success(`🧬 Evolved ${selected.length} cards into "${evolved.title}"`);
+    } catch (e: any) {
+      toast.error(e.message || "Evolution failed");
+    }
+    setEvolving(false);
   };
 
-  const toggleSubtask = (taskId: string, subtaskId: string) => {
-    setTasks(prev => prev.map(t => t.id === taskId ? {
-      ...t,
-      subtasks: t.subtasks.map(s => s.id === subtaskId ? { ...s, done: !s.done } : s),
-      updated_at: new Date().toISOString(),
-    } : t));
+  const clearAll = () => {
+    if (!confirm("Clear entire sandbox?")) return;
+    setCards([]);
+    setStrokes([]);
+    setSelectedCards(new Set());
+    setSelectedCard(null);
   };
 
-  const addSubtask = (taskId: string, text: string) => {
-    setTasks(prev => prev.map(t => t.id === taskId ? {
-      ...t,
-      subtasks: [...t.subtasks, { id: crypto.randomUUID(), text, done: false }],
-      updated_at: new Date().toISOString(),
-    } : t));
-  };
-
-  const resetForm = () => {
-    setFormTitle(""); setFormDescription(""); setFormStatus("todo"); setFormPriority("medium");
-    setFormLabels([]); setFormAssignee(""); setFormDueDate(""); setFormNotes("");
-  };
-
-  const openEdit = (task: SandboxTask) => {
-    setFormTitle(task.title); setFormDescription(task.description); setFormStatus(task.status);
-    setFormPriority(task.priority); setFormLabels([...task.labels]); setFormAssignee(task.assignee);
-    setFormDueDate(task.due_date || ""); setFormNotes(task.notes);
-    setEditingTask(task);
-  };
-
-  const toggleSelect = (id: string) => {
-    setSelectedTasks(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  };
-
-  // Drag & drop for kanban
-  const handleDragStart = (taskId: string) => setDraggedTaskId(taskId);
-  const handleDragOver = (e: React.DragEvent, status: TaskStatus) => { e.preventDefault(); setDragOverColumn(status); };
-  const handleDragLeave = () => setDragOverColumn(null);
-  const handleDrop = (status: TaskStatus) => {
-    if (draggedTaskId) moveTask(draggedTaskId, status);
-    setDraggedTaskId(null);
-    setDragOverColumn(null);
-  };
-
-  // ── Task Card Component ──
-  const TaskCard = ({ task, compact = false }: { task: SandboxTask; compact?: boolean }) => {
-    const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "done";
-    const subtaskDone = task.subtasks.filter(s => s.done).length;
-    return (
-      <div
-        draggable
-        onDragStart={() => handleDragStart(task.id)}
-        className={`group bg-white/[0.03] border border-white/[0.06] rounded-lg p-3 hover:border-primary/30 transition-all cursor-pointer ${selectedTasks.has(task.id) ? "ring-1 ring-primary border-primary/40" : ""} ${draggedTaskId === task.id ? "opacity-40" : ""}`}
-        onClick={() => openEdit(task)}
-      >
-        <div className="flex items-start gap-2">
-          <button onClick={(e) => { e.stopPropagation(); toggleSelect(task.id); }} className="mt-0.5 shrink-0">
-            {selectedTasks.has(task.id) ? <CheckSquare className="h-3.5 w-3.5 text-primary" /> : <Square className="h-3.5 w-3.5 text-white/20" />}
-          </button>
-          <div className="flex-1 min-w-0">
-            <p className={`text-xs font-medium text-white mb-1 ${task.status === "done" ? "line-through text-white/40" : ""}`}>{task.title}</p>
-            {!compact && task.description && <p className="text-[10px] text-white/40 line-clamp-2 mb-1.5">{task.description}</p>}
-            <div className="flex flex-wrap gap-1 mb-1.5">
-              {task.priority !== "none" && (
-                <Badge variant="outline" className={`text-[8px] ${PRIORITY_CONFIG[task.priority].color}`}>
-                  {task.priority}
-                </Badge>
-              )}
-              {task.labels.slice(0, 3).map(l => (
-                <Badge key={l} variant="outline" className="text-[8px] border-primary/20 text-primary/60">{l}</Badge>
-              ))}
-              {task.labels.length > 3 && <span className="text-[8px] text-white/30">+{task.labels.length - 3}</span>}
-            </div>
-            <div className="flex items-center gap-2 text-[9px] text-white/30">
-              {task.due_date && (
-                <span className={`flex items-center gap-0.5 ${isOverdue ? "text-red-400" : ""}`}>
-                  <Calendar className="h-2.5 w-2.5" /> {format(new Date(task.due_date), "MMM d")}
-                </span>
-              )}
-              {task.assignee && <span className="flex items-center gap-0.5"><User className="h-2.5 w-2.5" /> {task.assignee}</span>}
-              {task.subtasks.length > 0 && (
-                <span className="flex items-center gap-0.5">
-                  <CheckSquare className="h-2.5 w-2.5" /> {subtaskDone}/{task.subtasks.length}
-                </span>
-              )}
-              {task.notes && <FileText className="h-2.5 w-2.5" />}
-            </div>
-          </div>
-          <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button onClick={(e) => { e.stopPropagation(); duplicateTask(task); }} className="p-1 hover:bg-white/[0.05] rounded"><Copy className="h-3 w-3 text-white/30" /></button>
-            <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} className="p-1 hover:bg-red-500/10 rounded"><Trash2 className="h-3 w-3 text-red-400/50" /></button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // ── Form Dialog ──
-  const FormDialog = ({ open, onClose, isEdit }: { open: boolean; onClose: () => void; isEdit: boolean }) => (
-    <Dialog open={open} onOpenChange={v => { if (!v) { onClose(); resetForm(); } }}>
-      <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-white flex items-center gap-2">
-            {isEdit ? <Edit2 className="h-4 w-4 text-primary" /> : <Plus className="h-4 w-4 text-primary" />}
-            {isEdit ? "Edit Task" : "New Task"}
-          </DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <Input value={formTitle} onChange={e => setFormTitle(e.target.value)} placeholder="Task title..."
-            className="bg-white/[0.03] border-white/[0.06] text-white text-sm placeholder:text-white/20" />
-          <Textarea value={formDescription} onChange={e => setFormDescription(e.target.value)} placeholder="Description (supports markdown)..."
-            className="bg-white/[0.03] border-white/[0.06] text-white text-xs placeholder:text-white/20 min-h-[80px]" />
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] text-white/40 mb-1 block">Status</label>
-              <Select value={formStatus} onValueChange={v => setFormStatus(v as TaskStatus)}>
-                <SelectTrigger className="bg-white/[0.03] border-white/[0.06] text-white h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-[hsl(222,35%,9%)] border-white/[0.08]">
-                  {STATUSES.map(s => <SelectItem key={s} value={s} className="text-xs text-white/70">{STATUS_CONFIG[s].label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <label className="text-[10px] text-white/40 mb-1 block">Priority</label>
-              <Select value={formPriority} onValueChange={v => setFormPriority(v as Priority)}>
-                <SelectTrigger className="bg-white/[0.03] border-white/[0.06] text-white h-8 text-xs"><SelectValue /></SelectTrigger>
-                <SelectContent className="bg-[hsl(222,35%,9%)] border-white/[0.08]">
-                  {(["urgent", "high", "medium", "low", "none"] as Priority[]).map(p => (
-                    <SelectItem key={p} value={p} className={`text-xs ${PRIORITY_CONFIG[p].color}`}>{PRIORITY_CONFIG[p].label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] text-white/40 mb-1 block">Assignee</label>
-              <Input value={formAssignee} onChange={e => setFormAssignee(e.target.value)} placeholder="Name..."
-                className="bg-white/[0.03] border-white/[0.06] text-white text-xs h-8 placeholder:text-white/20" />
-            </div>
-            <div>
-              <label className="text-[10px] text-white/40 mb-1 block">Due Date</label>
-              <Input type="date" value={formDueDate} onChange={e => setFormDueDate(e.target.value)}
-                className="bg-white/[0.03] border-white/[0.06] text-white text-xs h-8" />
-            </div>
-          </div>
-          {/* Labels */}
-          <div>
-            <label className="text-[10px] text-white/40 mb-1 block">Labels</label>
-            <div className="flex flex-wrap gap-1 mb-2">
-              {customLabels.map(l => (
-                <button key={l} onClick={() => setFormLabels(prev => prev.includes(l) ? prev.filter(x => x !== l) : [...prev, l])}
-                  className={`text-[9px] px-2 py-0.5 rounded-full border transition-all ${formLabels.includes(l)
-                    ? "border-primary/40 bg-primary/10 text-primary"
-                    : "border-white/[0.06] text-white/30 hover:text-white/50"}`}>
-                  {l}
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-1">
-              <Input value={newLabelInput} onChange={e => setNewLabelInput(e.target.value)} placeholder="New label..."
-                className="bg-white/[0.03] border-white/[0.06] text-white text-[10px] h-6 placeholder:text-white/20 flex-1"
-                onKeyDown={e => { if (e.key === "Enter" && newLabelInput.trim()) { setCustomLabels(prev => [...prev, newLabelInput.trim()]); setFormLabels(prev => [...prev, newLabelInput.trim()]); setNewLabelInput(""); } }} />
-              <Button size="sm" variant="outline" onClick={() => { if (newLabelInput.trim()) { setCustomLabels(prev => [...prev, newLabelInput.trim()]); setFormLabels(prev => [...prev, newLabelInput.trim()]); setNewLabelInput(""); } }}
-                className="text-[9px] h-6 px-2 border-white/[0.06] text-white/50"><Plus className="h-2.5 w-2.5" /></Button>
-            </div>
-          </div>
-          {/* Notes */}
-          <div>
-            <label className="text-[10px] text-white/40 mb-1 block">Notes</label>
-            <Textarea value={formNotes} onChange={e => setFormNotes(e.target.value)} placeholder="Internal notes, links, references..."
-              className="bg-white/[0.03] border-white/[0.06] text-white text-xs placeholder:text-white/20 min-h-[60px]" />
-          </div>
-          {/* Subtasks (edit mode only) */}
-          {isEdit && editingTask && (
-            <div>
-              <label className="text-[10px] text-white/40 mb-1 block">Subtasks</label>
-              <div className="space-y-1 mb-2">
-                {editingTask.subtasks.map(s => (
-                  <div key={s.id} className="flex items-center gap-2">
-                    <button onClick={() => toggleSubtask(editingTask.id, s.id)}>
-                      {s.done ? <CheckSquare className="h-3 w-3 text-emerald-400" /> : <Square className="h-3 w-3 text-white/30" />}
-                    </button>
-                    <span className={`text-xs ${s.done ? "line-through text-white/30" : "text-white/70"}`}>{s.text}</span>
-                  </div>
-                ))}
-              </div>
-              <Input placeholder="Add subtask..." className="bg-white/[0.03] border-white/[0.06] text-white text-xs h-7 placeholder:text-white/20"
-                onKeyDown={e => { if (e.key === "Enter" && (e.target as HTMLInputElement).value.trim()) { addSubtask(editingTask.id, (e.target as HTMLInputElement).value.trim()); (e.target as HTMLInputElement).value = ""; } }} />
-            </div>
-          )}
-          <div className="flex gap-2 pt-2">
-            <Button onClick={isEdit ? updateTask : createTask} className="flex-1 bg-primary text-primary-foreground text-xs h-9">
-              {isEdit ? "Update Task" : "Create Task"}
-            </Button>
-            <Button variant="outline" onClick={() => { onClose(); resetForm(); }} className="text-xs h-9 border-white/[0.06] text-white/50">Cancel</Button>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
+  // Tool config
+  const tools: { id: Tool; icon: any; label: string }[] = [
+    { id: "select", icon: MousePointer, label: "Select" },
+    { id: "move", icon: Move, label: "Pan" },
+    { id: "pen", icon: Pencil, label: "Draw" },
+    { id: "eraser", icon: Eraser, label: "Eraser" },
+    { id: "text", icon: Type, label: "Text" },
+    { id: "note", icon: StickyNote, label: "Sticky Note" },
+    { id: "rect", icon: Square, label: "Rectangle" },
+    { id: "circle", icon: Circle, label: "Circle" },
+    { id: "triangle", icon: Triangle, label: "Triangle" },
+    { id: "star", icon: Star, label: "Star" },
+    { id: "diamond", icon: Diamond, label: "Diamond" },
+    { id: "arrow", icon: ArrowRight, label: "Arrow" },
+  ];
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-bold text-white flex items-center gap-2">
-            <Kanban className="h-5 w-5 text-primary" /> Sandbox
-          </h1>
-          <p className="text-xs text-white/40">Your workspace for tasks, ideas, and project management</p>
-        </div>
-        <Button onClick={() => { resetForm(); setShowCreateDialog(true); }} className="bg-primary text-primary-foreground text-xs h-8">
-          <Plus className="h-3.5 w-3.5 mr-1" /> New Task
-        </Button>
-      </div>
-
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-3">
-        {[
-          { label: "Total", value: stats.total, color: "text-blue-400", icon: Layers },
-          { label: "In Progress", value: stats.inProgress, color: "text-amber-400", icon: Zap },
-          { label: "Done", value: stats.done, color: "text-emerald-400", icon: Check },
-          { label: "Overdue", value: stats.overdue, color: "text-red-400", icon: AlertTriangle },
-        ].map(s => (
-          <Card key={s.label} className="bg-white/[0.03] border-white/[0.06]">
-            <CardContent className="p-3">
-              <s.icon className={`h-4 w-4 ${s.color} mb-1`} />
-              <p className="text-xl font-bold text-white">{s.value}</p>
-              <p className="text-[10px] text-white/40">{s.label}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
+    <div className="space-y-2">
       {/* Toolbar */}
-      <div className="flex items-center justify-between gap-2 flex-wrap">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <div className="relative flex-1 min-w-[120px] max-w-[200px]">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-white/30" />
-            <Input value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search tasks..." className="bg-white/[0.03] border-white/[0.06] text-white text-xs h-8 pl-7 placeholder:text-white/20" />
-          </div>
-          <Select value={filterPriority} onValueChange={setFilterPriority}>
-            <SelectTrigger className="bg-white/[0.03] border-white/[0.06] text-white h-8 text-xs w-28"><SelectValue placeholder="Priority" /></SelectTrigger>
-            <SelectContent className="bg-[hsl(222,35%,9%)] border-white/[0.08]">
-              <SelectItem value="all" className="text-xs text-white/70">All Priority</SelectItem>
-              {(["urgent", "high", "medium", "low"] as Priority[]).map(p => (
-                <SelectItem key={p} value={p} className={`text-xs ${PRIORITY_CONFIG[p].color}`}>{PRIORITY_CONFIG[p].label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={filterLabel} onValueChange={setFilterLabel}>
-            <SelectTrigger className="bg-white/[0.03] border-white/[0.06] text-white h-8 text-xs w-28"><SelectValue placeholder="Label" /></SelectTrigger>
-            <SelectContent className="bg-[hsl(222,35%,9%)] border-white/[0.08]">
-              <SelectItem value="all" className="text-xs text-white/70">All Labels</SelectItem>
-              {customLabels.map(l => <SelectItem key={l} value={l} className="text-xs text-white/70">{l}</SelectItem>)}
-            </SelectContent>
-          </Select>
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Tool palette */}
+        <div className="flex items-center gap-0.5 bg-white/[0.03] border border-white/[0.06] rounded-xl p-1">
+          {tools.map(t => (
+            <button key={t.id} onClick={() => setActiveTool(t.id)} title={t.label}
+              className={`p-1.5 rounded-lg transition-all ${activeTool === t.id ? "bg-primary/20 text-primary" : "text-white/30 hover:text-white/60 hover:bg-white/[0.05]"}`}>
+              <t.icon className="h-3.5 w-3.5" />
+            </button>
+          ))}
         </div>
-        <div className="flex gap-2 items-center">
-          {selectedTasks.size > 0 && (
-            <div className="flex items-center gap-1.5 bg-primary/10 border border-primary/20 rounded-lg px-2 py-1">
-              <span className="text-[10px] text-primary font-medium">{selectedTasks.size} selected</span>
-              <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("done")} className="text-[9px] h-5 px-1.5 border-emerald-500/20 text-emerald-400">Done</Button>
-              <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("in_progress")} className="text-[9px] h-5 px-1.5 border-amber-500/20 text-amber-400">WIP</Button>
-              <Button size="sm" variant="outline" onClick={() => bulkChangeStatus("backlog")} className="text-[9px] h-5 px-1.5 border-white/[0.06] text-white/40">Backlog</Button>
-              <Button size="sm" variant="outline" onClick={bulkDelete} className="text-[9px] h-5 px-1.5 border-red-500/20 text-red-400"><Trash2 className="h-2.5 w-2.5" /></Button>
-              <button onClick={() => setSelectedTasks(new Set())} className="p-0.5"><X className="h-3 w-3 text-white/30" /></button>
-            </div>
-          )}
-          <div className="flex border border-white/[0.06] rounded-md overflow-hidden">
-            {([
-              { mode: "board" as ViewMode, icon: Kanban },
-              { mode: "list" as ViewMode, icon: List },
-              { mode: "table" as ViewMode, icon: LayoutGrid },
-            ]).map(v => (
-              <button key={v.mode} onClick={() => setViewMode(v.mode)}
-                className={`p-1.5 ${viewMode === v.mode ? "bg-primary/20 text-primary" : "text-white/30 hover:text-white/60"}`}>
-                <v.icon className="h-3.5 w-3.5" />
-              </button>
+
+        {/* Colors */}
+        <div className="flex items-center gap-0.5 bg-white/[0.03] border border-white/[0.06] rounded-xl p-1">
+          {COLORS.map(c => (
+            <button key={c} onClick={() => setActiveColor(c)}
+              className={`w-5 h-5 rounded-full border-2 transition-all ${activeColor === c ? "border-white scale-110" : "border-transparent hover:border-white/30"}`}
+              style={{ backgroundColor: c }} />
+          ))}
+        </div>
+
+        {/* Brush size */}
+        {(activeTool === "pen" || activeTool === "eraser") && (
+          <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.06] rounded-xl px-2 py-1">
+            {[2, 4, 8, 16].map(s => (
+              <button key={s} onClick={() => setBrushSize(s)}
+                className={`rounded-full transition-all ${brushSize === s ? "bg-primary" : "bg-white/20 hover:bg-white/40"}`}
+                style={{ width: Math.max(s * 1.5, 8), height: Math.max(s * 1.5, 8) }} />
             ))}
           </div>
+        )}
+
+        <div className="flex-1" />
+
+        {/* Actions */}
+        <div className="flex items-center gap-1">
+          <Button size="sm" variant="outline" onClick={() => setShowImport(true)}
+            className="text-xs h-7 border-primary/20 text-primary hover:bg-primary/10">
+            <Download className="h-3 w-3 mr-1" /> Import Cards
+          </Button>
+
+          {selectedCards.size >= 2 && (
+            <Button size="sm" onClick={evolveCards} disabled={evolving}
+              className="text-xs h-7 bg-gradient-to-r from-purple-600 to-pink-600 text-white">
+              {evolving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Sparkles className="h-3 w-3 mr-1" />}
+              Evolve ({selectedCards.size})
+            </Button>
+          )}
+
+          {selectedCards.size > 0 && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => {
+                if (!linkingFrom) {
+                  if (selectedCards.size === 1) {
+                    setLinkingFrom(Array.from(selectedCards)[0]);
+                    toast.info("Click another card to link");
+                  }
+                } else {
+                  setLinkingFrom(null);
+                }
+              }} className={`text-xs h-7 ${linkingFrom ? "border-purple-500/40 text-purple-400 bg-purple-500/10" : "border-white/[0.06] text-white/50"}`}>
+                <Link2 className="h-3 w-3 mr-1" /> {linkingFrom ? "Linking..." : "Link"}
+              </Button>
+              <Button size="sm" variant="outline" onClick={duplicateSelected}
+                className="text-xs h-7 border-white/[0.06] text-white/50">
+                <Copy className="h-3 w-3 mr-1" /> Dup
+              </Button>
+              <Button size="sm" variant="outline" onClick={deleteSelected}
+                className="text-xs h-7 border-red-500/20 text-red-400">
+                <Trash2 className="h-3 w-3 mr-1" /> Del
+              </Button>
+            </>
+          )}
+
+          {/* Zoom */}
+          <div className="flex items-center gap-0.5 bg-white/[0.03] border border-white/[0.06] rounded-lg">
+            <button onClick={() => setZoom(z => Math.max(0.25, z - 0.15))} className="p-1 text-white/30 hover:text-white/60"><ZoomOut className="h-3 w-3" /></button>
+            <span className="text-[9px] text-white/40 w-8 text-center">{Math.round(zoom * 100)}%</span>
+            <button onClick={() => setZoom(z => Math.min(3, z + 0.15))} className="p-1 text-white/30 hover:text-white/60"><ZoomIn className="h-3 w-3" /></button>
+            <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); }} className="p-1 text-white/30 hover:text-white/60"><RotateCcw className="h-3 w-3" /></button>
+          </div>
+
+          <Button size="sm" variant="outline" onClick={() => setStrokes([])} className="text-xs h-7 border-white/[0.06] text-white/30">
+            Clear Strokes
+          </Button>
+          <Button size="sm" variant="outline" onClick={clearAll} className="text-xs h-7 border-red-500/20 text-red-400/50">
+            Reset All
+          </Button>
         </div>
       </div>
 
-      {/* ═══ BOARD VIEW (Kanban) ═══ */}
-      {viewMode === "board" && (
-        <div className="flex gap-3 overflow-x-auto pb-4" style={{ minHeight: "400px" }}>
-          {STATUSES.map(status => {
-            const conf = STATUS_CONFIG[status];
-            const columnTasks = tasksByStatus[status];
-            return (
-              <div
-                key={status}
-                className={`flex-1 min-w-[220px] max-w-[300px] rounded-xl border p-3 transition-all ${dragOverColumn === status ? "border-primary/40 bg-primary/5" : "border-white/[0.06] bg-white/[0.02]"}`}
-                onDragOver={(e) => handleDragOver(e, status)}
-                onDragLeave={handleDragLeave}
-                onDrop={() => handleDrop(status)}
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-1.5">
-                    <conf.icon className={`h-3.5 w-3.5 ${conf.color.split(" ")[0]}`} />
-                    <span className="text-xs font-semibold text-white">{conf.label}</span>
-                    <Badge variant="outline" className="text-[8px] border-white/[0.08] text-white/30">{columnTasks.length}</Badge>
+      {/* Canvas Area */}
+      <div
+        ref={containerRef}
+        className="relative bg-[hsl(222,47%,3%)] border border-white/[0.06] rounded-xl overflow-hidden"
+        style={{ height: "calc(100vh - 280px)", cursor: activeTool === "move" ? "grab" : activeTool === "pen" ? "crosshair" : activeTool === "eraser" ? "cell" : activeTool === "text" ? "text" : "default" }}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+      >
+        {/* Grid pattern */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-[0.03]">
+          <defs>
+            <pattern id="sandboxGrid" width={40 * zoom} height={40 * zoom} patternUnits="userSpaceOnUse" x={pan.x % (40 * zoom)} y={pan.y % (40 * zoom)}>
+              <path d={`M ${40 * zoom} 0 L 0 0 0 ${40 * zoom}`} fill="none" stroke="white" strokeWidth="0.5" />
+            </pattern>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#sandboxGrid)" />
+        </svg>
+
+        {/* Drawing canvas */}
+        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+
+        {/* Cards Layer */}
+        <div className="absolute inset-0" style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: "0 0" }}>
+          {cards.map(card => (
+            <div
+              key={card.id}
+              className={`absolute group transition-shadow ${selectedCards.has(card.id) ? "ring-2 ring-primary shadow-lg shadow-primary/20" : ""} ${linkingFrom === card.id ? "ring-2 ring-purple-500 animate-pulse" : ""}`}
+              style={{ left: card.x, top: card.y, width: card.width, height: card.height, zIndex: selectedCard === card.id ? 50 : 10 }}
+              onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e); }}
+            >
+              {/* Content card */}
+              {card.type === "content" && card.data && (
+                <div className="w-full h-full bg-[hsl(222,35%,8%)] border border-white/[0.08] rounded-lg overflow-hidden flex flex-col hover:border-primary/30">
+                  <div className="px-2 py-1.5 border-b border-white/[0.06] flex items-center gap-1.5">
+                    <Grip className="h-2.5 w-2.5 text-white/15 cursor-grab" />
+                    <Badge variant="outline" className="text-[7px] border-white/[0.08] text-white/40 capitalize">{card.data.platform}</Badge>
+                    <Badge variant="outline" className={`text-[7px] capitalize ${card.data.status === "draft" ? "border-amber-500/20 text-amber-400" : card.data.status === "published" ? "border-emerald-500/20 text-emerald-400" : "border-blue-500/20 text-blue-400"}`}>{card.data.status}</Badge>
                   </div>
-                  <button onClick={() => { resetForm(); setFormStatus(status); setShowCreateDialog(true); }}
-                    className="p-0.5 hover:bg-white/[0.05] rounded"><Plus className="h-3 w-3 text-white/30" /></button>
-                </div>
-                <div className="space-y-2">
-                  {columnTasks.map(task => <TaskCard key={task.id} task={task} compact />)}
-                  {columnTasks.length === 0 && (
-                    <div className="py-8 text-center">
-                      <p className="text-[10px] text-white/20">Drop tasks here</p>
+                  <div className="px-2 py-1.5 flex-1 overflow-hidden">
+                    <p className="text-[10px] font-semibold text-white line-clamp-2 mb-1">{card.data.title}</p>
+                    {card.data.caption && <p className="text-[8px] text-white/30 line-clamp-3">{card.data.caption}</p>}
+                    {card.data.hashtags?.length > 0 && (
+                      <div className="flex flex-wrap gap-0.5 mt-1">
+                        {(card.data.hashtags as string[]).slice(0, 4).map((h: string, i: number) => (
+                          <span key={i} className="text-[7px] text-blue-400/50">#{h}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {card.data.viral_score > 0 && (
+                    <div className="px-2 py-1 border-t border-white/[0.04]">
+                      <div className="w-full h-1 bg-white/[0.05] rounded-full">
+                        <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-primary" style={{ width: `${card.data.viral_score}%` }} />
+                      </div>
                     </div>
                   )}
                 </div>
+              )}
+
+              {/* Sticky Note */}
+              {card.type === "note" && (
+                <div className="w-full h-full rounded-lg border p-2 flex flex-col" style={{ backgroundColor: card.color + "15", borderColor: card.color + "30" }}>
+                  <Grip className="h-2.5 w-2.5 mb-1 cursor-grab" style={{ color: card.color + "60" }} />
+                  <textarea
+                    value={card.text || ""}
+                    onChange={e => setCards(prev => prev.map(c => c.id === card.id ? { ...c, text: e.target.value } : c))}
+                    onClick={e => e.stopPropagation()}
+                    placeholder="Write here..."
+                    className="flex-1 bg-transparent border-none text-[10px] text-white/70 resize-none outline-none placeholder:text-white/20"
+                  />
+                </div>
+              )}
+
+              {/* Text Block */}
+              {card.type === "text" && (
+                <div className="w-full h-full flex items-center cursor-move">
+                  <span
+                    contentEditable
+                    suppressContentEditableWarning
+                    onClick={e => e.stopPropagation()}
+                    onBlur={e => setCards(prev => prev.map(c => c.id === card.id ? { ...c, text: e.currentTarget.textContent || "" } : c))}
+                    className="outline-none text-white/80 w-full"
+                    style={{ fontSize: card.fontSize || 14, color: card.color || "#fff" }}
+                  >{card.text}</span>
+                </div>
+              )}
+
+              {/* Shape */}
+              {card.type === "shape" && (
+                <div className="w-full h-full flex items-center justify-center">
+                  {card.shape === "rect" && <div className="w-full h-full rounded-md border-2" style={{ borderColor: card.color, backgroundColor: card.color + "15" }} />}
+                  {card.shape === "circle" && <div className="w-full h-full rounded-full border-2" style={{ borderColor: card.color, backgroundColor: card.color + "15" }} />}
+                  {card.shape === "triangle" && (
+                    <svg viewBox="0 0 100 100" className="w-full h-full">
+                      <polygon points="50,5 95,95 5,95" fill={card.color + "15"} stroke={card.color} strokeWidth="2" />
+                    </svg>
+                  )}
+                  {card.shape === "star" && (
+                    <svg viewBox="0 0 100 100" className="w-full h-full">
+                      <polygon points="50,5 61,35 95,35 68,57 79,90 50,70 21,90 32,57 5,35 39,35" fill={card.color + "15"} stroke={card.color} strokeWidth="2" />
+                    </svg>
+                  )}
+                  {card.shape === "diamond" && (
+                    <svg viewBox="0 0 100 100" className="w-full h-full">
+                      <polygon points="50,5 95,50 50,95 5,50" fill={card.color + "15"} stroke={card.color} strokeWidth="2" />
+                    </svg>
+                  )}
+                </div>
+              )}
+
+              {/* Resize handle */}
+              <div
+                className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize opacity-0 group-hover:opacity-100"
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                  const startX = e.clientX;
+                  const startY = e.clientY;
+                  const startW = card.width;
+                  const startH = card.height;
+                  const onMove = (ev: MouseEvent) => {
+                    setCards(prev => prev.map(c => c.id === card.id ? {
+                      ...c,
+                      width: Math.max(80, startW + (ev.clientX - startX) / zoom),
+                      height: Math.max(60, startH + (ev.clientY - startY) / zoom),
+                    } : c));
+                  };
+                  const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+                  window.addEventListener("mousemove", onMove);
+                  window.addEventListener("mouseup", onUp);
+                }}
+              >
+                <svg viewBox="0 0 10 10" className="w-full h-full text-white/20"><path d="M9 1L1 9M9 5L5 9" stroke="currentColor" strokeWidth="1" /></svg>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
-      )}
 
-      {/* ═══ LIST VIEW ═══ */}
-      {viewMode === "list" && (
-        <div className="space-y-1.5">
-          {filtered.length === 0 ? (
-            <Card className="bg-white/[0.03] border-white/[0.06]">
-              <CardContent className="py-12 text-center">
-                <Layers className="h-8 w-8 text-white/10 mx-auto mb-2" />
-                <p className="text-white/40 text-sm">No tasks yet</p>
-                <p className="text-white/20 text-xs mt-1">Create your first task to get started</p>
-              </CardContent>
-            </Card>
-          ) : filtered.map(task => <TaskCard key={task.id} task={task} />)}
-        </div>
-      )}
-
-      {/* ═══ TABLE VIEW ═══ */}
-      {viewMode === "table" && (
-        <Card className="bg-white/[0.03] border-white/[0.06] overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/[0.06]">
-                  <th className="text-[10px] text-white/30 font-medium text-left p-2 w-8"></th>
-                  <th className="text-[10px] text-white/30 font-medium text-left p-2">Title</th>
-                  <th className="text-[10px] text-white/30 font-medium text-left p-2">Status</th>
-                  <th className="text-[10px] text-white/30 font-medium text-left p-2">Priority</th>
-                  <th className="text-[10px] text-white/30 font-medium text-left p-2">Assignee</th>
-                  <th className="text-[10px] text-white/30 font-medium text-left p-2">Due</th>
-                  <th className="text-[10px] text-white/30 font-medium text-left p-2">Labels</th>
-                  <th className="text-[10px] text-white/30 font-medium text-left p-2 w-20"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map(task => {
-                  const isOverdue = task.due_date && new Date(task.due_date) < new Date() && task.status !== "done";
-                  return (
-                    <tr key={task.id} className="border-b border-white/[0.04] hover:bg-white/[0.02] cursor-pointer group" onClick={() => openEdit(task)}>
-                      <td className="p-2">
-                        <button onClick={(e) => { e.stopPropagation(); toggleSelect(task.id); }}>
-                          {selectedTasks.has(task.id) ? <CheckSquare className="h-3.5 w-3.5 text-primary" /> : <Square className="h-3.5 w-3.5 text-white/20" />}
-                        </button>
-                      </td>
-                      <td className="p-2">
-                        <span className={`text-xs text-white ${task.status === "done" ? "line-through text-white/40" : ""}`}>{task.title}</span>
-                      </td>
-                      <td className="p-2">
-                        <Badge variant="outline" className={`text-[9px] ${STATUS_CONFIG[task.status].color}`}>{STATUS_CONFIG[task.status].label}</Badge>
-                      </td>
-                      <td className="p-2">
-                        {task.priority !== "none" && <Badge variant="outline" className={`text-[9px] ${PRIORITY_CONFIG[task.priority].color}`}>{task.priority}</Badge>}
-                      </td>
-                      <td className="p-2"><span className="text-[10px] text-white/40">{task.assignee || "—"}</span></td>
-                      <td className="p-2">
-                        {task.due_date ? <span className={`text-[10px] ${isOverdue ? "text-red-400" : "text-white/40"}`}>{format(new Date(task.due_date), "MMM d")}</span> : <span className="text-[10px] text-white/20">—</span>}
-                      </td>
-                      <td className="p-2">
-                        <div className="flex gap-0.5">{task.labels.slice(0, 2).map(l => <Badge key={l} variant="outline" className="text-[8px] border-primary/20 text-primary/50">{l}</Badge>)}</div>
-                      </td>
-                      <td className="p-2">
-                        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100">
-                          <button onClick={(e) => { e.stopPropagation(); duplicateTask(task); }} className="p-1 hover:bg-white/[0.05] rounded"><Copy className="h-3 w-3 text-white/30" /></button>
-                          <button onClick={(e) => { e.stopPropagation(); deleteTask(task.id); }} className="p-1 hover:bg-red-500/10 rounded"><Trash2 className="h-3 w-3 text-red-400/50" /></button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        {/* Text input overlay */}
+        {textPos && (
+          <div className="absolute z-50 bg-[hsl(222,35%,9%)] border border-primary/30 rounded-lg p-2 shadow-xl"
+            style={{ left: textPos.x * zoom + pan.x, top: textPos.y * zoom + pan.y }}>
+            <Input autoFocus value={textInput} onChange={e => setTextInput(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") addTextBlock(); if (e.key === "Escape") setTextPos(null); }}
+              placeholder="Type text..."
+              className="bg-transparent border-white/[0.06] text-white text-xs h-7 w-48 placeholder:text-white/20" />
+            <div className="flex gap-1 mt-1">
+              <Button size="sm" onClick={addTextBlock} className="text-[9px] h-5 bg-primary text-primary-foreground"><Check className="h-2.5 w-2.5" /></Button>
+              <Button size="sm" variant="outline" onClick={() => setTextPos(null)} className="text-[9px] h-5 border-white/[0.06] text-white/40"><X className="h-2.5 w-2.5" /></Button>
+            </div>
           </div>
-        </Card>
-      )}
+        )}
 
-      {/* Dialogs */}
-      <FormDialog open={showCreateDialog} onClose={() => setShowCreateDialog(false)} isEdit={false} />
-      <FormDialog open={!!editingTask} onClose={() => setEditingTask(null)} isEdit={true} />
+        {/* Empty state */}
+        {cards.length === 0 && strokes.length === 0 && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <div className="text-center">
+              <Layers className="h-12 w-12 text-white/[0.05] mx-auto mb-3" />
+              <p className="text-white/20 text-sm font-medium">Your creative sandbox</p>
+              <p className="text-white/10 text-xs mt-1">Import cards, draw, add notes, and evolve ideas</p>
+            </div>
+          </div>
+        )}
+
+        {/* Linking cursor indicator */}
+        {linkingFrom && (
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-50 bg-purple-500/20 border border-purple-500/30 rounded-lg px-3 py-1.5 pointer-events-none">
+            <span className="text-xs text-purple-300 flex items-center gap-1.5">
+              <Link2 className="h-3 w-3 animate-pulse" /> Click a card to link
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Import Dialog */}
+      <Dialog open={showImport} onOpenChange={setShowImport}>
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Download className="h-4 w-4 text-primary" /> Import Content Cards
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-white/50">Click cards to add them to your sandbox canvas</p>
+          <div className="flex gap-1.5 mb-2">
+            <Button size="sm" variant="outline" onClick={() => {
+              let x = 50, y = 50;
+              items.forEach((item, i) => {
+                importContentCard(item, x + (i % 4) * 260, y + Math.floor(i / 4) * 180);
+              });
+              setShowImport(false);
+              toast.success(`${items.length} cards imported`);
+            }} className="text-xs h-7 border-primary/20 text-primary">
+              Import All ({items.length})
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => {
+              const drafts = items.filter(i => i.status === "draft");
+              let x = 50, y = 50;
+              drafts.forEach((item, i) => {
+                importContentCard(item, x + (i % 4) * 260, y + Math.floor(i / 4) * 180);
+              });
+              setShowImport(false);
+              toast.success(`${drafts.length} drafts imported`);
+            }} className="text-xs h-7 border-amber-500/20 text-amber-400">
+              Drafts Only ({items.filter(i => i.status === "draft").length})
+            </Button>
+          </div>
+          <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+            {items.map(item => {
+              const alreadyImported = cards.some(c => c.id === `card-${item.id}`);
+              return (
+                <div key={item.id}
+                  onClick={() => {
+                    if (alreadyImported) return;
+                    importContentCard(item, 100 + Math.random() * 300, 100 + Math.random() * 200);
+                    toast.success(`"${item.title}" added to sandbox`);
+                  }}
+                  className={`p-2 rounded-lg border transition-all ${alreadyImported
+                    ? "bg-white/[0.02] border-white/[0.04] opacity-40 cursor-not-allowed"
+                    : "bg-white/[0.03] border-white/[0.06] hover:border-primary/30 cursor-pointer"}`}>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className={`text-[8px] capitalize ${item.status === "draft" ? "border-amber-500/20 text-amber-400" : item.status === "published" ? "border-emerald-500/20 text-emerald-400" : "border-blue-500/20 text-blue-400"}`}>{item.status}</Badge>
+                    <Badge variant="outline" className="text-[8px] border-white/[0.06] text-white/40 capitalize">{item.platform}</Badge>
+                    <span className="text-xs text-white flex-1 truncate">{item.title}</span>
+                    {alreadyImported && <span className="text-[8px] text-emerald-400">Added</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
