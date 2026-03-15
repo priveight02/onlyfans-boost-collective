@@ -2269,7 +2269,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 )}
                 {showDetail.caption && (
                   <Button size="sm" variant="outline" onClick={() => saveCaptionToLibrary(showDetail.caption, showDetail.platform, showDetail.title)}
-                    className="border-white/[0.06] text-white/50 text-xs h-9">
+                    className="border-white/[0.06] bg-white/[0.03] text-white/50 hover:bg-white/[0.06] hover:text-white text-xs h-9">
                     <BookOpen className="h-3 w-3 mr-1" /> Save Caption
                   </Button>
                 )}
