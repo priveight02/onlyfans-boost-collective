@@ -1837,6 +1837,61 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 </CardContent>
               </Card>
 
+              {/* Hashtag Diversity Index */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Hashtag Diversity Index</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {(() => {
+                      const allTags = [...new Set(competitors.flatMap(c => c.topHashtags))];
+                      return competitors.map(comp => {
+                        const uniqueToThem = comp.topHashtags.filter(tag => competitors.filter(c => c.topHashtags.includes(tag)).length === 1).length;
+                        const sharedCount = comp.topHashtags.length - uniqueToThem;
+                        const diversityPct = comp.topHashtags.length > 0 ? Math.round((uniqueToThem / comp.topHashtags.length) * 100) : 0;
+                        return (
+                          <div key={comp.id} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-xs font-medium text-white/80">@{comp.username}</span>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-[8px] border-emerald-400/20 text-emerald-400">{uniqueToThem} unique</Badge>
+                                <Badge variant="outline" className="text-[8px] border-amber-400/20 text-amber-400">{sharedCount} shared</Badge>
+                                <span className="text-[10px] text-white/40">{comp.topHashtags.length} total</span>
+                              </div>
+                            </div>
+                            <div className="flex h-2 rounded-full overflow-hidden bg-white/[0.04]">
+                              <div className="h-full bg-emerald-400 transition-all" style={{ width: `${diversityPct}%` }} title={`${diversityPct}% unique`} />
+                              <div className="h-full bg-amber-400 transition-all" style={{ width: `${100 - diversityPct}%` }} title={`${100 - diversityPct}% shared`} />
+                            </div>
+                            <p className="text-[9px] text-white/30 mt-1">{diversityPct}% unique hashtag strategy — {diversityPct > 50 ? "differentiated approach" : "crowded hashtag space"}</p>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Comments-to-Likes Ratio */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Comments-to-Likes Ratio (Community Depth)</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={[
+                        ...(myStats ? [{ name: `@${myStats.username}`, ratio: myStats.avgLikes > 0 ? Math.round((myStats.avgComments / myStats.avgLikes) * 1000) / 10 : 0 }] : []),
+                        ...competitors.map(c => ({ name: `@${c.username}`, ratio: c.avgLikes > 0 ? Math.round((c.avgComments / c.avgLikes) * 1000) / 10 : 0 })),
+                      ].sort((a, b) => b.ratio - a.ratio)} barCategoryGap="25%">
+                        <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
+                        <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number) => `${v}% C/L ratio`} />
+                        <Bar dataKey="ratio" fill="hsl(30,95%,60%)" radius={[4, 4, 0, 0]} name="Comment/Like %" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <p className="text-[10px] text-white/30 text-center mt-2">Higher ratio = deeper community engagement, not just passive likes</p>
+                </CardContent>
+              </Card>
+
               {/* Content Format Comparison - Stacked Bar */}
               {competitors.some(c => c.contentTypes.length > 0) && (
                 <Card className="crm-card">
