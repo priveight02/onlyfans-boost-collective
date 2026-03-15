@@ -353,21 +353,25 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
       instagram: [
         /"edge_followed_by"\s*:\s*\{\s*"count"\s*:\s*(\d+)/i,
         /"followers_count"\s*:\s*(\d+)/i,
+        /"followers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
         /([\d,.\sKMBkmb]+)\s*Followers/i,
       ],
       tiktok: [
         /"followerCount"\s*:\s*(\d+)/i,
         /"follower_count"\s*:\s*(\d+)/i,
+        /"followers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
         /([\d,.\sKMBkmb]+)\s*Followers/i,
       ],
       youtube: [
         /"subscriberCount"\s*:\s*"?(\d+)/i,
+        /"subscribers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
         /"subscriberCountText"\s*:\s*\{\s*"simpleText"\s*:\s*"([^"]+)"/i,
         /"subscriberCountText"[\s\S]{0,220}?"label"\s*:\s*"([^"]+)"/i,
         /([\d,.\sKMBkmb]+)\s*subscribers/i,
       ],
       twitter: [
         /followers_count["']?\s*[:=]\s*"?(\d+)/i,
+        /"followers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
         /([\d,.\sKMBkmb]+)\s*Followers/i,
       ],
       linkedin: [
@@ -375,6 +379,7 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
         /([\d,.\sKMBkmb]+)\s*Followers/i,
       ],
       facebook: [
+        /"followers"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
         /([\d,.\sKMBkmb]+)\s*followers/i,
         /([\d,.\sKMBkmb]+)\s*likes/i,
       ],
@@ -384,11 +389,13 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
       instagram: [
         /"edge_owner_to_timeline_media"\s*:\s*\{\s*"count"\s*:\s*(\d+)/i,
         /"posts_count"\s*:\s*(\d+)/i,
+        /"media_count"\s*:\s*(\d+)/i,
         /([\d,.\sKMBkmb]+)\s*Posts/i,
       ],
       tiktok: [
         /"videoCount"\s*:\s*(\d+)/i,
         /"video_count"\s*:\s*(\d+)/i,
+        /"videos"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
         /([\d,.\sKMBkmb]+)\s*Videos?/i,
       ],
       youtube: [
@@ -402,6 +409,7 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
       ],
       linkedin: [],
       facebook: [
+        /"posts"\s*:\s*"?([\d,.\sKMBkmb]+)"?/i,
         /([\d,.\sKMBkmb]+)\s*posts/i,
       ],
     };
