@@ -369,6 +369,46 @@ const parseHumanNumber = (s: string): number => {
   return Math.round(num);
 };
 
+/** Extract social handles from a website homepage */
+const extractSocialHandlesFromWebsite = async (websiteUrl: string): Promise<Record<string, string>> => {
+  const handles: Record<string, string> = {};
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 7000);
+    const res = await fetch(websiteUrl, {
+      signal: ctrl.signal,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; ContentAnalyzer/1.0)" },
+    });
+    clearTimeout(tid);
+    if (!res.ok) return handles;
+
+    const html = (await res.text()).slice(0, 120000);
+
+    const normalizeHandle = (raw: string) => raw.replace(/^@/, "").replace(/[/?#].*$/, "").trim();
+
+    const ig = html.match(/instagram\.com\/([a-zA-Z0-9_.]+)/i)?.[1];
+    if (ig) handles.instagram = normalizeHandle(ig);
+
+    const tt = html.match(/tiktok\.com\/@?([a-zA-Z0-9_.]+)/i)?.[1];
+    if (tt) handles.tiktok = normalizeHandle(tt);
+
+    const tw = html.match(/(?:twitter|x)\.com\/([a-zA-Z0-9_]+)/i)?.[1];
+    if (tw) handles.twitter = normalizeHandle(tw);
+
+    const yt = html.match(/youtube\.com\/(?:@|channel\/|c\/)?([a-zA-Z0-9_-]+)/i)?.[1];
+    if (yt) handles.youtube = normalizeHandle(yt);
+
+    const li = html.match(/linkedin\.com\/company\/([a-zA-Z0-9_-]+)/i)?.[1];
+    if (li) handles.linkedin = normalizeHandle(li);
+
+    const fb = html.match(/facebook\.com\/([a-zA-Z0-9_.]+)/i)?.[1];
+    if (fb) handles.facebook = normalizeHandle(fb);
+  } catch {
+    // noop
+  }
+  return handles;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
