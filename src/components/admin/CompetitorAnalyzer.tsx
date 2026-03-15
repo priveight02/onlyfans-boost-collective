@@ -14,6 +14,7 @@ import {
   DollarSign, TrendingUp as TrendUp, Building2, Briefcase,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer,
   BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis,
@@ -3448,6 +3449,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                   const avgLikesP = Math.round(avg(c => c.avgLikes));
                                   const avgCommentsP = Math.round(avg(c => c.avgComments));
                                   const avgViewsP = Math.round(avg(c => c.avgViews));
+                                  const avgSharesP = Math.round(avg(c => c.avgShares));
                                   const avgFreqP = avg(c => c.postFrequency);
                                   const avgGrP = avg(c => c.growthRate);
                                   const totalLikesP = sum(c => c.totalLikes);
@@ -3456,94 +3458,154 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                   const totalViewGain30d = sum(c => c.viewGain30d);
                                   const totalLikeGain30d = sum(c => c.likeGain30d);
 
-                                  // Derived metrics
-                                  const likesPerK = totalReach > 0 ? (avgLikesP / (totalReach / n / 1000)) : 0;
-                                  const commentsPerK = totalReach > 0 ? (avgCommentsP / (totalReach / n / 1000)) : 0;
+                                  // Derived metrics (30+)
+                                  const avgFollowersEach = n > 0 ? totalReach / n : 0;
+                                  const avgFollowingEach = n > 0 ? totalFollowingP / n : 0;
+                                  const likesPerK = avgFollowersEach > 0 ? (avgLikesP / (avgFollowersEach / 1000)) : 0;
+                                  const commentsPerK = avgFollowersEach > 0 ? (avgCommentsP / (avgFollowersEach / 1000)) : 0;
+                                  const viewsPerK = avgFollowersEach > 0 ? (avgViewsP / (avgFollowersEach / 1000)) : 0;
                                   const likeCommentRatio = avgCommentsP > 0 ? (avgLikesP / avgCommentsP) : 0;
                                   const followerFollowingRatio = totalFollowingP > 0 ? (totalReach / totalFollowingP) : 0;
                                   const avgInteractions = avgLikesP + avgCommentsP;
                                   const postsPerDay = avgFreqP / 7;
-                                  const estReachPerPost = totalReach > 0 ? Math.round((totalReach / n) * (avgEng / 100) * 3.5) : 0;
-                                  const viralityScore = totalReach > 0 ? ((avgLikesP / (totalReach / n)) * 100) : 0;
-                                  const commentRate = totalReach > 0 ? ((avgCommentsP / (totalReach / n)) * 100) : 0;
+                                  const estReachPerPost = avgFollowersEach > 0 ? Math.round(avgFollowersEach * (avgEng / 100) * 3.5) : 0;
+                                  const viralityScore = avgFollowersEach > 0 ? ((avgLikesP / avgFollowersEach) * 100) : 0;
+                                  const commentRate = avgFollowersEach > 0 ? ((avgCommentsP / avgFollowersEach) * 100) : 0;
                                   const contentVelocity = totalPostsP > 0 ? Math.round(totalPostsP / n) : 0;
                                   const dailyGain = totalGain30d !== 0 ? Math.round(totalGain30d / 30) : 0;
+                                  const weeklyGain = totalGain30d !== 0 ? Math.round(totalGain30d / 4.3) : 0;
+                                  const projectedMonthlyGain = dailyGain * 30;
+                                  const projectedYearlyGain = dailyGain * 365;
+                                  const engQualityScore = avgEng > 0 ? Math.min(100, Math.round((avgEng / (key === "tiktok" ? 8 : key === "instagram" ? 4 : 2)) * 100)) : 0;
+                                  const avgViewLikeRatio = avgViewsP > 0 ? ((avgLikesP / avgViewsP) * 100) : 0;
+                                  const avgViewCommentRatio = avgViewsP > 0 ? ((avgCommentsP / avgViewsP) * 100) : 0;
+                                  const viewToFollowerRatio = avgFollowersEach > 0 && avgViewsP > 0 ? (avgViewsP / avgFollowersEach) : 0;
+                                  const shareRate = avgFollowersEach > 0 && avgSharesP > 0 ? ((avgSharesP / avgFollowersEach) * 100) : 0;
+                                  const contentLifespan = avgFreqP > 0 ? Math.round(7 / avgFreqP) : 0;
+                                  const interactionsPerPost = avgLikesP + avgCommentsP + avgSharesP;
+                                  const avgLikesPerPost = avgLikesP;
+                                  const engVelocity = avgFreqP > 0 ? Math.round(avgInteractions * avgFreqP) : 0;
+                                  const totalInteractions30d = engVelocity > 0 ? Math.round(engVelocity * 4.3) : 0;
+                                  const followerQuality = followerFollowingRatio > 10 ? "Premium" : followerFollowingRatio > 3 ? "High" : followerFollowingRatio > 1 ? "Average" : "Low";
+                                  const growthMomentum = avgGrP > 2 ? "Explosive" : avgGrP > 0.5 ? "Strong" : avgGrP > 0 ? "Steady" : avgGrP > -0.5 ? "Stagnant" : "Declining";
+                                  const contentConsistency = avgFreqP >= 7 ? "Daily+" : avgFreqP >= 3 ? "Frequent" : avgFreqP >= 1 ? "Weekly" : avgFreqP > 0 ? "Sporadic" : "Inactive";
+                                  const benchmarkER = key === "tiktok" ? 5.0 : key === "instagram" ? 2.5 : key === "youtube" ? 3.5 : key === "twitter" ? 0.5 : 1.5;
+                                  const erVsBenchmark = benchmarkER > 0 ? ((avgEng / benchmarkER) * 100) : 0;
+                                  const avgDailyViews30d = totalViewGain30d > 0 ? Math.round(totalViewGain30d / 30) : 0;
+                                  const avgDailyLikes30d = totalLikeGain30d !== 0 ? Math.round(Math.abs(totalLikeGain30d) / 30) : 0;
 
                                   const reachPct = totalFollowers > 0 ? ((totalReach / totalFollowers) * 100).toFixed(1) : "0";
                                   const maxPlatformReach = Math.max(...platforms.map(([, d]) => d.competitors.reduce((s, c) => s + c.followers, 0)));
                                   const barWidth = maxPlatformReach > 0 ? (totalReach / maxPlatformReach) * 100 : 0;
 
-                                  // Build stat items - only show those with data
+                                  // Build stat items - 30+ metrics organized into sections
                                   type StatItem = { label: string; value: string; color: string; section: string };
                                   const stats: StatItem[] = [];
 
-                                  // Section: Audience
+                                  // ── AUDIENCE (8+ metrics) ──
                                   stats.push({ label: "Total Reach", value: fmtNum(totalReach), color: "text-white", section: "Audience" });
+                                  stats.push({ label: "Avg Followers", value: fmtNum(Math.round(avgFollowersEach)), color: "text-white", section: "Audience" });
                                   if (totalFollowingP > 0) stats.push({ label: "Total Following", value: fmtNum(totalFollowingP), color: "text-white/70", section: "Audience" });
                                   if (followerFollowingRatio > 0) stats.push({ label: "Follower:Following", value: followerFollowingRatio.toFixed(1) + "x", color: followerFollowingRatio > 5 ? "text-emerald-400" : "text-white/70", section: "Audience" });
-                                  if (totalGain30d !== 0) stats.push({ label: "30d Follower Gain", value: (totalGain30d >= 0 ? "+" : "") + fmtNum(totalGain30d), color: totalGain30d >= 0 ? "text-emerald-400" : "text-red-400", section: "Audience" });
-                                  if (dailyGain !== 0) stats.push({ label: "Daily Gain", value: (dailyGain >= 0 ? "+" : "") + fmtNum(dailyGain) + "/day", color: dailyGain >= 0 ? "text-emerald-400" : "text-red-400", section: "Audience" });
-                                  stats.push({ label: "Growth Rate", value: (avgGrP >= 0 ? "+" : "") + avgGrP.toFixed(2) + "%/wk", color: avgGrP >= 0 ? "text-emerald-400" : "text-red-400", section: "Audience" });
+                                  stats.push({ label: "Follower Quality", value: followerQuality, color: followerQuality === "Premium" ? "text-emerald-400" : followerQuality === "High" ? "text-[hsl(217,91%,60%)]" : "text-white/50", section: "Audience" });
+                                  stats.push({ label: "Reach Share", value: reachPct + "%", color: "text-[hsl(217,91%,60%)]", section: "Audience" });
 
-                                  // Section: Engagement
+                                  // ── GROWTH (8+ metrics) ──
+                                  stats.push({ label: "Growth Rate", value: (avgGrP >= 0 ? "+" : "") + avgGrP.toFixed(2) + "%", color: avgGrP >= 0 ? "text-emerald-400" : "text-red-400", section: "Growth" });
+                                  stats.push({ label: "Momentum", value: growthMomentum, color: growthMomentum === "Explosive" ? "text-emerald-400" : growthMomentum === "Strong" ? "text-[hsl(217,91%,60%)]" : growthMomentum === "Declining" ? "text-red-400" : "text-white/50", section: "Growth" });
+                                  if (totalGain30d !== 0) stats.push({ label: "30d Follower Gain", value: (totalGain30d >= 0 ? "+" : "") + fmtNum(totalGain30d), color: totalGain30d >= 0 ? "text-emerald-400" : "text-red-400", section: "Growth" });
+                                  if (dailyGain !== 0) stats.push({ label: "Daily Gain", value: (dailyGain >= 0 ? "+" : "") + fmtNum(dailyGain), color: dailyGain >= 0 ? "text-emerald-400" : "text-red-400", section: "Growth" });
+                                  if (weeklyGain !== 0) stats.push({ label: "Weekly Gain", value: (weeklyGain >= 0 ? "+" : "") + fmtNum(weeklyGain), color: weeklyGain >= 0 ? "text-emerald-400" : "text-red-400", section: "Growth" });
+                                  if (projectedMonthlyGain !== 0) stats.push({ label: "Proj. Monthly", value: (projectedMonthlyGain >= 0 ? "+" : "") + fmtNum(projectedMonthlyGain), color: projectedMonthlyGain >= 0 ? "text-emerald-400/70" : "text-red-400/70", section: "Growth" });
+                                  if (projectedYearlyGain !== 0) stats.push({ label: "Proj. Yearly", value: (projectedYearlyGain >= 0 ? "+" : "") + fmtNum(projectedYearlyGain), color: projectedYearlyGain >= 0 ? "text-emerald-400/50" : "text-red-400/50", section: "Growth" });
+
+                                  // ── ENGAGEMENT (10+ metrics) ──
                                   stats.push({ label: "Avg ER", value: avgEng.toFixed(2) + "%", color: avgEng > 3 ? "text-emerald-400" : avgEng > 1 ? "text-amber-400" : "text-red-400", section: "Engagement" });
+                                  stats.push({ label: "ER vs Benchmark", value: erVsBenchmark.toFixed(0) + "%", color: erVsBenchmark > 120 ? "text-emerald-400" : erVsBenchmark > 80 ? "text-amber-400" : "text-red-400", section: "Engagement" });
+                                  stats.push({ label: "Quality Score", value: engQualityScore + "/100", color: engQualityScore > 70 ? "text-emerald-400" : engQualityScore > 40 ? "text-amber-400" : "text-red-400", section: "Engagement" });
                                   stats.push({ label: "Avg Likes", value: fmtNum(avgLikesP), color: "text-white", section: "Engagement" });
                                   if (avgCommentsP > 0) stats.push({ label: "Avg Comments", value: fmtNum(avgCommentsP), color: "text-white", section: "Engagement" });
                                   if (avgViewsP > 0) stats.push({ label: "Avg Views", value: fmtNum(avgViewsP), color: "text-[hsl(217,91%,60%)]", section: "Engagement" });
-                                  if (avgInteractions > 0) stats.push({ label: "Avg Interactions", value: fmtNum(avgInteractions), color: "text-white", section: "Engagement" });
-                                  if (likesPerK > 0) stats.push({ label: "Likes / 1K Followers", value: likesPerK.toFixed(1), color: likesPerK > 30 ? "text-emerald-400" : "text-white/70", section: "Engagement" });
+                                  if (avgSharesP > 0) stats.push({ label: "Avg Shares", value: fmtNum(avgSharesP), color: "text-white", section: "Engagement" });
+                                  stats.push({ label: "Avg Interactions", value: fmtNum(avgInteractions), color: "text-white", section: "Engagement" });
+                                  if (likesPerK > 0) stats.push({ label: "Likes / 1K Foll.", value: likesPerK.toFixed(1), color: likesPerK > 30 ? "text-emerald-400" : "text-white/70", section: "Engagement" });
                                   if (commentsPerK > 0) stats.push({ label: "Comments / 1K", value: commentsPerK.toFixed(1), color: "text-white/70", section: "Engagement" });
-                                  if (likeCommentRatio > 0) stats.push({ label: "Like:Comment Ratio", value: likeCommentRatio.toFixed(1) + ":1", color: "text-white/70", section: "Engagement" });
+                                  if (likeCommentRatio > 0) stats.push({ label: "Like:Comment", value: likeCommentRatio.toFixed(1) + ":1", color: "text-white/70", section: "Engagement" });
                                   if (viralityScore > 0) stats.push({ label: "Virality Score", value: viralityScore.toFixed(2) + "%", color: viralityScore > 5 ? "text-emerald-400" : "text-white/70", section: "Engagement" });
                                   if (commentRate > 0) stats.push({ label: "Comment Rate", value: commentRate.toFixed(3) + "%", color: "text-white/70", section: "Engagement" });
 
-                                  // Section: Content
+                                  // ── VIEWS & REACH (for video platforms) ──
+                                  if (avgViewsP > 0 || totalViewsP > 0) {
+                                    if (viewsPerK > 0) stats.push({ label: "Views / 1K Foll.", value: fmtNum(Math.round(viewsPerK)), color: viewsPerK > 1000 ? "text-emerald-400" : "text-white/70", section: "Views" });
+                                    if (viewToFollowerRatio > 0) stats.push({ label: "View:Follower Ratio", value: viewToFollowerRatio.toFixed(2) + "x", color: viewToFollowerRatio > 1 ? "text-emerald-400" : "text-white/70", section: "Views" });
+                                    if (avgViewLikeRatio > 0) stats.push({ label: "Like:View Ratio", value: avgViewLikeRatio.toFixed(2) + "%", color: "text-white/70", section: "Views" });
+                                    if (avgViewCommentRatio > 0) stats.push({ label: "Comment:View Ratio", value: avgViewCommentRatio.toFixed(3) + "%", color: "text-white/70", section: "Views" });
+                                    if (avgDailyViews30d > 0) stats.push({ label: "Daily Views (30d)", value: fmtNum(avgDailyViews30d), color: "text-[hsl(217,91%,60%)]", section: "Views" });
+                                    if (totalViewGain30d > 0) stats.push({ label: "30d View Gain", value: "+" + fmtNum(totalViewGain30d), color: "text-emerald-400", section: "Views" });
+                                    if (totalViewsP > 0) stats.push({ label: "Total Views", value: fmtNum(totalViewsP), color: "text-[hsl(217,91%,60%)]", section: "Views" });
+                                  }
+
+                                  // ── CONTENT (8+ metrics) ──
                                   if (totalPostsP > 0) stats.push({ label: "Total Content", value: fmtNum(totalPostsP), color: "text-[hsl(262,83%,58%)]", section: "Content" });
                                   stats.push({ label: "Post Frequency", value: avgFreqP.toFixed(1) + "/wk", color: "text-[hsl(262,83%,58%)]", section: "Content" });
+                                  stats.push({ label: "Consistency", value: contentConsistency, color: contentConsistency === "Daily+" ? "text-emerald-400" : contentConsistency === "Frequent" ? "text-[hsl(217,91%,60%)]" : "text-white/50", section: "Content" });
                                   if (postsPerDay > 0) stats.push({ label: "Posts / Day", value: postsPerDay.toFixed(2), color: "text-white/70", section: "Content" });
-                                  if (contentVelocity > 0) stats.push({ label: "Avg Content Library", value: fmtNum(contentVelocity), color: "text-white/70", section: "Content" });
+                                  if (contentVelocity > 0) stats.push({ label: "Avg Library Size", value: fmtNum(contentVelocity), color: "text-white/70", section: "Content" });
                                   if (estReachPerPost > 0) stats.push({ label: "Est. Reach / Post", value: fmtNum(estReachPerPost), color: "text-[hsl(217,91%,60%)]", section: "Content" });
+                                  if (contentLifespan > 0) stats.push({ label: "Content Lifespan", value: contentLifespan + " day" + (contentLifespan !== 1 ? "s" : ""), color: "text-white/70", section: "Content" });
+                                  if (shareRate > 0) stats.push({ label: "Share Rate", value: shareRate.toFixed(3) + "%", color: "text-white/70", section: "Content" });
 
-                                  // Section: Volume
+                                  // ── VOLUME (6+ metrics) ──
                                   if (totalLikesP > 0) stats.push({ label: "Total Likes", value: fmtNum(totalLikesP), color: "text-white", section: "Volume" });
-                                  if (totalViewsP > 0) stats.push({ label: "Total Views", value: fmtNum(totalViewsP), color: "text-[hsl(217,91%,60%)]", section: "Volume" });
-                                  if (totalViewGain30d > 0) stats.push({ label: "30d View Gain", value: "+" + fmtNum(totalViewGain30d), color: "text-emerald-400", section: "Volume" });
                                   if (totalLikeGain30d !== 0) stats.push({ label: "30d Like Gain", value: (totalLikeGain30d >= 0 ? "+" : "") + fmtNum(totalLikeGain30d), color: totalLikeGain30d >= 0 ? "text-emerald-400" : "text-red-400", section: "Volume" });
+                                  if (avgDailyLikes30d > 0) stats.push({ label: "Daily Likes (30d)", value: fmtNum(avgDailyLikes30d), color: "text-white/70", section: "Volume" });
+                                  if (engVelocity > 0) stats.push({ label: "Weekly Interactions", value: fmtNum(engVelocity), color: "text-white/70", section: "Volume" });
+                                  if (totalInteractions30d > 0) stats.push({ label: "30d Interactions", value: fmtNum(totalInteractions30d), color: "text-amber-400", section: "Volume" });
+                                  if (interactionsPerPost > 0) stats.push({ label: "Interactions / Post", value: fmtNum(interactionsPerPost), color: "text-white/70", section: "Volume" });
 
                                   // Group by section
-                                  const sections = ["Audience", "Engagement", "Content", "Volume"];
+                                  const sections = ["Audience", "Growth", "Engagement", "Views", "Content", "Volume"];
                                   const grouped = sections.map(s => ({ section: s, items: stats.filter(st => st.section === s) })).filter(g => g.items.length > 0);
 
                                   return (
-                                    <div key={key} className="p-3 rounded-xl border border-white/[0.04] bg-white/[0.015] hover:border-white/[0.08] transition-all">
-                                      <div className="flex items-center gap-2.5 mb-3">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 p-1.5" style={{ background: data.color }}><img src={data.logo} alt={data.name} className="w-full h-full object-contain" /></div>
-                                        <div className="flex-1 min-w-0">
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-[12px] font-semibold text-white">{data.name}</span>
-                                            <Badge variant="outline" className="text-[7px] border-white/10 text-white/40">{n} competitor{n !== 1 ? "s" : ""}</Badge>
-                                            <span className="text-[9px] text-white/30 ml-auto">{reachPct}% of total reach</span>
+                                    <Collapsible key={key} defaultOpen={true}>
+                                      <div className="rounded-xl border border-white/[0.04] bg-white/[0.015] hover:border-white/[0.08] transition-all overflow-hidden">
+                                        <CollapsibleTrigger className="w-full">
+                                          <div className="flex items-center gap-2.5 p-3 cursor-pointer select-none">
+                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 p-1.5" style={{ background: data.color }}><img src={data.logo} alt={data.name} className="w-full h-full object-contain" /></div>
+                                            <div className="flex-1 min-w-0 text-left">
+                                              <div className="flex items-center gap-2">
+                                                <span className="text-[12px] font-semibold text-white">{data.name}</span>
+                                                <Badge variant="outline" className="text-[7px] border-white/10 text-white/40">{n} competitor{n !== 1 ? "s" : ""}</Badge>
+                                                <Badge variant="outline" className="text-[7px] border-white/10 text-white/30">{stats.length} metrics</Badge>
+                                                <span className="text-[9px] text-white/30 ml-auto mr-2">{reachPct}% of total reach</span>
+                                                <ChevronDown className="h-3.5 w-3.5 text-white/30 shrink-0 transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                                              </div>
+                                              <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden mt-1">
+                                                <div className="h-full rounded-full transition-all duration-700" style={{ width: `${barWidth}%`, background: `linear-gradient(90deg, ${data.color}, ${data.color}88)` }} />
+                                              </div>
+                                            </div>
                                           </div>
-                                          <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden mt-1">
-                                            <div className="h-full rounded-full transition-all duration-700" style={{ width: `${barWidth}%`, background: `linear-gradient(90deg, ${data.color}, ${data.color}88)` }} />
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {grouped.map(({ section, items }) => (
-                                        <div key={section} className="mb-2 last:mb-0">
-                                          <p className="text-[7px] font-semibold text-white/25 uppercase tracking-wider mb-1 px-0.5">{section}</p>
-                                          <div className="grid grid-cols-5 gap-1">
-                                            {items.map((stat) => (
-                                              <div key={stat.label} className="p-1.5 rounded-md bg-white/[0.02] text-center">
-                                                <p className="text-[6.5px] text-white/30 leading-tight">{stat.label}</p>
-                                                <p className={`text-[10px] font-bold ${stat.color}`}>{stat.value}</p>
+                                        </CollapsibleTrigger>
+                                        <CollapsibleContent>
+                                          <div className="px-3 pb-3 space-y-2">
+                                            {grouped.map(({ section, items }) => (
+                                              <div key={section}>
+                                                <p className="text-[7px] font-semibold text-white/25 uppercase tracking-wider mb-1 px-0.5">{section}</p>
+                                                <div className="grid grid-cols-5 gap-1">
+                                                  {items.map((stat) => (
+                                                    <div key={stat.label} className="p-1.5 rounded-md bg-white/[0.02] text-center">
+                                                      <p className="text-[6.5px] text-white/30 leading-tight">{stat.label}</p>
+                                                      <p className={`text-[10px] font-bold ${stat.color}`}>{stat.value}</p>
+                                                    </div>
+                                                  ))}
+                                                </div>
                                               </div>
                                             ))}
                                           </div>
-                                        </div>
-                                      ))}
-                                    </div>
+                                        </CollapsibleContent>
+                                      </div>
+                                    </Collapsible>
                                   );
                                 })}
                               </div>
