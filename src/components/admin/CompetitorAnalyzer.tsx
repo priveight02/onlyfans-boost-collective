@@ -440,6 +440,7 @@ const CompetitorAnalyzer = ({
   const [aiInsight, setAiInsight] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [refreshingBreakdown, setRefreshingBreakdown] = useState(false);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
   // Enterprise profile (50 fields) + toggle
@@ -773,7 +774,8 @@ Previous data: ${comp.followers} traffic/followers, ${comp.engagementRate}% enga
 
 Return ONLY valid JSON with updated data as of today:
 {
-  "followers": <updated total reach/traffic number>,
+  "displayName": "company/brand name",
+  "followers": <updated total social following across all platforms as number>,
   "following": 0,
   "posts": <content count>,
   "engagementRate": <number>,
@@ -782,6 +784,16 @@ Return ONLY valid JSON with updated data as of today:
   "growthRate": <weekly growth %>,
   "postFrequency": <content pieces/week>,
   "topHashtags": ["keyword1","keyword2","keyword3","keyword4","keyword5"],
+  "contentTypes": [{"type":"Blog","pct":30},{"type":"Video","pct":25},{"type":"Social","pct":25},{"type":"Email","pct":20}],
+  "socialPresence": {"instagram": "handle or null", "twitter": "handle or null", "linkedin": "handle or null", "tiktok": "handle or null", "youtube": "handle or null", "facebook": "handle or null"},
+  "platformMetrics": {
+    "instagram": {"followers": <number>, "engagementRate": <number>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>},
+    "tiktok": {"followers": <number>, "engagementRate": <number>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>},
+    "twitter": {"followers": <number>, "engagementRate": <number>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>},
+    "youtube": {"followers": <number>, "engagementRate": <number>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>},
+    "linkedin": {"followers": <number>, "engagementRate": <number>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>},
+    "facebook": {"followers": <number>, "engagementRate": <number>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>}
+  },
   "score": <0-100 threat level>,
   "recentTrend": "brief description of recent company/website trend"
 }`
@@ -799,6 +811,10 @@ Return ONLY valid JSON:
   "growthRate": <weekly growth %>,
   "postFrequency": <posts/week>,
   "topHashtags": ["tag1","tag2","tag3","tag4","tag5"],
+  "socialPresence": {"instagram": "handle or null", "twitter": "handle or null", "linkedin": "handle or null", "tiktok": "handle or null", "youtube": "handle or null"},
+  "platformMetrics": {
+    "${comp.platform}": {"followers": <number>, "engagementRate": <number>, "avgLikes": <number>, "postFrequency": <number>, "growthRate": <number>, "posts": <number>}
+  },
   "score": <0-100 threat level>,
   "recentTrend": "brief description of recent trend"
 }`;
@@ -832,6 +848,8 @@ Return ONLY valid JSON:
         threat_score: parsed.score,
         metadata: {
           ...comp.metadata,
+          socialPresence: parsed.socialPresence || comp.metadata?.socialPresence,
+          platformMetrics: parsed.platformMetrics || comp.metadata?.platformMetrics,
           recentTrend: parsed.recentTrend,
           analysisHistory: [...prevHistory, { date: new Date().toISOString(), followers: parsed.followers, engagement: parsed.engagementRate }].slice(-20),
         },
@@ -860,6 +878,68 @@ Return ONLY valid JSON:
       return true;
     });
     setRefreshingId(null);
+  };
+
+  const refreshPlatformBreakdown = async () => {
+    const targets = competitors.filter(c => c.platform === "internet" || !!c.metadata?.socialPresence || !!c.metadata?.platformMetrics);
+    if (targets.length === 0) {
+      toast.error("No competitors with social profile data found");
+      return;
+    }
+
+    setRefreshingBreakdown(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("competitor-analyze", {
+        body: {
+          action: "batch_platform_refresh",
+          competitors: targets.map(c => ({
+            id: c.id,
+            followers: c.followers,
+            websiteUrl: c.metadata?.websiteUrl || null,
+            socialPresence: c.metadata?.socialPresence || {},
+            platformMetrics: c.metadata?.platformMetrics || {},
+          })),
+        },
+      });
+
+      if (error) throw new Error(error.message || "Refresh failed");
+      const results = Array.isArray(data?.results) ? data.results : [];
+      if (!results.length) throw new Error("No platform data returned");
+
+      const now = new Date().toISOString();
+      const byId = new Map<string, any>(results.map((r: any) => [r.id, r]));
+
+      const nextCompetitors = competitors.map((c) => {
+        const fresh = byId.get(c.id);
+        if (!fresh) return c;
+        const prevHistory = c.metadata?.analysisHistory || [];
+        return {
+          ...c,
+          followers: typeof fresh.followers === "number" && fresh.followers > 0 ? fresh.followers : c.followers,
+          lastAnalyzed: now,
+          metadata: {
+            ...c.metadata,
+            socialPresence: fresh.socialPresence || c.metadata?.socialPresence,
+            platformMetrics: fresh.platformMetrics || c.metadata?.platformMetrics,
+            analysisHistory: [...prevHistory, { date: now, followers: typeof fresh.followers === "number" ? fresh.followers : c.followers, engagement: c.engagementRate }].slice(-20),
+          },
+        };
+      });
+
+      const changedRows = nextCompetitors.filter((c) => byId.has(c.id));
+      await Promise.all(changedRows.map((c) => competitorRest.update(c.id, {
+        followers: c.followers,
+        metadata: c.metadata,
+        last_analyzed_at: now,
+      })));
+
+      setCompetitors(nextCompetitors);
+      toast.success("Platform breakdown refreshed with live profile stats");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to refresh platform breakdown");
+    } finally {
+      setRefreshingBreakdown(false);
+    }
   };
 
   const runSwotAnalysis = async () => {
@@ -3145,30 +3225,43 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                           const key = plat.toLowerCase();
                           if (!platformDefs[key] || !social[plat]) return;
                           if (!platformMap[key]) platformMap[key] = { name: key.charAt(0).toUpperCase() + key.slice(1), color: platformDefs[key].color, logo: platformDefs[key].logo, competitors: [] };
-                          // Use per-platform metrics if available, otherwise fall back to top-level
-                          const pm = perPlatform[key] || perPlatform[plat] || {};
+                          // Use per-platform metrics only (no fake top-level fallback for internet competitors)
+                          const pm = perPlatform[key] || perPlatform[plat];
+                          const hasPlatformData = pm && typeof pm === "object" && (
+                            Number(pm.followers) > 0 ||
+                            Number(pm.engagementRate) > 0 ||
+                            Number(pm.avgLikes) > 0 ||
+                            Number(pm.postFrequency) > 0 ||
+                            Number(pm.growthRate) !== 0
+                          );
+                          if (!hasPlatformData) return;
+
                           platformMap[key].competitors.push({
                             username: c.username,
-                            followers: pm.followers ?? c.followers,
-                            engagementRate: pm.engagementRate ?? c.engagementRate,
-                            avgLikes: pm.avgLikes ?? c.avgLikes,
-                            postFrequency: pm.postFrequency ?? c.postFrequency,
-                            growthRate: pm.growthRate ?? c.growthRate,
+                            followers: Number(pm.followers) || 0,
+                            engagementRate: Number(pm.engagementRate) || 0,
+                            avgLikes: Number(pm.avgLikes) || 0,
+                            postFrequency: Number(pm.postFrequency) || 0,
+                            growthRate: Number(pm.growthRate) || 0,
                           });
                         });
-                        // Also add from primary platform
+                        // Also add from primary platform (fallback only for non-internet competitors)
                         const primary = (c.platform || "").toLowerCase();
                         if (platformDefs[primary] && !platformMap[primary]?.competitors.some(x => x.username === c.username)) {
                           if (!platformMap[primary]) platformMap[primary] = { name: primary.charAt(0).toUpperCase() + primary.slice(1), color: platformDefs[primary].color, logo: platformDefs[primary].logo, competitors: [] };
                           const pm = (c.metadata?.platformMetrics || {})[primary] || {};
-                          platformMap[primary].competitors.push({
-                            username: c.username,
-                            followers: pm.followers ?? c.followers,
-                            engagementRate: pm.engagementRate ?? c.engagementRate,
-                            avgLikes: pm.avgLikes ?? c.avgLikes,
-                            postFrequency: pm.postFrequency ?? c.postFrequency,
-                            growthRate: pm.growthRate ?? c.growthRate,
-                          });
+                          const usePrimaryFallback = c.platform !== "internet";
+                          const followers = Number(pm.followers) || (usePrimaryFallback ? c.followers : 0);
+                          if (followers > 0) {
+                            platformMap[primary].competitors.push({
+                              username: c.username,
+                              followers,
+                              engagementRate: Number(pm.engagementRate) || (usePrimaryFallback ? c.engagementRate : 0),
+                              avgLikes: Number(pm.avgLikes) || (usePrimaryFallback ? c.avgLikes : 0),
+                              postFrequency: Number(pm.postFrequency) || (usePrimaryFallback ? c.postFrequency : 0),
+                              growthRate: Number(pm.growthRate) || (usePrimaryFallback ? c.growthRate : 0),
+                            });
+                          }
                         }
                       });
 
@@ -3254,6 +3347,16 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                               <div className="px-3 py-2 flex items-center gap-2" style={{ borderBottom: "1px solid hsl(0 0% 100% / 0.04)", background: "hsl(0 0% 100% / 0.01)" }}>
                                 <BarChart3 className="h-3.5 w-3.5 text-white/40" />
                                 <span className="text-[10px] md:text-[11px] font-semibold text-white/60">Platform Performance Breakdown</span>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="ml-auto h-6 px-2 text-[9px] gap-1 border-white/10 text-white/60 hover:text-white"
+                                  onClick={refreshPlatformBreakdown}
+                                  disabled={refreshingBreakdown}
+                                >
+                                  <RefreshCw className={`h-3 w-3 ${refreshingBreakdown ? "animate-spin" : ""}`} />
+                                  {refreshingBreakdown ? "Refreshing" : "Refresh Live"}
+                                </Button>
                               </div>
                               <div className="p-2.5 md:p-3 space-y-2">
                                 {/* Best platforms callout */}

@@ -369,11 +369,51 @@ const parseHumanNumber = (s: string): number => {
   return Math.round(num);
 };
 
+/** Extract social handles from a website homepage */
+const extractSocialHandlesFromWebsite = async (websiteUrl: string): Promise<Record<string, string>> => {
+  const handles: Record<string, string> = {};
+  try {
+    const ctrl = new AbortController();
+    const tid = setTimeout(() => ctrl.abort(), 7000);
+    const res = await fetch(websiteUrl, {
+      signal: ctrl.signal,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; ContentAnalyzer/1.0)" },
+    });
+    clearTimeout(tid);
+    if (!res.ok) return handles;
+
+    const html = (await res.text()).slice(0, 120000);
+
+    const normalizeHandle = (raw: string) => raw.replace(/^@/, "").replace(/[/?#].*$/, "").trim();
+
+    const ig = html.match(/instagram\.com\/([a-zA-Z0-9_.]+)/i)?.[1];
+    if (ig) handles.instagram = normalizeHandle(ig);
+
+    const tt = html.match(/tiktok\.com\/@?([a-zA-Z0-9_.]+)/i)?.[1];
+    if (tt) handles.tiktok = normalizeHandle(tt);
+
+    const tw = html.match(/(?:twitter|x)\.com\/([a-zA-Z0-9_]+)/i)?.[1];
+    if (tw) handles.twitter = normalizeHandle(tw);
+
+    const yt = html.match(/youtube\.com\/(?:@|channel\/|c\/)?([a-zA-Z0-9_-]+)/i)?.[1];
+    if (yt) handles.youtube = normalizeHandle(yt);
+
+    const li = html.match(/linkedin\.com\/company\/([a-zA-Z0-9_-]+)/i)?.[1];
+    if (li) handles.linkedin = normalizeHandle(li);
+
+    const fb = html.match(/facebook\.com\/([a-zA-Z0-9_.]+)/i)?.[1];
+    if (fb) handles.facebook = normalizeHandle(fb);
+  } catch {
+    // noop
+  }
+  return handles;
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { prompt, action, analysisType } = await req.json();
+    const { prompt, action, analysisType, competitors } = await req.json();
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -400,6 +440,54 @@ serve(async (req) => {
 
       const count = row?.reset_by_admin ? 0 : row?.call_count || 0;
       return new Response(JSON.stringify({ count, limit: RATE_LIMIT_MAX, limited: count >= RATE_LIMIT_MAX }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (action === "batch_platform_refresh") {
+      const items = Array.isArray(competitors) ? competitors : [];
+      const results = await Promise.all(items.map(async (item: any) => {
+        const websiteUrl = item?.websiteUrl ? String(item.websiteUrl) : "";
+        const existingPresence = (item?.socialPresence && typeof item.socialPresence === "object") ? item.socialPresence : {};
+        const existingMetrics = (item?.platformMetrics && typeof item.platformMetrics === "object") ? item.platformMetrics : {};
+
+        let socialPresence: Record<string, string | null> = { ...existingPresence };
+        const hasAnyHandle = Object.values(socialPresence).some(Boolean);
+
+        if (!hasAnyHandle && websiteUrl) {
+          const extracted = await extractSocialHandlesFromWebsite(websiteUrl);
+          socialPresence = { ...socialPresence, ...extracted };
+        }
+
+        const scraped = await scrapeSocialProfiles(socialPresence);
+        const platformMetrics: Record<string, any> = { ...existingMetrics };
+
+        for (const [platform, scrapedData] of Object.entries(scraped)) {
+          const prev = platformMetrics[platform] || {};
+          platformMetrics[platform] = {
+            ...prev,
+            followers: scrapedData.followers ?? prev.followers ?? 0,
+            posts: scrapedData.posts ?? prev.posts ?? 0,
+            engagementRate: prev.engagementRate ?? 0,
+            avgLikes: prev.avgLikes ?? 0,
+            avgComments: prev.avgComments ?? 0,
+            postFrequency: prev.postFrequency ?? 0,
+            growthRate: prev.growthRate ?? 0,
+          };
+        }
+
+        const followers = Object.values(platformMetrics).reduce((sum: number, pm: any) => sum + (Number(pm?.followers) || 0), 0);
+
+        return {
+          id: item?.id,
+          followers: followers > 0 ? followers : (Number(item?.followers) || 0),
+          socialPresence,
+          platformMetrics,
+          scrapedPlatforms: Object.keys(scraped),
+        };
+      }));
+
+      return new Response(JSON.stringify({ results }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -750,18 +838,24 @@ CRITICAL RULES FOR platformMetrics:
           try {
             const parsed = JSON.parse(toolCall.function.arguments);
             // Merge scraped data into platformMetrics to override AI hallucinations
-            if (Object.keys(scrapedData).length > 0 && parsed.platformMetrics) {
+            if (Object.keys(scrapedData).length > 0) {
+              parsed.platformMetrics = parsed.platformMetrics || {};
               for (const [plat, scraped] of Object.entries(scrapedData)) {
-                if (parsed.platformMetrics[plat] && scraped.followers) {
-                  parsed.platformMetrics[plat].followers = scraped.followers;
-                }
-                if (parsed.platformMetrics[plat] && scraped.posts) {
-                  parsed.platformMetrics[plat].posts = scraped.posts;
-                }
+                const prev = parsed.platformMetrics[plat] || {};
+                parsed.platformMetrics[plat] = {
+                  ...prev,
+                  followers: scraped.followers ?? prev.followers ?? 0,
+                  posts: scraped.posts ?? prev.posts ?? 0,
+                  engagementRate: prev.engagementRate ?? 0,
+                  avgLikes: prev.avgLikes ?? 0,
+                  avgComments: prev.avgComments ?? 0,
+                  postFrequency: prev.postFrequency ?? 0,
+                  growthRate: prev.growthRate ?? 0,
+                };
               }
               // Recalculate total followers from platform metrics
               const totalFromPlatforms = Object.values(parsed.platformMetrics as Record<string, any>)
-                .reduce((sum: number, pm: any) => sum + (pm.followers || 0), 0);
+                .reduce((sum: number, pm: any) => sum + (pm?.followers || 0), 0);
               if (totalFromPlatforms > 0) parsed.followers = totalFromPlatforms;
             }
             reply = JSON.stringify(parsed);
