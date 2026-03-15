@@ -1004,7 +1004,12 @@ Return ONLY valid JSON:
   "weeklyHitList": [{"day": "Monday", "action": "specific action to take", "target": "what metric this impacts", "priority": "high/medium"}],
   "immediateActions": [{"action": "do this right now", "timeNeeded": "15min", "impact": "high", "details": "step by step"}],
   "longTermPlays": [{"play": "strategic move", "timeline": "2-4 weeks", "investment": "time/money needed", "expectedROI": "expected return"}],
-  "riskAssessment": {"overallThreat": "low/medium/high/critical", "biggestRisk": "main risk", "mitigation": "how to mitigate"}
+  "riskAssessment": {"overallThreat": "low/medium/high/critical", "biggestRisk": "main risk", "mitigation": "how to mitigate"},
+  "emailAutomationIntel": {"hasEmailCapture": true, "captureMethod": "popup/inline/exit-intent", "leadMagnet": "what they offer", "estimatedListSize": "range", "emailFrequency": "daily/weekly/monthly", "automationLevel": "basic/advanced/enterprise", "espPlatform": "detected email platform", "yourOpportunity": "how to build a better email funnel"},
+  "seoKeywordGaps": [{"keyword": "keyword they rank for", "estimatedPosition": "1-100", "searchVolume": "monthly", "difficulty": "easy/medium/hard", "yourAction": "how to outrank them on this", "contentToCreate": "specific content piece"}],
+  "competitiveMoat": {"moatType": "brand/network/cost/tech/data/switching-costs/none", "moatStrength": "strong/moderate/weak/none", "howToBreachIt": "specific tactics to overcome their moat", "timeToBreak": "estimated timeline", "yourMoatAdvice": "what moat you should build"},
+  "brandPerception": {"brandStrength": <0-100>, "brandPersonality": "how their brand comes across", "brandWeaknesses": ["brand weak spots"], "brandOpportunities": ["how to position against their brand"], "messagingGaps": ["messaging angles they miss"], "emotionalAppeal": "what emotion their brand triggers", "yourBrandStrategy": "how to differentiate your brand"},
+  "retentionSignals": {"hasLoyaltyProgram": true, "retentionTactics": ["tactic1"], "communityEngagement": "strong/moderate/weak", "repeatPurchaseSignals": "what indicates repeat buying", "churnVulnerabilities": ["why their customers might leave"], "yourRetentionPlay": "how to build better retention"}
 }
 
 Be extremely specific. Use actual data from the analysis. No generic advice. Every recommendation must be actionable with clear steps.`;
@@ -1832,6 +1837,61 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 </CardContent>
               </Card>
 
+              {/* Hashtag Diversity Index */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Hashtag Diversity Index</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {(() => {
+                      const allTags = [...new Set(competitors.flatMap(c => c.topHashtags))];
+                      return competitors.map(comp => {
+                        const uniqueToThem = comp.topHashtags.filter(tag => competitors.filter(c => c.topHashtags.includes(tag)).length === 1).length;
+                        const sharedCount = comp.topHashtags.length - uniqueToThem;
+                        const diversityPct = comp.topHashtags.length > 0 ? Math.round((uniqueToThem / comp.topHashtags.length) * 100) : 0;
+                        return (
+                          <div key={comp.id} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-xs font-medium text-white/80">@{comp.username}</span>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="outline" className="text-[8px] border-emerald-400/20 text-emerald-400">{uniqueToThem} unique</Badge>
+                                <Badge variant="outline" className="text-[8px] border-amber-400/20 text-amber-400">{sharedCount} shared</Badge>
+                                <span className="text-[10px] text-white/40">{comp.topHashtags.length} total</span>
+                              </div>
+                            </div>
+                            <div className="flex h-2 rounded-full overflow-hidden bg-white/[0.04]">
+                              <div className="h-full bg-emerald-400 transition-all" style={{ width: `${diversityPct}%` }} title={`${diversityPct}% unique`} />
+                              <div className="h-full bg-amber-400 transition-all" style={{ width: `${100 - diversityPct}%` }} title={`${100 - diversityPct}% shared`} />
+                            </div>
+                            <p className="text-[9px] text-white/30 mt-1">{diversityPct}% unique hashtag strategy — {diversityPct > 50 ? "differentiated approach" : "crowded hashtag space"}</p>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Comments-to-Likes Ratio */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Comments-to-Likes Ratio (Community Depth)</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-[220px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={[
+                        ...(myStats ? [{ name: `@${myStats.username}`, ratio: myStats.avgLikes > 0 ? Math.round((myStats.avgComments / myStats.avgLikes) * 1000) / 10 : 0 }] : []),
+                        ...competitors.map(c => ({ name: `@${c.username}`, ratio: c.avgLikes > 0 ? Math.round((c.avgComments / c.avgLikes) * 1000) / 10 : 0 })),
+                      ].sort((a, b) => b.ratio - a.ratio)} barCategoryGap="25%">
+                        <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => `${v}%`} />
+                        <Tooltip contentStyle={chartTooltipStyle} formatter={(v: number) => `${v}% C/L ratio`} />
+                        <Bar dataKey="ratio" fill="hsl(30,95%,60%)" radius={[4, 4, 0, 0]} name="Comment/Like %" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <p className="text-[10px] text-white/30 text-center mt-2">Higher ratio = deeper community engagement, not just passive likes</p>
+                </CardContent>
+              </Card>
+
               {/* Content Format Comparison - Stacked Bar */}
               {competitors.some(c => c.contentTypes.length > 0) && (
                 <Card className="crm-card">
@@ -2211,24 +2271,55 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 ))}
               </div>
 
-              {/* Hashtag comparison */}
+              {/* Hashtag Overlap Matrix */}
               <Card className="crm-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Hashtag Usage Across Competitors</CardTitle></CardHeader>
                 <CardContent>
+                  {/* Stats row */}
+                  {(() => {
+                    const allTags = [...new Set(competitors.flatMap(c => c.topHashtags))];
+                    const sharedTags = allTags.filter(tag => competitors.filter(c => c.topHashtags.includes(tag)).length >= 2);
+                    const uniqueTags = allTags.filter(tag => competitors.filter(c => c.topHashtags.includes(tag)).length === 1);
+                    return (
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                          <p className="text-[10px] text-white/40">Total Unique</p>
+                          <p className="text-sm font-bold text-[hsl(217,91%,60%)]">{allTags.length}</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-amber-400/5 border border-amber-400/10 text-center">
+                          <p className="text-[10px] text-white/40">Shared (2+)</p>
+                          <p className="text-sm font-bold text-amber-400">{sharedTags.length}</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10 text-center">
+                          <p className="text-[10px] text-white/40">Exclusive (1 only)</p>
+                          <p className="text-sm font-bold text-emerald-400">{uniqueTags.length}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-white/[0.06]">
                           <th className="text-left py-2 text-white/50 font-medium text-xs">Hashtag</th>
+                          <th className="text-center py-2 text-white/50 font-medium text-xs">Used By</th>
                           {competitors.map(c => <th key={c.id} className="text-center py-2 text-white/50 font-medium text-xs">@{c.username}</th>)}
                         </tr>
                       </thead>
                       <tbody>
                         {(() => {
                           const allTags = [...new Set(competitors.flatMap(c => c.topHashtags))];
-                          return allTags.slice(0, 15).map(tag => (
+                          // Sort by usage count descending
+                          return allTags
+                            .map(tag => ({ tag, count: competitors.filter(c => c.topHashtags.includes(tag)).length }))
+                            .sort((a, b) => b.count - a.count)
+                            .slice(0, 20)
+                            .map(({ tag, count }) => (
                             <tr key={tag} className="border-b border-white/[0.03]">
                               <td className="py-2 text-white/70 text-xs flex items-center gap-1"><Hash className="h-3 w-3 text-[hsl(217,91%,60%)]" />{tag}</td>
+                              <td className="text-center py-2">
+                                <Badge variant="outline" className={`text-[9px] ${count >= 2 ? "border-amber-400/20 text-amber-400" : "border-white/10 text-white/40"}`}>{count}/{competitors.length}</Badge>
+                              </td>
                               {competitors.map(c => (
                                 <td key={c.id} className="text-center py-2">
                                   {c.topHashtags.includes(tag) ? (
@@ -2243,6 +2334,70 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         })()}
                       </tbody>
                     </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Posting Velocity & Engagement Correlation */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Posting Velocity vs Engagement Rate</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-[240px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={[
+                        ...(myStats ? [{ name: `@${myStats.username}`, frequency: myStats.postFrequency, engagement: myStats.engagementRate, isMe: true }] : []),
+                        ...competitors.map(c => ({ name: `@${c.username}`, frequency: c.postFrequency, engagement: c.engagementRate, isMe: false })),
+                      ].sort((a, b) => b.engagement - a.engagement)} barCategoryGap="20%">
+                        <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis yAxisId="left" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis yAxisId="right" orientation="right" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={chartTooltipStyle} />
+                        <Bar yAxisId="left" dataKey="frequency" fill="hsl(262,83%,58%)" radius={[4, 4, 0, 0]} name="Posts/Week" opacity={0.7} />
+                        <Bar yAxisId="right" dataKey="engagement" fill="hsl(150,60%,50%)" radius={[4, 4, 0, 0]} name="Engagement %" />
+                        <Legend wrapperStyle={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <p className="text-[10px] text-white/30 text-center mt-2">Higher frequency doesn't always mean higher engagement — find your optimal posting cadence</p>
+                </CardContent>
+              </Card>
+
+              {/* Content Dominance Score */}
+              <Card className="crm-card border-[hsl(262,83%,58%)]/15">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2"><Crown className="h-4 w-4" /> Content Dominance Scorecard</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {(() => {
+                      const entries = competitors.map(c => {
+                        const diversityScore = Math.min(c.contentTypes.length * 25, 100);
+                        const hashtagScore = Math.min(c.topHashtags.length * 20, 100);
+                        const velocityScore = Math.min(c.postFrequency * 15, 100);
+                        const engScore = Math.min(c.engagementRate * 12, 100);
+                        const total = Math.round((diversityScore + hashtagScore + velocityScore + engScore) / 4);
+                        return { username: c.username, diversityScore, hashtagScore, velocityScore, engScore, total };
+                      }).sort((a, b) => b.total - a.total);
+                      const max = entries[0]?.total || 1;
+                      return entries.map((e, i) => (
+                        <div key={e.username} className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${i === 0 ? "bg-[hsl(262,83%,58%)]/15 text-[hsl(262,83%,58%)]" : "bg-white/[0.04] text-white/30"}`}>{i + 1}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-medium text-white/80">@{e.username}</span>
+                              <div className="flex gap-1">
+                                <Badge variant="outline" className="text-[7px] border-white/10 text-white/30">Div:{e.diversityScore}</Badge>
+                                <Badge variant="outline" className="text-[7px] border-white/10 text-white/30">Tags:{e.hashtagScore}</Badge>
+                                <Badge variant="outline" className="text-[7px] border-white/10 text-white/30">Vel:{e.velocityScore}</Badge>
+                                <Badge variant="outline" className="text-[7px] border-white/10 text-white/30">Eng:{e.engScore}</Badge>
+                              </div>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+                              <div className="h-full rounded-full bg-gradient-to-r from-[hsl(262,83%,58%)] to-[hsl(217,91%,60%)] transition-all duration-700" style={{ width: `${(e.total / max) * 100}%` }} />
+                            </div>
+                          </div>
+                          <span className="text-sm font-bold text-[hsl(262,83%,58%)] tabular-nums">{e.total}</span>
+                        </div>
+                      ));
+                    })()}
                   </div>
                 </CardContent>
               </Card>
@@ -4597,6 +4752,182 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                 </div>
                               ))}
                             </div>
+                          </div>
+                        )}
+
+                        {/* ═══ EMAIL AUTOMATION INTEL ═══ */}
+                        {siteInsights.emailAutomationIntel && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-sky-400/5 to-blue-400/5 border border-sky-400/15">
+                            <p className="text-xs font-medium text-sky-400 mb-3 flex items-center gap-1"><Activity className="h-3.5 w-3.5" /> Email & Automation Intelligence</p>
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mb-3">
+                              {[
+                                { label: "Email Capture", value: siteInsights.emailAutomationIntel.hasEmailCapture ? "Active" : "None", color: siteInsights.emailAutomationIntel.hasEmailCapture ? "text-emerald-400" : "text-red-400" },
+                                { label: "Method", value: siteInsights.emailAutomationIntel.captureMethod || "N/A", color: "text-white/80" },
+                                { label: "Est. List Size", value: siteInsights.emailAutomationIntel.estimatedListSize || "?", color: "text-sky-400" },
+                                { label: "Automation", value: siteInsights.emailAutomationIntel.automationLevel || "?", color: "text-white/80" },
+                              ].map((m, i) => (
+                                <div key={i} className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                  <p className="text-[10px] text-white/40">{m.label}</p>
+                                  <p className={`text-xs font-bold ${m.color}`}>{m.value}</p>
+                                </div>
+                              ))}
+                            </div>
+                            {siteInsights.emailAutomationIntel.leadMagnet && (
+                              <div className="p-2 rounded-lg bg-white/[0.02] mb-2">
+                                <p className="text-[10px] text-white/40">Lead Magnet</p>
+                                <p className="text-xs text-white/70">{siteInsights.emailAutomationIntel.leadMagnet}</p>
+                              </div>
+                            )}
+                            {siteInsights.emailAutomationIntel.espPlatform && (
+                              <Badge variant="outline" className="text-[8px] border-sky-400/20 text-sky-400 mb-2">ESP: {siteInsights.emailAutomationIntel.espPlatform}</Badge>
+                            )}
+                            {siteInsights.emailAutomationIntel.yourOpportunity && (
+                              <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                                <p className="text-[10px] text-emerald-400">🎯 {siteInsights.emailAutomationIntel.yourOpportunity}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ═══ SEO KEYWORD GAPS ═══ */}
+                        {(siteInsights.seoKeywordGaps || []).length > 0 && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-green-400/5 to-emerald-400/5 border border-green-400/15">
+                            <p className="text-xs font-medium text-green-400 mb-3 flex items-center gap-1"><Search className="h-3.5 w-3.5" /> SEO Keyword Gaps — Keywords to Steal</p>
+                            <div className="space-y-2">
+                              {siteInsights.seoKeywordGaps.map((k: any, i: number) => (
+                                <div key={i} className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="text-xs font-bold text-white/90">{k.keyword}</span>
+                                    <div className="flex items-center gap-1.5">
+                                      <Badge variant="outline" className="text-[8px] border-white/10 text-white/40">Vol: {k.searchVolume}</Badge>
+                                      <Badge variant="outline" className={`text-[8px] ${k.difficulty === "easy" ? "border-emerald-400/20 text-emerald-400" : k.difficulty === "hard" ? "border-red-400/20 text-red-400" : "border-amber-400/20 text-amber-400"}`}>{k.difficulty}</Badge>
+                                      {k.estimatedPosition && <Badge variant="outline" className="text-[8px] border-sky-400/20 text-sky-400">Pos ~{k.estimatedPosition}</Badge>}
+                                    </div>
+                                  </div>
+                                  <p className="text-[10px] text-white/50">{k.yourAction}</p>
+                                  {k.contentToCreate && <p className="text-[10px] text-emerald-400 mt-0.5">📝 Create: {k.contentToCreate}</p>}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* ═══ COMPETITIVE MOAT ═══ */}
+                        {siteInsights.competitiveMoat && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-amber-400/5 to-yellow-400/5 border border-amber-400/15">
+                            <p className="text-xs font-medium text-amber-400 mb-3 flex items-center gap-1"><Shield className="h-3.5 w-3.5" /> Competitive Moat Analysis</p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Moat Type</p>
+                                <p className="text-xs font-bold text-amber-400 capitalize">{siteInsights.competitiveMoat.moatType || "none"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Strength</p>
+                                <p className={`text-xs font-bold capitalize ${siteInsights.competitiveMoat.moatStrength === "strong" ? "text-red-400" : siteInsights.competitiveMoat.moatStrength === "moderate" ? "text-amber-400" : "text-emerald-400"}`}>{siteInsights.competitiveMoat.moatStrength || "?"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Time to Break</p>
+                                <p className="text-xs font-bold text-white/80">{siteInsights.competitiveMoat.timeToBreak || "?"}</p>
+                              </div>
+                            </div>
+                            {siteInsights.competitiveMoat.howToBreachIt && (
+                              <div className="p-2 rounded-lg bg-red-400/5 border border-red-400/10 mb-2">
+                                <p className="text-[10px] text-red-400 font-medium">🔓 How to Breach: {siteInsights.competitiveMoat.howToBreachIt}</p>
+                              </div>
+                            )}
+                            {siteInsights.competitiveMoat.yourMoatAdvice && (
+                              <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                                <p className="text-[10px] text-emerald-400">🏰 Build Your Moat: {siteInsights.competitiveMoat.yourMoatAdvice}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ═══ BRAND PERCEPTION ═══ */}
+                        {siteInsights.brandPerception && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-rose-400/5 to-pink-400/5 border border-rose-400/15">
+                            <p className="text-xs font-medium text-rose-400 mb-3 flex items-center gap-1"><Star className="h-3.5 w-3.5" /> Brand Perception Analysis</p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Brand Strength</p>
+                                <p className="text-lg font-black text-rose-400">{siteInsights.brandPerception.brandStrength || "?"}<span className="text-[9px] text-white/30">/100</span></p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Personality</p>
+                                <p className="text-xs text-white/80">{siteInsights.brandPerception.brandPersonality || "N/A"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Emotional Appeal</p>
+                                <p className="text-xs text-white/80">{siteInsights.brandPerception.emotionalAppeal || "N/A"}</p>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-2">
+                              {(siteInsights.brandPerception.brandWeaknesses || []).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-[10px] text-red-400 font-medium">Brand Weak Spots</p>
+                                  {siteInsights.brandPerception.brandWeaknesses.map((w: string, i: number) => (
+                                    <p key={i} className="text-[10px] text-white/60 pl-2">• {w}</p>
+                                  ))}
+                                </div>
+                              )}
+                              {(siteInsights.brandPerception.messagingGaps || []).length > 0 && (
+                                <div className="space-y-1">
+                                  <p className="text-[10px] text-amber-400 font-medium">Messaging Angles They Miss</p>
+                                  {siteInsights.brandPerception.messagingGaps.map((g: string, i: number) => (
+                                    <p key={i} className="text-[10px] text-white/60 pl-2">• {g}</p>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            {siteInsights.brandPerception.yourBrandStrategy && (
+                              <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                                <p className="text-[10px] text-emerald-400">✨ Your Brand Strategy: {siteInsights.brandPerception.yourBrandStrategy}</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* ═══ RETENTION SIGNALS ═══ */}
+                        {siteInsights.retentionSignals && (
+                          <div className="p-3 rounded-xl bg-gradient-to-br from-emerald-400/5 to-teal-400/5 border border-emerald-400/15">
+                            <p className="text-xs font-medium text-emerald-400 mb-3 flex items-center gap-1"><Users className="h-3.5 w-3.5" /> Retention & Loyalty Intelligence</p>
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-3">
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Loyalty Program</p>
+                                <p className={`text-xs font-bold ${siteInsights.retentionSignals.hasLoyaltyProgram ? "text-emerald-400" : "text-white/40"}`}>{siteInsights.retentionSignals.hasLoyaltyProgram ? "Active" : "None"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                                <p className="text-[10px] text-white/40">Community</p>
+                                <p className={`text-xs font-bold capitalize ${siteInsights.retentionSignals.communityEngagement === "strong" ? "text-emerald-400" : siteInsights.retentionSignals.communityEngagement === "moderate" ? "text-amber-400" : "text-red-400"}`}>{siteInsights.retentionSignals.communityEngagement || "?"}</p>
+                              </div>
+                              <div className="p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40">Repeat Purchase</p>
+                                <p className="text-[10px] text-white/70">{siteInsights.retentionSignals.repeatPurchaseSignals || "N/A"}</p>
+                              </div>
+                            </div>
+                            {(siteInsights.retentionSignals.retentionTactics || []).length > 0 && (
+                              <div className="mb-2">
+                                <p className="text-[10px] text-white/50 mb-1">Their Retention Tactics:</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {siteInsights.retentionSignals.retentionTactics.map((t: string, i: number) => (
+                                    <Badge key={i} variant="outline" className="text-[8px] border-white/10 text-white/50">{t}</Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            {(siteInsights.retentionSignals.churnVulnerabilities || []).length > 0 && (
+                              <div className="p-2 rounded-lg bg-red-400/5 border border-red-400/10 mb-2">
+                                <p className="text-[10px] text-red-400 font-medium mb-1">Why Their Customers Might Leave:</p>
+                                {siteInsights.retentionSignals.churnVulnerabilities.map((v: string, i: number) => (
+                                  <p key={i} className="text-[10px] text-white/60">• {v}</p>
+                                ))}
+                              </div>
+                            )}
+                            {siteInsights.retentionSignals.yourRetentionPlay && (
+                              <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10">
+                                <p className="text-[10px] text-emerald-400">🔄 Your Retention Play: {siteInsights.retentionSignals.yourRetentionPlay}</p>
+                              </div>
+                            )}
                           </div>
                         )}
 
