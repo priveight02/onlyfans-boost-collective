@@ -3813,10 +3813,72 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                                 <p className="text-[7px] font-semibold text-white/25 uppercase tracking-wider mb-1 px-0.5">{section}</p>
                                                 <div className="grid grid-cols-5 gap-1">
                                                   {items.map((stat) => (
-                                                    <div key={stat.label} className="p-1.5 rounded-md bg-white/[0.02] text-center">
-                                                      <p className="text-[6.5px] text-white/30 leading-tight">{stat.label}</p>
-                                                      <p className={`text-[10px] font-bold ${stat.color}`}>{stat.value}</p>
-                                                    </div>
+                                                    <ContextMenu key={stat.label}>
+                                                      <ContextMenuTrigger>
+                                                        <div className="p-1.5 rounded-md bg-white/[0.02] text-center cursor-context-menu hover:bg-white/[0.04] transition-colors">
+                                                          <p className="text-[6.5px] text-white/30 leading-tight">{stat.label}</p>
+                                                          <p className={`text-[10px] font-bold ${stat.color}`}>{stat.value}</p>
+                                                        </div>
+                                                      </ContextMenuTrigger>
+                                                      <ContextMenuContent className="w-72 bg-[hsl(222,47%,8%)] border-white/10 text-white">
+                                                        <ContextMenuLabel className="text-[11px] font-semibold text-white/90 flex items-center gap-1.5">
+                                                          <Info className="h-3 w-3 text-[hsl(217,91%,60%)]" />
+                                                          {stat.label}
+                                                        </ContextMenuLabel>
+                                                        <ContextMenuSeparator className="bg-white/[0.06]" />
+                                                        <div className="px-2 py-1.5 space-y-1.5">
+                                                          <div className="flex justify-between items-center">
+                                                            <span className="text-[9px] text-white/40">Value</span>
+                                                            <span className={`text-[10px] font-bold ${stat.color}`}>{stat.value}</span>
+                                                          </div>
+                                                          {stat.detail?.type && (
+                                                            <div className="flex justify-between items-center">
+                                                              <span className="text-[9px] text-white/40">Type</span>
+                                                              <Badge variant="outline" className="text-[7px] border-white/10 text-white/50 h-4">{stat.detail.type}</Badge>
+                                                            </div>
+                                                          )}
+                                                          {stat.detail?.raw && (
+                                                            <div className="flex justify-between items-center">
+                                                              <span className="text-[9px] text-white/40">Raw Value</span>
+                                                              <span className="text-[9px] text-white/60 font-mono">{stat.detail.raw}</span>
+                                                            </div>
+                                                          )}
+                                                          {stat.detail?.formula && (
+                                                            <div>
+                                                              <span className="text-[8px] text-white/40 block mb-0.5">Formula / Logic</span>
+                                                              <p className="text-[8px] text-[hsl(217,91%,60%)]/80 bg-white/[0.03] rounded px-1.5 py-1 leading-relaxed">{stat.detail.formula}</p>
+                                                            </div>
+                                                          )}
+                                                          {stat.detail?.source && (
+                                                            <div className="flex justify-between items-center">
+                                                              <span className="text-[9px] text-white/40">Source</span>
+                                                              <span className="text-[8px] text-white/50">{stat.detail.source}</span>
+                                                            </div>
+                                                          )}
+                                                          {stat.detail?.timestamp && (
+                                                            <div className="flex justify-between items-center">
+                                                              <span className="text-[9px] text-white/40">Fetched</span>
+                                                              <span className="text-[8px] text-white/40 font-mono">{stat.detail.timestamp}</span>
+                                                            </div>
+                                                          )}
+                                                          {stat.detail?.note && (
+                                                            <div className="mt-1 pt-1 border-t border-white/[0.04]">
+                                                              <p className="text-[8px] text-amber-400/60 italic">{stat.detail.note}</p>
+                                                            </div>
+                                                          )}
+                                                        </div>
+                                                        <ContextMenuSeparator className="bg-white/[0.06]" />
+                                                        <ContextMenuItem
+                                                          className="text-[9px] text-white/50 hover:text-white cursor-pointer"
+                                                          onClick={() => {
+                                                            navigator.clipboard.writeText(`${stat.label}: ${stat.value}`);
+                                                            toast.success("Copied to clipboard");
+                                                          }}
+                                                        >
+                                                          <Copy className="h-3 w-3 mr-1.5" /> Copy Metric
+                                                        </ContextMenuItem>
+                                                      </ContextMenuContent>
+                                                    </ContextMenu>
                                                   ))}
                                                 </div>
                                               </div>
