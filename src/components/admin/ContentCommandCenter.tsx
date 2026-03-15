@@ -250,6 +250,7 @@ const ContentCommandCenter = () => {
 
   useEffect(() => {
     loadData();
+    loadCompetitorProfiles();
     const ch = supabase.channel("content-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "content_calendar" }, () => loadItems())
       .subscribe();
