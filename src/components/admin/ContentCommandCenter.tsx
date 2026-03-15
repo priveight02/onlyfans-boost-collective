@@ -2623,40 +2623,40 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               {/* NEW: Hook Generator + Translator + Tone + Video Script + Carousel + Storyboard */}
               <div className="flex gap-1 flex-wrap">
                 <Button size="sm" variant="outline" onClick={generateHooks} disabled={generatingHooks}
-                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  className="text-[9px] h-5 px-1.5 border-white/[0.08] text-white/50 flex-1">
                   {generatingHooks ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Lightbulb className="h-2.5 w-2.5 mr-0.5" />Hooks</>}
                 </Button>
                 <Button size="sm" variant="outline" onClick={analyzeTone} disabled={generatingToneAnalysis || !formCaption.trim()}
-                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  className="text-[9px] h-5 px-1.5 border-white/[0.08] text-white/50 flex-1">
                   {generatingToneAnalysis ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><BarChart3 className="h-2.5 w-2.5 mr-0.5" />Tone</>}
                 </Button>
                 <Button size="sm" variant="outline" onClick={generateVideoScript} disabled={generatingScript}
-                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  className="text-[9px] h-5 px-1.5 border-white/[0.08] text-white/50 flex-1">
                   {generatingScript ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Video className="h-2.5 w-2.5 mr-0.5" />Script</>}
                 </Button>
                 <Button size="sm" variant="outline" onClick={generateCarousel} disabled={generatingCarousel}
-                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  className="text-[9px] h-5 px-1.5 border-white/[0.08] text-white/50 flex-1">
                   {generatingCarousel ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Layers className="h-2.5 w-2.5 mr-0.5" />Carousel</>}
                 </Button>
                 <Button size="sm" variant="outline" onClick={generateStoryboard} disabled={generatingStoryboard}
-                  className="text-[9px] h-5 px-1.5 border-border text-muted-foreground flex-1">
+                  className="text-[9px] h-5 px-1.5 border-white/[0.08] text-white/50 flex-1">
                   {generatingStoryboard ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <><Sparkle className="h-2.5 w-2.5 mr-0.5" />Board</>}
                 </Button>
               </div>
               {/* Translate row */}
               <div className="flex gap-1 items-center flex-wrap">
-                <span className="text-[9px] text-muted-foreground"><Globe className="h-2.5 w-2.5 inline mr-0.5" />Translate:</span>
+                <span className="text-[9px] text-white/40"><Globe className="h-2.5 w-2.5 inline mr-0.5" />Translate:</span>
                 {["Spanish", "French", "Portuguese", "German", "Japanese", "Arabic", "Hindi", "Korean"].map(lang => (
                   <Button key={lang} size="sm" variant="outline" onClick={() => translateCaption(lang)} disabled={translating || !formCaption.trim()}
-                    className="text-[9px] h-5 px-1.5 border-border text-muted-foreground">
+                    className="text-[9px] h-5 px-1.5 border-white/[0.08] text-white/50">
                     {translating ? <Loader2 className="h-2 w-2 animate-spin" /> : lang.slice(0, 2).toUpperCase()}
                   </Button>
                 ))}
               </div>
               {/* Hooks display */}
               {hooks.length > 0 && (
-                <div className="space-y-1 bg-muted/30 rounded-lg p-2">
-                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider">🎣 Scroll-Stopping Hooks — click to prepend</p>
+                <div className="space-y-1 bg-white/[0.03] rounded-lg p-2">
+                  <p className="text-[9px] text-white/40 uppercase tracking-wider">Scroll-Stopping Hooks · click to prepend</p>
                   {hooks.map((h, i) => (
                     <button key={i} onClick={() => { setFormCaption(h + "\n\n" + formCaption); setHooks([]); toast.success("Hook applied"); }}
                       className="w-full text-left bg-card/50 border border-border rounded-lg p-1.5 hover:border-primary/30 transition-colors text-[10px] text-foreground/80">
