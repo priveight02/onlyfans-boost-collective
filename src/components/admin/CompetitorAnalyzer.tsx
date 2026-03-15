@@ -819,6 +819,7 @@ Include the original keyword plus 4 related/long-tail keywords. Make accounts re
         const parsed = parseJSONArray(aiReply);
         if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Invalid keyword results");
         setKeywordResults(parsed);
+        await refreshAIUsage();
         return true;
       } catch (err) {
         toast.error("Keyword search failed. Please try again.");
