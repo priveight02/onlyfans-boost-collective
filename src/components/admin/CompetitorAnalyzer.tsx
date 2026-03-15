@@ -3861,44 +3861,41 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
 
                                 {/* ═══ PLAN MANAGEMENT SYSTEM ═══ */}
                                 {(() => {
-                                  const generatePlanForCompetitors = async (targetComps: typeof competitors, planLabel: string) => {
-                                    const planData = platforms.map(([key, data]) => {
-                                      const cc = data.competitors.filter(c => targetComps.some(tc => tc.username === c.username));
-                                      if (!cc.length) return null;
-                                      const avgFreq = cc.reduce((s, c) => s + c.postFrequency, 0) / Math.max(cc.length, 1);
-                                      const avgLikes = Math.round(cc.reduce((s, c) => s + c.avgLikes, 0) / Math.max(cc.length, 1));
-                                      const avgComments = Math.round(cc.reduce((s, c) => s + c.avgComments, 0) / Math.max(cc.length, 1));
-                                      const avgEng = cc.reduce((s, c) => s + c.engagementRate, 0) / Math.max(cc.length, 1);
-                                      const topHashtags = [...new Set(cc.flatMap(c => { const comp = competitors.find(comp => comp.username === c.username); return comp?.topHashtags || []; }))].slice(0, 10);
-                                      return { platform: key, name: data.name, postsPerWeek: avgFreq, avgLikes, avgComments, engagementRate: avgEng, topHashtags, competitors: cc.map(c => c.username) };
-                                    }).filter(Boolean);
-                                    if (!planData.length) throw new Error("No platform data found for selected competitors");
+                                   const generatePlanForCompetitors = async (targetComps: typeof competitors, planLabel: string) => {
+                                     // Rate-limit check
+                                     if (aiUsageCount >= RATE_LIMIT_MAX) {
+                                       throw new Error(`Daily AI analysis limit reached (${RATE_LIMIT_MAX}/day). Resets at midnight UTC.`);
+                                     }
 
-                                    const { data: { session } } = await supabase.auth.getSession();
-                                    const totalPosts = Math.max(Math.round(planData.reduce((s, p: any) => s + p.postsPerWeek, 0) * 2), 14);
-                                    const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agency-copilot`, {
-                                      method: "POST",
-                                      headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-                                      body: JSON.stringify({
-                                        messages: [
-                                          { role: "system", content: `You are the world's #1 competitive intelligence analyst. Produce a PERFECT CLONE of a competitor's content operation — PLATFORM-SPECIFIC strategy for EACH social network.\n\nRULES:\n1. Match EXACT posts/week per platform\n2. Mirror content type ratios exactly\n3. Write FULL publish-ready captions with emojis, line breaks, CTAs\n4. Use competitor's proven hashtags\n5. Schedule across 14 days from ${new Date().toISOString().split("T")[0]}\n6. Instagram: 15-25 hashtags, peak 9AM/12PM/5PM/8PM\n7. TikTok: 5-8 hashtags, peak 7AM/10AM/2PM/9PM\n8. Twitter: 2-3 hashtags, 280 char max\n9. Facebook: 3-5 hashtags\n10. Threads: 3-5 hashtags\n\nGenerate EXACTLY ${totalPosts} entries.\nJSON format: {"title":"...","platform":"instagram|tiktok|twitter|facebook|threads|youtube","content_type":"post|reel|story|video|thread|short|carousel","caption":"FULL PUBLISH-READY","hashtags":["tag1",...],"scheduled_at":"ISO","status":"draft","viral_score":50-98,"description":"Cloned from @handle","content_pillar":"education|entertainment|inspiration|promotion|community|behind_scenes"}\nReturn ONLY a valid JSON array.` },
-                                          { role: "user", content: `COMPETITOR DATA:\n${JSON.stringify(planData, null, 2)}\n\nPROFILES:\n${JSON.stringify(targetComps.map(c => ({ username: c.username, platform: c.platform, followers: c.followers, following: c.following, engagementRate: c.engagementRate, avgLikes: c.avgLikes, avgComments: c.avgComments, postFrequency: c.postFrequency, posts: c.posts, growthRate: c.growthRate, topHashtags: c.topHashtags, contentTypes: c.contentTypes })), null, 2)}` },
-                                        ],
-                                        model: "google/gemini-2.5-flash",
-                                      }),
-                                    });
-                                    if (!resp.ok) throw new Error("AI generation failed");
-                                    const aiResult = await resp.json();
-                                    const content = aiResult?.choices?.[0]?.message?.content || aiResult?.content || "";
-                                    let entries: any[] = [];
-                                    try {
-                                      const cleaned = content.replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
-                                      const si = cleaned.indexOf("["), ei = cleaned.lastIndexOf("]");
-                                      if (si !== -1 && ei !== -1) entries = JSON.parse(cleaned.slice(si, ei + 1));
-                                    } catch {}
-                                    if (!entries.length) throw new Error("Failed to parse AI plan");
-                                    return { entries, label: planLabel, id: `plan_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, createdAt: new Date().toISOString() };
-                                  };
+                                     const planData = platforms.map(([key, data]) => {
+                                       const cc = data.competitors.filter(c => targetComps.some(tc => tc.username === c.username));
+                                       if (!cc.length) return null;
+                                       const avgFreq = cc.reduce((s, c) => s + c.postFrequency, 0) / Math.max(cc.length, 1);
+                                       const avgLikes = Math.round(cc.reduce((s, c) => s + c.avgLikes, 0) / Math.max(cc.length, 1));
+                                       const avgComments = Math.round(cc.reduce((s, c) => s + c.avgComments, 0) / Math.max(cc.length, 1));
+                                       const avgEng = cc.reduce((s, c) => s + c.engagementRate, 0) / Math.max(cc.length, 1);
+                                       const topHashtags = [...new Set(cc.flatMap(c => { const comp = competitors.find(comp => comp.username === c.username); return comp?.topHashtags || []; }))].slice(0, 10);
+                                       return { platform: key, name: data.name, postsPerWeek: avgFreq, avgLikes, avgComments, engagementRate: avgEng, topHashtags, competitors: cc.map(c => c.username) };
+                                     }).filter(Boolean);
+                                     if (!planData.length) throw new Error("No platform data found for selected competitors");
+
+                                     const totalPosts = Math.max(Math.round(planData.reduce((s, p: any) => s + p.postsPerWeek, 0) * 2), 14);
+                                     const systemPrompt = `You are the world's #1 competitive intelligence analyst. Produce a PERFECT CLONE of a competitor's content operation — PLATFORM-SPECIFIC strategy for EACH social network.\n\nRULES:\n1. Match EXACT posts/week per platform\n2. Mirror content type ratios exactly\n3. Write FULL publish-ready captions with emojis, line breaks, CTAs\n4. Use competitor's proven hashtags\n5. Schedule across 14 days from ${new Date().toISOString().split("T")[0]}\n6. Instagram: 15-25 hashtags, peak 9AM/12PM/5PM/8PM\n7. TikTok: 5-8 hashtags, peak 7AM/10AM/2PM/9PM\n8. Twitter/X: 2-3 hashtags, 280 char max\n9. Facebook: 3-5 hashtags\n10. Threads: 3-5 hashtags\n\nGenerate EXACTLY ${totalPosts} entries.\nJSON format: {"title":"...","platform":"instagram|tiktok|twitter|facebook|threads|youtube","content_type":"post|reel|story|video|thread|short|carousel","caption":"FULL PUBLISH-READY","hashtags":["tag1",...],"scheduled_at":"ISO","status":"draft","viral_score":50-98,"description":"Cloned from @handle","content_pillar":"education|entertainment|inspiration|promotion|community|behind_scenes"}\nReturn ONLY a valid JSON array.`;
+                                     const userData = `COMPETITOR DATA:\n${JSON.stringify(planData, null, 2)}\n\nPROFILES:\n${JSON.stringify(targetComps.map(c => ({ username: c.username, platform: c.platform, followers: c.followers, following: c.following, engagementRate: c.engagementRate, avgLikes: c.avgLikes, avgComments: c.avgComments, postFrequency: c.postFrequency, posts: c.posts, growthRate: c.growthRate, topHashtags: c.topHashtags, contentTypes: c.contentTypes })), null, 2)}`;
+
+                                     // Use callAI with content_plan type → higher tokens + rate limited
+                                     const content = await callAI(systemPrompt + "|||USER_DATA|||" + userData, "content_plan");
+
+                                     let entries: any[] = [];
+                                     try {
+                                       const cleaned = String(content).replace(/```(?:json)?\s*/gi, "").replace(/```/g, "").trim();
+                                       const si = cleaned.indexOf("["), ei = cleaned.lastIndexOf("]");
+                                       if (si !== -1 && ei !== -1) entries = JSON.parse(cleaned.slice(si, ei + 1));
+                                     } catch {}
+                                     if (!entries.length) throw new Error("Failed to parse AI plan — please retry");
+                                     await refreshAIUsage();
+                                     return { entries, label: planLabel, id: `plan_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, createdAt: new Date().toISOString() };
+                                   };
 
                                   const pushPlanToCalendar = async (entries: any[]) => {
                                     const { data: { session } } = await supabase.auth.getSession();
