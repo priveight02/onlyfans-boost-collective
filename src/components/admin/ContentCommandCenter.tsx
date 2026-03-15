@@ -2616,7 +2616,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
               )}
               {/* A/B Testing */}
               <Button size="sm" variant="outline" onClick={generateABVariants} disabled={generatingAB || !formCaption.trim()}
-                className="text-[9px] h-5 px-2 border-border text-muted-foreground w-full">
+                className="text-[9px] h-5 px-2 border-white/[0.08] text-white/50 w-full">
                 {generatingAB ? <Loader2 className="h-2.5 w-2.5 animate-spin mr-1" /> : <Scissors className="h-2.5 w-2.5 mr-1" />}
                 Generate A/B Variants
               </Button>
