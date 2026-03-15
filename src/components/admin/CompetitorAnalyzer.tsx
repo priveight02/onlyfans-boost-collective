@@ -1736,6 +1736,57 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 </Card>
               )}
 
+              {/* ═══ POWER RANKINGS LEADERBOARD ═══ */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-amber-400 flex items-center gap-2"><Crown className="h-4 w-4" /> Power Rankings Leaderboard</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {(() => {
+                      const ranked = [...competitors].map(c => {
+                        // Weighted composite score
+                        const maxF = Math.max(...competitors.map(x => x.followers), 1);
+                        const maxL = Math.max(...competitors.map(x => x.avgLikes), 1);
+                        const maxG = Math.max(...competitors.map(x => Math.abs(x.growthRate)), 1);
+                        const fScore = (c.followers / maxF) * 25;
+                        const eScore = Math.min(c.engagementRate / 10, 1) * 25;
+                        const lScore = (c.avgLikes / maxL) * 25;
+                        const gScore = (Math.max(c.growthRate, 0) / maxG) * 25;
+                        const power = Math.round(fScore + eScore + lScore + gScore);
+                        return { ...c, power };
+                      }).sort((a, b) => b.power - a.power);
+                      return ranked.map((c, i) => (
+                        <div key={c.id} className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${i === 0 ? "bg-amber-400/10 border-amber-400/20 shadow-[0_0_15px_hsl(45,100%,50%,0.05)]" : i === 1 ? "bg-white/[0.03] border-white/[0.08]" : "bg-white/[0.02] border-white/[0.04]"}`}>
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-sm ${i === 0 ? "bg-amber-400 text-black" : i === 1 ? "bg-white/20 text-white" : i === 2 ? "bg-orange-400/30 text-orange-300" : "bg-white/[0.06] text-white/40"}`}>
+                            {i + 1}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-white truncate">@{c.username}</span>
+                              <Badge variant="outline" className="text-[8px] border-white/10 text-white/40">{c.platform}</Badge>
+                            </div>
+                            <div className="flex items-center gap-3 mt-0.5">
+                              <span className="text-[10px] text-white/40">{fmtNum(c.followers)} fol</span>
+                              <span className="text-[10px] text-white/40">{c.engagementRate}% ER</span>
+                              <span className={`text-[10px] ${c.growthRate >= 0 ? "text-emerald-400/60" : "text-red-400/60"}`}>{c.growthRate >= 0 ? "+" : ""}{c.growthRate}%/wk</span>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className={`text-lg font-black ${i === 0 ? "text-amber-400" : "text-white/70"}`}>{c.power}</p>
+                            <p className="text-[8px] text-white/30">power</p>
+                          </div>
+                          <div className="w-16">
+                            <div className="h-2 rounded-full bg-white/[0.05] overflow-hidden">
+                              <div className={`h-full rounded-full transition-all ${i === 0 ? "bg-amber-400" : i === 1 ? "bg-white/30" : "bg-white/15"}`} style={{ width: `${c.power}%` }} />
+                            </div>
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                  <p className="text-[9px] text-white/25 text-center mt-3">Weighted: 25% Reach · 25% Engagement · 25% Likes · 25% Growth</p>
+                </CardContent>
+              </Card>
+
               {/* Follower comparison bar */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <Card className="crm-card">
