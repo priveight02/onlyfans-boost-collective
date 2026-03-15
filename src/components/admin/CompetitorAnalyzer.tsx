@@ -1494,6 +1494,21 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                       </div>
                     </div>
 
+                    {/* Freshness Indicator */}
+                    {(() => {
+                      const hrs = (Date.now() - new Date(comp.lastAnalyzed).getTime()) / 3600000;
+                      const label = hrs < 1 ? "Just now" : hrs < 24 ? `${Math.round(hrs)}h ago` : hrs < 168 ? `${Math.round(hrs / 24)}d ago` : `${Math.round(hrs / 168)}w ago`;
+                      const color = hrs < 24 ? "text-emerald-400/60" : hrs < 168 ? "text-amber-400/60" : "text-red-400/60";
+                      return (
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[9px] ${color} flex items-center gap-1`}>
+                            <Clock className="h-2.5 w-2.5" /> {label}
+                          </span>
+                          {hrs > 168 && <span className="text-[8px] text-red-400/40">needs refresh</span>}
+                        </div>
+                      );
+                    })()}
+
                     {/* Mini Sparkline */}
                     {historyData.length >= 2 && (
                       <div className="h-10 w-full">
