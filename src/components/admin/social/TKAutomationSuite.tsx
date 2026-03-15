@@ -1262,6 +1262,9 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
             <p className="text-xs text-muted-foreground mt-0.5">Create, upload, publish & track — synced with TikTok API</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={openTkImportPlan}>
+              <FolderOpen className="h-3 w-3" /> Import from Plan
+            </Button>
             <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1" onClick={syncPublishStatuses}>
               <RefreshCw className="h-3 w-3" /> Sync Statuses
             </Button>
