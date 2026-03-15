@@ -440,6 +440,7 @@ const CompetitorAnalyzer = ({
   const [aiInsight, setAiInsight] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
+  const [refreshingBreakdown, setRefreshingBreakdown] = useState(false);
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
 
   // Enterprise profile (50 fields) + toggle
