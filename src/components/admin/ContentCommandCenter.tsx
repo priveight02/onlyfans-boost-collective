@@ -171,6 +171,7 @@ const ContentCommandCenter = () => {
   const [suggestedSlots, setSuggestedSlots] = useState<string[]>([]);
   const [showPresets, setShowPresets] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sandboxMode, setSandboxMode] = useState(false);
 
   // ── Inter-Tab Competitor Intel States ──
   const [competitorProfiles, setCompetitorProfiles] = useState<any[]>([]);
