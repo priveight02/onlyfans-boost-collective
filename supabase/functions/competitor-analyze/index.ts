@@ -359,7 +359,7 @@ const scrapeSocialProfiles = async (socialPresence: Record<string, string | null
 const parseHumanNumber = (s: string): number => {
   if (!s) return 0;
   const cleaned = s.replace(/[\s,]/g, "").trim();
-  const multiplierMatch = cleaned.match(/^([\d.]+)([KMBkmb]?)$/);
+  const multiplierMatch = cleaned.match(/^(-?[\d.]+)([KMBkmb]?)$/);
   if (!multiplierMatch) return parseInt(cleaned) || 0;
   const num = parseFloat(multiplierMatch[1]);
   const suffix = multiplierMatch[2].toUpperCase();
@@ -368,6 +368,73 @@ const parseHumanNumber = (s: string): number => {
   if (suffix === "B") return Math.round(num * 1000000000);
   return Math.round(num);
 };
+
+const HANDLE_PLACEHOLDER_PATTERN = /^(?:null|none|n\/a|na|unknown|handle(?:\s*or\s*null)?|not\s+available)$/i;
+const METRIC_PLACEHOLDER_PATTERN = /^(?:nan|null|undefined|n\/a|na|none|unknown|not\s+available)$/i;
+
+const normalizePlatformKey = (platform: string): string => {
+  const key = String(platform || "").trim().toLowerCase();
+  if (key === "x") return "twitter";
+  return key;
+};
+
+const parseMetricNumber = (value: unknown): number => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value !== "string") return 0;
+
+  const raw = value.trim();
+  if (!raw || METRIC_PLACEHOLDER_PATTERN.test(raw)) return 0;
+
+  const compact = raw
+    .replace(/,/g, "")
+    .replace(/%/g, "")
+    .replace(/\/(wk|week)/gi, "")
+    .replace(/per\s+week/gi, "")
+    .trim();
+
+  if (/^-?[\d.]+[KMBkmb]$/.test(compact)) return parseHumanNumber(compact);
+
+  const asNumber = Number(compact);
+  return Number.isFinite(asNumber) ? asNumber : 0;
+};
+
+const normalizeSocialHandleValue = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const raw = value.trim();
+  if (!raw || HANDLE_PLACEHOLDER_PATTERN.test(raw)) return null;
+
+  const urlMatch = raw.match(/(?:instagram\.com|tiktok\.com\/@?|twitter\.com|x\.com|linkedin\.com\/company|youtube\.com\/(?:@|channel\/|c\/)|facebook\.com)\/([a-zA-Z0-9_.-]+)/i);
+  const extracted = urlMatch?.[1] || raw;
+
+  const cleaned = extracted
+    .replace(/^@/, "")
+    .replace(/[/?#].*$/, "")
+    .trim();
+
+  if (!cleaned || HANDLE_PLACEHOLDER_PATTERN.test(cleaned)) return null;
+  return cleaned;
+};
+
+const normalizeSocialPresence = (input: Record<string, unknown>): Record<string, string | null> => {
+  const out: Record<string, string | null> = {};
+  for (const [platform, handle] of Object.entries(input || {})) {
+    const key = normalizePlatformKey(platform);
+    if (!key) continue;
+    const normalizedHandle = normalizeSocialHandleValue(handle);
+    out[key] = normalizedHandle;
+  }
+  return out;
+};
+
+const normalizePlatformMetric = (metric: Record<string, unknown>) => ({
+  followers: parseMetricNumber(metric?.followers),
+  posts: parseMetricNumber(metric?.posts),
+  engagementRate: parseMetricNumber(metric?.engagementRate),
+  avgLikes: parseMetricNumber(metric?.avgLikes),
+  avgComments: parseMetricNumber(metric?.avgComments),
+  postFrequency: parseMetricNumber(metric?.postFrequency),
+  growthRate: parseMetricNumber(metric?.growthRate),
+});
 
 /** Extract social handles from a website homepage */
 const extractSocialHandlesFromWebsite = async (websiteUrl: string): Promise<Record<string, string>> => {
