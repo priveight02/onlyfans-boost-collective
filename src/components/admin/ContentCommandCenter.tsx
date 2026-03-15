@@ -1601,7 +1601,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
       case "scheduled": return "border-blue-500/20 text-blue-400";
       case "draft": return "border-amber-500/20 text-amber-400";
       case "planned": return "border-purple-500/20 text-purple-400";
-      default: return "border-white/10 text-muted-foreground";
+      default: return "border-white/10 text-white/40";
     }
   };
 
