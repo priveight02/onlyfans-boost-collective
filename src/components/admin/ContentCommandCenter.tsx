@@ -2736,7 +2736,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
             </div>
 
             <Textarea value={formDesc} onChange={e => setFormDesc(e.target.value)}
-              placeholder="Internal notes..." className="bg-card/50 border-border text-foreground text-xs min-h-[40px]" />
+              placeholder="Internal notes..." className="bg-white/[0.04] border-white/[0.08] text-white text-xs min-h-[40px]" />
 
             {/* Media Upload */}
             <div>
