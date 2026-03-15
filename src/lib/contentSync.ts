@@ -561,11 +561,9 @@ export const getSyncDashboard = async (): Promise<PlatformSyncStatus[]> => {
   const platforms = Object.keys(DEFAULT_BEST_TIMES);
   const results: PlatformSyncStatus[] = [];
 
-  // Fetch all plan items counts
   const { data: planData } = await supabase.from("content_calendar").select("platform, status")
     .in("status", ["draft", "planned", "scheduled"]);
 
-  // Fetch all pushed social posts
   const { data: socialData } = await supabase.from("social_posts").select("platform, status")
     .in("status", ["draft", "scheduled", "published"]);
 
@@ -586,4 +584,263 @@ export const getSyncDashboard = async (): Promise<PlatformSyncStatus[]> => {
   }
 
   return results;
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   NEW FEATURE F11 – Push Sandbox Directly to Platform Tabs
+   Exports sandbox elements straight to social_posts for any platform(s)
+   ══════════════════════════════════════════════════════════════════ */
+export const pushSandboxDirectToPlatforms = async (
+  cards: { title?: string; caption?: string; platform?: string; type?: string; hashtags?: string[]; annotation?: string }[],
+  targetPlatforms: string[],
+  mode: ExecutionMode = "manual",
+): Promise<OrchestrationResult> => {
+  const result: OrchestrationResult = {
+    mode,
+    platforms_processed: [],
+    per_platform: {},
+    total_created: 0,
+    total_scheduled: 0,
+  };
+
+  for (const platform of targetPlatforms) {
+    const accounts = await getConnectedAccounts(platform);
+    if (!accounts.length) {
+      result.per_platform[platform] = { created: 0, scheduled: 0, errors: [`No connected ${platform} account`] };
+      continue;
+    }
+
+    const accountId = accounts[0].account_id;
+    const bestTimes = DEFAULT_BEST_TIMES[platform] || ["12:00 PM"];
+    const isAuto = mode === "automated";
+    let created = 0;
+    const errors: string[] = [];
+
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      let scheduledAt: string | null = null;
+
+      if (isAuto) {
+        const baseDate = new Date();
+        baseDate.setDate(baseDate.getDate() + Math.floor(i / bestTimes.length) + 1);
+        const timeStr = bestTimes[i % bestTimes.length];
+        const timeParts = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+        if (timeParts) {
+          let hours = parseInt(timeParts[1]);
+          const mins = parseInt(timeParts[2]) || 0;
+          const ampm = timeParts[3]?.toUpperCase();
+          if (ampm === "PM" && hours < 12) hours += 12;
+          if (ampm === "AM" && hours === 12) hours = 0;
+          baseDate.setHours(hours, mins, 0, 0);
+        }
+        scheduledAt = baseDate.toISOString();
+      }
+
+      const { error } = await supabase.from("social_posts").insert({
+        account_id: accountId,
+        platform,
+        post_type: card.type || "post",
+        caption: card.caption || "",
+        media_urls: [],
+        hashtags: card.hashtags || null,
+        scheduled_at: scheduledAt,
+        status: scheduledAt ? "scheduled" : "draft",
+        metadata: {
+          source: "sandbox_direct_push",
+          sandbox_title: card.title || "Sandbox Card",
+          annotation: card.annotation || "",
+          pushed_at: new Date().toISOString(),
+        },
+      });
+      if (error) errors.push(`${card.title}: ${error.message}`);
+      else created++;
+    }
+
+    const scheduledCount = isAuto ? created : 0;
+    result.platforms_processed.push(platform);
+    result.per_platform[platform] = { created, scheduled: scheduledCount, errors };
+    result.total_created += created;
+    result.total_scheduled += scheduledCount;
+  }
+
+  logSyncEvent("sandbox_direct_push", "sandbox", `social_posts/${targetPlatforms.join(",")}`, result.total_created, { mode, platforms: targetPlatforms });
+  return result;
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   NEW FEATURE F12 – Auto-Generate Captions/Titles via AI
+   Enriches plan items missing captions with AI-generated content
+   ══════════════════════════════════════════════════════════════════ */
+export const autoGenerateCaptionsForPlan = async (
+  items: ContentPlanItem[],
+  aiCaller: (prompt: string) => Promise<string>,
+): Promise<{ enriched: number; errors: number }> => {
+  let enriched = 0;
+  let errors = 0;
+
+  const needsCaption = items.filter(i => !i.caption || i.caption.length < 10);
+  if (!needsCaption.length) return { enriched: 0, errors: 0 };
+
+  const prompt = `You are a top-tier social media content manager. Generate captions for these ${needsCaption.length} posts. For each post, create a platform-native caption with emojis, hashtags, and a strong CTA.
+
+Posts needing captions:
+${needsCaption.map((item, idx) => `${idx + 1}. Platform: ${item.platform}, Type: ${item.content_type}, Title: "${item.title}", Description: "${item.description || ""}"`).join("\n")}
+
+Return a JSON array of objects: [{"index": 1, "caption": "...", "hashtags": ["tag1", "tag2"]}]
+Return ONLY the JSON array.`;
+
+  try {
+    const raw = await aiCaller(prompt);
+    const cleaned = raw.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+    const match = cleaned.match(/\[[\s\S]*\]/);
+    if (!match) return { enriched: 0, errors: needsCaption.length };
+    const parsed = JSON.parse(match[0].replace(/,\s*([}\]])/g, "$1"));
+
+    for (const entry of parsed) {
+      const idx = (entry.index || 0) - 1;
+      if (idx < 0 || idx >= needsCaption.length) continue;
+      const item = needsCaption[idx];
+      if (!item.id) continue;
+
+      const { error } = await supabase.from("content_calendar").update({
+        caption: entry.caption || item.caption,
+        hashtags: Array.isArray(entry.hashtags) ? entry.hashtags.map((t: string) => t.replace("#", "")) : item.hashtags,
+        metadata: { ...(item.metadata || {}), ai_caption_generated: true, generated_at: new Date().toISOString() },
+      }).eq("id", item.id);
+
+      if (!error) enriched++;
+      else errors++;
+    }
+  } catch {
+    errors = needsCaption.length;
+  }
+
+  logSyncEvent("auto_generate_captions", "content_calendar", "content_calendar", enriched, { errors });
+  return { enriched, errors };
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   NEW FEATURE F13 – Cross-Platform Content Mirror
+   Duplicate a social_post to multiple other platforms, adapting caption length
+   ══════════════════════════════════════════════════════════════════ */
+export const crossPlatformMirror = async (
+  sourcePostId: string,
+  targetPlatforms: string[],
+): Promise<{ mirrored: number; errors: string[] }> => {
+  const { data: post } = await supabase.from("social_posts").select("*").eq("id", sourcePostId).single();
+  if (!post) return { mirrored: 0, errors: ["Source post not found"] };
+
+  const CAPTION_LIMITS: Record<string, number> = {
+    twitter: 280, threads: 500, instagram: 2200, tiktok: 4000, facebook: 63206, onlyfans: 5000,
+  };
+
+  let mirrored = 0;
+  const errors: string[] = [];
+
+  for (const platform of targetPlatforms) {
+    if (platform === post.platform) continue;
+    const accounts = await getConnectedAccounts(platform);
+    if (!accounts.length) { errors.push(`No ${platform} account connected`); continue; }
+
+    const maxLen = CAPTION_LIMITS[platform] || 2200;
+    let caption = post.caption || "";
+    if (caption.length > maxLen) caption = caption.slice(0, maxLen - 3) + "...";
+
+    const { error } = await supabase.from("social_posts").insert({
+      account_id: accounts[0].account_id,
+      platform,
+      post_type: post.post_type,
+      caption,
+      media_urls: post.media_urls || [],
+      hashtags: post.hashtags,
+      status: "draft",
+      metadata: { source: "cross_platform_mirror", mirrored_from: sourcePostId, original_platform: post.platform, mirrored_at: new Date().toISOString() },
+    });
+
+    if (error) errors.push(`${platform}: ${error.message}`);
+    else mirrored++;
+  }
+
+  logSyncEvent("cross_platform_mirror", `social_posts/${post.platform}`, `social_posts/${targetPlatforms.join(",")}`, mirrored);
+  return { mirrored, errors };
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   NEW FEATURE F14 – Plan Progress Tracker
+   Returns completion stats for the content plan by platform
+   ══════════════════════════════════════════════════════════════════ */
+export interface PlanProgress {
+  platform: string;
+  total: number;
+  drafts: number;
+  scheduled: number;
+  published: number;
+  completion_pct: number;
+  pushed_to_social: number;
+}
+
+export const getPlanProgress = async (): Promise<PlanProgress[]> => {
+  const { data } = await supabase.from("content_calendar").select("platform, status, metadata");
+  if (!data?.length) return [];
+
+  const byPlatform: Record<string, { total: number; drafts: number; scheduled: number; published: number; pushed: number }> = {};
+
+  for (const item of data) {
+    const p = item.platform || "instagram";
+    if (!byPlatform[p]) byPlatform[p] = { total: 0, drafts: 0, scheduled: 0, published: 0, pushed: 0 };
+    byPlatform[p].total++;
+    if (item.status === "draft") byPlatform[p].drafts++;
+    if (item.status === "scheduled") byPlatform[p].scheduled++;
+    if (item.status === "published") byPlatform[p].published++;
+    const meta = typeof item.metadata === "object" && item.metadata ? item.metadata : {};
+    if ((meta as any).pushed_to_social || (meta as any).orchestrated) byPlatform[p].pushed++;
+  }
+
+  return Object.entries(byPlatform).map(([platform, s]) => ({
+    platform,
+    total: s.total,
+    drafts: s.drafts,
+    scheduled: s.scheduled,
+    published: s.published,
+    completion_pct: s.total > 0 ? Math.round(((s.scheduled + s.published) / s.total) * 100) : 0,
+    pushed_to_social: s.pushed,
+  })).sort((a, b) => b.total - a.total);
+};
+
+/* ══════════════════════════════════════════════════════════════════
+   NEW FEATURE F15 – Smart Content Recycler
+   Finds high-performing published posts and creates refreshed drafts
+   ══════════════════════════════════════════════════════════════════ */
+export const recycleTopContent = async (
+  platform?: string, limit = 10,
+): Promise<{ recycled: number }> => {
+  let query = supabase.from("content_calendar").select("*")
+    .eq("status", "published")
+    .order("viral_score", { ascending: false, nullsFirst: false })
+    .limit(limit);
+  if (platform) query = query.eq("platform", platform);
+
+  const { data } = await query;
+  if (!data?.length) return { recycled: 0 };
+
+  let recycled = 0;
+  for (const item of data) {
+    const { error } = await supabase.from("content_calendar").insert({
+      title: `[Recycled] ${item.title}`,
+      caption: item.caption,
+      platform: item.platform,
+      content_type: item.content_type,
+      hashtags: item.hashtags,
+      description: `Recycled from high-performing post (viral score: ${item.viral_score || 0})`,
+      media_urls: item.media_urls,
+      cta: item.cta,
+      status: "draft",
+      viral_score: item.viral_score,
+      metadata: { source: "smart_recycler", recycled_from: item.id, original_viral_score: item.viral_score, recycled_at: new Date().toISOString() },
+    });
+    if (!error) recycled++;
+  }
+
+  logSyncEvent("smart_recycle", "content_calendar", "content_calendar", recycled, { platform, limit });
+  return { recycled };
 };

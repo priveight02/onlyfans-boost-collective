@@ -26,7 +26,7 @@ import { useCreditAction } from "@/hooks/useCreditAction";
 import CreditCostBadge from "./CreditCostBadge";
 import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 import ContentSandbox from "./ContentSandbox";
-import { pushToSocialHub, pullContentPlanForPlatform, getConnectedAccounts, DEFAULT_BEST_TIMES, importCompetitorIntelToPlan, distributeToAllPlatforms, cloneAsTemplate, syncMediaPlanIdeas, getSyncLog, detectPlanPlatforms, orchestratePlanToPlatforms, batchPrepareContent, generateMediaPlaceholders, getSyncDashboard, type ExecutionMode, type OrchestrationResult, type PlatformSyncStatus } from "@/lib/contentSync";
+import { pushToSocialHub, pullContentPlanForPlatform, getConnectedAccounts, DEFAULT_BEST_TIMES, importCompetitorIntelToPlan, distributeToAllPlatforms, cloneAsTemplate, syncMediaPlanIdeas, getSyncLog, detectPlanPlatforms, orchestratePlanToPlatforms, batchPrepareContent, generateMediaPlaceholders, getSyncDashboard, autoGenerateCaptionsForPlan, crossPlatformMirror, getPlanProgress, recycleTopContent, type ExecutionMode, type OrchestrationResult, type PlatformSyncStatus, type PlanProgress } from "@/lib/contentSync";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
@@ -340,7 +340,26 @@ const ContentCommandCenter = () => {
       contentTypes: c.content_types || [],
     }));
     const totalFreq = compData.reduce((sum, competitor) => sum + (competitor.postFrequency || 3), 0);
-    const content = await callAI(`You are a social media strategist. Based on these real competitor profiles, generate a 2-week content calendar that COPIES their posting strategy exactly.\n\nCompetitor data:\n${JSON.stringify(compData, null, 2)}\n\nMatch their posting frequency, content types, top hashtags, and optimal times.\nGenerate ${Math.max(totalFreq * 2, 14)} entries.\nEach: {"title":"...", "platform":"instagram/tiktok/twitter/facebook/threads", "content_type":"post/reel/story/tweet", "caption":"full caption with emojis", "hashtags":["tag1"], "scheduled_at":"ISO date next 2 weeks", "viral_score": 40-90, "description":"Based on @competitor strategy"}\n\nReturn ONLY a JSON array.`);
+    const content = await callAI(`You are an elite social media content manager who has been hired to EXACTLY CLONE and REPLICATE a competitor's entire content strategy. You must produce a content calendar that is indistinguishable from what the competitor's own content team would create.
+
+COMPETITOR DATA (real scraped analytics):
+${JSON.stringify(compData, null, 2)}
+
+INSTRUCTIONS — CLONE THE COMPETITOR EXACTLY:
+1. POSTING FREQUENCY: Match their exact posts-per-week rate per platform. If they post 5x/week on Instagram, generate 5 posts/week for Instagram.
+2. CONTENT TYPES: Mirror the exact content type distribution. If 60% reels, 25% posts, 15% stories — replicate that ratio.
+3. POSTING TIMES: Schedule at the same hours they post (derive from their engagement patterns — high-ER competitors post at peak hours).
+4. HASHTAG STRATEGY: Use the EXACT same hashtags they use (from top_hashtags data). Mix their proven tags with 2-3 variations.
+5. CAPTION STYLE: Write captions in the SAME tone, length, and style as their most engaging posts. Include emojis, line breaks, and CTAs matching their style.
+6. CONTENT THEMES: Identify their content pillars from the data and replicate each pillar proportionally.
+7. ENGAGEMENT HOOKS: Use the same hooks that drive their high engagement — questions, polls, CTAs, storytelling patterns.
+
+Generate EXACTLY ${Math.max(totalFreq * 2, 14)} entries spanning the next 2 weeks.
+Each entry MUST follow this JSON format:
+{"title":"descriptive title", "platform":"instagram/tiktok/twitter/facebook/threads", "content_type":"post/reel/story/tweet", "caption":"FULL production-ready caption with emojis, line breaks, hashtags inline, and CTA", "hashtags":["tag1","tag2"], "scheduled_at":"ISO date in next 2 weeks at realistic posting hour", "viral_score": 40-95, "description":"Strategy note: cloned from @competitor — mirrors their [specific pattern]"}
+
+CRITICAL: Every caption must be PUBLISH-READY — not a template or placeholder. Write the actual words a content manager would post.
+Return ONLY a JSON array.`);
     const entries = safeParseJSON(content);
     if (!Array.isArray(entries)) throw new Error("AI did not return a valid competitor plan");
 
@@ -1933,6 +1952,25 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
     if (orchSelectedPlatforms.size === 0) { toast.error("Select at least one platform"); return; }
     setOrchExecuting(true);
     try {
+      // In automated mode, first auto-generate captions for items missing them
+      if (orchMode === "automated") {
+        toast.info("Generating AI captions for items missing content...");
+        const planItems = [];
+        for (const platform of Array.from(orchSelectedPlatforms)) {
+          const items = await pullContentPlanForPlatform(platform, ["draft", "planned"]);
+          planItems.push(...items);
+        }
+        if (planItems.length > 0) {
+          await autoGenerateCaptionsForPlan(planItems, callAI);
+        }
+        // Also queue media generation for items without visuals
+        const itemsNeedingMedia = planItems.filter(i => !i.media_urls || i.media_urls.length === 0);
+        if (itemsNeedingMedia.length > 0) {
+          await generateMediaPlaceholders(itemsNeedingMedia);
+          toast.info(`${itemsNeedingMedia.length} media generation tasks queued`);
+        }
+      }
+
       const result = await orchestratePlanToPlatforms(
         Array.from(orchSelectedPlatforms),
         orchMode,
@@ -1944,7 +1982,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       const totalMsg = `${result.total_created} posts pushed to ${result.platforms_processed.length} platform(s)`;
       if (orchMode === "automated") {
-        toast.success(`${totalMsg} with auto-scheduling`);
+        toast.success(`${totalMsg} with auto-scheduling & AI captions`);
       } else {
         toast.success(`${totalMsg} as drafts (manual mode)`);
       }
