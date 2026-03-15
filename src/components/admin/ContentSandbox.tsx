@@ -708,6 +708,22 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (!ix) return;
       if (ix.type === "pan") { setViewport({ ...ix.originViewport, x: ix.originViewport.x + e.clientX - ix.originClient.x, y: ix.originViewport.y + e.clientY - ix.originClient.y }); return; }
       const pt = scenePoint(e.clientX, e.clientY, boardRef.current, vpRef.current);
+      if (ix.type === "marquee") {
+        ix.current = pt;
+        const mx = Math.min(ix.origin.x, pt.x), my = Math.min(ix.origin.y, pt.y);
+        const mw = Math.abs(pt.x - ix.origin.x), mh = Math.abs(pt.y - ix.origin.y);
+        setMarqueeRect({ x: mx, y: my, w: mw, h: mh });
+        // Live-select elements intersecting the marquee
+        const hit = new Set<string>();
+        for (const el of elsRef.current) {
+          if (el.x + el.width > mx && el.x < mx + mw && el.y + el.height > my && el.y < my + mh) {
+            hit.add(el.id);
+            if (el.groupId) elsRef.current.filter(g => g.groupId === el.groupId).forEach(g => hit.add(g.id));
+          }
+        }
+        setSelectedIds(hit);
+        return;
+      }
       if (ix.type === "draw") { ix.points.push(pt); setDraftStroke({ id: "draft", tool: ix.tool, color: ix.color, size: ix.size, points: [...ix.points] }); return; }
       if (ix.type === "drag") {
         const dx = pt.x - ix.anchor.x, dy = pt.y - ix.anchor.y;
@@ -725,6 +741,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (ix.type === "draw" && ix.points.length > 1) {
         pushUndo();
         setStrokes(p => [...p, { id: crypto.randomUUID(), tool: ix.tool, color: ix.color, size: ix.size, points: ix.points }]);
+      }
+      if (ix.type === "marquee") {
+        setMarqueeRect(null);
       }
       interactionRef.current = null;
       setDraftStroke(null);
