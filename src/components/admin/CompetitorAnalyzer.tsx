@@ -3845,29 +3845,63 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                             messages: [
                                               {
                                                 role: "system",
-                                                content: `You are an elite social media content manager who has been HIRED to EXACTLY REPLICATE a competitor's entire content operation. Your goal is to produce a content calendar that is INDISTINGUISHABLE from what the competitor's own team would create — same posting cadence, same content types, same tone, same hashtag strategy, same engagement hooks.
+                                                content: `You are the world's #1 competitive intelligence analyst and social media strategist. You have been retained to produce a PERFECT CLONE of a competitor's ENTIRE content operation — so precise that their own team could not tell the difference.
 
-CRITICAL CLONING RULES:
-1. POSTING FREQUENCY: Match the EXACT posts-per-week per platform. If competitor posts 5x/week on Instagram, generate exactly 5 posts/week for Instagram.
-2. CONTENT TYPE RATIO: Mirror the exact content type distribution. If their data shows 60% reels, 25% posts, 15% stories — replicate that EXACT ratio.
-3. POSTING TIMES: Schedule at realistic peak engagement hours. Use the engagement rate data to infer optimal timing: high-ER competitors typically post at 9AM, 12PM, 3PM, 6PM, 9PM in their timezone. Spread posts across these slots.
-4. HASHTAG STRATEGY: Use their EXACT top hashtags from the data. Each post must include 5-15 platform-native hashtags drawn directly from the competitor's proven tags.
-5. CAPTION STYLE: Write FULL production-ready captions — not templates. Include emojis, line breaks, and CTAs matching what a real content manager would publish. Each caption must be unique and engaging.
-6. CONTENT THEMES: Identify their content pillars from the data and replicate each one proportionally.
-7. ENGAGEMENT HOOKS: Use questions, polls, CTAs, storytelling patterns that match the competitor's engagement rate.
+YOUR MISSION: Analyze EVERY metric provided and create a PLATFORM-SPECIFIC strategy for EACH social network. Each platform gets its OWN tailored approach because competitors behave DIFFERENTLY on each platform.
 
-SCHEDULING: Spread entries across the next 2 weeks starting from ${new Date().toISOString()}. Use realistic posting times (9:00, 10:30, 12:00, 14:00, 15:30, 17:00, 18:30, 20:00, 21:00 UTC).
+═══ DEEP ANALYSIS PROTOCOL ═══
 
-Generate EXACTLY ${Math.max(Math.round(planData.reduce((s, p) => s + p.postsPerWeek, 0) * 2), 10)} entries.
+STEP 1 — METRIC DECONSTRUCTION (per platform):
+• Posting frequency: EXACT posts/week (not approximate)
+• Content type distribution: Calculate EXACT percentages from contentTypes data
+• Engagement rate analysis: High ER (>3%) = value-driven content. Medium (1-3%) = mixed. Low (<1%) = volume play
+• Avg likes vs avg comments ratio: High comments/likes = conversation-driven. Low = visual/scroll content
+• Growth rate: Positive = momentum content. Negative = repositioning needed
+• Follower-to-following ratio: High = authority brand. Near 1:1 = community builder
+• Post frequency vs engagement: High freq + high ER = content machine. High freq + low ER = spam pattern
 
-Each entry JSON format:
-{"title":"descriptive title about the content", "platform":"instagram/tiktok/twitter/youtube/facebook/threads", "content_type":"post/reel/story/video/thread", "caption":"FULL PUBLISH-READY caption with emojis \\n line breaks \\n hashtags inline \\n and a clear CTA", "scheduled_at":"ISO date at realistic posting hour", "status":"draft", "viral_score": 50-95, "description":"Cloned from @competitor_handle — mirrors their [specific content pattern]"}
+STEP 2 — PLATFORM-SPECIFIC STRATEGY ADAPTATION:
+• INSTAGRAM: Mirror their Reels-to-Feed ratio exactly. If 60% Reels, generate 60% Reels. Use carousel posts if engagement suggests educational content. Stories for behind-scenes.
+• TIKTOK: Clone their hook patterns (first 3 seconds). Match video length distribution. Mirror their trending sound usage. Replicate duet/stitch patterns from metadata.
+• FACEBOOK: Match their link-post vs photo-post ratio. Clone their community engagement style. Mirror group posting patterns.
+• THREADS: Replicate their thread length and conversational tone. Mirror their reply engagement style.
+• TWITTER/X: Clone their tweet frequency, thread ratio, quote-tweet patterns, and tone (formal vs casual).
+• YOUTUBE: Match their Shorts-to-Long ratio. Clone thumbnail style descriptions. Mirror upload schedule.
 
-Return ONLY a valid JSON array. No markdown, no explanations.`,
+STEP 3 — CAPTION ENGINEERING (per platform):
+• Extract the competitor's EXACT writing style: emoji density, line break patterns, CTA placement
+• Mirror their vocabulary level and tone (professional, casual, edgy, motivational)
+• Clone their hashtag placement (inline vs footer) and count per post
+• Replicate their engagement hooks (questions, polls, "save this", "tag someone")
+• Each caption MUST be 100% publish-ready — NO placeholders, NO "[insert topic]"
+
+STEP 4 — SCHEDULING INTELLIGENCE:
+• Spread posts across 14 days starting ${new Date().toISOString().split("T")[0]}
+• Instagram: Peak hours 9AM, 12PM, 5PM, 8PM UTC. Reels at 7PM-9PM. Stories throughout day
+• TikTok: Peak 7AM, 10AM, 2PM, 9PM UTC. Multiple daily posts if competitor does so
+• Facebook: Peak 9AM, 1PM, 4PM UTC. Wednesdays and Fridays highest engagement
+• Twitter/X: Peak 8AM, 12PM, 5PM UTC. Even distribution Mon-Fri
+• Threads: Peak 8AM, 12PM, 6PM UTC. Conversational posts in evening
+• YouTube: Shorts daily, Long-form 2-3x/week if applicable
+
+Generate EXACTLY ${Math.max(Math.round(planData.reduce((s, p) => s + p.postsPerWeek, 0) * 2), 14)} entries total, distributed proportionally per platform based on EACH platform's posting frequency.
+
+HASHTAG RULES:
+• Use ONLY hashtags from the competitor's proven top_hashtags data
+• Instagram: 15-25 hashtags (mix of competitor's + niche variants)
+• TikTok: 5-8 hashtags (trending + niche)
+• Twitter: 2-3 hashtags max
+• Facebook: 3-5 hashtags
+• Threads: 3-5 hashtags
+
+JSON format per entry:
+{"title":"specific descriptive title", "platform":"instagram|tiktok|twitter|facebook|threads|youtube", "content_type":"post|reel|story|video|thread|short|carousel", "caption":"FULL PUBLISH-READY caption with actual emojis actual line breaks actual hashtags actual CTA — write it like you ARE the competitor's content manager", "hashtags":["tag1","tag2",...], "scheduled_at":"YYYY-MM-DDTHH:mm:ss.000Z", "status":"draft", "viral_score":50-98, "description":"Cloned from @handle — replicates their [exact pattern]: [freq]x/week [type] with [engagement style]", "best_posting_hour":"HH:MM UTC", "content_pillar":"education|entertainment|inspiration|promotion|community|behind_scenes"}
+
+Return ONLY a valid JSON array. No markdown, no explanations, no code blocks.`,
                                               },
                                               {
                                                 role: "user",
-                                                content: `Here is the REAL scraped competitor data to clone:\n\n${JSON.stringify(planData, null, 2)}\n\nFull competitor profiles:\n${JSON.stringify(competitors.map(c => ({ username: c.username, platform: c.platform, followers: c.followers, engagementRate: c.engagementRate, avgLikes: c.avgLikes, avgComments: c.avgComments, postFrequency: c.postFrequency, growthRate: c.growthRate, topHashtags: c.topHashtags, contentTypes: c.contentTypes })), null, 2)}\n\nGenerate the content calendar that EXACTLY CLONES their posting strategy. Every caption must be publish-ready.`,
+                                                content: `REAL SCRAPED COMPETITOR DATA — analyze EVERY metric:\n\nPLATFORM SUMMARY:\n${JSON.stringify(planData, null, 2)}\n\nDETAILED COMPETITOR PROFILES (analyze each individually):\n${JSON.stringify(competitors.map(c => ({ username: c.username, platform: c.platform, followers: c.followers, following: c.following, follower_ratio: c.followers > 0 ? (c.followers / Math.max(c.following, 1)).toFixed(1) : "N/A", engagementRate: c.engagementRate, avgLikes: c.avgLikes, avgComments: c.avgComments, comment_to_like_ratio: c.avgLikes > 0 ? (c.avgComments / c.avgLikes * 100).toFixed(1) + "%" : "N/A", postFrequency: c.postFrequency, posts_total: c.posts, growthRate: c.growthRate, topHashtags: c.topHashtags, contentTypes: c.contentTypes, score: c.score, metadata: c.metadata })), null, 2)}\n\nINSTRUCTIONS: Create a PLATFORM-SPECIFIC content calendar. For EACH platform, adapt the strategy to match that platform's unique competitor behavior. Each caption must be 100% publish-ready with real emojis, real CTAs, real hashtags from the data. This is a PERFECT CLONE — not inspired by, not similar to — IDENTICAL in strategy execution.`,
                                               },
                                             ],
                                             model: "google/gemini-2.5-flash",
@@ -3894,7 +3928,7 @@ Return ONLY a valid JSON array. No markdown, no explanations.`,
 
                                       // Insert into content_calendar
                                       const userId = session?.user?.id;
-                                      const inserts = entries.map((e: any) => ({
+                                       const inserts = entries.map((e: any) => ({
                                         title: String(e.title || "Cloned Post").slice(0, 200),
                                         platform: String(e.platform || "instagram").toLowerCase(),
                                         content_type: String(e.content_type || "post"),
@@ -3904,9 +3938,10 @@ Return ONLY a valid JSON array. No markdown, no explanations.`,
                                         created_by: userId,
                                         viral_score: e.viral_score || 0,
                                         description: e.description || "Cloned from competitor strategy",
+                                        cta: e.content_pillar || null,
                                         hashtags: Array.isArray(e.hashtags) ? e.hashtags.map((t: string) => t.replace("#", "")) : e.caption ? [...(e.caption.match(/#\w+/g) || [])].map((t: string) => t.replace("#", "")) : [],
-                                        metadata: { source: "competitor_intel", cloned_from: "content_intel_tab", cloned_at: new Date().toISOString(), competitor_handles: planData.flatMap(p => p.competitors) },
-                                      }));
+                                        metadata: { source: "competitor_intel", cloned_from: "content_intel_tab", cloned_at: new Date().toISOString(), competitor_handles: planData.flatMap(p => p.competitors), content_pillar: e.content_pillar || null, best_posting_hour: e.best_posting_hour || null, platform_strategy: `${e.platform}_clone` },
+                                       }));
 
                                       const { error } = await supabase.from("content_calendar").insert(inserts);
                                       if (error) throw error;
