@@ -4074,6 +4074,12 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                 <p className="text-xs text-white/80">{(siteInsights.contentStrategy.dominantTopics || []).join(", ") || "N/A"}</p>
                               </div>
                             </div>
+                            {siteInsights.contentStrategy?.keyMessages && (
+                              <div className="mt-2 p-2 rounded-lg bg-white/[0.02]">
+                                <p className="text-[10px] text-white/40">Key Messages</p>
+                                <p className="text-xs text-white/70">{siteInsights.contentStrategy.keyMessages}</p>
+                              </div>
+                            )}
                             {(siteInsights.contentStrategy.contentGaps || []).length > 0 && (
                               <div className="mt-2 flex flex-wrap gap-1.5">
                                 <span className="text-[10px] text-white/40">Content Gaps:</span>
