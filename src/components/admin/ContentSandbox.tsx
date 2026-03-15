@@ -690,6 +690,14 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       return;
     }
     if (["note", "text", "rectangle", "ellipse", "triangle", "diamond", "arrow"].includes(tool)) { addEl(tool, pt); return; }
+    // Start marquee selection on empty canvas with select tool
+    if (tool === "select") {
+      interactionRef.current = { type: "marquee", origin: pt, current: pt };
+      setMarqueeRect(null);
+      setSelectedIds(new Set());
+      setLinkSourceId(null);
+      return;
+    }
     setSelectedIds(new Set());
     setLinkSourceId(null);
   }, [tool, activeColor, addEl, brushSize]);
