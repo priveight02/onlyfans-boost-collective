@@ -397,7 +397,7 @@ const CompetitorAnalyzer = ({
 
   const [competitors, setCompetitors] = useState<Competitor[]>([]);
   const [newUsername, setNewUsername] = useState("");
-  const [newPlatform, setNewPlatform] = useState("instagram");
+  const [newPlatform, setNewPlatform] = useState("internet");
   const [newCompetitorUrl, setNewCompetitorUrl] = useState("");
   const [newCompetitorKeywords, setNewCompetitorKeywords] = useState("");
   const [analyzing, setAnalyzing] = useState(false);
