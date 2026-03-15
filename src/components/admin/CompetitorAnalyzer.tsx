@@ -3285,7 +3285,7 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                   return (
                                     <div key={key} className="p-2.5 rounded-xl border border-white/[0.04] bg-white/[0.015] hover:border-white/[0.08] transition-all">
                                       <div className="flex items-center gap-2.5 mb-2">
-                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[9px] font-black text-white shrink-0" style={{ background: data.color }}>{data.icon}</div>
+                                        <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 p-1.5" style={{ background: data.color }}><img src={data.logo} alt={data.name} className="w-full h-full object-contain" /></div>
                                         <div className="flex-1 min-w-0">
                                           <div className="flex items-center gap-2">
                                             <span className="text-[11px] font-semibold text-white">{data.name}</span>
