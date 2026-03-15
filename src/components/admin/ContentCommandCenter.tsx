@@ -188,6 +188,8 @@ const ContentCommandCenter = () => {
   const [generatingSwotContent, setGeneratingSwotContent] = useState(false);
   const [generatingGapContent, setGeneratingGapContent] = useState(false);
   const [generatingBestTimes, setGeneratingBestTimes] = useState(false);
+  const [resyncingCompetitorPlan, setResyncingCompetitorPlan] = useState(false);
+  const [removingCompetitorIntel, setRemovingCompetitorIntel] = useState(false);
   const [competitorBestTimes, setCompetitorBestTimes] = useState<any[]>([]);
   const [showCompetitorBestTimes, setShowCompetitorBestTimes] = useState(false);
 
