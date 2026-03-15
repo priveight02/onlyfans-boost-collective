@@ -1283,6 +1283,47 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
               </CardContent>
             </Card>
           ) : (
+            <>
+              {/* Quick Summary Bar */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <Card className="crm-card"><CardContent className="p-3 text-center">
+                  <p className="text-[10px] text-white/40">Tracked</p>
+                  <p className="text-lg font-bold text-[hsl(217,91%,60%)]">{competitors.length}</p>
+                </CardContent></Card>
+                <Card className="crm-card"><CardContent className="p-3 text-center">
+                  <p className="text-[10px] text-white/40">Avg Followers</p>
+                  <p className="text-lg font-bold text-white">{fmtNum(Math.round(competitors.reduce((a, c) => a + c.followers, 0) / competitors.length))}</p>
+                </CardContent></Card>
+                <Card className="crm-card"><CardContent className="p-3 text-center">
+                  <p className="text-[10px] text-white/40">Avg Engagement</p>
+                  <p className="text-lg font-bold text-emerald-400">{(competitors.reduce((a, c) => a + c.engagementRate, 0) / competitors.length).toFixed(1)}%</p>
+                </CardContent></Card>
+                <Card className="crm-card"><CardContent className="p-3 text-center">
+                  <p className="text-[10px] text-white/40">High Threats</p>
+                  <p className="text-lg font-bold text-red-400">{competitors.filter(c => c.score >= 70).length}</p>
+                </CardContent></Card>
+                <Card className="crm-card"><CardContent className="p-3 text-center">
+                  <p className="text-[10px] text-white/40">Avg Growth</p>
+                  <p className={`text-lg font-bold ${competitors.reduce((a, c) => a + c.growthRate, 0) / competitors.length >= 0 ? "text-emerald-400" : "text-red-400"}`}>{(competitors.reduce((a, c) => a + c.growthRate, 0) / competitors.length).toFixed(1)}%/wk</p>
+                </CardContent></Card>
+              </div>
+
+              {/* Controls Row */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" className="h-7 text-[10px] gap-1 border-white/10 text-white/50 hover:text-white" disabled={refreshingId !== null}
+                    onClick={async () => {
+                      for (const comp of competitors) {
+                        await refreshCompetitor(comp);
+                      }
+                      toast.success("All competitors refreshed");
+                    }}>
+                    <RefreshCw className={`h-3 w-3 ${refreshingId ? "animate-spin" : ""}`} /> Refresh All
+                  </Button>
+                  <span className="text-[10px] text-white/25">{competitors.length} competitor{competitors.length !== 1 ? "s" : ""}</span>
+                </div>
+              </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               {competitors.map(comp => (
                 <Card
