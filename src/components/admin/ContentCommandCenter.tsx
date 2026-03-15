@@ -3185,7 +3185,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                         <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" /> Approve
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => rejectContent(item.id)}
-                        className="flex-1 text-[10px] h-6 border-destructive/30 text-destructive">
+                        className="flex-1 text-[10px] h-6 border-red-500/30 text-red-400">
                         <X className="h-2.5 w-2.5 mr-0.5" /> Reject
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => { setShowDetail(item); setShowApprovalQueue(false); }}
@@ -3293,7 +3293,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       {/* ========== COMPETITOR BEST TIMES DIALOG ========== */}
       <Dialog open={showCompetitorBestTimes} onOpenChange={setShowCompetitorBestTimes}>
-        <DialogContent className="bg-popover border-border text-white max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-white flex items-center gap-2"><Clock className="h-4 w-4 text-emerald-400" /> Competitor Best Posting Times</DialogTitle>
           </DialogHeader>
