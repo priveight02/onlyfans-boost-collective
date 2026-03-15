@@ -3984,57 +3984,57 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                                           <p className={`text-[10px] font-bold ${stat.color}`}>{stat.value}</p>
                                                         </div>
                                                       </ContextMenuTrigger>
-                                                      <ContextMenuContent className="w-72 bg-[hsl(222,47%,8%)] border-white/10 text-white">
-                                                        <ContextMenuLabel className="text-[11px] font-semibold text-white/90 flex items-center gap-1.5">
-                                                          <Info className="h-3 w-3 text-[hsl(217,91%,60%)]" />
-                                                          {stat.label}
-                                                        </ContextMenuLabel>
-                                                        <ContextMenuSeparator className="bg-white/[0.06]" />
-                                                        {stat.detail?.description && (
-                                                          <div className="px-2 pt-1.5 pb-1">
-                                                            <p className="text-[8px] text-white/60 leading-relaxed bg-white/[0.02] rounded px-2 py-1.5 border border-white/[0.04]">{stat.detail.description}</p>
-                                                          </div>
-                                                        )}
-                                                        <div className="px-2 py-1.5 space-y-1.5">
-                                                          <div className="flex justify-between items-center">
-                                                            <span className="text-[9px] text-white/40">Value</span>
-                                                            <span className={`text-[10px] font-bold ${stat.color}`}>{stat.value}</span>
-                                                          </div>
-                                                          {stat.detail?.type && (
-                                                            <div className="flex justify-between items-center">
-                                                              <span className="text-[9px] text-white/40">Type</span>
-                                                              <Badge variant="outline" className="text-[7px] border-white/10 text-white/50 h-4">{stat.detail.type}</Badge>
-                                                            </div>
-                                                          )}
-                                                          {stat.detail?.raw && (
-                                                            <div className="flex justify-between items-center">
-                                                              <span className="text-[9px] text-white/40">Raw Value</span>
-                                                              <span className="text-[9px] text-white/60 font-mono">{stat.detail.raw}</span>
-                                                            </div>
-                                                          )}
-                                                          {stat.detail?.formula && (
-                                                            <div>
-                                                              <span className="text-[8px] text-white/40 block mb-0.5">Formula / Logic</span>
-                                                              <p className="text-[8px] text-[hsl(217,91%,60%)]/80 bg-white/[0.03] rounded px-1.5 py-1 leading-relaxed">{stat.detail.formula}</p>
-                                                            </div>
-                                                          )}
-                                                          {stat.detail?.source && (
-                                                            <div className="flex justify-between items-center">
-                                                              <span className="text-[9px] text-white/40">Source</span>
-                                                              <span className="text-[8px] text-white/50">{stat.detail.source}</span>
-                                                            </div>
-                                                          )}
-                                                          {stat.detail?.timestamp && (
-                                                            <div className="flex justify-between items-center">
-                                                              <span className="text-[9px] text-white/40">Fetched</span>
-                                                              <span className="text-[8px] text-white/40 font-mono">{stat.detail.timestamp}</span>
-                                                            </div>
-                                                          )}
-                                                          {stat.detail?.note && (
-                                                            <div className="mt-1 pt-1 border-t border-white/[0.04]">
-                                                              <p className="text-[8px] text-amber-400/60 italic">{stat.detail.note}</p>
-                                                            </div>
-                                                          )}
+                                                       <ContextMenuContent className="w-[520px] bg-[hsl(222,47%,8%)] border-white/10 text-white shadow-2xl">
+                                                         <ContextMenuLabel className="text-sm font-bold text-white/90 flex items-center gap-2 py-2 px-3">
+                                                           <Info className="h-4 w-4 text-[hsl(217,91%,60%)]" />
+                                                           {stat.label}
+                                                         </ContextMenuLabel>
+                                                         <ContextMenuSeparator className="bg-white/[0.06]" />
+                                                         {stat.detail?.description && (
+                                                           <div className="px-3 pt-2.5 pb-2">
+                                                             <p className="text-xs text-white/70 leading-relaxed bg-white/[0.03] rounded-lg px-4 py-3 border border-white/[0.06]">{stat.detail.description}</p>
+                                                           </div>
+                                                         )}
+                                                         <div className="px-3 pb-3 space-y-2">
+                                                           <div className="flex justify-between items-center py-1">
+                                                             <span className="text-xs text-white/50">Current Value</span>
+                                                             <span className={`text-sm font-bold ${stat.color}`}>{stat.value}</span>
+                                                           </div>
+                                                           {stat.detail?.type && (
+                                                             <div className="flex justify-between items-center py-1">
+                                                               <span className="text-xs text-white/50">Type</span>
+                                                               <Badge variant="outline" className="text-[10px] border-white/10 text-white/60 h-5 px-2">{stat.detail.type}</Badge>
+                                                             </div>
+                                                           )}
+                                                           {stat.detail?.raw && (
+                                                             <div className="flex justify-between items-center py-1">
+                                                               <span className="text-xs text-white/50">Raw Value</span>
+                                                               <span className="text-xs text-white/70 font-mono">{stat.detail.raw}</span>
+                                                             </div>
+                                                           )}
+                                                           {stat.detail?.formula && (
+                                                             <div className="py-1">
+                                                               <span className="text-[11px] text-white/50 block mb-1">Formula / Logic</span>
+                                                               <p className="text-[11px] text-[hsl(217,91%,60%)]/90 bg-white/[0.04] rounded-lg px-3 py-2 leading-relaxed font-mono">{stat.detail.formula}</p>
+                                                             </div>
+                                                           )}
+                                                           {stat.detail?.source && (
+                                                             <div className="flex justify-between items-center py-1">
+                                                               <span className="text-xs text-white/50">Source</span>
+                                                               <span className="text-[11px] text-white/60">{stat.detail.source}</span>
+                                                             </div>
+                                                           )}
+                                                           {stat.detail?.timestamp && (
+                                                             <div className="flex justify-between items-center py-1">
+                                                               <span className="text-xs text-white/50">Fetched</span>
+                                                               <span className="text-[11px] text-white/50 font-mono">{stat.detail.timestamp}</span>
+                                                             </div>
+                                                           )}
+                                                           {stat.detail?.note && (
+                                                             <div className="mt-2 pt-2 border-t border-white/[0.06]">
+                                                               <p className="text-[11px] text-amber-400/70 italic">{stat.detail.note}</p>
+                                                             </div>
+                                                           )}
                                                         </div>
                                                         <ContextMenuSeparator className="bg-white/[0.06]" />
                                                         <ContextMenuItem
