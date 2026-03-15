@@ -723,10 +723,14 @@ Be as accurate as possible. If you recognize the account, use real data. If not,
   const removeCompetitor = async (id: string) => {
     await competitorRest.remove(id);
     setCompetitors(prev => prev.filter(c => c.id !== id));
-    if (selectedCompetitor === id) {
-      const remaining = competitors.filter(c => c.id !== id);
-      setSelectedCompetitor(remaining[0]?.id || null);
-    }
+    setSelectedCompetitors(prev => {
+      const next = prev.filter(x => x !== id);
+      if (next.length === 0) {
+        const remaining = competitors.filter(c => c.id !== id);
+        return remaining.length > 0 ? [remaining[0].id] : [];
+      }
+      return next;
+    });
     toast.success("Competitor removed");
   };
 
