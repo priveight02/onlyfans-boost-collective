@@ -1198,6 +1198,30 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
   }));
 
 
+        {/* ═══ SELECTED COMPETITORS BAR ═══ */}
+        {selectedCompetitors.length > 0 && (
+          <div className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-[hsl(217,91%,60%)]/[0.04] border border-[hsl(217,91%,60%)]/10">
+            <div className="flex items-center gap-2 flex-1 flex-wrap min-w-0">
+              <span className="text-[10px] text-white/40 font-medium flex-shrink-0">Selected ({selectedCompetitors.length}):</span>
+              {selectedComps.map(c => (
+                <Badge key={c.id} className="bg-[hsl(217,91%,60%)]/10 text-[hsl(217,91%,60%)] border border-[hsl(217,91%,60%)]/20 text-[10px] gap-1 cursor-pointer hover:bg-[hsl(217,91%,60%)]/20 transition-colors" onClick={() => toggleCompetitorSelection(c.id)}>
+                  {c.platform === "internet" ? "🌐" : "@"}{c.platform === "internet" ? c.displayName : c.username}
+                  <XCircle className="h-2.5 w-2.5 opacity-50 hover:opacity-100" />
+                </Badge>
+              ))}
+              <div className="flex items-center gap-1 ml-auto flex-shrink-0">
+                <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[9px] text-white/30 hover:text-white/60" onClick={selectAllCompetitors}>All</Button>
+                <Button size="sm" variant="ghost" className="h-5 px-1.5 text-[9px] text-white/30 hover:text-white/60" onClick={deselectAllCompetitors}>None</Button>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0 pl-3 border-l border-white/[0.06]">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                <Switch checked={syncCompetitorsAcrossTabs} onCheckedChange={toggleSyncCompetitors} className="h-4 w-7 data-[state=checked]:bg-[hsl(217,91%,60%)]" />
+                <span className="text-[10px] text-white/50 whitespace-nowrap">Sync across tabs</span>
+              </label>
+            </div>
+          </div>
+        )}
 
   return (
     <div className="space-y-5">
