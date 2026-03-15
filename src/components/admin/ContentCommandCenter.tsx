@@ -2537,8 +2537,8 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
                 </SelectContent>
               </Select>
               <Select value={formAccount} onValueChange={setFormAccount}>
-                <SelectTrigger className="bg-card/50 border-border text-foreground text-xs h-8"><SelectValue placeholder="Creator" /></SelectTrigger>
-                <SelectContent className="bg-popover border-border">
+                <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white text-xs h-8"><SelectValue placeholder="Creator" /></SelectTrigger>
+                <SelectContent className="bg-[hsl(222,35%,10%)] border-white/[0.08]">
                   <SelectItem value="none" className="text-xs">No creator</SelectItem>
                   {accounts.map(a => <SelectItem key={a.id} value={a.id} className="text-xs">{a.display_name || a.username}</SelectItem>)}
                 </SelectContent>
