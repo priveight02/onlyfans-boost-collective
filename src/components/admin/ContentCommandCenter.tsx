@@ -3592,6 +3592,97 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
       <InsufficientCreditsModal open={insufficientModal.open} onClose={closeInsufficientModal}
         requiredCredits={insufficientModal.requiredCredits} actionName={insufficientModal.actionName} />
+
+      {/* ========== PUSH TO SOCIAL HUB DIALOG ========== */}
+      <Dialog open={showPushToSocial} onOpenChange={setShowPushToSocial}>
+        <DialogContent className="bg-[hsl(222,35%,7%)] border-white/[0.08] text-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Send className="h-4 w-4 text-emerald-400" /> Push to Social Hub
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-white/50">Send content plan items to platform-specific social posts with optional auto-scheduling at optimal times.</p>
+
+          <div className="space-y-3">
+            {/* Platform selector */}
+            <div>
+              <label className="text-[10px] text-white/40 uppercase tracking-wider">Platform</label>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {["instagram", "tiktok", "twitter", "facebook", "threads", "onlyfans"].map(p => (
+                  <button key={p} type="button" onClick={() => setPushPlatform(p)}
+                    className={cn("rounded-md px-2.5 py-1.5 text-[10px] capitalize border transition-all",
+                      pushPlatform === p ? "border-primary/30 bg-primary/10 text-primary" : "border-white/8 text-white/40 hover:border-white/15")}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Connected account */}
+            <div>
+              <label className="text-[10px] text-white/40 uppercase tracking-wider">Connected Account</label>
+              {pushAccounts.length === 0 ? (
+                <p className="text-[11px] text-amber-400/70 mt-1">No connected {pushPlatform} accounts. Connect in Social Media Hub first.</p>
+              ) : (
+                <select value={pushSelectedAccount} onChange={e => setPushSelectedAccount(e.target.value)}
+                  className="mt-1 w-full rounded-md border border-white/10 bg-white/5 px-2 py-1.5 text-[11px] text-white/80 outline-none">
+                  {pushAccounts.map(a => (
+                    <option key={a.account_id} value={a.account_id} className="bg-[hsl(222,30%,12%)] text-white">
+                      @{a.platform_username || a.account_id}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Item filter */}
+            <div>
+              <label className="text-[10px] text-white/40 uppercase tracking-wider">Items to Push</label>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {([
+                  { id: "all_drafts" as const, label: "All Drafts", count: items.filter(i => i.status === "draft" && i.platform === pushPlatform).length },
+                  { id: "scheduled" as const, label: "Planned/Scheduled", count: items.filter(i => ["scheduled", "planned"].includes(i.status) && i.platform === pushPlatform).length },
+                  { id: "competitor" as const, label: "Competitor Intel", count: items.filter(i => COMPETITOR_SYNC_SOURCES.includes(getContentSource(i) as any) && i.platform === pushPlatform).length },
+                  { id: "selected" as const, label: `Selected (${selectedItems.size})`, count: items.filter(i => selectedItems.has(i.id) && i.platform === pushPlatform).length },
+                ]).map(f => (
+                  <button key={f.id} type="button" onClick={() => setPushItemFilter(f.id)}
+                    className={cn("rounded-md px-2.5 py-1.5 text-[10px] border transition-all",
+                      pushItemFilter === f.id ? "border-primary/30 bg-primary/10 text-primary" : "border-white/8 text-white/40")}>
+                    {f.label} ({f.count})
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Auto-schedule toggle */}
+            <div className="flex items-center justify-between rounded-lg border border-white/8 bg-white/3 p-2.5">
+              <div>
+                <p className="text-[11px] text-white/80 font-medium">Auto-Schedule at Best Times</p>
+                <p className="text-[10px] text-white/35">Distribute posts across optimal posting hours</p>
+              </div>
+              <Switch checked={pushAutoSchedule} onCheckedChange={setPushAutoSchedule} />
+            </div>
+
+            {/* Custom times */}
+            {pushAutoSchedule && (
+              <div>
+                <label className="text-[10px] text-white/40 uppercase tracking-wider">Custom Times (optional)</label>
+                <Input value={pushCustomTimes} onChange={e => setPushCustomTimes(e.target.value)}
+                  placeholder={`Default: ${DEFAULT_BEST_TIMES[pushPlatform]?.join(", ")}`}
+                  className="mt-1 bg-white/[0.04] border-white/[0.08] text-white text-xs" />
+                <p className="text-[9px] text-white/25 mt-0.5">Comma-separated e.g. 9:00 AM, 2:00 PM, 7:00 PM</p>
+              </div>
+            )}
+
+            {/* Push button */}
+            <Button onClick={handlePushToSocial} disabled={pushingToSocial || pushAccounts.length === 0}
+              className="w-full bg-emerald-500/15 border border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/25">
+              {pushingToSocial ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : <Send className="h-3.5 w-3.5 mr-1.5" />}
+              {pushingToSocial ? "Pushing..." : `Push ${pushPlatform} content to Social Hub`}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
