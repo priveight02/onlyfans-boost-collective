@@ -2740,7 +2740,7 @@ Respond ONLY with valid JSON array: [{"title":"...", "platform":"...", "content_
 
             {/* Media Upload */}
             <div>
-              <label className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 block">Media</label>
+              <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Media</label>
               <div className="flex flex-wrap gap-2 mb-2">
                 {formExistingMedia.map((url, i) => (
                   <div key={`e-${i}`} className="relative w-16 h-16 rounded-lg overflow-hidden border border-border">
