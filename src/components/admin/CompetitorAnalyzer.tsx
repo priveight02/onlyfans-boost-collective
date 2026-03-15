@@ -3845,11 +3845,29 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                                             messages: [
                                               {
                                                 role: "system",
-                                                content: `You are a social media strategist. Generate a JSON array of content calendar entries that COPIES the competitor's posting routine. Each entry must have: title, platform (instagram/tiktok/twitter/youtube/facebook/threads), content_type (post/reel/story/video/thread), caption (with hashtags), scheduled_at (ISO date, spread across next 2 weeks from ${new Date().toISOString()}, at realistic posting times like 9am, 12pm, 3pm, 6pm, 9pm UTC), status "draft". Generate exactly ${Math.max(Math.round(planData.reduce((s, p) => s + p.postsPerWeek, 0) * 2), 10)} entries matching the competitor frequency per platform. Return ONLY a JSON array, no markdown.`,
+                                                content: `You are an elite social media content manager who has been HIRED to EXACTLY REPLICATE a competitor's entire content operation. Your goal is to produce a content calendar that is INDISTINGUISHABLE from what the competitor's own team would create — same posting cadence, same content types, same tone, same hashtag strategy, same engagement hooks.
+
+CRITICAL CLONING RULES:
+1. POSTING FREQUENCY: Match the EXACT posts-per-week per platform. If competitor posts 5x/week on Instagram, generate exactly 5 posts/week for Instagram.
+2. CONTENT TYPE RATIO: Mirror the exact content type distribution. If their data shows 60% reels, 25% posts, 15% stories — replicate that EXACT ratio.
+3. POSTING TIMES: Schedule at realistic peak engagement hours. Use the engagement rate data to infer optimal timing: high-ER competitors typically post at 9AM, 12PM, 3PM, 6PM, 9PM in their timezone. Spread posts across these slots.
+4. HASHTAG STRATEGY: Use their EXACT top hashtags from the data. Each post must include 5-15 platform-native hashtags drawn directly from the competitor's proven tags.
+5. CAPTION STYLE: Write FULL production-ready captions — not templates. Include emojis, line breaks, and CTAs matching what a real content manager would publish. Each caption must be unique and engaging.
+6. CONTENT THEMES: Identify their content pillars from the data and replicate each one proportionally.
+7. ENGAGEMENT HOOKS: Use questions, polls, CTAs, storytelling patterns that match the competitor's engagement rate.
+
+SCHEDULING: Spread entries across the next 2 weeks starting from ${new Date().toISOString()}. Use realistic posting times (9:00, 10:30, 12:00, 14:00, 15:30, 17:00, 18:30, 20:00, 21:00 UTC).
+
+Generate EXACTLY ${Math.max(Math.round(planData.reduce((s, p) => s + p.postsPerWeek, 0) * 2), 10)} entries.
+
+Each entry JSON format:
+{"title":"descriptive title about the content", "platform":"instagram/tiktok/twitter/youtube/facebook/threads", "content_type":"post/reel/story/video/thread", "caption":"FULL PUBLISH-READY caption with emojis \\n line breaks \\n hashtags inline \\n and a clear CTA", "scheduled_at":"ISO date at realistic posting hour", "status":"draft", "viral_score": 50-95, "description":"Cloned from @competitor_handle — mirrors their [specific content pattern]"}
+
+Return ONLY a valid JSON array. No markdown, no explanations.`,
                                               },
                                               {
                                                 role: "user",
-                                                content: `Competitor analysis data:\n${JSON.stringify(planData, null, 2)}\n\nGenerate the content calendar matching their posting frequency, times, and platform distribution.`,
+                                                content: `Here is the REAL scraped competitor data to clone:\n\n${JSON.stringify(planData, null, 2)}\n\nFull competitor profiles:\n${JSON.stringify(competitors.map(c => ({ username: c.username, platform: c.platform, followers: c.followers, engagementRate: c.engagementRate, avgLikes: c.avgLikes, avgComments: c.avgComments, postFrequency: c.postFrequency, growthRate: c.growthRate, topHashtags: c.topHashtags, contentTypes: c.contentTypes })), null, 2)}\n\nGenerate the content calendar that EXACTLY CLONES their posting strategy. Every caption must be publish-ready.`,
                                               },
                                             ],
                                             model: "google/gemini-2.5-flash",
