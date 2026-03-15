@@ -2216,24 +2216,55 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                 ))}
               </div>
 
-              {/* Hashtag comparison */}
+              {/* Hashtag Overlap Matrix */}
               <Card className="crm-card">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Hashtag Usage Across Competitors</CardTitle></CardHeader>
                 <CardContent>
+                  {/* Stats row */}
+                  {(() => {
+                    const allTags = [...new Set(competitors.flatMap(c => c.topHashtags))];
+                    const sharedTags = allTags.filter(tag => competitors.filter(c => c.topHashtags.includes(tag)).length >= 2);
+                    const uniqueTags = allTags.filter(tag => competitors.filter(c => c.topHashtags.includes(tag)).length === 1);
+                    return (
+                      <div className="grid grid-cols-3 gap-2 mb-3">
+                        <div className="p-2 rounded-lg bg-white/[0.02] text-center">
+                          <p className="text-[10px] text-white/40">Total Unique</p>
+                          <p className="text-sm font-bold text-[hsl(217,91%,60%)]">{allTags.length}</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-amber-400/5 border border-amber-400/10 text-center">
+                          <p className="text-[10px] text-white/40">Shared (2+)</p>
+                          <p className="text-sm font-bold text-amber-400">{sharedTags.length}</p>
+                        </div>
+                        <div className="p-2 rounded-lg bg-emerald-400/5 border border-emerald-400/10 text-center">
+                          <p className="text-[10px] text-white/40">Exclusive (1 only)</p>
+                          <p className="text-sm font-bold text-emerald-400">{uniqueTags.length}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-white/[0.06]">
                           <th className="text-left py-2 text-white/50 font-medium text-xs">Hashtag</th>
+                          <th className="text-center py-2 text-white/50 font-medium text-xs">Used By</th>
                           {competitors.map(c => <th key={c.id} className="text-center py-2 text-white/50 font-medium text-xs">@{c.username}</th>)}
                         </tr>
                       </thead>
                       <tbody>
                         {(() => {
                           const allTags = [...new Set(competitors.flatMap(c => c.topHashtags))];
-                          return allTags.slice(0, 15).map(tag => (
+                          // Sort by usage count descending
+                          return allTags
+                            .map(tag => ({ tag, count: competitors.filter(c => c.topHashtags.includes(tag)).length }))
+                            .sort((a, b) => b.count - a.count)
+                            .slice(0, 20)
+                            .map(({ tag, count }) => (
                             <tr key={tag} className="border-b border-white/[0.03]">
                               <td className="py-2 text-white/70 text-xs flex items-center gap-1"><Hash className="h-3 w-3 text-[hsl(217,91%,60%)]" />{tag}</td>
+                              <td className="text-center py-2">
+                                <Badge variant="outline" className={`text-[9px] ${count >= 2 ? "border-amber-400/20 text-amber-400" : "border-white/10 text-white/40"}`}>{count}/{competitors.length}</Badge>
+                              </td>
                               {competitors.map(c => (
                                 <td key={c.id} className="text-center py-2">
                                   {c.topHashtags.includes(tag) ? (
@@ -2248,6 +2279,70 @@ Be extremely specific. Use actual data from the analysis. No generic advice. Eve
                         })()}
                       </tbody>
                     </table>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Posting Velocity & Engagement Correlation */}
+              <Card className="crm-card">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-white/60">Posting Velocity vs Engagement Rate</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="h-[240px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={[
+                        ...(myStats ? [{ name: `@${myStats.username}`, frequency: myStats.postFrequency, engagement: myStats.engagementRate, isMe: true }] : []),
+                        ...competitors.map(c => ({ name: `@${c.username}`, frequency: c.postFrequency, engagement: c.engagementRate, isMe: false })),
+                      ].sort((a, b) => b.engagement - a.engagement)} barCategoryGap="20%">
+                        <XAxis dataKey="name" tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis yAxisId="left" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis yAxisId="right" orientation="right" tick={{ fill: "rgba(255,255,255,0.3)", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <Tooltip contentStyle={chartTooltipStyle} />
+                        <Bar yAxisId="left" dataKey="frequency" fill="hsl(262,83%,58%)" radius={[4, 4, 0, 0]} name="Posts/Week" opacity={0.7} />
+                        <Bar yAxisId="right" dataKey="engagement" fill="hsl(150,60%,50%)" radius={[4, 4, 0, 0]} name="Engagement %" />
+                        <Legend wrapperStyle={{ fontSize: 10, color: "rgba(255,255,255,0.5)" }} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <p className="text-[10px] text-white/30 text-center mt-2">Higher frequency doesn't always mean higher engagement — find your optimal posting cadence</p>
+                </CardContent>
+              </Card>
+
+              {/* Content Dominance Score */}
+              <Card className="crm-card border-[hsl(262,83%,58%)]/15">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-[hsl(262,83%,58%)] flex items-center gap-2"><Crown className="h-4 w-4" /> Content Dominance Scorecard</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {(() => {
+                      const entries = competitors.map(c => {
+                        const diversityScore = Math.min(c.contentTypes.length * 25, 100);
+                        const hashtagScore = Math.min(c.topHashtags.length * 20, 100);
+                        const velocityScore = Math.min(c.postFrequency * 15, 100);
+                        const engScore = Math.min(c.engagementRate * 12, 100);
+                        const total = Math.round((diversityScore + hashtagScore + velocityScore + engScore) / 4);
+                        return { username: c.username, diversityScore, hashtagScore, velocityScore, engScore, total };
+                      }).sort((a, b) => b.total - a.total);
+                      const max = entries[0]?.total || 1;
+                      return entries.map((e, i) => (
+                        <div key={e.username} className="flex items-center gap-3 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04]">
+                          <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold ${i === 0 ? "bg-[hsl(262,83%,58%)]/15 text-[hsl(262,83%,58%)]" : "bg-white/[0.04] text-white/30"}`}>{i + 1}</div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-xs font-medium text-white/80">@{e.username}</span>
+                              <div className="flex gap-1">
+                                <Badge variant="outline" className="text-[7px] border-white/10 text-white/30">Div:{e.diversityScore}</Badge>
+                                <Badge variant="outline" className="text-[7px] border-white/10 text-white/30">Tags:{e.hashtagScore}</Badge>
+                                <Badge variant="outline" className="text-[7px] border-white/10 text-white/30">Vel:{e.velocityScore}</Badge>
+                                <Badge variant="outline" className="text-[7px] border-white/10 text-white/30">Eng:{e.engScore}</Badge>
+                              </div>
+                            </div>
+                            <div className="h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+                              <div className="h-full rounded-full bg-gradient-to-r from-[hsl(262,83%,58%)] to-[hsl(217,91%,60%)] transition-all duration-700" style={{ width: `${(e.total / max) * 100}%` }} />
+                            </div>
+                          </div>
+                          <span className="text-sm font-bold text-[hsl(262,83%,58%)] tabular-nums">{e.total}</span>
+                        </div>
+                      ));
+                    })()}
                   </div>
                 </CardContent>
               </Card>
