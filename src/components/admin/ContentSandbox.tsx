@@ -1250,6 +1250,23 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
   }, [pushUndo]);
 
+  /* ─── Convenience: Send Backward (one step) ─── */
+  const sendBackward = useCallback(() => {
+    const ids = Array.from(selRef.current);
+    if (!ids.length) return;
+    pushUndo();
+    setElements(p => {
+      const sorted = [...p].sort((a, b) => a.z - b.z);
+      const result = [...sorted];
+      for (let i = 0; i < result.length; i++) {
+        if (ids.includes(result[i].id) && i > 0 && !ids.includes(result[i - 1].id)) {
+          [result[i - 1], result[i]] = [result[i], result[i - 1]];
+        }
+      }
+      return result.map((e, idx) => ({ ...e, z: idx }));
+    });
+  }, [pushUndo]);
+
   /* ─── Convenience: Flip horizontal/vertical ─── */
   const flipSelected = useCallback((axis: "h" | "v") => {
     const ids = Array.from(selRef.current);
