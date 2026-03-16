@@ -2959,33 +2959,29 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           })()}
 
           {/* Status bar */}
-          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-1 bg-[hsl(222,30%,6%)]/80 backdrop-blur-sm border-t border-white/5 text-[9px] text-white/35 z-[999]">
-            <div className="flex items-center gap-3 pointer-events-none">
-              <span>{elements.length} elements · {strokes.length} strokes</span>
-              {selectedIds.size > 0 && <span className="text-blue-400/70">{selectedIds.size} selected</span>}
-              {selectedStrokeIds.size > 0 && <span className="text-blue-400/70">{selectedStrokeIds.size} strokes selected</span>}
-              {primaryEl && <span className="text-white/25">x:{Math.round(primaryEl.x)} y:{Math.round(primaryEl.y)} w:{Math.round(primaryEl.width)} h:{Math.round(primaryEl.height)}{primaryEl.rotation ? ` ${Math.round(primaryEl.rotation)}°` : ""}</span>}
+          <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 px-3 py-1 bg-[hsl(222,30%,6%)]/80 backdrop-blur-sm border-t border-white/5 text-[9px] text-white/35 z-[999] overflow-hidden">
+            <div className="flex items-center gap-3 min-w-0 pointer-events-none">
+              <span>{elements.length + strokes.length} elements total</span>
+              {(selectedIds.size + selectedStrokeIds.size) > 0 && (
+                <span className="text-blue-400/70">{selectedIds.size + selectedStrokeIds.size} selected</span>
+              )}
             </div>
-            <div className="flex items-center gap-2">
+            <div className="ml-auto flex items-center gap-2 shrink-0">
               <span className="pointer-events-none">cursor: {Math.round(mouseScene.x)}, {Math.round(mouseScene.y)}</span>
               <span className="pointer-events-none">{Math.round(viewport.zoom * 100)}%</span>
               {snapToGrid && <span className="pointer-events-none">⊞ Snap ON</span>}
               <div className="h-3 w-px bg-white/10" />
-              {/* Sandbox switcher in bottom bar */}
-              <div className="relative">
-                <button type="button" onClick={() => setSandboxListOpen(p => !p)}
-                  className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70 hover:bg-white/5 pointer-events-auto transition-colors">
-                  <FolderOpen className="h-3 w-3" />
-                  <span className="text-[9px] max-w-[80px] truncate">{sandboxSessions.find(s => s.id === activeSandboxId)?.name || "Sandboxes"}</span>
-                  <ChevronDown className="h-2.5 w-2.5" />
-                </button>
-              </div>
-              {/* Evolve button in bottom bar */}
+              <button type="button" onClick={() => setSandboxListOpen(p => !p)}
+                className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70 hover:bg-white/5 pointer-events-auto transition-colors shrink-0">
+                <FolderOpen className="h-3 w-3" />
+                <span className="text-[9px] max-w-[80px] truncate">{sandboxSessions.find(s => s.id === activeSandboxId)?.name || "Sandboxes"}</span>
+                <ChevronDown className="h-2.5 w-2.5" />
+              </button>
               {selectedIds.size >= 1 && (
                 <>
                   <div className="h-3 w-px bg-white/10" />
                   <button type="button" onClick={(e) => { e.stopPropagation(); evolve(); }} disabled={evolving}
-                    className="flex items-center gap-1 rounded-md bg-emerald-500/15 border border-emerald-500/25 px-2 py-0.5 text-[9px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50 pointer-events-auto transition-colors">
+                    className="flex items-center gap-1 rounded-md bg-emerald-500/15 border border-emerald-500/25 px-2 py-0.5 text-[9px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50 pointer-events-auto transition-colors shrink-0">
                     {evolving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                     Evolve {selectedIds.size}
                   </button>
