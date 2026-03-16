@@ -2391,19 +2391,30 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
             backgroundRepeat: canvasBgImage ? "no-repeat" : undefined,
           }}
         >
-          <canvas ref={canvasRef} className="absolute inset-0 h-full w-full pointer-events-none" style={{ zIndex: 500 }} />
-          {/* Marquee selection rectangle */}
-          {marqueeRect && marqueeRect.w > 2 && marqueeRect.h > 2 && (
-            <div className="absolute pointer-events-none border-2 border-blue-400/60 bg-blue-400/10 rounded-sm" style={{
-              left: viewport.x + marqueeRect.x * viewport.zoom,
-              top: viewport.y + marqueeRect.y * viewport.zoom,
-              width: marqueeRect.w * viewport.zoom,
-              height: marqueeRect.h * viewport.zoom,
-              zIndex: 999999,
-            }} />
-          )}
-          <div className="absolute inset-0" style={{ transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased" }}>
-            {ordered.map(el => (
+          {/* Elements BELOW strokes (z < STROKE_Z) */}
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased" }}>
+            {belowStrokes.map(el => (
+              <ElementView key={el.id} el={el} selected={selectedIds.has(el.id)} linkSrc={linkSourceId === el.id}
+                onDown={handleElDown} onResize={handleResizeDown} onTextChange={(id, v) => {
+                  if (v.startsWith("__title__")) {
+                    const el = elsRef.current.find(e => e.id === id);
+                    if (el?.kind === "content" && el.data) { pushUndo(); updateEl(id, { data: { ...el.data, title: v.slice(9) } }); }
+                  } else if (v.startsWith("__caption__")) {
+                    const el = elsRef.current.find(e => e.id === id);
+                    if (el?.kind === "content" && el.data) { pushUndo(); updateEl(id, { data: { ...el.data, caption: v.slice(11) } }); }
+                  } else if (v.startsWith("__annotation__")) {
+                    pushUndo(); updateEl(id, { annotation: v.slice(14) });
+                  } else {
+                    updateEl(id, { text: v });
+                  }
+                }} onRotate={handleRotateDown} />
+            ))}
+          </div>
+          {/* Stroke canvas layer */}
+          <canvas ref={canvasRef} className="absolute inset-0 h-full w-full pointer-events-none" style={{ zIndex: STROKE_Z }} />
+          {/* Elements ABOVE strokes (z >= STROKE_Z) */}
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: STROKE_Z + 1, transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased" }}>
+            {aboveStrokes.map(el => (
               <ElementView key={el.id} el={el} selected={selectedIds.has(el.id)} linkSrc={linkSourceId === el.id}
                 onDown={handleElDown} onResize={handleResizeDown} onTextChange={(id, v) => {
                   if (v.startsWith("__title__")) {
