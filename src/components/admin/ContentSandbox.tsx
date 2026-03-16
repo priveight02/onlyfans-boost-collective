@@ -2728,6 +2728,75 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       </div>
 
 
+      {/* Sandbox List Floating Panel */}
+      {sandboxListOpen && (
+        <div className="absolute top-[90px] right-3 z-[9999] rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-2 w-[300px] max-h-[420px] overflow-hidden flex flex-col" style={{ position: "fixed", top: "120px", right: "20px" }}>
+          <div className="flex items-center justify-between px-1 pb-1.5 border-b border-white/[0.06]">
+            <span className="text-[10px] text-white/30 uppercase tracking-wider">Sandboxes ({sandboxSessions.length})</span>
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => { createSandbox(); }} className="text-emerald-400/70 hover:text-emerald-400 flex items-center gap-0.5 text-[10px] rounded px-1.5 py-0.5 hover:bg-emerald-500/10">
+                <Plus className="h-3 w-3" /> New
+              </button>
+              {sandboxSessions.length > 1 && (
+                <button type="button" onClick={() => { deleteAllSandboxes(); setSandboxListOpen(false); }} className="text-red-400/50 hover:text-red-400 flex items-center gap-0.5 text-[10px] rounded px-1.5 py-0.5 hover:bg-red-500/10">
+                  <Trash2 className="h-3 w-3" /> All
+                </button>
+              )}
+              <button type="button" onClick={() => setSandboxListOpen(false)} className="rounded p-0.5 text-white/30 hover:text-white/60 hover:bg-white/5">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+          <div className="overflow-y-auto flex-1 mt-1.5 space-y-1">
+            {sandboxSessions.map(session => (
+              <div key={session.id}
+                className={cn("group flex gap-2 rounded-lg p-1.5 cursor-pointer transition-all",
+                  session.id === activeSandboxId ? "bg-blue-500/10 ring-1 ring-blue-500/20" : "hover:bg-white/[0.04]")}
+              >
+                {/* Thumbnail preview */}
+                <div className="shrink-0 w-[72px] h-[45px] rounded-md overflow-hidden bg-[hsl(222,30%,12%)] border border-white/[0.06] flex items-center justify-center"
+                  onClick={() => { switchSandbox(session.id); setSandboxListOpen(false); }}>
+                  {session.thumbnail_url ? (
+                    <img src={session.thumbnail_url} alt={session.name} className="w-full h-full object-cover" draggable={false} />
+                  ) : (
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Layers className="h-3 w-3 text-white/15" />
+                      <span className="text-[7px] text-white/15">{(session.elements?.length || 0)} els</span>
+                    </div>
+                  )}
+                </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  {renamingId === session.id ? (
+                    <input autoFocus value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onBlur={() => renameSandbox(session.id, renameValue)}
+                      onKeyDown={e => { if (e.key === "Enter") renameSandbox(session.id, renameValue); if (e.key === "Escape") setRenamingId(null); }}
+                      className="w-full h-5 rounded border border-white/10 bg-white/5 px-1.5 text-[10px] text-white/80 outline-none"
+                      onClick={e => e.stopPropagation()} />
+                  ) : (
+                    <button type="button" onClick={() => { switchSandbox(session.id); setSandboxListOpen(false); }}
+                      className="w-full text-left min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", session.id === activeSandboxId ? "bg-blue-400" : "bg-white/15")} />
+                        <span className={cn("text-[11px] truncate", session.id === activeSandboxId ? "text-blue-300 font-medium" : "text-white/60")}>{session.name}</span>
+                      </div>
+                      <div className="text-[8px] text-white/20 pl-3 mt-0.5">{new Date(session.updated_at).toLocaleDateString()} · {(session.elements?.length || 0)} elements · {(session.strokes?.length || 0)} strokes</div>
+                    </button>
+                  )}
+                  <div className="flex items-center gap-0.5 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button type="button" onClick={e => { e.stopPropagation(); setRenamingId(session.id); setRenameValue(session.name); }}
+                      className="rounded px-1 py-0.5 text-[8px] text-white/30 hover:text-white/60 hover:bg-white/5">Rename</button>
+                    <button type="button" onClick={e => { e.stopPropagation(); deleteSandbox(session.id); }}
+                      className="rounded px-1 py-0.5 text-[8px] text-red-400/30 hover:text-red-400/60 hover:bg-red-500/5">Delete</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Board + Inspector */}
       <div className={cn("flex gap-2 flex-1 min-h-0", showInspector ? "flex-col lg:flex-row" : "")}>
         <div
