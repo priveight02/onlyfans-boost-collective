@@ -1492,9 +1492,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (el.meshId) elsRef.current.filter(g => g.meshId === el.meshId).forEach(g => next.add(g.id));
     }
     setSelectedIds(new Set(next));
-    bringForward();
     if (tool === "select") startDrag(el, e.clientX, e.clientY, e.altKey);
-  }, [tool, bringForward, linkEls, linkSourceId, startDrag, pushUndo]);
+  }, [tool, linkEls, linkSourceId, startDrag, pushUndo]);
 
   const handleResizeDown = useCallback((e: React.PointerEvent, el: SandboxElement) => {
     e.stopPropagation();
