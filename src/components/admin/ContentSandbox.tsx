@@ -2775,9 +2775,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       </div>
 
 
-      {/* Sandbox List Floating Panel */}
+      {/* Sandbox List Floating Panel - appears above bottom bar */}
       {sandboxListOpen && (
-        <div className="absolute top-[90px] right-3 z-[9999] rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-2 w-[300px] max-h-[420px] overflow-hidden flex flex-col" style={{ position: "fixed", top: "120px", right: "20px" }}>
+        <div className="absolute z-[9999] rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-2 w-[300px] max-h-[420px] overflow-hidden flex flex-col" style={{ position: "absolute", bottom: "36px", right: "12px" }}>
           <div className="flex items-center justify-between px-1 pb-1.5 border-b border-white/[0.06]">
             <span className="text-[10px] text-white/30 uppercase tracking-wider">Sandboxes ({sandboxSessions.length})</span>
             <div className="flex items-center gap-1">
