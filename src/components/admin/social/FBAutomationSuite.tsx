@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import SandboxMediaSection from "./SandboxMediaSection";
 import PlatformAccountSelector from "./PlatformAccountSelector";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
