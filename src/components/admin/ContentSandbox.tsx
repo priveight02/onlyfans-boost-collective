@@ -90,6 +90,7 @@ interface SandboxSession {
   strokes: SandboxStroke[];
   viewport: Viewport;
   bg_image_url: string | null;
+  thumbnail_url: string | null;
   updated_at: string;
   is_active: boolean;
 }
