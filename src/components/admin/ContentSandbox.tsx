@@ -1943,7 +1943,25 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     // Find element under cursor
     const sorted = [...elsRef.current].sort((a, b) => b.z - a.z);
     const hit = sorted.find(el => pt.x >= el.x && pt.x <= el.x + el.width && pt.y >= el.y && pt.y <= el.y + el.height);
-    setCtxMenu({ x: e.clientX, y: e.clientY, elementId: hit?.id });
+    // Find stroke under cursor if no element hit
+    let strokeHit: string | undefined;
+    if (!hit) {
+      for (const s of strokesRef.current) {
+        const b = strokeBounds(s);
+        if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) {
+          strokeHit = s.id;
+          // Select the stroke
+          setSelectedStrokeIds(new Set([s.id]));
+          break;
+        }
+      }
+    } else {
+      // Select the element if not already selected
+      if (!selRef.current.has(hit.id)) {
+        setSelectedIds(new Set([hit.id]));
+      }
+    }
+    setCtxMenu({ x: e.clientX, y: e.clientY, elementId: hit?.id, strokeId: strokeHit });
   }, []);
 
   /* ─── Render element/board to blob ─── */
