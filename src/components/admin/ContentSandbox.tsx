@@ -2408,7 +2408,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   /* ─── Render ─── */
   return (
-    <div ref={wrapperRef} data-sandbox-wrapper className="flex flex-col gap-1 w-full overflow-hidden" style={{ height: "calc(100vh - 64px)" }}>
+    <div ref={wrapperRef} data-sandbox-wrapper className="flex flex-col gap-1 w-full overflow-hidden pl-0.5 pr-1" style={{ height: "calc(100vh - 64px)" }}>
       {/* Hidden file inputs */}
       <input ref={mediaInputRef} type="file" accept="image/*,video/*,audio/*,.gif" multiple className="hidden"
         onChange={e => { if (e.target.files?.length) { handleMediaImport(e.target.files); e.target.value = ""; } }} />
