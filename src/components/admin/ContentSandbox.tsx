@@ -811,9 +811,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [showMinimap, setShowMinimap] = useState(false);
   const [mouseScene, setMouseScene] = useState<Point>({ x: 0, y: 0 });
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [exportFormat, setExportFormat] = useState<"png" | "svg" | "json" | "csv">("png");
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("png");
   const [exportScale, setExportScale] = useState(2);
   const [exportBg, setExportBg] = useState("#1a1f2e");
+  const [exportFixedRes, setExportFixedRes] = useState<string | null>(null);
+  const [exportCustomW, setExportCustomW] = useState(1920);
+  const [exportCustomH, setExportCustomH] = useState(1080);
   const [exportScope, setExportScope] = useState<"all" | "selected">("all");
   const [activeStamp, setActiveStamp] = useState("⭐");
   const [canvasBgImage, setCanvasBgImage] = useState<string | null>(null);
