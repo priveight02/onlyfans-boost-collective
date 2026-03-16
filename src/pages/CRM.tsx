@@ -546,7 +546,7 @@ const CRM = () => {
       {/* ═══════ MAIN CONTENT ═══════ */}
       <main className={cn(
         "flex-1 transition-all duration-300 min-h-screen relative z-10",
-        sidebarCollapsed ? "ml-[72px]" : "ml-[240px]"
+        sidebarCollapsed ? "ml-[72px]" : "ml-[244px]"
       )}>
         {/* Top bar */}
         <header className="h-[56px] sticky top-0 z-50 flex items-center justify-between px-6" style={{
