@@ -275,6 +275,8 @@ const CRM_TOOLS = [
   }
 ];
 
+const CRM_TOOL_NAMES = new Set(CRM_TOOLS.map((tool) => tool.function.name));
+
 // ==================== TOOL EXECUTION ====================
 async function executeTool(toolName: string, args: any, supabaseAdmin: any): Promise<{ success: boolean; result: any; navigateTo?: string }> {
   try {
