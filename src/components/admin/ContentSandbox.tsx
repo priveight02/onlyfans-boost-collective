@@ -471,7 +471,7 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
             <img src={el.mediaUrl} alt={el.mediaName || "media"} className="h-full w-full object-contain" draggable={false} style={{ imageRendering: "auto" }} />
           )}
           {el.mediaType === "video" && (
-            <video src={el.mediaUrl} controls playsInline preload="metadata" className="h-full w-full object-fill" />
+            <video src={el.mediaUrl} controls playsInline preload="metadata" className="h-full w-full object-contain" />
           )}
           {el.mediaType === "audio" && (
             <div className="flex flex-col items-center justify-center gap-2 p-3 w-full h-full bg-[hsl(222,30%,10%)] rounded-lg">
