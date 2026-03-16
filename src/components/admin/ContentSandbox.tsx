@@ -2951,18 +2951,37 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               </div>
             );
           })()}
+
+          {/* Floating Evolve Button - top right of canvas */}
+          {selectedIds.size >= 1 && (
+            <div className="absolute top-3 right-3 z-[998] pointer-events-auto">
+              <button type="button" onClick={evolve} disabled={evolving}
+                className="flex items-center gap-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/25 px-3 py-1.5 text-[11px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50 backdrop-blur-sm shadow-lg transition-all hover:scale-105">
+                {evolving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                Evolve {selectedIds.size}
+              </button>
+            </div>
+          )}
+
           {/* Status bar */}
-          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-1 bg-[hsl(222,30%,6%)]/80 backdrop-blur-sm border-t border-white/5 text-[9px] text-white/35 pointer-events-none z-[999]">
-            <div className="flex items-center gap-3">
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-1 bg-[hsl(222,30%,6%)]/80 backdrop-blur-sm border-t border-white/5 text-[9px] text-white/35 z-[999]">
+            <div className="flex items-center gap-3 pointer-events-none">
               <span>{elements.length} elements · {strokes.length} strokes</span>
               {selectedIds.size > 0 && <span className="text-blue-400/70">{selectedIds.size} selected</span>}
               {selectedStrokeIds.size > 0 && <span className="text-blue-400/70">{selectedStrokeIds.size} strokes selected</span>}
               {primaryEl && <span className="text-white/25">x:{Math.round(primaryEl.x)} y:{Math.round(primaryEl.y)} w:{Math.round(primaryEl.width)} h:{Math.round(primaryEl.height)}{primaryEl.rotation ? ` ${Math.round(primaryEl.rotation)}°` : ""}</span>}
             </div>
             <div className="flex items-center gap-3">
-              <span>cursor: {Math.round(mouseScene.x)}, {Math.round(mouseScene.y)}</span>
-              <span>{Math.round(viewport.zoom * 100)}%</span>
-              <span>{snapToGrid ? "⊞ Snap ON" : ""}</span>
+              <span className="pointer-events-none">cursor: {Math.round(mouseScene.x)}, {Math.round(mouseScene.y)}</span>
+              <span className="pointer-events-none">{Math.round(viewport.zoom * 100)}%</span>
+              {snapToGrid && <span className="pointer-events-none">⊞ Snap ON</span>}
+              <div className="h-3 w-px bg-white/10" />
+              <button type="button" onClick={() => setSandboxListOpen(p => !p)}
+                className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70 hover:bg-white/5 pointer-events-auto transition-colors">
+                <FolderOpen className="h-3 w-3" />
+                <span className="text-[9px] max-w-[80px] truncate">{sandboxSessions.find(s => s.id === activeSandboxId)?.name || "Sandboxes"}</span>
+                <ChevronDown className="h-2.5 w-2.5" />
+              </button>
             </div>
           </div>
         </div>
