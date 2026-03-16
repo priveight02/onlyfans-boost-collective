@@ -1661,6 +1661,17 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         <button type="button" onClick={() => setShowMinimap(p => !p)} className={cn("rounded-md border px-2.5 py-1 text-[10px] flex items-center gap-1", showMinimap ? "border-blue-500/25 bg-blue-500/10 text-blue-400" : "border-white/8 bg-white/4 text-white/60 hover:bg-white/8")}>
           <MapIcon className="h-3 w-3" />Map
         </button>
+        {/* Media import button */}
+        <button type="button" onClick={() => mediaInputRef.current?.click()} className="rounded-md border border-purple-500/15 bg-purple-500/5 px-2.5 py-1 text-[10px] text-purple-400/70 hover:bg-purple-500/10" title="Import media files (images, videos, audio, GIFs)">
+          <Upload className="inline h-3 w-3 mr-0.5" />Media
+        </button>
+        {/* Background */}
+        <button type="button" onClick={() => bgInputRef.current?.click()} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8" title="Set custom background">
+          <Palette className="inline h-3 w-3 mr-0.5" />BG
+        </button>
+        {canvasBgImage && (
+          <button type="button" onClick={() => setCanvasBgImage(null)} className="rounded-md border border-red-500/15 bg-red-500/5 px-2 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">✕ BG</button>
+        )}
 
         {/* Align tools */}
         {selectedIds.size >= 2 && (
