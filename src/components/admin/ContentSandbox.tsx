@@ -2719,41 +2719,34 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         <button type="button" onClick={() => { if (selectedIds.size === elements.length && elements.length > 0) { setSelectedIds(new Set()); setSelectedStrokeIds(new Set()); } else { selectAll(); } }} title="Ctrl+A" className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8">{selectedIds.size === elements.length && elements.length > 0 ? "Deselect All" : "Select All"}</button>
         <button type="button" onClick={fitToView} title="Ctrl+1" className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8"><Maximize className="inline h-2.5 w-2.5 mr-0.5" />Fit</button>
         <button type="button" onClick={resetView} title="Ctrl+0" className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8">Reset View</button>
-        <button type="button" onClick={() => setSnapToGrid(p => !p)} className={cn("rounded-md border px-2.5 py-1 text-[10px] flex items-center gap-1", snapToGrid ? "border-blue-500/25 bg-blue-500/10 text-blue-400" : "border-white/8 bg-white/4 text-white/60 hover:bg-white/8")}>
-          <Grid3X3 className="h-3 w-3" />Snap
+        <button type="button" onClick={() => setSnapToGrid(p => !p)} className={cn("rounded-md border px-2 py-0.5 text-[9px] flex items-center gap-0.5", snapToGrid ? "border-blue-500/25 bg-blue-500/10 text-blue-400" : "border-white/8 bg-white/4 text-white/60 hover:bg-white/8")}>
+          <Grid3X3 className="h-2.5 w-2.5" />Snap
         </button>
-        <button type="button" onClick={() => setShowMinimap(p => !p)} className={cn("rounded-md border px-2.5 py-1 text-[10px] flex items-center gap-1", showMinimap ? "border-blue-500/25 bg-blue-500/10 text-blue-400" : "border-white/8 bg-white/4 text-white/60 hover:bg-white/8")}>
-          <MapIcon className="h-3 w-3" />Map
+        <button type="button" onClick={() => setShowMinimap(p => !p)} className={cn("rounded-md border px-2 py-0.5 text-[9px] flex items-center gap-0.5", showMinimap ? "border-blue-500/25 bg-blue-500/10 text-blue-400" : "border-white/8 bg-white/4 text-white/60 hover:bg-white/8")}>
+          <MapIcon className="h-2.5 w-2.5" />Map
         </button>
-        {/* Media import button */}
-        <button type="button" onClick={() => mediaInputRef.current?.click()} className="rounded-md border border-purple-500/15 bg-purple-500/5 px-2.5 py-1 text-[10px] text-purple-400/70 hover:bg-purple-500/10" title="Import media files (images, videos, audio, GIFs)">
-          <Upload className="inline h-3 w-3 mr-0.5" />Media
+        <button type="button" onClick={() => mediaInputRef.current?.click()} className="rounded-md border border-purple-500/15 bg-purple-500/5 px-2 py-0.5 text-[9px] text-purple-400/70 hover:bg-purple-500/10" title="Import media files">
+          <Upload className="inline h-2.5 w-2.5 mr-0.5" />Media
         </button>
-        {/* Background */}
-        <button type="button" onClick={() => bgInputRef.current?.click()} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8" title="Set custom background">
-          <Palette className="inline h-3 w-3 mr-0.5" />BG
+        <button type="button" onClick={() => bgInputRef.current?.click()} className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8" title="Set custom background">
+          <Palette className="inline h-2.5 w-2.5 mr-0.5" />BG
         </button>
         {canvasBgImage && (
-          <button type="button" onClick={() => { setCanvasBgImage(null); try { localStorage.removeItem("sandbox_bg_image"); } catch {} if (activeSandboxId) supabase.from("sandbox_sessions").update({ bg_image_url: null } as any).eq("id", activeSandboxId); }} className="rounded-md border border-red-500/15 bg-red-500/5 px-2 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">✕ BG</button>
+          <button type="button" onClick={() => { setCanvasBgImage(null); try { localStorage.removeItem("sandbox_bg_image"); } catch {} if (activeSandboxId) supabase.from("sandbox_sessions").update({ bg_image_url: null } as any).eq("id", activeSandboxId); }} className="rounded-md border border-red-500/15 bg-red-500/5 px-1.5 py-0.5 text-[9px] text-red-400/70 hover:bg-red-500/10">✕ BG</button>
         )}
-
-        {/* Align tools */}
         {selectedIds.size >= 2 && (
           <>
-            <div className="h-4 w-px bg-white/8" />
-            <span className="text-[9px] text-white/30">Align:</span>
-            <button type="button" onClick={() => alignSelected("left")} title="Align Left" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignStartHorizontal className="h-3 w-3" /></button>
-            <button type="button" onClick={() => alignSelected("center-h")} title="Align Center H" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignCenterHorizontal className="h-3 w-3" /></button>
-            <button type="button" onClick={() => alignSelected("right")} title="Align Right" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignEndHorizontal className="h-3 w-3" /></button>
-            <button type="button" onClick={() => alignSelected("top")} title="Align Top" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignStartVertical className="h-3 w-3" /></button>
-            <button type="button" onClick={() => alignSelected("center-v")} title="Align Center V" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignCenterVertical className="h-3 w-3" /></button>
-            <button type="button" onClick={() => alignSelected("bottom")} title="Align Bottom" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignEndVertical className="h-3 w-3" /></button>
+            <div className="h-3.5 w-px bg-white/8" />
+            <span className="text-[8px] text-white/30">Align:</span>
+            <button type="button" onClick={() => alignSelected("left")} title="Align Left" className="rounded-md border border-white/8 bg-white/4 p-0.5 text-white/50 hover:bg-white/8"><AlignStartHorizontal className="h-2.5 w-2.5" /></button>
+            <button type="button" onClick={() => alignSelected("center-h")} title="Align Center H" className="rounded-md border border-white/8 bg-white/4 p-0.5 text-white/50 hover:bg-white/8"><AlignCenterHorizontal className="h-2.5 w-2.5" /></button>
+            <button type="button" onClick={() => alignSelected("right")} title="Align Right" className="rounded-md border border-white/8 bg-white/4 p-0.5 text-white/50 hover:bg-white/8"><AlignEndHorizontal className="h-2.5 w-2.5" /></button>
+            <button type="button" onClick={() => alignSelected("top")} title="Align Top" className="rounded-md border border-white/8 bg-white/4 p-0.5 text-white/50 hover:bg-white/8"><AlignStartVertical className="h-2.5 w-2.5" /></button>
+            <button type="button" onClick={() => alignSelected("center-v")} title="Align Center V" className="rounded-md border border-white/8 bg-white/4 p-0.5 text-white/50 hover:bg-white/8"><AlignCenterVertical className="h-2.5 w-2.5" /></button>
+            <button type="button" onClick={() => alignSelected("bottom")} title="Align Bottom" className="rounded-md border border-white/8 bg-white/4 p-0.5 text-white/50 hover:bg-white/8"><AlignEndVertical className="h-2.5 w-2.5" /></button>
           </>
         )}
-
-        <div className="h-4 w-px bg-white/8" />
-
-        {/* Export buttons */}
+        <div className="h-3.5 w-px bg-white/8" />
         <button type="button" onClick={async () => {
           const contentEls = elements.filter(e => e.kind === "content" && e.data);
           if (!contentEls.length) { toast.info("No content cards to export"); return; }
@@ -2762,8 +2755,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
             type: e.data?.content_type, hashtags: e.data?.hashtags, annotation: e.annotation,
           })));
           if (count > 0) { onRefresh(); toast.success(`${count} cards exported to Content drafts`); }
-        }} className="rounded-md border border-blue-500/15 bg-blue-500/5 px-2.5 py-1 text-[10px] text-blue-400/70 hover:bg-blue-500/10">
-          <FileDown className="inline h-3 w-3 mr-0.5" />Export All
+        }} className="rounded-md border border-blue-500/15 bg-blue-500/5 px-2 py-0.5 text-[9px] text-blue-400/70 hover:bg-blue-500/10">
+          <FileDown className="inline h-2.5 w-2.5 mr-0.5" />Export All
         </button>
         <button type="button" onClick={async () => {
           const sel = elements.filter(e => selectedIds.has(e.id) && e.kind === "content" && e.data);
@@ -2773,19 +2766,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
             type: e.data?.content_type, hashtags: e.data?.hashtags, annotation: e.annotation,
           })));
           if (count > 0) { onRefresh(); toast.success(`${count} selected cards exported to drafts`); }
-        }} disabled={!selectedIds.size} className="rounded-md border border-blue-500/15 bg-blue-500/5 px-2.5 py-1 text-[10px] text-blue-400/70 hover:bg-blue-500/10 disabled:opacity-30">
-          <Send className="inline h-3 w-3 mr-0.5" />Export Selected
+        }} disabled={!selectedIds.size} className="rounded-md border border-blue-500/15 bg-blue-500/5 px-2 py-0.5 text-[9px] text-blue-400/70 hover:bg-blue-500/10 disabled:opacity-30">
+          <Send className="inline h-2.5 w-2.5 mr-0.5" />Export Selected
         </button>
-
-
-
-
-        {/* Advanced Export */}
-        <button type="button" onClick={() => setShowExportDialog(true)} className="rounded-md border border-purple-500/15 bg-purple-500/5 px-2.5 py-1 text-[10px] text-purple-400/70 hover:bg-purple-500/10" title="Ctrl+E">
-          <Download className="inline h-3 w-3 mr-0.5" />Export Board
+        <button type="button" onClick={() => setShowExportDialog(true)} className="rounded-md border border-purple-500/15 bg-purple-500/5 px-2 py-0.5 text-[9px] text-purple-400/70 hover:bg-purple-500/10" title="Ctrl+E">
+          <Download className="inline h-2.5 w-2.5 mr-0.5" />Export Board
         </button>
-
-        {/* Push to Platform */}
         <button type="button" onClick={async () => {
           const allPlatforms = Object.keys(DEFAULT_BEST_TIMES);
           const platformList = [];
@@ -2796,13 +2782,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           setPushAvailablePlatforms(platformList);
           setPushSelectedPlatforms(new Set(platformList.filter(p => p.connected).map(p => p.platform)));
           setShowPushPlatform(true);
-        }} className="rounded-md border border-emerald-500/15 bg-emerald-500/5 px-2.5 py-1 text-[10px] text-emerald-400/70 hover:bg-emerald-500/10">
-          <Layers className="inline h-3 w-3 mr-0.5" />Push to Platforms
+        }} className="rounded-md border border-emerald-500/15 bg-emerald-500/5 px-2 py-0.5 text-[9px] text-emerald-400/70 hover:bg-emerald-500/10">
+          <Layers className="inline h-2.5 w-2.5 mr-0.5" />Push to Platforms
         </button>
-
-        <button type="button" onClick={deleteSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
-        <button type="button" onClick={clearBoard} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">Clear board</button>
-        <button type="button" onClick={() => setShowInspector(p => !p)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">{showInspector ? "Hide panel" : "Inspector"}</button>
+        <button type="button" onClick={deleteSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2 py-0.5 text-[9px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
+        <button type="button" onClick={clearBoard} className="rounded-md border border-red-500/15 bg-red-500/5 px-2 py-0.5 text-[9px] text-red-400/70 hover:bg-red-500/10">Clear board</button>
+        <button type="button" onClick={() => setShowInspector(p => !p)} className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8">{showInspector ? "Hide panel" : "Inspector"}</button>
         {selectedIds.size >= 2 && (
           <button type="button" onClick={evolve} disabled={evolving} className="ml-auto rounded-md bg-emerald-500/15 border border-emerald-500/20 px-3 py-1 text-[10px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50">
             {evolving ? <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> : null}Evolve {selectedIds.size}
