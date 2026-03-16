@@ -848,6 +848,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [showRulers, setShowRulers] = useState(false);
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const [showCoords, setShowCoords] = useState(true);
+  const [zOrderPopup, setZOrderPopup] = useState<"forward" | "backward" | null>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const spaceHeldRef = useRef(false);
@@ -1094,8 +1095,25 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const bringForward = useCallback(() => {
     const ids = Array.from(selRef.current);
     if (!ids.length) return;
+    pushUndo();
+    setElements(p => {
+      const sorted = [...p].sort((a, b) => a.z - b.z);
+      const result = [...sorted];
+      for (let i = result.length - 1; i >= 0; i--) {
+        if (ids.includes(result[i].id) && i < result.length - 1 && !ids.includes(result[i + 1].id)) {
+          [result[i], result[i + 1]] = [result[i + 1], result[i]];
+        }
+      }
+      return result.map((e, idx) => ({ ...e, z: idx }));
+    });
+  }, [pushUndo]);
+
+  const bringToFront = useCallback(() => {
+    const ids = Array.from(selRef.current);
+    if (!ids.length) return;
+    pushUndo();
     setElements(p => { let z = nextZ(p); return p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e); });
-  }, []);
+  }, [pushUndo]);
 
   const duplicateSel = useCallback(() => {
     const ids = Array.from(selRef.current);
@@ -1231,6 +1249,23 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     const minZ = Math.min(...elsRef.current.map(e => e.z));
     let z = minZ - ids.length;
     setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
+  }, [pushUndo]);
+
+  /* ─── Convenience: Send Backward (one step) ─── */
+  const sendBackward = useCallback(() => {
+    const ids = Array.from(selRef.current);
+    if (!ids.length) return;
+    pushUndo();
+    setElements(p => {
+      const sorted = [...p].sort((a, b) => a.z - b.z);
+      const result = [...sorted];
+      for (let i = 0; i < result.length; i++) {
+        if (ids.includes(result[i].id) && i > 0 && !ids.includes(result[i - 1].id)) {
+          [result[i - 1], result[i]] = [result[i], result[i - 1]];
+        }
+      }
+      return result.map((e, idx) => ({ ...e, z: idx }));
+    });
   }, [pushUndo]);
 
   /* ─── Convenience: Flip horizontal/vertical ─── */
@@ -1802,8 +1837,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (ctrl && shift && k === "c") { e.preventDefault(); centerOnCanvas(); return; }
       if (ctrl && shift && k === "m") { e.preventDefault(); matchSize(); return; }
       if (ctrl && shift && k === "r") { e.preventDefault(); resetRotation(); return; }
-      if (k === "[" && !ctrl) { e.preventDefault(); sendToBack(); return; }
-      if (k === "]" && !ctrl) { e.preventDefault(); bringForward(); return; }
+      if (k === "[" && !ctrl && !shift) { e.preventDefault(); sendBackward(); return; }
+      if (k === "]" && !ctrl && !shift) { e.preventDefault(); bringForward(); return; }
+      if (k === "[" && !ctrl && shift) { e.preventDefault(); sendToBack(); return; }
+      if (k === "]" && !ctrl && shift) { e.preventDefault(); bringToFront(); return; }
       const step = shift ? 10 : 1;
       if (e.key === "ArrowLeft") { e.preventDefault(); nudge(-step, 0); return; }
       if (e.key === "ArrowRight") { e.preventDefault(); nudge(step, 0); return; }
@@ -1826,7 +1863,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     return () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); };
-  }, [undo, redo, save, deleteSel, duplicateSel, groupSelected, selectAll, fitToView, nudge, rotateSnap, tool, flipSelected, sendToBack, centerOnCanvas, matchSize, resetRotation, bringForward]);
+  }, [undo, redo, save, deleteSel, duplicateSel, groupSelected, selectAll, fitToView, nudge, rotateSnap, tool, flipSelected, sendToBack, sendBackward, centerOnCanvas, matchSize, resetRotation, bringForward, bringToFront]);
 
   const activeSizes = tool === "eraser" ? ERASER_SIZES : BRUSH_SIZES;
 
@@ -2022,8 +2059,24 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         <div className="h-4 w-px bg-white/8" />
 
         {/* Convenience features */}
-        <button type="button" onClick={bringForward} disabled={!selectedIds.size} title="Bring Forward ( ] )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↑ Front</button>
-        <button type="button" onClick={sendToBack} disabled={!selectedIds.size} title="Send to Back ( [ )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↓ Back</button>
+        <div className="relative">
+          <button type="button" onClick={() => setZOrderPopup(p => p === "forward" ? null : "forward")} disabled={!selectedIds.size} title="Bring Forward ( ] )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↑ Forward</button>
+          {zOrderPopup === "forward" && (
+            <div className="absolute bottom-full left-0 mb-1 rounded-lg bg-[hsl(222,35%,10%)] border border-white/[0.08] p-1 flex flex-col gap-0.5 min-w-[120px] z-[9999] shadow-xl backdrop-blur-xl">
+              <button type="button" onClick={() => { bringForward(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-blue-400">↑</span> Forward one</button>
+              <button type="button" onClick={() => { bringToFront(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-blue-400">⤒</span> Bring to front</button>
+            </div>
+          )}
+        </div>
+        <div className="relative">
+          <button type="button" onClick={() => setZOrderPopup(p => p === "backward" ? null : "backward")} disabled={!selectedIds.size} title="Send Backward ( [ )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↓ Backward</button>
+          {zOrderPopup === "backward" && (
+            <div className="absolute bottom-full left-0 mb-1 rounded-lg bg-[hsl(222,35%,10%)] border border-white/[0.08] p-1 flex flex-col gap-0.5 min-w-[120px] z-[9999] shadow-xl backdrop-blur-xl">
+              <button type="button" onClick={() => { sendBackward(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-orange-400">↓</span> Backward one</button>
+              <button type="button" onClick={() => { sendToBack(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-orange-400">⤓</span> Send to back</button>
+            </div>
+          )}
+        </div>
         <button type="button" onClick={() => flipSelected("h")} disabled={!selectedIds.size} title="Flip Horizontal (Ctrl+Shift+F)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⇔ Flip H</button>
         <button type="button" onClick={() => flipSelected("v")} disabled={!selectedIds.size} title="Flip Vertical" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⇕ Flip V</button>
         <button type="button" onClick={centerOnCanvas} disabled={!selectedIds.size} title="Center on Canvas (Ctrl+Shift+C)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⊙ Center</button>
@@ -2679,9 +2732,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                   ["Ctrl+0", "Reset view"], ["Ctrl+D", "Duplicate"],
                   ["Del / Bksp", "Delete selected"], ["Esc", "Deselect / cancel"],
                   ["Arrows", "Nudge 1px"], ["Shift+Arrows", "Nudge 10px"],
-                  ["R", "Rotate 45° snap"], ["[ / ]", "Send back / Bring front"],
-                  ["Ctrl+Shift+F", "Flip horizontal"], ["Ctrl+Shift+C", "Center on canvas"],
-                  ["Ctrl+Shift+R", "Reset rotation"], ["Ctrl+Shift+M", "Match sizes"],
+                   ["R", "Rotate 45° snap"], ["[", "Backward one"], ["]", "Forward one"],
+                   ["Shift+[", "Send to back"], ["Shift+]", "Bring to front"],
+                   ["Ctrl+Shift+F", "Flip horizontal"], ["Ctrl+Shift+C", "Center on canvas"],
+                   ["Ctrl+Shift+R", "Reset rotation"], ["Ctrl+Shift+M", "Match sizes"],
                   ["Ctrl+Shift+B", "Send to back"],
                   ["M", "Media tool"], ["Space", "Pan mode"],
                 ].map(([k, d]) => (
