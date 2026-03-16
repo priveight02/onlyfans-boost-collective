@@ -1441,6 +1441,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (e.key === "ArrowRight") { e.preventDefault(); nudge(step, 0); return; }
       if (e.key === "ArrowUp") { e.preventDefault(); nudge(0, -step); return; }
       if (e.key === "ArrowDown") { e.preventDefault(); nudge(0, step); return; }
+      // R key for snap rotation (only when not in a tool that uses R)
+      if (k === "r" && !ctrl && tool === "select" && (selRef.current.size || selStrokesRef.current.size)) { e.preventDefault(); rotateSnap(); return; }
       if (k === "v" && !ctrl) setTool("select");
       if (k === "h" && !ctrl) setTool("pan");
       if (k === "p" && !ctrl) setTool("pen");
@@ -1448,6 +1450,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (k === "n" && !ctrl) setTool("note");
       if (k === "t" && !ctrl) setTool("text");
       if (k === "f" && !ctrl) setTool("frame");
+      if (k === "m" && !ctrl) setTool("media");
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key === " ") spaceHeldRef.current = false;
@@ -1455,7 +1458,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     return () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); };
-  }, [undo, redo, save, deleteSel, duplicateSel, groupSelected, selectAll, fitToView, nudge]);
+  }, [undo, redo, save, deleteSel, duplicateSel, groupSelected, selectAll, fitToView, nudge, rotateSnap, tool]);
 
   const activeSizes = tool === "eraser" ? ERASER_SIZES : BRUSH_SIZES;
 
