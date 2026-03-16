@@ -831,7 +831,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [exportFixedRes, setExportFixedRes] = useState<string | null>(null);
   const [exportCustomW, setExportCustomW] = useState(1920);
   const [exportCustomH, setExportCustomH] = useState(1080);
-  const [exportScope, setExportScope] = useState<"all" | "selected">("all");
+  const [exportScope, setExportScope] = useState<"all" | "selected" | "fov">("all");
   const [activeStamp, setActiveStamp] = useState("⭐");
   const [canvasBgImage, setCanvasBgImage] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
