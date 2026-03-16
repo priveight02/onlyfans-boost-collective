@@ -569,6 +569,8 @@ const FBAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
               </Card>
             ))}
           </div>
+          {/* Sandbox Media for Facebook */}
+          <SandboxMediaSection platform="facebook" onUseMedia={(url, name) => { toast.success(`Media "${name}" ready for Facebook`); }} />
         </TabsContent>
 
         {/* ===== COMMENTS ===== */}

@@ -2346,6 +2346,8 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
             )}
           </CardContent>
         </Card>
+        {/* Sandbox Media for TikTok */}
+        <SandboxMediaSection platform="tiktok" onUseMedia={(url, name) => { toast.success(`Media "${name}" ready for TikTok`); }} />
       </TabsContent>
 
       {/* ===== SCHEDULE SUBTAB ===== */}
