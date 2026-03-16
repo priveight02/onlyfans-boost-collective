@@ -385,9 +385,23 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
             {src && <span className="text-[10px] text-white/30">{src.replace(/_/g, " ")}</span>}
           </div>
           <div className="flex-1 space-y-1.5 overflow-hidden px-3 py-2">
-            <p className="line-clamp-2 text-[13px] font-medium text-white/90">{el.data.title}</p>
-            <p className="line-clamp-4 text-[11px] leading-relaxed text-white/45">{el.data.caption || "No caption"}</p>
-            {el.annotation && <div className="rounded-lg border border-blue-400/15 bg-blue-400/8 px-2 py-1 text-[10px] text-blue-300/80 line-clamp-2">{el.annotation}</div>}
+            <div contentEditable suppressContentEditableWarning
+              onPointerDown={e => e.stopPropagation()}
+              onBlur={e => onTextChange(el.id, `__title__${e.currentTarget.textContent || ""}`)}
+              className="line-clamp-2 text-[13px] font-medium text-white/90 outline-none cursor-text hover:bg-white/5 rounded px-0.5 -mx-0.5 transition-colors focus:bg-white/8 focus:ring-1 focus:ring-blue-400/30"
+            >{el.data.title}</div>
+            <div contentEditable suppressContentEditableWarning
+              onPointerDown={e => e.stopPropagation()}
+              onBlur={e => onTextChange(el.id, `__caption__${e.currentTarget.textContent || ""}`)}
+              className="line-clamp-4 text-[11px] leading-relaxed text-white/45 outline-none cursor-text hover:bg-white/5 rounded px-0.5 -mx-0.5 transition-colors focus:bg-white/8 focus:ring-1 focus:ring-blue-400/30"
+            >{el.data.caption || "No caption"}</div>
+            {el.annotation && (
+              <div contentEditable suppressContentEditableWarning
+                onPointerDown={e => e.stopPropagation()}
+                onBlur={e => onTextChange(el.id, `__annotation__${e.currentTarget.textContent || ""}`)}
+                className="rounded-lg border border-blue-400/15 bg-blue-400/8 px-2 py-1 text-[10px] text-blue-300/80 line-clamp-2 outline-none cursor-text hover:bg-blue-400/12 transition-colors focus:ring-1 focus:ring-blue-400/30"
+              >{el.annotation}</div>
+            )}
           </div>
           <div className="border-t border-white/6 px-3 py-1.5">
             <div className="flex items-center justify-between text-[9px] text-white/30">
@@ -817,7 +831,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [exportFixedRes, setExportFixedRes] = useState<string | null>(null);
   const [exportCustomW, setExportCustomW] = useState(1920);
   const [exportCustomH, setExportCustomH] = useState(1080);
-  const [exportScope, setExportScope] = useState<"all" | "selected">("all");
+  const [exportScope, setExportScope] = useState<"all" | "selected" | "fov">("all");
   const [activeStamp, setActiveStamp] = useState("⭐");
   const [canvasBgImage, setCanvasBgImage] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -1295,6 +1309,15 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     toast.success("View reset");
   }, []);
 
+  /* Helper: get center of current viewport in scene coords */
+  const getViewportCenter = useCallback((): Point => {
+    const board = boardRef.current;
+    if (!board) return { x: 200, y: 200 };
+    const r = board.getBoundingClientRect();
+    const vp = vpRef.current;
+    return { x: (-vp.x + r.width / 2) / vp.zoom, y: (-vp.y + r.height / 2) / vp.zoom };
+  }, []);
+
   const importItems = useCallback((rows: any[]) => {
     const existing = new Set(elsRef.current.map(e => e.sourceItemId).filter(Boolean));
     const next = rows.filter(item => !existing.has(item.id));
@@ -1302,15 +1325,19 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     pushUndo();
     const cols = isMobile ? 1 : 3;
     let z = nextZ(elsRef.current);
+    const center = getViewportCenter();
+    const gridW = cols * 312, gridH = Math.ceil(next.length / cols) * 228;
+    const startX = center.x - gridW / 2, startY = center.y - gridH / 2;
     const imported = next.map((item, i) => ({
-      id: `sb-${crypto.randomUUID()}`, kind: "content" as const, x: gridPos(i, cols).x, y: gridPos(i, cols).y,
+      id: `sb-${crypto.randomUUID()}`, kind: "content" as const,
+      x: startX + (i % cols) * 312, y: startY + Math.floor(i / cols) * 228,
       width: 284, height: 192, z: z++, color: "#3b82f6", links: [], sourceItemId: item.id,
       data: clone(item), annotation: item.description || "", fontSize: 14,
     } as SandboxElement));
     setElements(p => [...p, ...imported]);
     setSelectedIds(new Set(imported.map(e => e.id)));
     toast.success(`${imported.length} cards imported`);
-  }, [isMobile, pushUndo]);
+  }, [isMobile, pushUndo, getViewportCenter]);
 
   const saveBack = useCallback(async () => {
     if (!primaryEl || primaryEl.kind !== "content" || !primaryEl.data?.id) return;
@@ -1481,6 +1508,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const handleMediaImport = useCallback((files: FileList) => {
     pushUndo();
     const z = nextZ(elsRef.current);
+    const center = getViewportCenter();
     const newEls: SandboxElement[] = [];
     Array.from(files).forEach((file, i) => {
       const url = URL.createObjectURL(file);
@@ -1490,7 +1518,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       else if (file.type === "image/gif") mediaType = "gif";
       const el: SandboxElement = {
         id: `sb-${crypto.randomUUID()}`, kind: "media",
-        x: 100 + i * 40, y: 100 + i * 40,
+        x: center.x - 160 + i * 40, y: center.y - 120 + i * 40,
         width: mediaType === "audio" ? 300 : 320,
         height: mediaType === "audio" ? 120 : 240,
         z: z + i, color: "#3b82f6", links: [], opacity: 1,
@@ -1501,7 +1529,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     setElements(p => [...p, ...newEls]);
     setSelectedIds(new Set(newEls.map(e => e.id)));
     toast.success(`${newEls.length} media file(s) imported`);
-  }, [pushUndo]);
+  }, [pushUndo, getViewportCenter]);
 
   /* ─── Custom background ─── */
   const handleBgImport = useCallback((file: File) => {
@@ -2131,7 +2159,19 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <div className="absolute inset-0" style={{ transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased" }}>
             {ordered.map(el => (
               <ElementView key={el.id} el={el} selected={selectedIds.has(el.id)} linkSrc={linkSourceId === el.id}
-                onDown={handleElDown} onResize={handleResizeDown} onTextChange={(id, v) => updateEl(id, { text: v })} onRotate={handleRotateDown} />
+                onDown={handleElDown} onResize={handleResizeDown} onTextChange={(id, v) => {
+                  if (v.startsWith("__title__")) {
+                    const el = elsRef.current.find(e => e.id === id);
+                    if (el?.kind === "content" && el.data) { pushUndo(); updateEl(id, { data: { ...el.data, title: v.slice(9) } }); }
+                  } else if (v.startsWith("__caption__")) {
+                    const el = elsRef.current.find(e => e.id === id);
+                    if (el?.kind === "content" && el.data) { pushUndo(); updateEl(id, { data: { ...el.data, caption: v.slice(11) } }); }
+                  } else if (v.startsWith("__annotation__")) {
+                    pushUndo(); updateEl(id, { annotation: v.slice(14) });
+                  } else {
+                    updateEl(id, { text: v });
+                  }
+                }} onRotate={handleRotateDown} />
             ))}
           </div>
           {!elements.length && !strokes.length && (
@@ -2460,11 +2500,14 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Scope</label>
               <div className="flex gap-2">
                 <button onClick={() => setExportScope("all")} className={cn("rounded-md px-3 py-1.5 text-[10px] border flex-1", exportScope === "all" ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>
-                  Entire Board
+                  Full Board
+                </button>
+                <button onClick={() => setExportScope("fov")} className={cn("rounded-md px-3 py-1.5 text-[10px] border flex-1", exportScope === "fov" ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>
+                  Current View
                 </button>
                 <button onClick={() => setExportScope("selected")} disabled={!selectedIds.size && !selectedStrokeIds.size}
                   className={cn("rounded-md px-3 py-1.5 text-[10px] border flex-1 disabled:opacity-30", exportScope === "selected" ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>
-                  Selected Only ({selectedIds.size + selectedStrokeIds.size})
+                  Selected ({selectedIds.size + selectedStrokeIds.size})
                 </button>
               </div>
             </div>
@@ -2506,6 +2549,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                         { label: "Pinterest", res: "1000x1500", desc: "Pin" },
                         { label: "TikTok", res: "1080x1920", desc: "Video cover" },
                         { label: "Banner", res: "1500x500", desc: "X/Twitter" },
+                        { label: "iPhone 15", res: "1179x2556", desc: "Native res" },
+                        { label: "iPhone Pro Max", res: "1290x2796", desc: "Pro Max" },
+                        { label: "MacBook Air", res: "2560x1664", desc: "M2/M3 Air" },
                       ].map(t => (
                         <button key={t.label} onClick={() => { setExportFixedRes(t.res); const [w, h] = t.res.split("x").map(Number); setExportCustomW(w); setExportCustomH(h); }}
                           className={cn("rounded-md px-2 py-1.5 border text-left transition-all",
@@ -2549,8 +2595,25 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
             {/* Export button */}
             <button type="button" onClick={() => {
-              const scopeEls = exportScope === "selected" ? elements.filter(e => selectedIds.has(e.id)) : elements;
-              const scopeStrokes = exportScope === "selected" ? strokes.filter(s => selectedStrokeIds.has(s.id)) : strokes;
+              let scopeEls: SandboxElement[];
+              let scopeStrokes: SandboxStroke[];
+              if (exportScope === "selected") {
+                scopeEls = elements.filter(e => selectedIds.has(e.id));
+                scopeStrokes = strokes.filter(s => selectedStrokeIds.has(s.id));
+              } else if (exportScope === "fov") {
+                const board = boardRef.current;
+                if (board) {
+                  const r = board.getBoundingClientRect();
+                  const vp = vpRef.current;
+                  const fovMinX = -vp.x / vp.zoom, fovMinY = -vp.y / vp.zoom;
+                  const fovMaxX = fovMinX + r.width / vp.zoom, fovMaxY = fovMinY + r.height / vp.zoom;
+                  scopeEls = elements.filter(e => e.x + e.width > fovMinX && e.x < fovMaxX && e.y + e.height > fovMinY && e.y < fovMaxY);
+                  scopeStrokes = strokes.filter(s => { const b = strokeBounds(s); return b.x + b.w > fovMinX && b.x < fovMaxX && b.y + b.h > fovMinY && b.y < fovMaxY; });
+                } else { scopeEls = elements; scopeStrokes = strokes; }
+              } else {
+                scopeEls = elements;
+                scopeStrokes = strokes;
+              }
               switch (exportFormat) {
                 case "png":
                   if (exportFixedRes && exportFixedRes !== "custom") {
