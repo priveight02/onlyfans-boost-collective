@@ -787,10 +787,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const interactionRef = useRef<InteractionState | null>(null);
   const elsRef = useRef<SandboxElement[]>([]);
   const selRef = useRef<Set<string>>(new Set());
-  const vpRef = useRef<Viewport>(() => {
+  const vpRef = useRef<Viewport>((() => {
     try { const v = localStorage.getItem(VIEWPORT_KEY); if (v) return JSON.parse(v); } catch {}
     return DEFAULT_VIEWPORT;
-  });
+  })());
   const rafRef = useRef<number>(0);
 
   const [elements, setElements] = useState<SandboxElement[]>([]);
