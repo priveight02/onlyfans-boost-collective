@@ -275,6 +275,8 @@ const CRM_TOOLS = [
   }
 ];
 
+const CRM_TOOL_NAMES = new Set(CRM_TOOLS.map((tool) => tool.function.name));
+
 // ==================== TOOL EXECUTION ====================
 async function executeTool(toolName: string, args: any, supabaseAdmin: any): Promise<{ success: boolean; result: any; navigateTo?: string }> {
   try {
@@ -461,6 +463,7 @@ serve(async (req) => {
       temperature,
       modalities,
       response_format,
+      mode,
     } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
@@ -629,7 +632,16 @@ serve(async (req) => {
     }
 
     // ==================== SKIP TOOLS MODE (for sandbox evolver etc.) ====================
-    if (skipTools) {
+    if (skipTools || mode === "sandbox_evolver" || (Array.isArray(tools) && tools.length > 0 && tools.some((tool: any) => {
+      const toolName = tool?.function?.name;
+      return typeof toolName === "string" && !CRM_TOOL_NAMES.has(toolName);
+    }))) {
+      console.log("Bypassing CRM tool executor for custom tool payload", {
+        skipTools: !!skipTools,
+        mode: mode || null,
+        customTools: Array.isArray(tools) ? tools.map((tool: any) => tool?.function?.name).filter(Boolean) : [],
+      });
+
       const directResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
@@ -648,7 +660,7 @@ serve(async (req) => {
         if (directResp.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         if (directResp.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
         const t = await directResp.text();
-        console.error("AI gateway error (skipTools):", directResp.status, t);
+        console.error("AI gateway error (skipTools/customTools):", directResp.status, t);
         return new Response(JSON.stringify({ error: "AI gateway error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const directData = await directResp.json();

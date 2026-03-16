@@ -1987,6 +1987,7 @@ Creative rules:
             { role: "user", content: userPrompt },
           ],
           model: "google/gemini-2.5-pro",
+          mode: "sandbox_evolver",
           skipTools: true,
           tools: [evolverTool],
           tool_choice: { type: "function", function: { name: "return_evolved_sandbox_elements" } },
