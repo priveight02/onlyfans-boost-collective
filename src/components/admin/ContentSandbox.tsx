@@ -617,6 +617,151 @@ const exportToSVG = (elements: SandboxElement[], strokes: SandboxStroke[]) => {
   toast.success("SVG exported (vector format, no pixel loss)");
 };
 
+/* ─── PDF Export (HTML-based print) ─── */
+const exportToPDF = (elements: SandboxElement[], strokes: SandboxStroke[]) => {
+  const content = elements.filter(e => (e.kind === "content" && e.data) || e.kind === "note" || e.kind === "text");
+  if (!content.length && !strokes.length) { toast.info("Nothing to export"); return; }
+  const win = window.open("", "_blank");
+  if (!win) { toast.error("Popup blocked — allow popups to export PDF"); return; }
+  win.document.write(`<!DOCTYPE html><html><head><title>Sandbox Export</title><style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: Inter, system-ui, sans-serif; background: #1a1f2e; color: #e2e8f0; padding: 40px; }
+    h1 { font-size: 24px; margin-bottom: 8px; color: #fff; }
+    .meta { font-size: 12px; color: #64748b; margin-bottom: 32px; }
+    .card { background: #1e2536; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 20px; margin-bottom: 16px; page-break-inside: avoid; }
+    .card h2 { font-size: 16px; color: #f1f5f9; margin-bottom: 6px; }
+    .card p { font-size: 13px; color: #94a3b8; line-height: 1.6; }
+    .card .tags { font-size: 11px; color: #3b82f6; margin-top: 8px; }
+    .card .platform { font-size: 11px; color: #64748b; text-transform: capitalize; }
+    .note { background: #1e2536; border-left: 4px solid #3b82f6; padding: 16px; margin-bottom: 12px; border-radius: 8px; }
+    .text-el { padding: 12px; margin-bottom: 12px; }
+    @media print { body { background: white; color: #1a1f2e; } .card { border-color: #e2e8f0; background: #f8fafc; } .card h2 { color: #1e293b; } .card p { color: #475569; } }
+  </style></head><body>
+    <h1>📋 Sandbox Export</h1>
+    <p class="meta">Exported ${new Date().toLocaleString()} · ${content.length} elements · ${strokes.length} strokes</p>`);
+  for (const el of content) {
+    if (el.kind === "content" && el.data) {
+      win.document.write(`<div class="card"><div class="platform">${el.data.platform} · ${el.data.content_type || "post"} · ${el.data.status}</div><h2>${(el.data.title || "").replace(/</g, "&lt;")}</h2><p>${(el.data.caption || "").replace(/</g, "&lt;").replace(/\n/g, "<br>")}</p>${el.data.hashtags?.length ? `<div class="tags">${el.data.hashtags.map((t: string) => `#${t}`).join(" ")}</div>` : ""}${el.annotation ? `<p style="margin-top:8px;font-size:11px;color:#60a5fa">Note: ${el.annotation.replace(/</g, "&lt;")}</p>` : ""}</div>`);
+    } else if (el.kind === "note") {
+      win.document.write(`<div class="note">${(el.text || "").replace(/</g, "&lt;").replace(/\n/g, "<br>")}</div>`);
+    } else if (el.kind === "text") {
+      win.document.write(`<div class="text-el" style="font-size:${el.fontSize || 16}px;color:${el.color}">${(el.text || "").replace(/</g, "&lt;")}</div>`);
+    }
+  }
+  win.document.write(`<script>setTimeout(()=>{window.print()},300)</script></body></html>`);
+  win.document.close();
+  toast.success("PDF ready — use browser print dialog (Ctrl+P) to save");
+};
+
+/* ─── XLSX Export (XML Spreadsheet) ─── */
+const exportToXLSX = (elements: SandboxElement[]) => {
+  const content = elements.filter(e => e.kind === "content" && e.data);
+  if (!content.length) { toast.info("No content cards to export"); return; }
+  const escXml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  let xml = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles><Style ss:ID="hdr"><Font ss:Bold="1" ss:Size="12"/><Interior ss:Color="#3b82f6" ss:Pattern="Solid"/><Font ss:Color="#ffffff"/></Style></Styles>
+<Worksheet ss:Name="Sandbox Export"><Table>
+<Row ss:StyleID="hdr"><Cell><Data ss:Type="String">Title</Data></Cell><Cell><Data ss:Type="String">Caption</Data></Cell><Cell><Data ss:Type="String">Platform</Data></Cell><Cell><Data ss:Type="String">Type</Data></Cell><Cell><Data ss:Type="String">Status</Data></Cell><Cell><Data ss:Type="String">Hashtags</Data></Cell><Cell><Data ss:Type="String">Viral Score</Data></Cell><Cell><Data ss:Type="String">Annotation</Data></Cell></Row>`;
+  for (const e of content) {
+    xml += `<Row><Cell><Data ss:Type="String">${escXml(e.data?.title || "")}</Data></Cell><Cell><Data ss:Type="String">${escXml(e.data?.caption || "")}</Data></Cell><Cell><Data ss:Type="String">${escXml(e.data?.platform || "")}</Data></Cell><Cell><Data ss:Type="String">${escXml(e.data?.content_type || "")}</Data></Cell><Cell><Data ss:Type="String">${escXml(e.data?.status || "")}</Data></Cell><Cell><Data ss:Type="String">${escXml((e.data?.hashtags || []).join(", "))}</Data></Cell><Cell><Data ss:Type="Number">${e.data?.viral_score || 0}</Data></Cell><Cell><Data ss:Type="String">${escXml(e.annotation || "")}</Data></Cell></Row>`;
+  }
+  xml += `</Table></Worksheet></Workbook>`;
+  const blob = new Blob([xml], { type: "application/vnd.ms-excel" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = `sandbox-${Date.now()}.xls`; a.click();
+  URL.revokeObjectURL(url);
+  toast.success("Excel file exported (compatible with Excel, Google Sheets, LibreOffice)");
+};
+
+/* ─── HTML Export (standalone report) ─── */
+const exportToHTML = (elements: SandboxElement[], strokes: SandboxStroke[]) => {
+  const content = elements.filter(e => (e.kind === "content" && e.data) || e.kind === "note" || e.kind === "text");
+  if (!content.length) { toast.info("Nothing to export"); return; }
+  let html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sandbox Report</title><style>
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:Inter,system-ui,-apple-system,sans-serif;background:#0f1219;color:#e2e8f0;min-height:100vh;padding:40px 24px}
+.container{max-width:900px;margin:0 auto}h1{font-size:28px;font-weight:700;background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.subtitle{color:#64748b;font-size:13px;margin-bottom:32px}.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
+.card{background:#1a1f2e;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:20px;transition:border-color .2s}.card:hover{border-color:rgba(59,130,246,0.3)}
+.card .platform{font-size:11px;color:#64748b;text-transform:capitalize;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.card .platform .status{color:#22c55e}.card h2{font-size:15px;color:#f1f5f9;margin-bottom:6px;font-weight:600}
+.card p{font-size:13px;color:#94a3b8;line-height:1.7}.card .tags{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px}
+.card .tag{background:rgba(59,130,246,0.1);color:#60a5fa;font-size:10px;padding:3px 8px;border-radius:20px}
+.card .score{margin-top:10px;height:4px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden}.card .score-bar{height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:4px}
+.note{background:#1a1f2e;border-left:3px solid #3b82f6;padding:16px;border-radius:0 12px 12px 0;margin-bottom:16px}
+</style></head><body><div class="container">
+<h1>📋 Sandbox Report</h1>
+<p class="subtitle">Generated ${new Date().toLocaleString()} · ${content.length} elements</p>
+<div class="grid">`;
+  for (const el of content) {
+    if (el.kind === "content" && el.data) {
+      const esc = (s: string) => s.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      html += `<div class="card"><div class="platform">${esc(el.data.platform)} · ${esc(el.data.content_type || "post")} <span class="status">● ${esc(el.data.status)}</span></div><h2>${esc(el.data.title || "")}</h2><p>${esc(el.data.caption || "").replace(/\n/g, "<br>")}</p>`;
+      if (el.data.hashtags?.length) html += `<div class="tags">${el.data.hashtags.map((t: string) => `<span class="tag">#${t}</span>`).join("")}</div>`;
+      if (Number(el.data.viral_score || 0) > 0) html += `<div class="score"><div class="score-bar" style="width:${el.data.viral_score}%"></div></div>`;
+      html += `</div>`;
+    } else if (el.kind === "note") {
+      html += `<div class="note">${(el.text || "").replace(/</g, "&lt;").replace(/\n/g, "<br>")}</div>`;
+    }
+  }
+  html += `</div></div></body></html>`;
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = `sandbox-report-${Date.now()}.html`; a.click();
+  URL.revokeObjectURL(url);
+  toast.success("HTML report exported");
+};
+
+/* ─── PNG with fixed resolution ─── */
+const exportToPNGFixed = (elements: SandboxElement[], strokes: SandboxStroke[], bgColor: string, targetW: number, targetH: number) => {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const el of elements) { minX = Math.min(minX, el.x); minY = Math.min(minY, el.y); maxX = Math.max(maxX, el.x + el.width); maxY = Math.max(maxY, el.y + el.height); }
+  for (const s of strokes) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
+  if (!isFinite(minX)) { toast.info("Nothing to export"); return; }
+  const pad = 20; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+  const contentW = maxX - minX, contentH = maxY - minY;
+  const scale = Math.min(targetW / contentW, targetH / contentH);
+  const offscreen = document.createElement("canvas");
+  offscreen.width = targetW; offscreen.height = targetH;
+  const ctx = offscreen.getContext("2d");
+  if (!ctx) return;
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, targetW, targetH);
+  ctx.save();
+  const offX = (targetW - contentW * scale) / 2, offY = (targetH - contentH * scale) / 2;
+  ctx.translate(offX, offY);
+  ctx.scale(scale, scale);
+  ctx.translate(-minX, -minY);
+  for (const s of strokes) {
+    if (s.points.length < 2) continue;
+    ctx.beginPath(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = s.size;
+    ctx.globalCompositeOperation = s.tool === "eraser" ? "destination-out" : "source-over";
+    ctx.strokeStyle = s.color;
+    ctx.moveTo(s.points[0].x, s.points[0].y);
+    for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
+    ctx.stroke(); ctx.globalCompositeOperation = "source-over";
+  }
+  for (const el of elements) {
+    ctx.globalAlpha = el.opacity ?? 1;
+    ctx.fillStyle = el.color + "18"; ctx.strokeStyle = el.color + "60"; ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (el.kind === "shape" && el.shape === "ellipse") ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, el.width / 2, el.height / 2, 0, 0, Math.PI * 2);
+    else ctx.rect(el.x, el.y, el.width, el.height);
+    ctx.fill(); ctx.stroke();
+    const label = el.text || el.data?.title || el.emoji || "";
+    if (label) { ctx.fillStyle = el.kind === "stamp" ? "#000" : el.color; ctx.font = `${el.fontWeight || "normal"} ${el.fontSize || 14}px ${(el.fontFamily || "Inter").split(",")[0]}`; ctx.textBaseline = "top"; ctx.fillText(label.substring(0, 100), el.x + 8, el.y + 8, el.width - 16); }
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  offscreen.toBlob(blob => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `sandbox-${targetW}x${targetH}-${Date.now()}.png`; a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`PNG exported at ${targetW}×${targetH}`);
+  }, "image/png");
+};
+
 /* ─── Main ─── */
 const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => void }) => {
   const isMobile = useIsMobile();
