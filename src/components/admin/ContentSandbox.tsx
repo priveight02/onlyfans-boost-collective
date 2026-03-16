@@ -1714,6 +1714,11 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <Send className="inline h-3 w-3 mr-0.5" />Export Selected
         </button>
 
+        <button type="button" onClick={() => setShowInspector(p => !p)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">{showInspector ? "Hide panel" : "Inspector"}</button>
+        <button type="button" onClick={() => setShowHelp(true)} className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8 hover:text-white/80" title="Help & Shortcuts">
+          <HelpCircle className="h-3.5 w-3.5" />
+        </button>
+
         {/* Advanced Export */}
         <button type="button" onClick={() => setShowExportDialog(true)} className="rounded-md border border-purple-500/15 bg-purple-500/5 px-2.5 py-1 text-[10px] text-purple-400/70 hover:bg-purple-500/10" title="Ctrl+E">
           <Download className="inline h-3 w-3 mr-0.5" />Export Board
@@ -1736,17 +1741,11 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
         <button type="button" onClick={deleteSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
         <button type="button" onClick={clearBoard} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">Clear board</button>
-        <div className="ml-auto flex items-center gap-1">
-          <button type="button" onClick={() => setShowInspector(p => !p)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">{showInspector ? "Hide panel" : "Inspector"}</button>
-          {selectedIds.size >= 2 && (
-            <button type="button" onClick={evolve} disabled={evolving} className="rounded-md bg-emerald-500/15 border border-emerald-500/20 px-3 py-1 text-[10px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50">
-              {evolving ? <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> : null}Evolve {selectedIds.size}
-            </button>
-          )}
-          <button type="button" onClick={() => setShowHelp(true)} className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8 hover:text-white/80" title="Help & Shortcuts">
-            <HelpCircle className="h-3.5 w-3.5" />
+        {selectedIds.size >= 2 && (
+          <button type="button" onClick={evolve} disabled={evolving} className="ml-auto rounded-md bg-emerald-500/15 border border-emerald-500/20 px-3 py-1 text-[10px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50">
+            {evolving ? <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> : null}Evolve {selectedIds.size}
           </button>
-        </div>
+        )}
       </div>
 
 
