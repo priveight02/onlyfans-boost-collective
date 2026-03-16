@@ -900,20 +900,31 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   /* ─── Keys ─── */
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === " " && !e.repeat) { spaceHeldRef.current = true; return; }
       const tgt = e.target as HTMLElement;
       if (tgt && ["INPUT", "TEXTAREA", "SELECT"].includes(tgt.tagName)) return;
       if (tgt?.isContentEditable) return;
       const ctrl = e.metaKey || e.ctrlKey;
+      const shift = e.shiftKey;
       const k = e.key.toLowerCase();
-      if (ctrl && k === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
-      if (ctrl && k === "z" && e.shiftKey) { e.preventDefault(); redo(); return; }
+      if (ctrl && k === "z" && !shift) { e.preventDefault(); undo(); return; }
+      if (ctrl && k === "z" && shift) { e.preventDefault(); redo(); return; }
       if (ctrl && k === "y") { e.preventDefault(); redo(); return; }
       if (ctrl && k === "s") { e.preventDefault(); save(); toast.success("Saved"); return; }
       if (ctrl && k === "d") { e.preventDefault(); duplicateSel(); return; }
       if (ctrl && k === "g") { e.preventDefault(); groupSelected(); return; }
+      if (ctrl && k === "a") { e.preventDefault(); selectAll(); return; }
       if (ctrl && k === "0") { e.preventDefault(); setViewport(DEFAULT_VIEWPORT); return; }
-      if (e.key === "Delete" || (e.key === "Backspace" && !tgt?.isContentEditable)) { e.preventDefault(); deleteSel(); }
+      if (ctrl && k === "1") { e.preventDefault(); fitToView(); return; }
+      if (e.key === "Escape") { setSelectedIds(new Set()); setSelectedStrokeIds(new Set()); setLinkSourceId(null); return; }
+      if (e.key === "Delete" || (e.key === "Backspace" && !tgt?.isContentEditable)) { e.preventDefault(); deleteSel(); return; }
+      // Arrow nudge (1px, shift = 10px)
+      const step = shift ? 10 : 1;
+      if (e.key === "ArrowLeft") { e.preventDefault(); nudge(-step, 0); return; }
+      if (e.key === "ArrowRight") { e.preventDefault(); nudge(step, 0); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); nudge(0, -step); return; }
+      if (e.key === "ArrowDown") { e.preventDefault(); nudge(0, step); return; }
       if (k === "v" && !ctrl) setTool("select");
       if (k === "h" && !ctrl) setTool("pan");
       if (k === "p" && !ctrl) setTool("pen");
@@ -921,9 +932,13 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (k === "n" && !ctrl) setTool("note");
       if (k === "t" && !ctrl) setTool("text");
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, save, deleteSel, duplicateSel, groupSelected]);
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === " ") spaceHeldRef.current = false;
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); };
+  }, [undo, redo, save, deleteSel, duplicateSel, groupSelected, selectAll, fitToView, nudge]);
 
   const activeSizes = tool === "eraser" ? ERASER_SIZES : BRUSH_SIZES;
 
