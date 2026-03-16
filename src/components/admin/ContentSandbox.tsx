@@ -1052,12 +1052,40 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       <div className="flex flex-wrap items-center gap-1">
         <button type="button" onClick={() => setShowImport(true)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 hover:text-white/80">Import</button>
         <button type="button" onClick={autoArrange} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 hover:text-white/80">Arrange</button>
-        <button type="button" onClick={duplicateSel} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Duplicate</button>
+        <button type="button" onClick={duplicateSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Duplicate</button>
         <button type="button" onClick={() => { if (selectedIds.size !== 1) { toast.info("Select one card"); return; } setLinkSourceId(p => p ? null : Array.from(selectedIds)[0]); }} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">{linkSourceId ? "Cancel link" : "Link"}</button>
         <button type="button" onClick={() => { const ids = Array.from(selRef.current); if (!ids.length) return; pushUndo(); setElements(p => p.map(e => ({ ...e, links: ids.includes(e.id) ? [] : e.links.filter(l => !ids.includes(l)) }))); }} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Unlink</button>
         <button type="button" onClick={groupSelected} disabled={selectedIds.size < 2} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Group</button>
         <button type="button" onClick={ungroupSelected} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Ungroup</button>
         <button type="button" onClick={clearInk} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">Clear ink</button>
+
+        <div className="h-4 w-px bg-white/8" />
+
+        {/* New convenience tools */}
+        <button type="button" onClick={selectAll} title="Ctrl+A" className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">Select All</button>
+        <button type="button" onClick={fitToView} title="Ctrl+1" className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8"><Maximize className="inline h-3 w-3 mr-0.5" />Fit</button>
+        <button type="button" onClick={() => setSnapToGrid(p => !p)} className={cn("rounded-md border px-2.5 py-1 text-[10px] flex items-center gap-1", snapToGrid ? "border-blue-500/25 bg-blue-500/10 text-blue-400" : "border-white/8 bg-white/4 text-white/60 hover:bg-white/8")}>
+          <Grid3X3 className="h-3 w-3" />Snap
+        </button>
+        <button type="button" onClick={() => setShowMinimap(p => !p)} className={cn("rounded-md border px-2.5 py-1 text-[10px] flex items-center gap-1", showMinimap ? "border-blue-500/25 bg-blue-500/10 text-blue-400" : "border-white/8 bg-white/4 text-white/60 hover:bg-white/8")}>
+          <MapIcon className="h-3 w-3" />Map
+        </button>
+
+        {/* Align tools */}
+        {selectedIds.size >= 2 && (
+          <>
+            <div className="h-4 w-px bg-white/8" />
+            <span className="text-[9px] text-white/30">Align:</span>
+            <button type="button" onClick={() => alignSelected("left")} title="Align Left" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignStartHorizontal className="h-3 w-3" /></button>
+            <button type="button" onClick={() => alignSelected("center-h")} title="Align Center H" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignCenterHorizontal className="h-3 w-3" /></button>
+            <button type="button" onClick={() => alignSelected("right")} title="Align Right" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignEndHorizontal className="h-3 w-3" /></button>
+            <button type="button" onClick={() => alignSelected("top")} title="Align Top" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignStartVertical className="h-3 w-3" /></button>
+            <button type="button" onClick={() => alignSelected("center-v")} title="Align Center V" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignCenterVertical className="h-3 w-3" /></button>
+            <button type="button" onClick={() => alignSelected("bottom")} title="Align Bottom" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignEndVertical className="h-3 w-3" /></button>
+          </>
+        )}
+
+        <div className="h-4 w-px bg-white/8" />
 
         {/* Export buttons */}
         <button type="button" onClick={async () => {
@@ -1098,7 +1126,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <Layers className="inline h-3 w-3 mr-0.5" />Push to Platforms
         </button>
 
-        <button type="button" onClick={deleteSel} disabled={!selectedIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
+        <button type="button" onClick={deleteSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
         <button type="button" onClick={clearBoard} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">Clear board</button>
         <div className="ml-auto flex items-center gap-1">
           <button type="button" onClick={() => setShowInspector(p => !p)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">{showInspector ? "Hide panel" : "Inspector"}</button>
@@ -1108,13 +1136,23 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
             </button>
           )}
         </div>
-        <div className="flex items-center gap-1.5 text-[9px] text-white/25">
+      </div>
+
+      {/* Status bar */}
+      <div className="flex items-center justify-between rounded-lg border border-white/4 bg-white/[0.02] px-3 py-0.5 text-[9px] text-white/30">
+        <div className="flex items-center gap-3">
           <span>{elements.filter(e => e.kind === "content").length} cards</span>
-          <span>&middot;</span>
           <span>{elements.filter(e => e.kind !== "content").length} els</span>
-          <span>&middot;</span>
           <span>{strokes.length} strokes</span>
+          <span className="text-white/20">|</span>
+          <span>Sel: {selectedIds.size} els + {selectedStrokeIds.size} strokes</span>
+        </div>
+        <div className="flex items-center gap-3">
           {linkSourceId && <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-400/70">Click target to link</span>}
+          <span>x:{Math.round(mouseScene.x)} y:{Math.round(mouseScene.y)}</span>
+          <span>{Math.round(viewport.zoom * 100)}%</span>
+          {snapToGrid && <span className="text-blue-400/50">⊞ Snap</span>}
+          <span className="hidden sm:inline">Space=Pan · Alt+Drag=Copy · ←→↑↓=Nudge · Esc=Deselect</span>
         </div>
       </div>
 
