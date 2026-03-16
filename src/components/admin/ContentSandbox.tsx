@@ -93,6 +93,8 @@ const strokeBounds = (s: SandboxStroke): { x: number; y: number; w: number; h: n
 
 /* ─── Constants ─── */
 const STORAGE_KEY = "content_sandbox_state_v7";
+const VIEWPORT_KEY = "content_sandbox_viewport_v1";
+const STROKE_Z = 500;
 const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 4;
 const DEFAULT_VIEWPORT: Viewport = { x: 32, y: 32, zoom: 1 };
