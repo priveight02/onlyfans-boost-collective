@@ -1731,40 +1731,147 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     finally { setSavingBack(false); }
   }, [onRefresh, primaryEl]);
 
-  /* ─── AI Evolver ─── */
+  /* ─── AI Evolver v3 ─── */
+  const evolveSelectionRef = useRef<SandboxElement[]>([]);
+
   const evolve = useCallback(async () => {
-    const sel = elsRef.current.filter(e => selRef.current.has(e.id));
-    if (sel.length < 1) { toast.error("Select elements to evolve"); return; }
+    // Snapshot selection BEFORE any async work so board clicks can't clear it
+    const sel = evolveSelectionRef.current.length > 0
+      ? evolveSelectionRef.current
+      : elsRef.current.filter(e => selRef.current.has(e.id));
+    if (sel.length < 2) { toast.error("Select 2 or more elements to evolve"); return; }
+
+    // Store snapshot so re-renders don't lose it
+    evolveSelectionRef.current = sel;
     setEvolving(true);
+
     try {
-      const prompt = sel.map(e => {
-        if (e.kind === "content" && e.data) return `CONTENT\nTitle: ${e.data.title}\nPlatform: ${e.data.platform}\nType: ${e.data.content_type}\nCaption: ${e.data.caption || ""}\nNotes: ${e.annotation || "none"}`;
-        if (e.kind === "note") return `NOTE\n${e.text || ""}`;
-        if (e.kind === "text") return `TEXT\n${e.text || ""}`;
-        if (e.kind === "media") return `MEDIA\nURL: ${e.mediaUrl || ""}\nNotes: ${e.annotation || "none"}`;
-        return `SHAPE\n${e.shape || "rectangle"}\nColor: ${e.color}\nNotes: ${e.annotation || "none"}`;
-      }).join("\n\n---\n\n");
+      // Build rich context from each element
+      const elementDescriptions = sel.map((e, i) => {
+        const parts: string[] = [`--- Element ${i + 1} (${e.kind}) ---`];
+        if (e.kind === "content" && e.data) {
+          parts.push(`Title: ${e.data.title || "Untitled"}`);
+          parts.push(`Platform: ${e.data.platform || "instagram"}`);
+          parts.push(`Type: ${e.data.content_type || "post"}`);
+          parts.push(`Caption: ${e.data.caption || "(empty)"}`);
+          if (e.data.hashtags?.length) parts.push(`Hashtags: ${e.data.hashtags.join(", ")}`);
+          if (e.data.cta) parts.push(`CTA: ${e.data.cta}`);
+          if (e.annotation) parts.push(`Creator notes: ${e.annotation}`);
+        } else if (e.kind === "note") {
+          parts.push(`Note content: ${e.text || "(empty note)"}`);
+        } else if (e.kind === "text") {
+          parts.push(`Text content: ${e.text || "(empty text)"}`);
+        } else if (e.kind === "media") {
+          parts.push(`Media URL: ${e.mediaUrl || "none"}`);
+          if (e.annotation) parts.push(`Notes: ${e.annotation}`);
+        } else {
+          parts.push(`Shape: ${e.shape || "rectangle"}, Color: ${e.color}`);
+          if (e.annotation) parts.push(`Notes: ${e.annotation}`);
+        }
+        return parts.join("\n");
+      }).join("\n\n");
+
+      const userGoal = evolverPrompt || "Make it viral-worthy, strategic, creative, and ready to publish. Maximize engagement and business value.";
+      const targetPlatform = evolverPlatform || "instagram";
+
+      const systemPrompt = `You are a world-class creative director and content strategist. You're working inside a visual sandbox where creators arrange ideas, notes, and content cards.
+
+Your job: Take ${sel.length} selected elements and SYNTHESIZE them into ONE powerful, evolved content concept that combines the best ideas from all inputs.
+
+CRITICAL RULES:
+- Actually READ and USE the content from every element — don't ignore them
+- The evolved concept must be meaningfully better than any individual input
+- Write a REAL, compelling caption (minimum 2-3 sentences) with hooks, value, and a CTA
+- Include specific, relevant hashtags (5-10)
+- The title should be catchy and specific, NOT generic like "Evolved concept"
+- Provide strategic notes about WHY this evolution works better
+- Think about scroll-stopping hooks, emotional triggers, and audience psychology`;
+
+      const userPrompt = `Here are the ${sel.length} elements to evolve:
+
+${elementDescriptions}
+
+Creator's goal: ${userGoal}
+Target platform: ${targetPlatform}
+
+SYNTHESIZE these into one incredible content piece. Return ONLY valid JSON with ALL fields filled with real, thoughtful content:
+{
+  "title": "A specific, catchy title (not generic)",
+  "caption": "A full, engaging caption with hook + value + CTA (minimum 3 sentences)",
+  "platform": "${targetPlatform}",
+  "content_type": "post|reel|story|carousel|tweet|promo",
+  "hashtags": ["relevant", "specific", "hashtags", "minimum5"],
+  "evolution_notes": "Strategic explanation of why this evolution is stronger",
+  "viral_score": 85,
+  "hook": "The scroll-stopping opening line",
+  "cta": "Specific call to action",
+  "angle": "The unique creative angle used"
+}`;
 
       const { data, error } = await supabase.functions.invoke("agency-copilot", {
         body: {
-          messages: [{
-            role: "user",
-            content: `You are an elite creative director in a visual sandbox. ${sel.length === 1 ? "Evolve this element into a stronger, more refined version." : "Combine these selected elements into one stronger, evolved concept."}\n\nSelected elements:\n${prompt}\n\nGoal: ${evolverPrompt || "Make the concept more strategic, original, creative, and publishable. Focus on business value and creative impact."}\nTarget platform: ${evolverPlatform}\n\nReturn ONLY valid JSON:\n{"title":"...","caption":"...","platform":"${evolverPlatform}","content_type":"post/reel/story/tweet/promo","hashtags":["tag"],"evolution_notes":"...","viral_score":85,"hook":"...","cta":"...","angle":"..."}`,
-          }],
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          skipTools: true, // bypass CRM tool calling for this request
         },
       });
       if (error) throw error;
-      const evolved = parseAi(data);
+
+      // Robust parsing — handle various response shapes
+      let evolved: any = {};
+      try {
+        evolved = parseAi(data);
+      } catch {
+        evolved = {};
+      }
+
+      // Validate we got real content, not empty fallback
+      if (!evolved.title || evolved.title === "Evolved concept" || !evolved.caption || evolved.caption.length < 10) {
+        // Try parsing the raw data differently
+        const rawText = typeof data === "string" ? data : JSON.stringify(data);
+        const jsonMatch = rawText.match(/\{[\s\S]*"title"[\s\S]*"caption"[\s\S]*\}/);
+        if (jsonMatch) {
+          try {
+            evolved = JSON.parse(jsonMatch[0].replace(/,\s*([}\]])/g, "$1"));
+          } catch {
+            // Keep whatever we had
+          }
+        }
+      }
+
+      // Final fallback with actual content from inputs
+      const inputTitles = sel.filter(e => e.data?.title).map(e => e.data!.title).join(" + ");
+      const inputCaptions = sel.filter(e => e.data?.caption).map(e => e.data!.caption).join(" | ");
+      if (!evolved.title || evolved.title === "Evolved concept") {
+        evolved.title = inputTitles ? `Evolution: ${inputTitles}` : "Evolved Concept";
+      }
+      if (!evolved.caption || evolved.caption.length < 10) {
+        evolved.caption = inputCaptions || "Combined concept from sandbox elements";
+      }
+
       pushUndo();
 
       const { data: newItem, error: ie } = await supabase.from("content_calendar").insert({
-        title: evolved.title || "Evolved concept", caption: evolved.caption || "",
-        platform: (evolved.platform || evolverPlatform || "instagram").toLowerCase(),
+        title: evolved.title,
+        caption: evolved.caption,
+        platform: (evolved.platform || targetPlatform).toLowerCase(),
         content_type: evolved.content_type || "post",
         hashtags: Array.isArray(evolved.hashtags) ? evolved.hashtags.map((t: string) => t.replace(/^#/, "")) : [],
-        status: "draft", viral_score: Number(evolved.viral_score || 82),
-        description: evolved.evolution_notes || "Created via Sandbox Evolver",
-        metadata: { source: "sandbox_evolver", evolved_from: sel.map(e => e.sourceItemId || e.id), sandbox_prompt: evolverPrompt || null, hook: evolved.hook, cta: evolved.cta, angle: evolved.angle },
+        status: "draft",
+        viral_score: Number(evolved.viral_score || 85),
+        description: evolved.evolution_notes || `Evolved from ${sel.length} sandbox elements`,
+        cta: evolved.cta || null,
+        metadata: {
+          source: "sandbox_evolver_v3",
+          evolved_from: sel.map(e => e.sourceItemId || e.id),
+          sandbox_prompt: evolverPrompt || null,
+          hook: evolved.hook,
+          cta: evolved.cta,
+          angle: evolved.angle,
+          input_count: sel.length,
+        },
       }).select().single();
       if (ie) throw ie;
 
@@ -1772,18 +1879,23 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       const selIds = new Set(sel.map(e => e.id));
       const evolved_el: SandboxElement = {
         id: `sb-${crypto.randomUUID()}`, kind: "content",
-        x: c.x / sel.length, y: c.y / sel.length, width: 304, height: 208,
+        x: c.x / sel.length, y: c.y / sel.length, width: 340, height: 240,
         z: nextZ(elsRef.current), color: "#22c55e", links: [],
         sourceItemId: newItem.id, data: newItem, annotation: evolved.evolution_notes || "", fontSize: 14,
       };
-      // Remove old elements and add evolved one
       setElements(p => [...p.filter(e => !selIds.has(e.id)), evolved_el]);
       setSelectedIds(new Set([evolved_el.id]));
       setEvolverPrompt("");
+      evolveSelectionRef.current = [];
       onRefresh();
-      toast.success(`Evolved ${sel.length} element${sel.length > 1 ? "s" : ""} into 1`);
-    } catch (err: any) { toast.error(err.message || "Evolver failed"); }
-    finally { setEvolving(false); }
+      toast.success(`🧬 Evolved ${sel.length} elements into a stronger concept`);
+    } catch (err: any) {
+      console.error("Evolver error:", err);
+      toast.error(err.message || "Evolver failed");
+    } finally {
+      setEvolving(false);
+      evolveSelectionRef.current = [];
+    }
   }, [evolverPlatform, evolverPrompt, onRefresh, pushUndo]);
 
   /* ─── Pointer handlers ─── */
