@@ -2563,6 +2563,82 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         )}
       </div>
 
+      {/* Context Menu */}
+      {ctxMenu && (
+        <div className="fixed inset-0 z-[99999]" onClick={() => { setCtxMenu(null); setCtxExportFormat(null); }}>
+          <div
+            className="absolute rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-1.5 min-w-[200px]"
+            style={{ left: Math.min(ctxMenu.x, window.innerWidth - 220), top: Math.min(ctxMenu.y, window.innerHeight - 400) }}
+            onClick={e => e.stopPropagation()}
+          >
+            {!ctxExportFormat ? (
+              <>
+                <div className="px-2.5 py-1 text-[9px] text-white/25 uppercase tracking-wider">Push to...</div>
+                {/* Export format selection */}
+                {["png", "jpg", "webp", "svg", "mp4", "gif", "pdf", "json"].map(fmt => (
+                  <button key={fmt} type="button" onClick={() => setCtxExportFormat(fmt)}
+                    className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2">
+                    <FileImage className="h-3.5 w-3.5 text-white/30" />
+                    <span>Export as <span className="uppercase font-medium text-white/90">{fmt}</span></span>
+                    <ArrowRight className="h-3 w-3 text-white/20 ml-auto" />
+                  </button>
+                ))}
+                <div className="h-px bg-white/[0.06] my-1" />
+                {ctxMenu.elementId && (
+                  <>
+                    <button type="button" onClick={() => { bringToFront(); setCtxMenu(null); }}
+                      className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06]">⤒ Bring to Front</button>
+                    <button type="button" onClick={() => { sendToBack(); setCtxMenu(null); }}
+                      className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06]">⤓ Send to Back</button>
+                    <button type="button" onClick={() => { duplicateSel(); setCtxMenu(null); }}
+                      className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06]">⊕ Duplicate</button>
+                    <div className="h-px bg-white/[0.06] my-1" />
+                    <button type="button" onClick={() => { deleteSel(); setCtxMenu(null); }}
+                      className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-red-400/70 hover:bg-red-500/[0.06]">🗑 Delete</button>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={() => setCtxExportFormat(null)}
+                  className="w-full rounded-lg px-2.5 py-1.5 text-left text-[10px] text-white/40 hover:bg-white/[0.06] flex items-center gap-1 mb-1">
+                  ← Back
+                </button>
+                <div className="px-2.5 py-1 text-[9px] text-white/25 uppercase tracking-wider">
+                  Push as <span className="uppercase text-white/50">{ctxExportFormat}</span> to...
+                </div>
+                {/* Scope options */}
+                {ctxMenu.elementId && (
+                  <div className="px-2.5 py-1">
+                    <span className="text-[9px] text-purple-400/60">Element · Selected · Full Board</span>
+                  </div>
+                )}
+                {/* Targets */}
+                <button type="button" onClick={() => pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat, "content")}
+                  disabled={ctxPushing}
+                  className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2 disabled:opacity-50">
+                  <FileDown className="h-3.5 w-3.5 text-blue-400/50" /> Content Drafts
+                </button>
+                <div className="h-px bg-white/[0.06] my-0.5" />
+                <div className="px-2.5 py-0.5 text-[9px] text-white/20 uppercase tracking-wider">Platform Hubs</div>
+                {["instagram", "tiktok", "facebook", "threads", "twitter", "youtube", "linkedin", "pinterest"].map(p => (
+                  <button key={p} type="button" onClick={() => pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat, p)}
+                    disabled={ctxPushing}
+                    className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2 capitalize disabled:opacity-50">
+                    <Send className="h-3 w-3 text-white/20" /> {p}
+                  </button>
+                ))}
+                {ctxPushing && (
+                  <div className="flex items-center gap-2 px-2.5 py-1.5 text-[10px] text-white/40">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Uploading...
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Import Dialog */}
       <Dialog open={showImport} onOpenChange={setShowImport}>
         <DialogContent className="max-h-[86vh] max-w-5xl overflow-hidden border-white/8 bg-[hsl(222,30%,10%)] text-white">
