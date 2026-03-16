@@ -876,7 +876,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [ctxPushing, setCtxPushing] = useState(false);
   const [connectedPlatforms, setConnectedPlatforms] = useState<Record<string, { account_id: string; username: string }[]>>({});
   const [ctxAccountSelect, setCtxAccountSelect] = useState<{ platform: string; accounts: { account_id: string; username: string }[] } | null>(null);
-  const [ctxExportScope, setCtxExportScope] = useState<"element" | "selected" | "board">("board");
+  const [ctxExportScope, setCtxExportScope] = useState<"element" | "selected" | "board" | "viewport">("board");
   const [ctxExportRes, setCtxExportRes] = useState<{ w: number; h: number } | null>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
@@ -2296,7 +2296,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, []);
 
   /* ─── Render element/board to blob ─── */
-  const renderToBlob = useCallback((scope: "element" | "selected" | "board", format: string, overrideRes?: { w: number; h: number } | null): Promise<Blob | null> => {
+  const renderToBlob = useCallback((scope: "element" | "selected" | "board" | "viewport", format: string, overrideRes?: { w: number; h: number } | null): Promise<Blob | null> => {
     return new Promise((resolve) => {
       const els = scope === "element" && ctxMenu?.elementId
         ? elsRef.current.filter(e => e.id === ctxMenu.elementId)
@@ -2304,6 +2304,66 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         ? elsRef.current.filter(e => selRef.current.has(e.id))
         : elsRef.current;
       const stks = strokesRef.current;
+
+      // Viewport scope: capture exactly what's visible on screen
+      if (scope === "viewport" && boardRef.current) {
+        const rect = boardRef.current.getBoundingClientRect();
+        const vp = vpRef.current;
+        const viewMinX = -vp.x / vp.zoom;
+        const viewMinY = -vp.y / vp.zoom;
+        const viewW = rect.width / vp.zoom;
+        const viewH = rect.height / vp.zoom;
+        
+        let canvasW: number, canvasH: number, renderScale: number;
+        if (overrideRes) {
+          canvasW = overrideRes.w;
+          canvasH = overrideRes.h;
+          renderScale = Math.min(canvasW / viewW, canvasH / viewH);
+        } else {
+          renderScale = 2;
+          canvasW = viewW * renderScale;
+          canvasH = viewH * renderScale;
+        }
+        
+        const offscreen = document.createElement("canvas");
+        offscreen.width = canvasW; offscreen.height = canvasH;
+        const ctx = offscreen.getContext("2d");
+        if (!ctx) { resolve(null); return; }
+        ctx.fillStyle = exportBg;
+        ctx.fillRect(0, 0, canvasW, canvasH);
+        ctx.save();
+        if (overrideRes) {
+          const offX = (canvasW - viewW * renderScale) / 2;
+          const offY = (canvasH - viewH * renderScale) / 2;
+          ctx.translate(offX, offY);
+        }
+        ctx.scale(renderScale, renderScale);
+        ctx.translate(-viewMinX, -viewMinY);
+        
+        for (const s of stks) {
+          if (s.points.length < 2) continue;
+          ctx.beginPath(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = s.size;
+          ctx.globalCompositeOperation = s.tool === "eraser" ? "destination-out" : "source-over";
+          ctx.strokeStyle = s.color;
+          ctx.moveTo(s.points[0].x, s.points[0].y);
+          for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
+          ctx.stroke(); ctx.globalCompositeOperation = "source-over";
+        }
+        for (const el of elsRef.current) {
+          ctx.globalAlpha = el.opacity ?? 1;
+          ctx.fillStyle = el.color + "18"; ctx.strokeStyle = el.color + "60"; ctx.lineWidth = 2;
+          ctx.beginPath();
+          if (el.kind === "shape" && el.shape === "ellipse") ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, el.width / 2, el.height / 2, 0, 0, Math.PI * 2);
+          else ctx.rect(el.x, el.y, el.width, el.height);
+          ctx.fill(); ctx.stroke();
+          const label = el.text || el.data?.title || el.emoji || "";
+          if (label) { ctx.fillStyle = el.kind === "stamp" ? "#000" : el.color; ctx.font = `${el.fontWeight || "normal"} ${el.fontSize || 14}px ${(el.fontFamily || "Inter").split(",")[0]}`; ctx.textBaseline = "top"; ctx.fillText(label.substring(0, 100), el.x + 8, el.y + 8, el.width - 16); }
+          ctx.globalAlpha = 1;
+        }
+        ctx.restore();
+        offscreen.toBlob(b => resolve(b), format === "svg" ? "image/png" : `image/${format}`);
+        return;
+      }
       if (!els.length && !stks.length) { resolve(null); return; }
 
       // Check if it's a single media element with original file and no resolution override
@@ -2377,7 +2437,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, [ctxMenu, exportBg]);
 
   /* ─── Upload blob to storage and save to sandbox_exports ─── */
-  const pushToStorage = useCallback(async (scope: "element" | "selected" | "board", format: string, targetPlatform: string, resOverride?: { w: number; h: number } | null) => {
+  const pushToStorage = useCallback(async (scope: "element" | "selected" | "board" | "viewport", format: string, targetPlatform: string, resOverride?: { w: number; h: number } | null) => {
     setCtxPushing(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -2431,7 +2491,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   /* ─── Render ─── */
   return (
-    <div ref={wrapperRef} data-sandbox-wrapper className="flex flex-col gap-1 w-full min-w-0 overflow-hidden" style={{ height: "calc(100vh - 64px)" }}>
+    <div ref={wrapperRef} data-sandbox-wrapper className="flex flex-col gap-1 w-full min-w-0 overflow-hidden pr-1" style={{ height: "calc(100vh - 64px)" }}>
       {/* Hidden file inputs */}
       <input ref={mediaInputRef} type="file" accept="image/*,video/*,audio/*,.gif" multiple className="hidden"
         onChange={e => { if (e.target.files?.length) { handleMediaImport(e.target.files); e.target.value = ""; } }} />
@@ -3118,6 +3178,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                     <button type="button" onClick={() => setCtxExportScope("board")}
                       className={cn("rounded-md px-2 py-0.5 text-[9px] border", ctxExportScope === "board" ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/8 text-white/40 hover:bg-white/5")}>
                       Full Board
+                    </button>
+                    <button type="button" onClick={() => setCtxExportScope("viewport")}
+                      className={cn("rounded-md px-2 py-0.5 text-[9px] border", ctxExportScope === "viewport" ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/8 text-white/40 hover:bg-white/5")}>
+                      Current View
                     </button>
                   </div>
                 </div>
