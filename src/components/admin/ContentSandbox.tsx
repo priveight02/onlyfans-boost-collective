@@ -1714,6 +1714,11 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <Send className="inline h-3 w-3 mr-0.5" />Export Selected
         </button>
 
+        <button type="button" onClick={() => setShowInspector(p => !p)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">{showInspector ? "Hide panel" : "Inspector"}</button>
+        <button type="button" onClick={() => setShowHelp(true)} className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8 hover:text-white/80" title="Help & Shortcuts">
+          <HelpCircle className="h-3.5 w-3.5" />
+        </button>
+
         {/* Advanced Export */}
         <button type="button" onClick={() => setShowExportDialog(true)} className="rounded-md border border-purple-500/15 bg-purple-500/5 px-2.5 py-1 text-[10px] text-purple-400/70 hover:bg-purple-500/10" title="Ctrl+E">
           <Download className="inline h-3 w-3 mr-0.5" />Export Board
@@ -1736,17 +1741,11 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
         <button type="button" onClick={deleteSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
         <button type="button" onClick={clearBoard} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">Clear board</button>
-        <div className="ml-auto flex items-center gap-1">
-          <button type="button" onClick={() => setShowInspector(p => !p)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">{showInspector ? "Hide panel" : "Inspector"}</button>
-          {selectedIds.size >= 2 && (
-            <button type="button" onClick={evolve} disabled={evolving} className="rounded-md bg-emerald-500/15 border border-emerald-500/20 px-3 py-1 text-[10px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50">
-              {evolving ? <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> : null}Evolve {selectedIds.size}
-            </button>
-          )}
-          <button type="button" onClick={() => setShowHelp(true)} className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8 hover:text-white/80" title="Help & Shortcuts">
-            <HelpCircle className="h-3.5 w-3.5" />
+        {selectedIds.size >= 2 && (
+          <button type="button" onClick={evolve} disabled={evolving} className="ml-auto rounded-md bg-emerald-500/15 border border-emerald-500/20 px-3 py-1 text-[10px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50">
+            {evolving ? <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> : null}Evolve {selectedIds.size}
           </button>
-        </div>
+        )}
       </div>
 
 
@@ -2140,156 +2139,176 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
       {/* Help Dialog */}
       <Dialog open={showHelp} onOpenChange={setShowHelp}>
-        <DialogContent className="max-w-[75vw] max-h-[75vh] overflow-y-auto bg-[hsl(222,30%,8%)] border-white/10 text-white p-0">
-          <div className="sticky top-0 z-10 flex items-center justify-between bg-[hsl(222,30%,8%)] border-b border-white/8 px-6 py-4">
+        <DialogContent className="max-w-[75vw] max-h-[75vh] overflow-y-auto bg-[hsl(222,35%,7%)] border-white/[0.06] text-white p-0 backdrop-blur-xl [&>button]:text-white/50 [&>button]:hover:text-white">
+          <div className="sticky top-0 z-10 bg-[hsl(222,35%,7%)]/95 backdrop-blur-md px-4 sm:px-6 py-3 sm:py-4">
             <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-purple-500/15 p-2"><HelpCircle className="h-5 w-5 text-purple-400" /></div>
+              <div className="rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 p-2.5 ring-1 ring-purple-500/20"><HelpCircle className="h-5 w-5 text-purple-400" /></div>
               <div>
-                <h2 className="text-lg font-bold text-white">Sandbox Help & Shortcuts</h2>
-                <p className="text-xs text-white/40">Everything you need to master the creative canvas</p>
+                <h2 className="text-base sm:text-lg font-bold text-white tracking-tight">Sandbox Help & Shortcuts</h2>
+                <p className="text-[10px] sm:text-xs text-white/35">Everything you need to master the creative canvas</p>
               </div>
             </div>
           </div>
-          <div className="px-6 pb-6 pt-2 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="px-4 sm:px-6 pb-4 sm:pb-6 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+
             {/* Keyboard Shortcuts */}
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-              <h3 className="text-sm font-semibold text-blue-400 mb-3 flex items-center gap-2">⌨️ Keyboard Shortcuts</h3>
-              <div className="space-y-1.5 text-[11px]">
+            <div className="rounded-xl bg-white/[0.03] p-3 sm:p-4 hover:bg-white/[0.05] transition-colors">
+              <h3 className="text-xs sm:text-sm font-semibold text-blue-400 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="rounded-lg bg-blue-500/10 p-1"><Hash className="h-3.5 w-3.5 text-blue-400" /></span>
+                Keyboard Shortcuts
+              </h3>
+              <div className="space-y-1 text-[10px] sm:text-[11px]">
                 {[
-                  ["Ctrl + Z", "Undo last action"],
-                  ["Ctrl + Shift + Z", "Redo"],
-                  ["Ctrl + S", "Save board manually"],
-                  ["Ctrl + A", "Select all elements & strokes"],
-                  ["Ctrl + E", "Open export dialog"],
-                  ["Ctrl + 1", "Fit all content to view"],
-                  ["Delete / Backspace", "Delete selected items"],
-                  ["Escape", "Deselect all / cancel"],
-                  ["Arrow Keys", "Nudge selected by 1px"],
-                  ["Shift + Arrow Keys", "Nudge selected by 10px"],
-                  ["R", "Rotate selected 45° snap (8 directions)"],
-                  ["M", "Switch to Media import tool"],
-                  ["Space (hold)", "Temporary pan mode"],
+                  ["Ctrl+Z", "Undo"], ["Ctrl+Shift+Z", "Redo"], ["Ctrl+S", "Save"],
+                  ["Ctrl+A", "Select all"], ["Ctrl+E", "Export dialog"], ["Ctrl+1", "Fit to view"],
+                  ["Del / Bksp", "Delete selected"], ["Esc", "Deselect / cancel"],
+                  ["Arrows", "Nudge 1px"], ["Shift+Arrows", "Nudge 10px"],
+                  ["R", "Rotate 45° snap"], ["M", "Media tool"], ["Space", "Pan mode"],
                 ].map(([k, d]) => (
-                  <div key={k} className="flex items-center justify-between gap-2">
-                    <kbd className="rounded bg-white/8 border border-white/10 px-1.5 py-0.5 text-[10px] text-white/70 font-mono shrink-0">{k}</kbd>
-                    <span className="text-white/50 text-right">{d}</span>
+                  <div key={k} className="flex items-center justify-between gap-1.5">
+                    <kbd className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] sm:text-[10px] text-white/60 font-mono shrink-0">{k}</kbd>
+                    <span className="text-white/40 text-right">{d}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Drawing Tools */}
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-              <h3 className="text-sm font-semibold text-emerald-400 mb-3">🎨 Drawing Tools</h3>
-              <div className="space-y-2 text-[11px] text-white/50">
-                <p><span className="text-white/80 font-medium">Cursor (V)</span> — Select, move, resize, and rotate elements on the canvas.</p>
-                <p><span className="text-white/80 font-medium">Move (M)</span> — Drag the canvas to pan around freely.</p>
-                <p><span className="text-white/80 font-medium">Pen (P)</span> — Freehand drawing with configurable brush sizes and colors.</p>
-                <p><span className="text-white/80 font-medium">Eraser (E)</span> — Erase freehand strokes from the canvas.</p>
-                <p><span className="text-white/80 font-medium">Text (T)</span> — Click to place text with full typography controls.</p>
-                <p><span className="text-white/80 font-medium">Sticky Note</span> — Drop a colored note card on the canvas.</p>
-                <p><span className="text-white/80 font-medium">Shapes</span> — Rectangle, Ellipse, Triangle, Diamond, Arrow.</p>
-                <p><span className="text-white/80 font-medium">Connector</span> — Draw lines between any two points.</p>
-                <p><span className="text-white/80 font-medium">Frame</span> — Create container frames to organize content.</p>
-                <p><span className="text-white/80 font-medium">Stamp</span> — Place emoji stamps on the canvas.</p>
-                <p><span className="text-white/80 font-medium">Media</span> — Import images, videos, audio, GIFs with live preview.</p>
+            <div className="rounded-xl bg-white/[0.03] p-3 sm:p-4 hover:bg-white/[0.05] transition-colors">
+              <h3 className="text-xs sm:text-sm font-semibold text-emerald-400 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="rounded-lg bg-emerald-500/10 p-1"><Pencil className="h-3.5 w-3.5 text-emerald-400" /></span>
+                Drawing Tools
+              </h3>
+              <div className="space-y-1.5 text-[10px] sm:text-[11px] text-white/45">
+                <p><span className="text-white/75 font-medium">Cursor (V)</span> — Select, move, resize, rotate</p>
+                <p><span className="text-white/75 font-medium">Move</span> — Pan canvas freely</p>
+                <p><span className="text-white/75 font-medium">Pen (P)</span> — Freehand draw with brush sizes</p>
+                <p><span className="text-white/75 font-medium">Eraser (E)</span> — Erase strokes</p>
+                <p><span className="text-white/75 font-medium">Text (T)</span> — Place text with typography controls</p>
+                <p><span className="text-white/75 font-medium">Sticky Note</span> — Drop colored note cards</p>
+                <p><span className="text-white/75 font-medium">Shapes</span> — Rect, Ellipse, Triangle, Diamond, Arrow</p>
+                <p><span className="text-white/75 font-medium">Connector</span> — Lines between points</p>
+                <p><span className="text-white/75 font-medium">Frame</span> — Container frames</p>
+                <p><span className="text-white/75 font-medium">Stamp</span> — Emoji stamps</p>
+                <p><span className="text-white/75 font-medium">Media</span> — Images, videos, audio, GIFs</p>
               </div>
             </div>
 
             {/* Selection & Transform */}
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-              <h3 className="text-sm font-semibold text-amber-400 mb-3">🔲 Selection & Transform</h3>
-              <div className="space-y-2 text-[11px] text-white/50">
-                <p><span className="text-white/80 font-medium">Click</span> — Select a single element or stroke.</p>
-                <p><span className="text-white/80 font-medium">Marquee drag</span> — Draw a rectangle to select multiple items.</p>
-                <p><span className="text-white/80 font-medium">Resize handles</span> — Drag corners to scale elements & strokes proportionally.</p>
-                <p><span className="text-white/80 font-medium">Rotation handle</span> — Drag the circular handle above an element for smooth 360° rotation.</p>
-                <p><span className="text-white/80 font-medium">R key</span> — Snap rotation through 8 directions (0°, 45°, 90°…315°).</p>
-                <p><span className="text-white/80 font-medium">Alt + Drag</span> — Duplicate selected elements on the fly.</p>
-                <p><span className="text-white/80 font-medium">Group / Ungroup</span> — Combine elements to move as one unit.</p>
-                <p><span className="text-white/80 font-medium">Mesh</span> — Rigidly attach elements into a static movable unit (amber dot indicator).</p>
-                <p><span className="text-white/80 font-medium">Link / Unlink</span> — Create visual connections between cards.</p>
+            <div className="rounded-xl bg-white/[0.03] p-3 sm:p-4 hover:bg-white/[0.05] transition-colors">
+              <h3 className="text-xs sm:text-sm font-semibold text-amber-400 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="rounded-lg bg-amber-500/10 p-1"><MousePointer className="h-3.5 w-3.5 text-amber-400" /></span>
+                Selection & Transform
+              </h3>
+              <div className="space-y-1.5 text-[10px] sm:text-[11px] text-white/45">
+                <p><span className="text-white/75 font-medium">Click</span> — Select element or stroke</p>
+                <p><span className="text-white/75 font-medium">Marquee drag</span> — Multi-select rectangle</p>
+                <p><span className="text-white/75 font-medium">Resize handles</span> — Scale proportionally</p>
+                <p><span className="text-white/75 font-medium">Rotation handle</span> — Smooth 360° rotation</p>
+                <p><span className="text-white/75 font-medium">R key</span> — 8-direction snap (45° steps)</p>
+                <p><span className="text-white/75 font-medium">Alt+Drag</span> — Duplicate on the fly</p>
+                <p><span className="text-white/75 font-medium">Group / Ungroup</span> — Move as one unit</p>
+                <p><span className="text-white/75 font-medium">Mesh</span> — Rigid attach (amber indicator)</p>
+                <p><span className="text-white/75 font-medium">Link / Unlink</span> — Visual card connections</p>
               </div>
             </div>
 
             {/* Text Editing */}
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-              <h3 className="text-sm font-semibold text-pink-400 mb-3">✏️ Text Editing</h3>
-              <div className="space-y-2 text-[11px] text-white/50">
-                <p><span className="text-white/80 font-medium">Font Family</span> — 9 font families available (Inter, Playfair, JetBrains Mono, etc).</p>
-                <p><span className="text-white/80 font-medium">Font Size</span> — 15 preset sizes from 10px to 72px.</p>
-                <p><span className="text-white/80 font-medium">Bold / Italic / Underline / Strikethrough</span> — Standard formatting toggles.</p>
-                <p><span className="text-white/80 font-medium">Text Align</span> — Left, Center, Right alignment.</p>
-                <p><span className="text-white/80 font-medium">Text Transform</span> — Normal (Aa), UPPERCASE (AA), lowercase (aa), Capitalize (Ab).</p>
-                <p><span className="text-white/80 font-medium">Letter Spacing</span> — Fine-tune character spacing (-2px to 10px).</p>
-                <p><span className="text-white/80 font-medium">Line Height</span> — Adjust vertical line spacing (0.8 to 3.0).</p>
-                <p><span className="text-white/80 font-medium">Opacity</span> — Control text transparency (0% to 100%).</p>
+            <div className="rounded-xl bg-white/[0.03] p-3 sm:p-4 hover:bg-white/[0.05] transition-colors">
+              <h3 className="text-xs sm:text-sm font-semibold text-pink-400 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="rounded-lg bg-pink-500/10 p-1"><Type className="h-3.5 w-3.5 text-pink-400" /></span>
+                Text Editing
+              </h3>
+              <div className="space-y-1.5 text-[10px] sm:text-[11px] text-white/45">
+                <p><span className="text-white/75 font-medium">Font Family</span> — 9 families (Inter, Playfair, JetBrains...)</p>
+                <p><span className="text-white/75 font-medium">Font Size</span> — 15 presets (10px–72px)</p>
+                <p><span className="text-white/75 font-medium">B / I / U / S</span> — Bold, italic, underline, strikethrough</p>
+                <p><span className="text-white/75 font-medium">Align</span> — Left, center, right</p>
+                <p><span className="text-white/75 font-medium">Transform</span> — Aa, AA, aa, Ab modes</p>
+                <p><span className="text-white/75 font-medium">Letter Spacing</span> — -2px to 10px</p>
+                <p><span className="text-white/75 font-medium">Line Height</span> — 0.8 to 3.0</p>
+                <p><span className="text-white/75 font-medium">Opacity</span> — 0% to 100%</p>
               </div>
             </div>
 
-            {/* Canvas Features */}
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-              <h3 className="text-sm font-semibold text-cyan-400 mb-3">🗺️ Canvas & Navigation</h3>
-              <div className="space-y-2 text-[11px] text-white/50">
-                <p><span className="text-white/80 font-medium">Zoom</span> — Mouse wheel to zoom in/out. Speed configurable via "Spd" field.</p>
-                <p><span className="text-white/80 font-medium">Pan</span> — Hold Space + drag, or use the Pan tool, or middle-click drag.</p>
-                <p><span className="text-white/80 font-medium">Snap to Grid</span> — Toggle 20px grid snapping for precise placement.</p>
-                <p><span className="text-white/80 font-medium">Minimap</span> — Interactive overview in the corner for quick navigation.</p>
-                <p><span className="text-white/80 font-medium">Fit to View</span> — Auto-zoom to fit all content (Ctrl+1).</p>
-                <p><span className="text-white/80 font-medium">Scroll Lock</span> — Lock/unlock page scrolling for focused editing.</p>
-                <p><span className="text-white/80 font-medium">Custom Background</span> — Upload an image to replace the dot grid background.</p>
-                <p><span className="text-white/80 font-medium">Color Picker</span> — Custom HSV picker with HEX input for precise colors.</p>
+            {/* Canvas & Navigation */}
+            <div className="rounded-xl bg-white/[0.03] p-3 sm:p-4 hover:bg-white/[0.05] transition-colors">
+              <h3 className="text-xs sm:text-sm font-semibold text-cyan-400 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="rounded-lg bg-cyan-500/10 p-1"><MapIcon className="h-3.5 w-3.5 text-cyan-400" /></span>
+                Canvas & Navigation
+              </h3>
+              <div className="space-y-1.5 text-[10px] sm:text-[11px] text-white/45">
+                <p><span className="text-white/75 font-medium">Zoom</span> — Mouse wheel, configurable speed</p>
+                <p><span className="text-white/75 font-medium">Pan</span> — Space+drag, Pan tool, middle-click</p>
+                <p><span className="text-white/75 font-medium">Snap to Grid</span> — 20px precision snapping</p>
+                <p><span className="text-white/75 font-medium">Minimap</span> — Interactive overview navigation</p>
+                <p><span className="text-white/75 font-medium">Fit to View</span> — Auto-zoom all content (Ctrl+1)</p>
+                <p><span className="text-white/75 font-medium">Scroll Lock</span> — Lock/unlock page scrolling</p>
+                <p><span className="text-white/75 font-medium">Custom BG</span> — Upload background image</p>
+                <p><span className="text-white/75 font-medium">Color Picker</span> — HSV picker with HEX input</p>
               </div>
             </div>
 
             {/* Export & Sharing */}
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-              <h3 className="text-sm font-semibold text-purple-400 mb-3">📤 Export & Sharing</h3>
-              <div className="space-y-2 text-[11px] text-white/50">
-                <p><span className="text-white/80 font-medium">Export Board (Ctrl+E)</span> — Advanced export with format, resolution, scope, and background options.</p>
-                <p><span className="text-white/80 font-medium">PNG</span> — Raster export at 1x–4x resolution (Retina/Ultra). Custom background color.</p>
-                <p><span className="text-white/80 font-medium">SVG</span> — Lossless vector export for infinite scaling.</p>
-                <p><span className="text-white/80 font-medium">JSON</span> — Full data backup of all elements, strokes, and settings.</p>
-                <p><span className="text-white/80 font-medium">CSV</span> — Spreadsheet-compatible for Google Sheets, Excel, LibreOffice.</p>
-                <p><span className="text-white/80 font-medium">Export All / Selected</span> — Push content cards to Content drafts.</p>
-                <p><span className="text-white/80 font-medium">Push to Platforms</span> — Send content directly to connected social platforms.</p>
-                <p><span className="text-white/80 font-medium">AI Evolve</span> — Select 2+ cards and use AI to synthesize improved content.</p>
+            <div className="rounded-xl bg-white/[0.03] p-3 sm:p-4 hover:bg-white/[0.05] transition-colors">
+              <h3 className="text-xs sm:text-sm font-semibold text-purple-400 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="rounded-lg bg-purple-500/10 p-1"><Download className="h-3.5 w-3.5 text-purple-400" /></span>
+                Export & Sharing
+              </h3>
+              <div className="space-y-1.5 text-[10px] sm:text-[11px] text-white/45">
+                <p><span className="text-white/75 font-medium">Export Board</span> — Format, resolution, scope, background</p>
+                <p><span className="text-white/75 font-medium">PNG</span> — 1x–4x resolution (Retina/Ultra)</p>
+                <p><span className="text-white/75 font-medium">SVG</span> — Lossless vector export</p>
+                <p><span className="text-white/75 font-medium">JSON</span> — Full backup of everything</p>
+                <p><span className="text-white/75 font-medium">CSV</span> — Sheets, Excel, LibreOffice</p>
+                <p><span className="text-white/75 font-medium">Push to Platforms</span> — Direct social publish</p>
+                <p><span className="text-white/75 font-medium">AI Evolve</span> — Synthesize 2+ cards with AI</p>
               </div>
             </div>
 
             {/* Media Support */}
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-              <h3 className="text-sm font-semibold text-orange-400 mb-3">🎬 Media Support</h3>
-              <div className="space-y-2 text-[11px] text-white/50">
-                <p><span className="text-white/80 font-medium">Images</span> — Import PNG, JPG, WebP, SVG with full-quality preview on canvas.</p>
-                <p><span className="text-white/80 font-medium">Videos</span> — Import MP4, WebM with playback controls directly on canvas.</p>
-                <p><span className="text-white/80 font-medium">Audio</span> — Import MP3, WAV, OGG with inline audio player.</p>
-                <p><span className="text-white/80 font-medium">GIFs</span> — Animated GIF support with live preview.</p>
-                <p><span className="text-white/80 font-medium">All media</span> — Can be selected, moved, resized, rotated, grouped, and exported.</p>
+            <div className="rounded-xl bg-white/[0.03] p-3 sm:p-4 hover:bg-white/[0.05] transition-colors">
+              <h3 className="text-xs sm:text-sm font-semibold text-orange-400 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="rounded-lg bg-orange-500/10 p-1"><Film className="h-3.5 w-3.5 text-orange-400" /></span>
+                Media Support
+              </h3>
+              <div className="space-y-1.5 text-[10px] sm:text-[11px] text-white/45">
+                <p><span className="text-white/75 font-medium">Images</span> — PNG, JPG, WebP, SVG with preview</p>
+                <p><span className="text-white/75 font-medium">Videos</span> — MP4, WebM with playback</p>
+                <p><span className="text-white/75 font-medium">Audio</span> — MP3, WAV, OGG inline player</p>
+                <p><span className="text-white/75 font-medium">GIFs</span> — Animated live preview</p>
+                <p><span className="text-white/75 font-medium">All media</span> — Move, resize, rotate, group, export</p>
               </div>
             </div>
 
-            {/* Auto-save */}
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-              <h3 className="text-sm font-semibold text-green-400 mb-3">💾 Saving & History</h3>
-              <div className="space-y-2 text-[11px] text-white/50">
-                <p><span className="text-white/80 font-medium">Auto-save</span> — Board saves every 2.5 seconds when changes are detected.</p>
-                <p><span className="text-white/80 font-medium">Manual Save</span> — Ctrl+S to save immediately. Green dot = saved, amber = unsaved.</p>
-                <p><span className="text-white/80 font-medium">Undo/Redo</span> — 80-step history with Ctrl+Z / Ctrl+Shift+Z.</p>
-                <p><span className="text-white/80 font-medium">Clear Board</span> — Remove all elements and strokes to start fresh.</p>
-                <p><span className="text-white/80 font-medium">Clear Ink</span> — Remove only pen/eraser strokes, keeping elements.</p>
+            {/* Saving & History */}
+            <div className="rounded-xl bg-white/[0.03] p-3 sm:p-4 hover:bg-white/[0.05] transition-colors">
+              <h3 className="text-xs sm:text-sm font-semibold text-green-400 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="rounded-lg bg-green-500/10 p-1"><Save className="h-3.5 w-3.5 text-green-400" /></span>
+                Saving & History
+              </h3>
+              <div className="space-y-1.5 text-[10px] sm:text-[11px] text-white/45">
+                <p><span className="text-white/75 font-medium">Auto-save</span> — Every 2.5s on changes</p>
+                <p><span className="text-white/75 font-medium">Manual Save</span> — Ctrl+S (green/amber dot)</p>
+                <p><span className="text-white/75 font-medium">Undo/Redo</span> — 80-step history</p>
+                <p><span className="text-white/75 font-medium">Clear Board</span> — Remove everything</p>
+                <p><span className="text-white/75 font-medium">Clear Ink</span> — Strokes only</p>
               </div>
             </div>
 
-            {/* Alignment */}
-            <div className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
-              <h3 className="text-sm font-semibold text-indigo-400 mb-3">📐 Alignment & Layout</h3>
-              <div className="space-y-2 text-[11px] text-white/50">
-                <p><span className="text-white/80 font-medium">Align tools</span> — Select 2+ elements to reveal alignment buttons (Left, Right, Top, Bottom, Center H/V).</p>
-                <p><span className="text-white/80 font-medium">Auto Arrange</span> — Automatically layout all elements in a grid pattern.</p>
-                <p><span className="text-white/80 font-medium">Inspector panel</span> — View and edit precise position, size, rotation, and properties of selected elements.</p>
+            {/* Alignment & Layout */}
+            <div className="rounded-xl bg-white/[0.03] p-3 sm:p-4 hover:bg-white/[0.05] transition-colors">
+              <h3 className="text-xs sm:text-sm font-semibold text-indigo-400 mb-2 sm:mb-3 flex items-center gap-2">
+                <span className="rounded-lg bg-indigo-500/10 p-1"><AlignCenterHorizontal className="h-3.5 w-3.5 text-indigo-400" /></span>
+                Alignment & Layout
+              </h3>
+              <div className="space-y-1.5 text-[10px] sm:text-[11px] text-white/45">
+                <p><span className="text-white/75 font-medium">Align tools</span> — Left, Right, Top, Bottom, Center</p>
+                <p><span className="text-white/75 font-medium">Auto Arrange</span> — Grid layout all elements</p>
+                <p><span className="text-white/75 font-medium">Inspector</span> — Edit position, size, rotation</p>
               </div>
             </div>
+
           </div>
         </DialogContent>
       </Dialog>
