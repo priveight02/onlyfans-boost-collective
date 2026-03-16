@@ -2640,7 +2640,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                   </button>
                 ))}
                 <div className="h-px bg-white/[0.06] my-1" />
-                {ctxMenu.elementId && (
+                {(ctxMenu.elementId || ctxMenu.strokeId) && (
                   <>
                     <button type="button" onClick={() => { bringToFront(); setCtxMenu(null); }}
                       className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06]">⤒ Bring to Front</button>
