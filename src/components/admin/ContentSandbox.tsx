@@ -468,7 +468,7 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
       {el.kind === "media" && el.mediaUrl && (
         <div className="h-full w-full overflow-hidden" onPointerDown={e => e.stopPropagation()}>
           {(el.mediaType === "image" || el.mediaType === "gif") && (
-            <img src={el.mediaUrl} alt={el.mediaName || "media"} className="h-full w-full object-fill" draggable={false} />
+            <img src={el.mediaUrl} alt={el.mediaName || "media"} className="h-full w-full object-contain" draggable={false} style={{ imageRendering: "auto" }} />
           )}
           {el.mediaType === "video" && (
             <video src={el.mediaUrl} controls playsInline preload="metadata" className="h-full w-full object-fill" />
