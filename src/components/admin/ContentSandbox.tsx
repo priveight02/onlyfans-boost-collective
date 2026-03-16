@@ -2248,7 +2248,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
             backgroundRepeat: canvasBgImage ? "no-repeat" : undefined,
           }}
         >
-          <canvas ref={canvasRef} className="absolute inset-0 h-full w-full pointer-events-none" />
+          <canvas ref={canvasRef} className="absolute inset-0 h-full w-full pointer-events-none" style={{ zIndex: 500 }} />
           {/* Marquee selection rectangle */}
           {marqueeRect && marqueeRect.w > 2 && marqueeRect.h > 2 && (
             <div className="absolute pointer-events-none border-2 border-blue-400/60 bg-blue-400/10 rounded-sm" style={{
