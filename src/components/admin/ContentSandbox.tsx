@@ -2128,7 +2128,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               zIndex: 999999,
             }} />
           )}
-          <div className="absolute inset-0" style={{ transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0" }}>
+          <div className="absolute inset-0" style={{ transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased" }}>
             {ordered.map(el => (
               <ElementView key={el.id} el={el} selected={selectedIds.has(el.id)} linkSrc={linkSourceId === el.id}
                 onDown={handleElDown} onResize={handleResizeDown} onTextChange={(id, v) => updateEl(id, { text: v })} onRotate={handleRotateDown} />
