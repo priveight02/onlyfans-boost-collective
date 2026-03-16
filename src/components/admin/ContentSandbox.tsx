@@ -1731,82 +1731,105 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     finally { setSavingBack(false); }
   }, [onRefresh, primaryEl]);
 
-  /* ─── AI Evolver v3 ─── */
+  /* ─── AI Evolver v4 — Multi-element creative engine ─── */
   const evolveSelectionRef = useRef<SandboxElement[]>([]);
 
   const evolve = useCallback(async () => {
-    // Snapshot selection BEFORE any async work so board clicks can't clear it
     const sel = evolveSelectionRef.current.length > 0
       ? evolveSelectionRef.current
       : elsRef.current.filter(e => selRef.current.has(e.id));
-    if (sel.length < 2) { toast.error("Select 2 or more elements to evolve"); return; }
-
-    // Store snapshot so re-renders don't lose it
+    if (sel.length < 2) { toast.error("Select 2+ elements to evolve"); return; }
     evolveSelectionRef.current = sel;
     setEvolving(true);
 
     try {
-      // Build rich context from each element
       const elementDescriptions = sel.map((e, i) => {
-        const parts: string[] = [`--- Element ${i + 1} (${e.kind}) ---`];
+        const parts: string[] = [`[Element ${i + 1} — ${e.kind}]`];
         if (e.kind === "content" && e.data) {
           parts.push(`Title: ${e.data.title || "Untitled"}`);
           parts.push(`Platform: ${e.data.platform || "instagram"}`);
           parts.push(`Type: ${e.data.content_type || "post"}`);
           parts.push(`Caption: ${e.data.caption || "(empty)"}`);
-          if (e.data.hashtags?.length) parts.push(`Hashtags: ${e.data.hashtags.join(", ")}`);
+          if (e.data.hashtags?.length) parts.push(`Hashtags: #${e.data.hashtags.join(" #")}`);
           if (e.data.cta) parts.push(`CTA: ${e.data.cta}`);
-          if (e.annotation) parts.push(`Creator notes: ${e.annotation}`);
         } else if (e.kind === "note") {
-          parts.push(`Note content: ${e.text || "(empty note)"}`);
+          parts.push(`Note: "${e.text || "(empty)"}"`);
         } else if (e.kind === "text") {
-          parts.push(`Text content: ${e.text || "(empty text)"}`);
+          parts.push(`Text: "${e.text || "(empty)"}"`);
         } else if (e.kind === "media") {
-          parts.push(`Media URL: ${e.mediaUrl || "none"}`);
-          if (e.annotation) parts.push(`Notes: ${e.annotation}`);
+          parts.push(`Media: ${e.mediaUrl || "none"} (${e.mediaType || "image"})`);
         } else {
-          parts.push(`Shape: ${e.shape || "rectangle"}, Color: ${e.color}`);
-          if (e.annotation) parts.push(`Notes: ${e.annotation}`);
+          parts.push(`Visual: ${e.shape || "rectangle"} (${e.color})`);
         }
+        if (e.annotation) parts.push(`Notes: ${e.annotation}`);
         return parts.join("\n");
       }).join("\n\n");
 
-      const userGoal = evolverPrompt || "Make it viral-worthy, strategic, creative, and ready to publish. Maximize engagement and business value.";
+      const userGoal = evolverPrompt || "Synthesize into something more creative, strategic, and impactful.";
       const targetPlatform = evolverPlatform || "instagram";
 
-      const systemPrompt = `You are a world-class creative director and content strategist. You're working inside a visual sandbox where creators arrange ideas, notes, and content cards.
+      const systemPrompt = `You are a legendary creative director working inside a visual sandbox canvas. You receive selected elements (content cards, sticky notes, text blocks, shapes, media) and your job is to EVOLVE them into something dramatically better.
 
-Your job: Take ${sel.length} selected elements and SYNTHESIZE them into ONE powerful, evolved content concept that combines the best ideas from all inputs.
+CRITICAL: You don't just create one boring content card. You CREATE A CONSTELLATION of diverse, interconnected elements that represent the evolved idea. Think like a creative moodboard — mix element types!
 
-CRITICAL RULES:
-- Actually READ and USE the content from every element — don't ignore them
-- The evolved concept must be meaningfully better than any individual input
-- Write a REAL, compelling caption (minimum 2-3 sentences) with hooks, value, and a CTA
-- Include specific, relevant hashtags (5-10)
-- The title should be catchy and specific, NOT generic like "Evolved concept"
-- Provide strategic notes about WHY this evolution works better
-- Think about scroll-stopping hooks, emotional triggers, and audience psychology`;
+You can output ANY combination of these element types:
+1. "content" — A polished content card ready to publish (with title, caption, hashtags, platform, etc.)
+2. "note" — A sticky note with strategic insights, brainstorm ideas, or creative directions
+3. "text" — A bold text headline, tagline, hook, or key phrase that stands alone visually
+4. "shape" — A visual element (rectangle, ellipse, diamond, triangle) with a color and annotation to represent concepts
 
-      const userPrompt = `Here are the ${sel.length} elements to evolve:
+RULES:
+- Generate 2-5 evolved elements (NOT always just one card!)
+- At least ONE must be a "content" card if any inputs were content
+- Add strategic "note" elements with insights about WHY this direction works
+- Add "text" elements for killer hooks, taglines, or key phrases
+- Add "shape" elements as visual markers or concept containers
+- Every element must have REAL, THOUGHTFUL, SPECIFIC content — never generic placeholders
+- The content card caption must be FULL (3+ sentences minimum), with a hook, value, and CTA
+- Hashtags should be specific and relevant (5-10)
+- Be creative and unexpected — surprise the creator with angles they didn't see
+- Each element should feel like it belongs on a professional creative moodboard`;
+
+      const userPrompt = `SELECTED ELEMENTS TO EVOLVE:
 
 ${elementDescriptions}
 
-Creator's goal: ${userGoal}
-Target platform: ${targetPlatform}
+CREATOR'S DIRECTION: ${userGoal}
+TARGET PLATFORM: ${targetPlatform}
 
-SYNTHESIZE these into one incredible content piece. Return ONLY valid JSON with ALL fields filled with real, thoughtful content:
-{
-  "title": "A specific, catchy title (not generic)",
-  "caption": "A full, engaging caption with hook + value + CTA (minimum 3 sentences)",
-  "platform": "${targetPlatform}",
-  "content_type": "post|reel|story|carousel|tweet|promo",
-  "hashtags": ["relevant", "specific", "hashtags", "minimum5"],
-  "evolution_notes": "Strategic explanation of why this evolution is stronger",
-  "viral_score": 85,
-  "hook": "The scroll-stopping opening line",
-  "cta": "Specific call to action",
-  "angle": "The unique creative angle used"
-}`;
+Generate an evolved constellation of 2-5 diverse elements. Return ONLY a valid JSON array:
+[
+  {
+    "kind": "content",
+    "title": "Specific catchy title",
+    "caption": "Full engaging caption (3+ sentences with hook, value, CTA)",
+    "platform": "${targetPlatform}",
+    "content_type": "post|reel|story|carousel",
+    "hashtags": ["specific", "relevant", "tags"],
+    "viral_score": 88,
+    "hook": "Scroll-stopping opening",
+    "cta": "Clear call to action",
+    "angle": "Creative angle"
+  },
+  {
+    "kind": "note",
+    "text": "Strategic insight about why this direction works and how to maximize impact...",
+    "color": "#f59e0b"
+  },
+  {
+    "kind": "text",
+    "text": "A KILLER HEADLINE OR TAGLINE",
+    "color": "#8b5cf6"
+  },
+  {
+    "kind": "shape",
+    "shape": "diamond",
+    "color": "#ec4899",
+    "annotation": "Core concept this represents"
+  }
+]
+
+Be creative with the mix! Don't just return one content card. Return the JSON array only.`;
 
       const { data, error } = await supabase.functions.invoke("agency-copilot", {
         body: {
@@ -1814,81 +1837,128 @@ SYNTHESIZE these into one incredible content piece. Return ONLY valid JSON with 
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          skipTools: true, // bypass CRM tool calling for this request
+          skipTools: true,
         },
       });
       if (error) throw error;
 
-      // Robust parsing — handle various response shapes
-      let evolved: any = {};
+      // Parse response — expect an array of elements
+      let evolvedItems: any[] = [];
       try {
-        evolved = parseAi(data);
-      } catch {
-        evolved = {};
-      }
+        const rawText = typeof data === "string" ? data
+          : typeof data === "object" && data !== null && "choices" in data
+            ? (data as any)?.choices?.[0]?.message?.content || JSON.stringify(data)
+            : JSON.stringify(data ?? "");
+        const cleaned = rawText.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
 
-      // Validate we got real content, not empty fallback
-      if (!evolved.title || evolved.title === "Evolved concept" || !evolved.caption || evolved.caption.length < 10) {
-        // Try parsing the raw data differently
-        const rawText = typeof data === "string" ? data : JSON.stringify(data);
-        const jsonMatch = rawText.match(/\{[\s\S]*"title"[\s\S]*"caption"[\s\S]*\}/);
-        if (jsonMatch) {
-          try {
-            evolved = JSON.parse(jsonMatch[0].replace(/,\s*([}\]])/g, "$1"));
-          } catch {
-            // Keep whatever we had
+        // Try array first
+        const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+        if (arrMatch) {
+          evolvedItems = JSON.parse(arrMatch[0].replace(/,\s*([}\]])/g, "$1"));
+        } else {
+          // Fallback: single object
+          const objMatch = cleaned.match(/\{[\s\S]*\}/);
+          if (objMatch) {
+            const single = JSON.parse(objMatch[0].replace(/,\s*([}\]])/g, "$1"));
+            evolvedItems = [single];
           }
         }
+      } catch (parseErr) {
+        console.error("Evolver parse error:", parseErr);
       }
 
-      // Final fallback with actual content from inputs
-      const inputTitles = sel.filter(e => e.data?.title).map(e => e.data!.title).join(" + ");
-      const inputCaptions = sel.filter(e => e.data?.caption).map(e => e.data!.caption).join(" | ");
-      if (!evolved.title || evolved.title === "Evolved concept") {
-        evolved.title = inputTitles ? `Evolution: ${inputTitles}` : "Evolved Concept";
-      }
-      if (!evolved.caption || evolved.caption.length < 10) {
-        evolved.caption = inputCaptions || "Combined concept from sandbox elements";
+      if (!evolvedItems.length) {
+        toast.error("AI returned empty results — try again");
+        return;
       }
 
       pushUndo();
 
-      const { data: newItem, error: ie } = await supabase.from("content_calendar").insert({
-        title: evolved.title,
-        caption: evolved.caption,
-        platform: (evolved.platform || targetPlatform).toLowerCase(),
-        content_type: evolved.content_type || "post",
-        hashtags: Array.isArray(evolved.hashtags) ? evolved.hashtags.map((t: string) => t.replace(/^#/, "")) : [],
-        status: "draft",
-        viral_score: Number(evolved.viral_score || 85),
-        description: evolved.evolution_notes || `Evolved from ${sel.length} sandbox elements`,
-        cta: evolved.cta || null,
-        metadata: {
-          source: "sandbox_evolver_v3",
-          evolved_from: sel.map(e => e.sourceItemId || e.id),
-          sandbox_prompt: evolverPrompt || null,
-          hook: evolved.hook,
-          cta: evolved.cta,
-          angle: evolved.angle,
-          input_count: sel.length,
-        },
-      }).select().single();
-      if (ie) throw ie;
-
-      const c = sel.reduce((a, e) => ({ x: a.x + e.x, y: a.y + e.y }), { x: 0, y: 0 });
-      const selIds = new Set(sel.map(e => e.id));
-      const evolved_el: SandboxElement = {
-        id: `sb-${crypto.randomUUID()}`, kind: "content",
-        x: c.x / sel.length, y: c.y / sel.length, width: 340, height: 240,
-        z: nextZ(elsRef.current), color: "#22c55e", links: [],
-        sourceItemId: newItem.id, data: newItem, annotation: evolved.evolution_notes || "", fontSize: 14,
+      // Calculate center of selection for placement
+      const bounds = {
+        minX: Math.min(...sel.map(e => e.x)),
+        minY: Math.min(...sel.map(e => e.y)),
+        maxX: Math.max(...sel.map(e => e.x + e.width)),
+        maxY: Math.max(...sel.map(e => e.y + e.height)),
       };
-      setElements(p => [...p.filter(e => !selIds.has(e.id)), evolved_el]);
-      setSelectedIds(new Set([evolved_el.id]));
+      const centerX = (bounds.minX + bounds.maxX) / 2;
+      const startY = bounds.maxY + 60; // Place below selected elements
+
+      const selIds = new Set(sel.map(e => e.id));
+      const newElements: SandboxElement[] = [];
+      let offsetX = centerX - ((evolvedItems.length - 1) * 180);
+      let offsetY = startY;
+      let z = nextZ(elsRef.current);
+
+      for (const item of evolvedItems) {
+        const id = `sb-${crypto.randomUUID()}`;
+        const kind = item.kind || "content";
+        const color = item.color || (kind === "content" ? "#22c55e" : kind === "note" ? "#f59e0b" : kind === "text" ? "#8b5cf6" : "#ec4899");
+
+        if (kind === "content") {
+          // Save to content_calendar
+          const { data: newItem, error: ie } = await supabase.from("content_calendar").insert({
+            title: item.title || "Evolved Content",
+            caption: item.caption || "",
+            platform: (item.platform || targetPlatform).toLowerCase(),
+            content_type: item.content_type || "post",
+            hashtags: Array.isArray(item.hashtags) ? item.hashtags.map((t: string) => t.replace(/^#/, "")) : [],
+            status: "draft",
+            viral_score: Number(item.viral_score || 85),
+            description: item.angle || `Evolved from ${sel.length} elements`,
+            cta: item.cta || null,
+            metadata: {
+              source: "sandbox_evolver_v4",
+              evolved_from: sel.map(e => e.sourceItemId || e.id),
+              hook: item.hook, cta: item.cta, angle: item.angle,
+            },
+          }).select().single();
+
+          if (!ie && newItem) {
+            newElements.push({
+              id, kind: "content", x: offsetX, y: offsetY, width: 340, height: 240,
+              z: z++, color, links: [], sourceItemId: newItem.id, data: newItem,
+              annotation: item.angle || "", fontSize: 14,
+            });
+          }
+        } else if (kind === "note") {
+          newElements.push({
+            id, kind: "note", x: offsetX, y: offsetY, width: 220, height: 160,
+            z: z++, color, links: [], text: item.text || "Strategic note", fontSize: 13,
+          });
+        } else if (kind === "text") {
+          newElements.push({
+            id, kind: "text", x: offsetX, y: offsetY, width: 300, height: 60,
+            z: z++, color, links: [], text: item.text || "HEADLINE", fontSize: 24,
+            fontWeight: "bold",
+          });
+        } else if (kind === "shape") {
+          const shape = (["rectangle", "ellipse", "diamond", "triangle"].includes(item.shape) ? item.shape : "rectangle") as ShapeKind;
+          newElements.push({
+            id, kind: "shape", x: offsetX, y: offsetY, width: 140, height: 140,
+            z: z++, color, links: [], shape, annotation: item.annotation || "",
+          });
+        }
+
+        offsetX += 360;
+        if (offsetX > centerX + 700) { offsetX = centerX - 180; offsetY += 280; }
+      }
+
+      if (!newElements.length) {
+        toast.error("Evolution produced no usable elements — try again");
+        return;
+      }
+
+      // Keep originals, add evolved elements below them
+      setElements(p => [...p, ...newElements]);
+      setSelectedIds(new Set(newElements.map(e => e.id)));
       setEvolverPrompt("");
       evolveSelectionRef.current = [];
       onRefresh();
-      toast.success(`🧬 Evolved ${sel.length} elements into a stronger concept`);
+
+      const kinds = newElements.map(e => e.kind);
+      const summary = [...new Set(kinds)].map(k => `${kinds.filter(kk => kk === k).length} ${k}${kinds.filter(kk => kk === k).length > 1 ? "s" : ""}`).join(", ");
+      toast.success(`🧬 Evolved into ${newElements.length} elements: ${summary}`);
     } catch (err: any) {
       console.error("Evolver error:", err);
       toast.error(err.message || "Evolver failed");
