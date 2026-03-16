@@ -2377,9 +2377,14 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 {[
                   ["Ctrl+Z", "Undo"], ["Ctrl+Shift+Z", "Redo"], ["Ctrl+S", "Save"],
                   ["Ctrl+A", "Select all"], ["Ctrl+E", "Export dialog"], ["Ctrl+1", "Fit to view"],
+                  ["Ctrl+0", "Reset view"], ["Ctrl+D", "Duplicate"],
                   ["Del / Bksp", "Delete selected"], ["Esc", "Deselect / cancel"],
                   ["Arrows", "Nudge 1px"], ["Shift+Arrows", "Nudge 10px"],
-                  ["R", "Rotate 45° snap"], ["M", "Media tool"], ["Space", "Pan mode"],
+                  ["R", "Rotate 45° snap"], ["[ / ]", "Send back / Bring front"],
+                  ["Ctrl+Shift+F", "Flip horizontal"], ["Ctrl+Shift+C", "Center on canvas"],
+                  ["Ctrl+Shift+R", "Reset rotation"], ["Ctrl+Shift+M", "Match sizes"],
+                  ["Ctrl+Shift+B", "Send to back"],
+                  ["M", "Media tool"], ["Space", "Pan mode"],
                 ].map(([k, d]) => (
                   <div key={k} className="flex items-center justify-between gap-1.5">
                     <kbd className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] sm:text-[10px] text-white/60 font-mono shrink-0">{k}</kbd>
@@ -2419,13 +2424,16 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               <div className="space-y-1.5 text-[10px] sm:text-[11px] text-white/45">
                 <p><span className="text-white/75 font-medium">Click</span> — Select element or stroke</p>
                 <p><span className="text-white/75 font-medium">Marquee drag</span> — Multi-select rectangle</p>
-                <p><span className="text-white/75 font-medium">Resize handles</span> — Scale proportionally</p>
+                <p><span className="text-white/75 font-medium">Resize</span> — Unlimited scaling, no size limits</p>
                 <p><span className="text-white/75 font-medium">Rotation handle</span> — Smooth 360° rotation</p>
                 <p><span className="text-white/75 font-medium">R key</span> — 8-direction snap (45° steps)</p>
                 <p><span className="text-white/75 font-medium">Alt+Drag</span> — Duplicate on the fly</p>
-                <p><span className="text-white/75 font-medium">Group / Ungroup</span> — Move as one unit</p>
-                <p><span className="text-white/75 font-medium">Mesh</span> — Rigid attach (amber indicator)</p>
-                <p><span className="text-white/75 font-medium">Link / Unlink</span> — Visual card connections</p>
+                <p><span className="text-white/75 font-medium">Flip H/V</span> — Mirror selections</p>
+                <p><span className="text-white/75 font-medium">Center</span> — Center selection on viewport</p>
+                <p><span className="text-white/75 font-medium">Match Size</span> — Make all same size as first</p>
+                <p><span className="text-white/75 font-medium">Distribute</span> — Even spacing (3+ elements)</p>
+                <p><span className="text-white/75 font-medium">Reset Rotation</span> — Set angle to 0°</p>
+                <p><span className="text-white/75 font-medium">Front / Back</span> — Z-order layering</p>
               </div>
             </div>
 
@@ -2436,8 +2444,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 Text Editing
               </h3>
               <div className="space-y-1.5 text-[10px] sm:text-[11px] text-white/45">
-                <p><span className="text-white/75 font-medium">Font Family</span> — 9 families (Inter, Playfair, JetBrains...)</p>
-                <p><span className="text-white/75 font-medium">Font Size</span> — 15 presets (10px–72px)</p>
+                <p><span className="text-white/75 font-medium">Font Family</span> — 12 families available</p>
+                <p><span className="text-white/75 font-medium">Font Size</span> — 8px–144px presets</p>
                 <p><span className="text-white/75 font-medium">B / I / U / S</span> — Bold, italic, underline, strikethrough</p>
                 <p><span className="text-white/75 font-medium">Align</span> — Left, center, right</p>
                 <p><span className="text-white/75 font-medium">Transform</span> — Aa, AA, aa, Ab modes</p>
@@ -2459,9 +2467,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 <p><span className="text-white/75 font-medium">Snap to Grid</span> — 20px precision snapping</p>
                 <p><span className="text-white/75 font-medium">Minimap</span> — Interactive overview navigation</p>
                 <p><span className="text-white/75 font-medium">Fit to View</span> — Auto-zoom all content (Ctrl+1)</p>
-                <p><span className="text-white/75 font-medium">Scroll Lock</span> — Lock/unlock page scrolling</p>
+                <p><span className="text-white/75 font-medium">Reset View</span> — Back to default zoom (Ctrl+0)</p>
+                <p><span className="text-white/75 font-medium">Status Bar</span> — Live element count, cursor coords, selection info</p>
                 <p><span className="text-white/75 font-medium">Custom BG</span> — Upload background image</p>
-                <p><span className="text-white/75 font-medium">Color Picker</span> — HSV picker with HEX input</p>
+                <p><span className="text-white/75 font-medium">Color Picker</span> — HSV picker with HEX/RGB input</p>
               </div>
             </div>
 
@@ -2520,8 +2529,11 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               </h3>
               <div className="space-y-1.5 text-[10px] sm:text-[11px] text-white/45">
                 <p><span className="text-white/75 font-medium">Align tools</span> — Left, Right, Top, Bottom, Center</p>
+                <p><span className="text-white/75 font-medium">Distribute H/V</span> — Even spacing (3+ elements)</p>
                 <p><span className="text-white/75 font-medium">Auto Arrange</span> — Grid layout all elements</p>
                 <p><span className="text-white/75 font-medium">Inspector</span> — Edit position, size, rotation</p>
+                <p><span className="text-white/75 font-medium">Group / Ungroup</span> — Move as one unit</p>
+                <p><span className="text-white/75 font-medium">Mesh</span> — Rigid attach (amber indicator)</p>
               </div>
             </div>
 
