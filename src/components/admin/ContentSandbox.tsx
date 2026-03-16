@@ -90,6 +90,7 @@ interface SandboxSession {
   strokes: SandboxStroke[];
   viewport: Viewport;
   bg_image_url: string | null;
+  thumbnail_url: string | null;
   updated_at: string;
   is_active: boolean;
 }
@@ -930,20 +931,100 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     persistHistory();
   }, [persistHistory]);
 
+  /* ─── Generate thumbnail from current canvas ─── */
+  const generateThumbnail = useCallback(async (): Promise<string | null> => {
+    try {
+      const canvas = canvasRef.current;
+      const board = boardRef.current;
+      if (!canvas || !board) return null;
+      // Create a small offscreen canvas capturing the board
+      const thumbW = 320, thumbH = 200;
+      const offscreen = document.createElement("canvas");
+      offscreen.width = thumbW;
+      offscreen.height = thumbH;
+      const ctx = offscreen.getContext("2d");
+      if (!ctx) return null;
+      // Calculate bounds of all elements + strokes
+      const allEls = elsRef.current;
+      const allStks = strokesRef.current;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const e of allEls) { minX = Math.min(minX, e.x); minY = Math.min(minY, e.y); maxX = Math.max(maxX, e.x + e.width); maxY = Math.max(maxY, e.y + e.height); }
+      for (const s of allStks) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
+      if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 800; maxY = 600; }
+      const pad = 20;
+      minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+      const sceneW = maxX - minX || 1, sceneH = maxY - minY || 1;
+      const scale = Math.min(thumbW / sceneW, thumbH / sceneH);
+      const offX = (thumbW - sceneW * scale) / 2, offY = (thumbH - sceneH * scale) / 2;
+      // Background
+      ctx.fillStyle = "#1a1f2e";
+      ctx.fillRect(0, 0, thumbW, thumbH);
+      ctx.save();
+      ctx.translate(offX, offY);
+      ctx.scale(scale, scale);
+      ctx.translate(-minX, -minY);
+      // Draw strokes
+      for (const s of allStks) {
+        if (s.points.length < 2) continue;
+        ctx.strokeStyle = s.tool === "eraser" ? "#1a1f2e" : s.color;
+        ctx.lineWidth = s.size;
+        ctx.lineCap = "round"; ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(s.points[0].x, s.points[0].y);
+        for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
+        ctx.stroke();
+      }
+      // Draw element placeholders
+      for (const el of allEls) {
+        ctx.fillStyle = el.color + "33";
+        ctx.strokeStyle = el.color + "88";
+        ctx.lineWidth = 2;
+        if (el.kind === "media" && el.mediaUrl && el.mediaType === "image") {
+          ctx.fillStyle = "#334155";
+          ctx.fillRect(el.x, el.y, el.width, el.height);
+          // Draw a small image icon
+          ctx.fillStyle = "#94a3b8";
+          ctx.font = `${Math.min(el.width, el.height) * 0.3}px sans-serif`;
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText("🖼", el.x + el.width / 2, el.y + el.height / 2);
+        } else if (el.kind === "text") {
+          ctx.fillStyle = el.color || "#fff";
+          ctx.font = `${el.fontSize || 16}px sans-serif`;
+          ctx.textBaseline = "top";
+          ctx.fillText(el.text?.substring(0, 30) || "", el.x, el.y);
+        } else if (el.shape) {
+          ctx.fillRect(el.x, el.y, el.width, el.height);
+          ctx.strokeRect(el.x, el.y, el.width, el.height);
+        } else {
+          ctx.fillRect(el.x, el.y, el.width, el.height);
+          ctx.strokeRect(el.x, el.y, el.width, el.height);
+        }
+      }
+      ctx.restore();
+      return offscreen.toDataURL("image/jpeg", 0.6);
+    } catch { return null; }
+  }, []);
+
   /* ─── Save to DB ─── */
   const saveToDb = useCallback(async (sessionId?: string) => {
     const sid = sessionId || activeSandboxId;
     if (!sid) return;
     try {
+      const thumb = await generateThumbnail();
       await supabase.from("sandbox_sessions").update({
         elements: elsRef.current as any,
         strokes: strokesRef.current as any,
         viewport: vpRef.current as any,
         bg_image_url: canvasBgImage,
+        thumbnail_url: thumb,
         updated_at: new Date().toISOString(),
       } as any).eq("id", sid);
+      // Update local session thumbnail
+      if (thumb) {
+        setSandboxSessions(prev => prev.map(s => s.id === sid ? { ...s, thumbnail_url: thumb, elements: [...elsRef.current], strokes: [...strokesRef.current] } : s));
+      }
     } catch { /* noop */ }
-  }, [activeSandboxId, canvasBgImage]);
+  }, [activeSandboxId, canvasBgImage, generateThumbnail]);
 
   const save = useCallback(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 7, elements: elsRef.current, strokes: strokesRef.current }));
@@ -967,6 +1048,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         strokes: Array.isArray(s.strokes) ? s.strokes : [],
         viewport: s.viewport || DEFAULT_VIEWPORT,
         bg_image_url: s.bg_image_url,
+        thumbnail_url: s.thumbnail_url || null,
         updated_at: s.updated_at,
         is_active: s.is_active,
       }));
@@ -988,7 +1070,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         } as any).select().single();
         if (newSession) {
           const s = newSession as any;
-          const session: SandboxSession = { id: s.id, name: s.name, elements: els, strokes: stks, viewport: vpRef.current, bg_image_url: canvasBgImage, updated_at: s.updated_at, is_active: true };
+          const session: SandboxSession = { id: s.id, name: s.name, elements: els, strokes: stks, viewport: vpRef.current, bg_image_url: canvasBgImage, thumbnail_url: null, updated_at: s.updated_at, is_active: true };
           setSandboxSessions([session]);
           setActiveSandboxId(s.id);
         }
@@ -1046,7 +1128,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       undoStack.current = [];
       redoStack.current = [];
       setActiveSandboxId(s.id);
-      setSandboxSessions(prev => [{ id: s.id, name: s.name, elements: [], strokes: [], viewport: DEFAULT_VIEWPORT, bg_image_url: null, updated_at: s.updated_at, is_active: true }, ...prev.map(p => ({ ...p, is_active: false }))]);
+      setSandboxSessions(prev => [{ id: s.id, name: s.name, elements: [], strokes: [], viewport: DEFAULT_VIEWPORT, bg_image_url: null, thumbnail_url: null, updated_at: s.updated_at, is_active: true }, ...prev.map(p => ({ ...p, is_active: false }))]);
       toast.success(`Created "${s.name}"`);
     }
   }, [activeSandboxId, saveToDb, sandboxSessions.length]);
@@ -1085,16 +1167,53 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   /* ─── Delete sandbox ─── */
   const deleteSandbox = useCallback(async (sessionId: string) => {
-    if (sandboxSessions.length <= 1) { toast.error("Cannot delete the last sandbox"); return; }
     if (!confirm("Delete this sandbox permanently?")) return;
     await supabase.from("sandbox_sessions").delete().eq("id", sessionId);
     setSandboxSessions(prev => prev.filter(s => s.id !== sessionId));
     if (sessionId === activeSandboxId) {
       const remaining = sandboxSessions.filter(s => s.id !== sessionId);
-      if (remaining.length) switchSandbox(remaining[0].id);
+      if (remaining.length) {
+        switchSandbox(remaining[0].id);
+      } else {
+        // All deleted, create a fresh one
+        createSandbox("Main Sandbox");
+      }
     }
     toast.success("Sandbox deleted");
-  }, [activeSandboxId, sandboxSessions, switchSandbox]);
+  }, [activeSandboxId, sandboxSessions, switchSandbox, createSandbox]);
+
+  /* ─── Delete all sandboxes ─── */
+  const deleteAllSandboxes = useCallback(async () => {
+    if (!confirm("Delete ALL sandboxes permanently? This cannot be undone.")) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("sandbox_sessions").delete().eq("user_id", user.id);
+    setSandboxSessions([]);
+    setActiveSandboxId(null);
+    setElements([]);
+    setStrokes([]);
+    setCanvasBgImage(null);
+    setSelectedIds(new Set());
+    setSelectedStrokeIds(new Set());
+    undoStack.current = [];
+    redoStack.current = [];
+    // Create a fresh default sandbox
+    const { data: newSession } = await supabase.from("sandbox_sessions").insert({
+      user_id: user.id,
+      name: "Main Sandbox",
+      elements: [] as any,
+      strokes: [] as any,
+      viewport: DEFAULT_VIEWPORT as any,
+      is_active: true,
+    } as any).select().single();
+    if (newSession) {
+      const s = newSession as any;
+      setActiveSandboxId(s.id);
+      setViewport(DEFAULT_VIEWPORT);
+      setSandboxSessions([{ id: s.id, name: s.name, elements: [], strokes: [], viewport: DEFAULT_VIEWPORT, bg_image_url: null, thumbnail_url: null, updated_at: s.updated_at, is_active: true }]);
+    }
+    toast.success("All sandboxes deleted");
+  }, []);
 
   /* ─── Rename sandbox ─── */
   const renameSandbox = useCallback(async (sessionId: string, newName: string) => {
@@ -2296,9 +2415,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       <input ref={bgInputRef} type="file" accept="image/*" className="hidden"
         onChange={e => { if (e.target.files?.[0]) { handleBgImport(e.target.files[0]); e.target.value = ""; } }} />
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-white/6 bg-[hsl(222,30%,10%)] px-2 py-1.5">
+      <div className="flex items-center gap-1.5 rounded-xl border border-white/6 bg-[hsl(222,30%,10%)] px-2 py-1.5 overflow-x-auto flex-nowrap min-h-[36px]" style={{ scrollbarWidth: "none" }}>
         {/* Tools */}
-        <div className="flex items-center gap-px rounded-lg bg-white/4 p-px">
+        <div className="flex items-center gap-px rounded-lg bg-white/4 p-px shrink-0">
           {TOOL_ITEMS.map(t => (
             <button key={t.id} type="button" title={t.label} onClick={() => setTool(t.id)}
               className={cn("rounded-md px-1.5 py-1 transition-colors", tool === t.id ? "bg-blue-500/20 text-blue-400" : "text-white/40 hover:bg-white/6 hover:text-white/70")}>
@@ -2313,7 +2432,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         <ColorPicker color={activeColor} onChange={setActiveColor} />
 
         {/* Quick preset row */}
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 shrink-0">
           {["#ffffff", "#3b82f6", "#8b5cf6", "#ec4899", "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#64748b"].map(c => (
             <button key={c} type="button" onClick={() => setActiveColor(c)}
               className={cn("h-5 w-5 rounded-md border transition-transform", activeColor === c ? "border-white/60 scale-110" : "border-transparent hover:scale-105")}
@@ -2425,7 +2544,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         )}
 
         {/* Right side */}
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1 shrink-0">
           <button type="button" onClick={() => zoomTo(viewport.zoom - 0.15)} className="rounded-md p-1 text-white/40 hover:text-white/70"><ZoomOut className="h-3.5 w-3.5" /></button>
           <span className="min-w-[36px] text-center text-[10px] text-white/50">{Math.round(viewport.zoom * 100)}%</span>
           <button type="button" onClick={() => zoomTo(viewport.zoom + 0.15)} className="rounded-md p-1 text-white/40 hover:text-white/70"><ZoomIn className="h-3.5 w-3.5" /></button>
@@ -2448,58 +2567,13 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <button type="button" onClick={() => { save(); toast.success("Saved"); }} title="Ctrl+S" className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70">
             <Save className="h-3 w-3" /><span className="text-[10px]">Save</span>
           </button>
-          {/* Sandbox Switcher */}
-          <div className="relative">
-            <button type="button" onClick={() => setSandboxListOpen(p => !p)}
-              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70 border border-white/8 bg-white/4">
-              <FolderOpen className="h-3 w-3" />
-              <span className="text-[10px] max-w-[80px] truncate">{sandboxSessions.find(s => s.id === activeSandboxId)?.name || "Sandboxes"}</span>
-              <ChevronDown className="h-2.5 w-2.5" />
-            </button>
-            {sandboxListOpen && (
-              <div className="absolute top-full right-0 mt-1 rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-1.5 min-w-[220px] max-h-[300px] overflow-y-auto z-[9999]">
-                <div className="px-2 py-1 text-[9px] text-white/25 uppercase tracking-wider flex items-center justify-between">
-                  <span>Sandboxes ({sandboxSessions.length})</span>
-                  <button type="button" onClick={() => { createSandbox(); setSandboxListOpen(false); }} className="text-emerald-400/70 hover:text-emerald-400 flex items-center gap-0.5">
-                    <Plus className="h-3 w-3" /> New
-                  </button>
-                </div>
-                <div className="h-px bg-white/[0.06] my-0.5" />
-                {sandboxSessions.map(session => (
-                  <div key={session.id}
-                    className={cn("group flex items-center gap-1.5 rounded-lg px-2 py-1.5 cursor-pointer transition-all",
-                      session.id === activeSandboxId ? "bg-blue-500/10 ring-1 ring-blue-500/20" : "hover:bg-white/[0.04]")}
-                  >
-                    {renamingId === session.id ? (
-                      <input autoFocus value={renameValue}
-                        onChange={e => setRenameValue(e.target.value)}
-                        onBlur={() => { renameSandbox(session.id, renameValue); }}
-                        onKeyDown={e => { if (e.key === "Enter") renameSandbox(session.id, renameValue); if (e.key === "Escape") setRenamingId(null); }}
-                        className="flex-1 h-5 rounded border border-white/10 bg-white/5 px-1.5 text-[10px] text-white/80 outline-none"
-                        onClick={e => e.stopPropagation()} />
-                    ) : (
-                      <button type="button" onClick={() => { switchSandbox(session.id); setSandboxListOpen(false); }}
-                        className="flex-1 text-left min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", session.id === activeSandboxId ? "bg-blue-400" : "bg-white/15")} />
-                          <span className={cn("text-[11px] truncate", session.id === activeSandboxId ? "text-blue-300 font-medium" : "text-white/60")}>{session.name}</span>
-                        </div>
-                        <div className="text-[8px] text-white/20 pl-3">{new Date(session.updated_at).toLocaleDateString()} · {(session.elements?.length || 0)} els</div>
-                      </button>
-                    )}
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button type="button" onClick={e => { e.stopPropagation(); setRenamingId(session.id); setRenameValue(session.name); }}
-                        className="rounded p-0.5 text-white/30 hover:text-white/60 hover:bg-white/5"><Pencil className="h-2.5 w-2.5" /></button>
-                      {sandboxSessions.length > 1 && (
-                        <button type="button" onClick={e => { e.stopPropagation(); deleteSandbox(session.id); }}
-                          className="rounded p-0.5 text-red-400/30 hover:text-red-400/60 hover:bg-red-500/5"><Trash2 className="h-2.5 w-2.5" /></button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Sandbox Switcher - compact button only */}
+          <button type="button" onClick={() => setSandboxListOpen(p => !p)}
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70 border border-white/8 bg-white/4 shrink-0">
+            <FolderOpen className="h-3 w-3" />
+            <span className="text-[10px] max-w-[80px] truncate">{sandboxSessions.find(s => s.id === activeSandboxId)?.name || "Sandboxes"}</span>
+            <ChevronDown className="h-2.5 w-2.5" />
+          </button>
           <button type="button" onClick={() => setShowHelp(true)} className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:bg-white/8 hover:text-white/80" title="Help & Shortcuts">
             <HelpCircle className="h-3 w-3" /><span className="text-[10px]">Help</span>
           </button>
@@ -2653,6 +2727,75 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         )}
       </div>
 
+
+      {/* Sandbox List Floating Panel */}
+      {sandboxListOpen && (
+        <div className="absolute top-[90px] right-3 z-[9999] rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-2 w-[300px] max-h-[420px] overflow-hidden flex flex-col" style={{ position: "fixed", top: "120px", right: "20px" }}>
+          <div className="flex items-center justify-between px-1 pb-1.5 border-b border-white/[0.06]">
+            <span className="text-[10px] text-white/30 uppercase tracking-wider">Sandboxes ({sandboxSessions.length})</span>
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => { createSandbox(); }} className="text-emerald-400/70 hover:text-emerald-400 flex items-center gap-0.5 text-[10px] rounded px-1.5 py-0.5 hover:bg-emerald-500/10">
+                <Plus className="h-3 w-3" /> New
+              </button>
+              {sandboxSessions.length > 1 && (
+                <button type="button" onClick={() => { deleteAllSandboxes(); setSandboxListOpen(false); }} className="text-red-400/50 hover:text-red-400 flex items-center gap-0.5 text-[10px] rounded px-1.5 py-0.5 hover:bg-red-500/10">
+                  <Trash2 className="h-3 w-3" /> All
+                </button>
+              )}
+              <button type="button" onClick={() => setSandboxListOpen(false)} className="rounded p-0.5 text-white/30 hover:text-white/60 hover:bg-white/5">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+          <div className="overflow-y-auto flex-1 mt-1.5 space-y-1">
+            {sandboxSessions.map(session => (
+              <div key={session.id}
+                className={cn("group flex gap-2 rounded-lg p-1.5 cursor-pointer transition-all",
+                  session.id === activeSandboxId ? "bg-blue-500/10 ring-1 ring-blue-500/20" : "hover:bg-white/[0.04]")}
+              >
+                {/* Thumbnail preview */}
+                <div className="shrink-0 w-[72px] h-[45px] rounded-md overflow-hidden bg-[hsl(222,30%,12%)] border border-white/[0.06] flex items-center justify-center"
+                  onClick={() => { switchSandbox(session.id); setSandboxListOpen(false); }}>
+                  {session.thumbnail_url ? (
+                    <img src={session.thumbnail_url} alt={session.name} className="w-full h-full object-cover" draggable={false} />
+                  ) : (
+                    <div className="flex flex-col items-center gap-0.5">
+                      <Layers className="h-3 w-3 text-white/15" />
+                      <span className="text-[7px] text-white/15">{(session.elements?.length || 0)} els</span>
+                    </div>
+                  )}
+                </div>
+                {/* Info */}
+                <div className="flex-1 min-w-0">
+                  {renamingId === session.id ? (
+                    <input autoFocus value={renameValue}
+                      onChange={e => setRenameValue(e.target.value)}
+                      onBlur={() => renameSandbox(session.id, renameValue)}
+                      onKeyDown={e => { if (e.key === "Enter") renameSandbox(session.id, renameValue); if (e.key === "Escape") setRenamingId(null); }}
+                      className="w-full h-5 rounded border border-white/10 bg-white/5 px-1.5 text-[10px] text-white/80 outline-none"
+                      onClick={e => e.stopPropagation()} />
+                  ) : (
+                    <button type="button" onClick={() => { switchSandbox(session.id); setSandboxListOpen(false); }}
+                      className="w-full text-left min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", session.id === activeSandboxId ? "bg-blue-400" : "bg-white/15")} />
+                        <span className={cn("text-[11px] truncate", session.id === activeSandboxId ? "text-blue-300 font-medium" : "text-white/60")}>{session.name}</span>
+                      </div>
+                      <div className="text-[8px] text-white/20 pl-3 mt-0.5">{new Date(session.updated_at).toLocaleDateString()} · {(session.elements?.length || 0)} elements · {(session.strokes?.length || 0)} strokes</div>
+                    </button>
+                  )}
+                  <div className="flex items-center gap-0.5 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button type="button" onClick={e => { e.stopPropagation(); setRenamingId(session.id); setRenameValue(session.name); }}
+                      className="rounded px-1 py-0.5 text-[8px] text-white/30 hover:text-white/60 hover:bg-white/5">Rename</button>
+                    <button type="button" onClick={e => { e.stopPropagation(); deleteSandbox(session.id); }}
+                      className="rounded px-1 py-0.5 text-[8px] text-red-400/30 hover:text-red-400/60 hover:bg-red-500/5">Delete</button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Board + Inspector */}
       <div className={cn("flex gap-2 flex-1 min-h-0", showInspector ? "flex-col lg:flex-row" : "")}>
