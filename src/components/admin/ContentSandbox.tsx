@@ -2732,9 +2732,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                   ["Ctrl+0", "Reset view"], ["Ctrl+D", "Duplicate"],
                   ["Del / Bksp", "Delete selected"], ["Esc", "Deselect / cancel"],
                   ["Arrows", "Nudge 1px"], ["Shift+Arrows", "Nudge 10px"],
-                  ["R", "Rotate 45° snap"], ["[ / ]", "Send back / Bring front"],
-                  ["Ctrl+Shift+F", "Flip horizontal"], ["Ctrl+Shift+C", "Center on canvas"],
-                  ["Ctrl+Shift+R", "Reset rotation"], ["Ctrl+Shift+M", "Match sizes"],
+                   ["R", "Rotate 45° snap"], ["[", "Backward one"], ["]", "Forward one"],
+                   ["Shift+[", "Send to back"], ["Shift+]", "Bring to front"],
+                   ["Ctrl+Shift+F", "Flip horizontal"], ["Ctrl+Shift+C", "Center on canvas"],
+                   ["Ctrl+Shift+R", "Reset rotation"], ["Ctrl+Shift+M", "Match sizes"],
                   ["Ctrl+Shift+B", "Send to back"],
                   ["M", "Media tool"], ["Space", "Pan mode"],
                 ].map(([k, d]) => (
