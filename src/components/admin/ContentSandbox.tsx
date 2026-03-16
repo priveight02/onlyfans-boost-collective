@@ -2296,7 +2296,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, []);
 
   /* ─── Render element/board to blob ─── */
-  const renderToBlob = useCallback((scope: "element" | "selected" | "board", format: string): Promise<Blob | null> => {
+  const renderToBlob = useCallback((scope: "element" | "selected" | "board", format: string, overrideRes?: { w: number; h: number } | null): Promise<Blob | null> => {
     return new Promise((resolve) => {
       const els = scope === "element" && ctxMenu?.elementId
         ? elsRef.current.filter(e => e.id === ctxMenu.elementId)
@@ -2306,8 +2306,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       const stks = strokesRef.current;
       if (!els.length && !stks.length) { resolve(null); return; }
 
-      // Check if it's a single media element with original file
-      if (scope === "element" && els.length === 1 && els[0].kind === "media" && els[0].mediaUrl) {
+      // Check if it's a single media element with original file and no resolution override
+      if (!overrideRes && scope === "element" && els.length === 1 && els[0].kind === "media" && els[0].mediaUrl) {
         fetch(els[0].mediaUrl).then(r => r.blob()).then(resolve).catch(() => resolve(null));
         return;
       }
@@ -2317,17 +2317,38 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (scope === "board") { for (const s of stks) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); } }
       if (!isFinite(minX)) { resolve(null); return; }
       const pad = 20; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
-      const scale = 2;
-      const w = (maxX - minX) * scale, h = (maxY - minY) * scale;
+      
+      const sceneW = maxX - minX || 1, sceneH = maxY - minY || 1;
+      let canvasW: number, canvasH: number, renderScale: number;
+      
+      if (overrideRes) {
+        canvasW = overrideRes.w;
+        canvasH = overrideRes.h;
+        renderScale = Math.min(canvasW / sceneW, canvasH / sceneH);
+      } else {
+        renderScale = 2;
+        canvasW = sceneW * renderScale;
+        canvasH = sceneH * renderScale;
+      }
+      
       const offscreen = document.createElement("canvas");
-      offscreen.width = w; offscreen.height = h;
+      offscreen.width = canvasW; offscreen.height = canvasH;
       const ctx = offscreen.getContext("2d");
       if (!ctx) { resolve(null); return; }
       ctx.fillStyle = exportBg;
-      ctx.fillRect(0, 0, w, h);
+      ctx.fillRect(0, 0, canvasW, canvasH);
       ctx.save();
-      ctx.scale(scale, scale);
+      
+      if (overrideRes) {
+        const offX = (canvasW - sceneW * renderScale) / 2;
+        const offY = (canvasH - sceneH * renderScale) / 2;
+        ctx.translate(offX, offY);
+        ctx.scale(renderScale, renderScale);
+      } else {
+        ctx.scale(renderScale, renderScale);
+      }
       ctx.translate(-minX, -minY);
+      
       for (const s of stks) {
         if (s.points.length < 2) continue;
         ctx.beginPath(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = s.size;
