@@ -3080,13 +3080,18 @@ SYNTHESIZE these into one incredible content piece. Return ONLY valid JSON with 
                 <span className="text-[9px] max-w-[80px] truncate">{sandboxSessions.find(s => s.id === activeSandboxId)?.name || "Sandboxes"}</span>
                 <ChevronDown className="h-2.5 w-2.5" />
               </button>
-              {selectedIds.size >= 1 && (
+              {(selectedIds.size >= 2 || evolving) && (
                 <>
                   <div className="h-3 w-px bg-white/10" />
-                  <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); void evolve(); }} disabled={evolving}
+                  <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => {
+                    e.stopPropagation();
+                    // Snapshot selection before async call
+                    evolveSelectionRef.current = elsRef.current.filter(el => selRef.current.has(el.id));
+                    void evolve();
+                  }} disabled={evolving}
                     className="flex items-center gap-1 rounded-md bg-emerald-500/15 border border-emerald-500/25 px-2 py-0.5 text-[9px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50 pointer-events-auto transition-colors shrink-0">
                     {evolving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
-                    Evolve {selectedIds.size}
+                    {evolving ? "Evolving…" : `Evolve ${selectedIds.size}`}
                   </button>
                 </>
               )}
