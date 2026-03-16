@@ -2316,7 +2316,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       <input ref={bgInputRef} type="file" accept="image/*" className="hidden"
         onChange={e => { if (e.target.files?.[0]) { handleBgImport(e.target.files[0]); e.target.value = ""; } }} />
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-white/6 bg-[hsl(222,30%,10%)] px-2 py-1.5">
+      <div className="flex items-center gap-1.5 rounded-xl border border-white/6 bg-[hsl(222,30%,10%)] px-2 py-1.5 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent" style={{ flexWrap: "nowrap" }}>
         {/* Tools */}
         <div className="flex items-center gap-px rounded-lg bg-white/4 p-px">
           {TOOL_ITEMS.map(t => (
