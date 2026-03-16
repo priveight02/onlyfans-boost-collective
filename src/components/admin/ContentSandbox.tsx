@@ -315,6 +315,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [locked, setLocked] = useState(true);
   const [zoomSpeed, setZoomSpeed] = useState(1);
   const [marqueeRect, setMarqueeRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [selectedStrokeIds, setSelectedStrokeIds] = useState<Set<string>>(new Set());
+  const [snapToGrid, setSnapToGrid] = useState(false);
+  const [showMinimap, setShowMinimap] = useState(false);
+  const [mouseScene, setMouseScene] = useState<Point>({ x: 0, y: 0 });
+  const spaceHeldRef = useRef(false);
+  const selStrokesRef = useRef<Set<string>>(new Set());
 
   const HISTORY_KEY = STORAGE_KEY + "_history";
   const undoStack = useRef<SandboxSnapshot[]>([]);
