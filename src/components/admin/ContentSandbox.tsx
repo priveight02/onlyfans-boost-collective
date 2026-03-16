@@ -1117,11 +1117,14 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   const bringToFront = useCallback(() => {
     const ids = Array.from(selRef.current);
-    if (!ids.length) return;
+    const sids = Array.from(selStrokesRef.current);
+    if (!ids.length && !sids.length) return;
     pushUndo();
-    // Place above stroke canvas layer (z >= 1000)
-    let z = Math.max(1000, ...elsRef.current.map(e => e.z)) + 1;
-    setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
+    // Place elements above stroke canvas layer (z >= STROKE_Z + 1)
+    if (ids.length) {
+      let z = Math.max(STROKE_Z + 1, ...elsRef.current.map(e => e.z)) + 1;
+      setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
+    }
   }, [pushUndo]);
 
   const duplicateSel = useCallback(() => {
