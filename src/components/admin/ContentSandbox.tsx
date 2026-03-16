@@ -1167,16 +1167,53 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   /* ─── Delete sandbox ─── */
   const deleteSandbox = useCallback(async (sessionId: string) => {
-    if (sandboxSessions.length <= 1) { toast.error("Cannot delete the last sandbox"); return; }
     if (!confirm("Delete this sandbox permanently?")) return;
     await supabase.from("sandbox_sessions").delete().eq("id", sessionId);
     setSandboxSessions(prev => prev.filter(s => s.id !== sessionId));
     if (sessionId === activeSandboxId) {
       const remaining = sandboxSessions.filter(s => s.id !== sessionId);
-      if (remaining.length) switchSandbox(remaining[0].id);
+      if (remaining.length) {
+        switchSandbox(remaining[0].id);
+      } else {
+        // All deleted, create a fresh one
+        createSandbox("Main Sandbox");
+      }
     }
     toast.success("Sandbox deleted");
-  }, [activeSandboxId, sandboxSessions, switchSandbox]);
+  }, [activeSandboxId, sandboxSessions, switchSandbox, createSandbox]);
+
+  /* ─── Delete all sandboxes ─── */
+  const deleteAllSandboxes = useCallback(async () => {
+    if (!confirm("Delete ALL sandboxes permanently? This cannot be undone.")) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("sandbox_sessions").delete().eq("user_id", user.id);
+    setSandboxSessions([]);
+    setActiveSandboxId(null);
+    setElements([]);
+    setStrokes([]);
+    setCanvasBgImage(null);
+    setSelectedIds(new Set());
+    setSelectedStrokeIds(new Set());
+    undoStack.current = [];
+    redoStack.current = [];
+    // Create a fresh default sandbox
+    const { data: newSession } = await supabase.from("sandbox_sessions").insert({
+      user_id: user.id,
+      name: "Main Sandbox",
+      elements: [] as any,
+      strokes: [] as any,
+      viewport: DEFAULT_VIEWPORT as any,
+      is_active: true,
+    } as any).select().single();
+    if (newSession) {
+      const s = newSession as any;
+      setActiveSandboxId(s.id);
+      setViewport(DEFAULT_VIEWPORT);
+      setSandboxSessions([{ id: s.id, name: s.name, elements: [], strokes: [], viewport: DEFAULT_VIEWPORT, bg_image_url: null, thumbnail_url: null, updated_at: s.updated_at, is_active: true }]);
+    }
+    toast.success("All sandboxes deleted");
+  }, []);
 
   /* ─── Rename sandbox ─── */
   const renameSandbox = useCallback(async (sessionId: string, newName: string) => {
