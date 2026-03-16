@@ -671,6 +671,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [exportScope, setExportScope] = useState<"all" | "selected">("all");
   const [activeStamp, setActiveStamp] = useState("⭐");
   const [canvasBgImage, setCanvasBgImage] = useState<string | null>(null);
+  const [showHelp, setShowHelp] = useState(false);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const spaceHeldRef = useRef(false);
