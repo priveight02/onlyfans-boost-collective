@@ -1104,7 +1104,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     const ids = Array.from(selRef.current);
     if (!ids.length) return;
     pushUndo();
-    setElements(p => { let z = nextZ(p); return p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e); });
+    // Place above stroke canvas layer (z >= 1000)
+    let z = Math.max(1000, ...elsRef.current.map(e => e.z)) + 1;
+    setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
   }, [pushUndo]);
 
   const duplicateSel = useCallback(() => {
