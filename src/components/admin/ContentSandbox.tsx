@@ -375,7 +375,7 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
   return (
     <div
       className={cn("absolute", selected && "ring-2 ring-blue-400/80", linkSrc && "ring-2 ring-emerald-400")}
-      style={{ left: el.x, top: el.y, width: el.width, height: el.height, zIndex: el.z, opacity: el.opacity ?? 1, transform: rot ? `rotate(${rot}deg)` : undefined, transformOrigin: "center center", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased", imageRendering: "auto" }}
+      style={{ left: el.x, top: el.y, width: el.width, height: el.height, zIndex: el.z, opacity: el.opacity ?? 1, transform: rot ? `rotate(${rot}deg)` : undefined, transformOrigin: "center center", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased", imageRendering: "auto", pointerEvents: "auto" }}
       onPointerDown={e => onDown(e, el)}
     >
       {el.kind === "content" && el.data && (
