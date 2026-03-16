@@ -1584,6 +1584,18 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     }
   }, [pushUndo]);
 
+  /* ─── Helper: upload file to storage and return persistent URL ─── */
+  const uploadMediaToStorage = useCallback(async (file: File): Promise<string> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return URL.createObjectURL(file); // fallback
+    const ext = file.name.split(".").pop() || "bin";
+    const path = `sandbox-media/${user.id}/${Date.now()}_${crypto.randomUUID().slice(0, 8)}.${ext}`;
+    const { error } = await supabase.storage.from("copilot-media").upload(path, file, { contentType: file.type, cacheControl: "31536000" });
+    if (error) { console.warn("Upload failed, using blob URL", error); return URL.createObjectURL(file); }
+    const { data: urlData } = supabase.storage.from("copilot-media").getPublicUrl(path);
+    return urlData.publicUrl;
+  }, []);
+
   /* ─── Media import ─── */
   const handleMediaImport = useCallback((files: FileList) => {
     pushUndo();
@@ -1593,82 +1605,77 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     let importCount = 0;
 
     fileArr.forEach((file, i) => {
-      const url = URL.createObjectURL(file);
       let mediaType: "image" | "video" | "audio" | "gif" = "image";
       if (file.type.startsWith("video/")) mediaType = "video";
       else if (file.type.startsWith("audio/")) mediaType = "audio";
       else if (file.type === "image/gif") mediaType = "gif";
 
-      if (mediaType === "image" || mediaType === "gif") {
-        // Load actual image dimensions for full-quality sizing
-        const img = new Image();
-        img.onload = () => {
-          const maxDim = 800;
-          let w = img.naturalWidth, h = img.naturalHeight;
-          if (w > maxDim || h > maxDim) {
-            const scale = maxDim / Math.max(w, h);
-            w = Math.round(w * scale);
-            h = Math.round(h * scale);
-          }
+      // Upload to storage for persistence, then create element
+      uploadMediaToStorage(file).then(url => {
+        if (mediaType === "image" || mediaType === "gif") {
+          const img = new Image();
+          img.onload = () => {
+            const maxDim = 800;
+            let w = img.naturalWidth, h = img.naturalHeight;
+            if (w > maxDim || h > maxDim) { const scale = maxDim / Math.max(w, h); w = Math.round(w * scale); h = Math.round(h * scale); }
+            const el: SandboxElement = {
+              id: `sb-${crypto.randomUUID()}`, kind: "media",
+              x: center.x - w / 2 + i * 40, y: center.y - h / 2 + i * 40,
+              width: w, height: h, z: z + i, color: "#3b82f6", links: [], opacity: 1,
+              mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
+            };
+            setElements(p => [...p, el]);
+            setSelectedIds(prev => new Set([...prev, el.id]));
+            importCount++;
+            if (importCount === fileArr.length) toast.success(`${importCount} media file(s) imported`);
+          };
+          img.src = url;
+        } else if (mediaType === "video") {
+          const vid = document.createElement("video");
+          vid.preload = "metadata";
+          vid.onloadedmetadata = () => {
+            const maxDim = 800;
+            let w = vid.videoWidth || 640, h = vid.videoHeight || 360;
+            if (w > maxDim || h > maxDim) { const scale = maxDim / Math.max(w, h); w = Math.round(w * scale); h = Math.round(h * scale); }
+            const el: SandboxElement = {
+              id: `sb-${crypto.randomUUID()}`, kind: "media",
+              x: center.x - w / 2 + i * 40, y: center.y - h / 2 + i * 40,
+              width: w, height: h, z: z + i, color: "#3b82f6", links: [], opacity: 1,
+              mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
+            };
+            setElements(p => [...p, el]);
+            setSelectedIds(prev => new Set([...prev, el.id]));
+            importCount++;
+            if (importCount === fileArr.length) toast.success(`${importCount} media file(s) imported`);
+          };
+          vid.src = url;
+        } else {
           const el: SandboxElement = {
             id: `sb-${crypto.randomUUID()}`, kind: "media",
-            x: center.x - w / 2 + i * 40, y: center.y - h / 2 + i * 40,
-            width: w, height: h,
-            z: z + i, color: "#3b82f6", links: [], opacity: 1,
+            x: center.x - 150 + i * 40, y: center.y - 50 + i * 40,
+            width: 300, height: 100, z: z + i, color: "#3b82f6", links: [], opacity: 1,
             mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
           };
           setElements(p => [...p, el]);
           setSelectedIds(prev => new Set([...prev, el.id]));
           importCount++;
           if (importCount === fileArr.length) toast.success(`${importCount} media file(s) imported`);
-        };
-        img.src = url;
-      } else if (mediaType === "video") {
-        const vid = document.createElement("video");
-        vid.preload = "metadata";
-        vid.onloadedmetadata = () => {
-          const maxDim = 800;
-          let w = vid.videoWidth || 640, h = vid.videoHeight || 360;
-          if (w > maxDim || h > maxDim) {
-            const scale = maxDim / Math.max(w, h);
-            w = Math.round(w * scale);
-            h = Math.round(h * scale);
-          }
-          const el: SandboxElement = {
-            id: `sb-${crypto.randomUUID()}`, kind: "media",
-            x: center.x - w / 2 + i * 40, y: center.y - h / 2 + i * 40,
-            width: w, height: h,
-            z: z + i, color: "#3b82f6", links: [], opacity: 1,
-            mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
-          };
-          setElements(p => [...p, el]);
-          setSelectedIds(prev => new Set([...prev, el.id]));
-          importCount++;
-          if (importCount === fileArr.length) toast.success(`${importCount} media file(s) imported`);
-        };
-        vid.src = url;
-      } else {
-        // Audio
-        const el: SandboxElement = {
-          id: `sb-${crypto.randomUUID()}`, kind: "media",
-          x: center.x - 150 + i * 40, y: center.y - 50 + i * 40,
-          width: 300, height: 100,
-          z: z + i, color: "#3b82f6", links: [], opacity: 1,
-          mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
-        };
-        setElements(p => [...p, el]);
-        setSelectedIds(prev => new Set([...prev, el.id]));
-        importCount++;
-        if (importCount === fileArr.length) toast.success(`${importCount} media file(s) imported`);
-      }
+        }
+      });
     });
-  }, [pushUndo, getViewportCenter]);
+  }, [pushUndo, getViewportCenter, uploadMediaToStorage]);
 
   /* ─── Custom background ─── */
   const handleBgImport = useCallback((file: File) => {
-    const url = URL.createObjectURL(file);
-    setCanvasBgImage(url);
-    toast.success("Background set");
+    // Convert to data URL for localStorage persistence
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setCanvasBgImage(dataUrl);
+      try { localStorage.setItem("sandbox_bg_image", dataUrl); } catch { /* storage full */ }
+      toast.success("Background set");
+    };
+    reader.readAsDataURL(file);
   }, []);
 
   const handleBoardDown = useCallback((e: React.PointerEvent) => {
