@@ -2027,6 +2027,20 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               </div>
             );
           })()}
+          {/* Status bar */}
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-1 bg-[hsl(222,30%,6%)]/80 backdrop-blur-sm border-t border-white/5 text-[9px] text-white/35 pointer-events-none z-[999]">
+            <div className="flex items-center gap-3">
+              <span>{elements.length} elements · {strokes.length} strokes</span>
+              {selectedIds.size > 0 && <span className="text-blue-400/70">{selectedIds.size} selected</span>}
+              {selectedStrokeIds.size > 0 && <span className="text-blue-400/70">{selectedStrokeIds.size} strokes selected</span>}
+              {primaryEl && <span className="text-white/25">x:{Math.round(primaryEl.x)} y:{Math.round(primaryEl.y)} w:{Math.round(primaryEl.width)} h:{Math.round(primaryEl.height)}{primaryEl.rotation ? ` ${Math.round(primaryEl.rotation)}°` : ""}</span>}
+            </div>
+            <div className="flex items-center gap-3">
+              <span>cursor: {Math.round(mouseScene.x)}, {Math.round(mouseScene.y)}</span>
+              <span>{Math.round(viewport.zoom * 100)}%</span>
+              <span>{snapToGrid ? "⊞ Snap ON" : ""}</span>
+            </div>
+          </div>
         </div>
 
         {/* Inspector */}
