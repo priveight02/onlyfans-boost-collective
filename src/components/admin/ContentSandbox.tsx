@@ -152,7 +152,7 @@ const TOOL_ITEMS: { id: Tool; label: string; icon: any }[] = [
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 const center = (el: SandboxElement) => ({ x: el.x + el.width / 2, y: el.y + el.height / 2 });
-const nextZ = (els: SandboxElement[]) => (els.length ? Math.max(1000, ...els.map(e => e.z)) + 1 : 1000);
+const nextZ = (els: SandboxElement[]) => (els.length ? Math.max(STROKE_Z + 1, ...els.map(e => e.z)) + 1 : STROKE_Z + 1);
 const getSource = (item: any) => (typeof item?.metadata?.source === "string" ? item.metadata.source : "");
 const gridPos = (i: number, cols: number) => ({ x: 48 + (i % cols) * 312, y: 48 + Math.floor(i / cols) * 228 });
 
