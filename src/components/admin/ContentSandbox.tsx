@@ -1048,7 +1048,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       undoStack.current = [];
       redoStack.current = [];
       setActiveSandboxId(s.id);
-      setSandboxSessions(prev => [{ id: s.id, name: s.name, elements: [], strokes: [], viewport: DEFAULT_VIEWPORT, bg_image_url: null, updated_at: s.updated_at, is_active: true }, ...prev.map(p => ({ ...p, is_active: false }))]);
+      setSandboxSessions(prev => [{ id: s.id, name: s.name, elements: [], strokes: [], viewport: DEFAULT_VIEWPORT, bg_image_url: null, thumbnail_url: null, updated_at: s.updated_at, is_active: true }, ...prev.map(p => ({ ...p, is_active: false }))]);
       toast.success(`Created "${s.name}"`);
     }
   }, [activeSandboxId, saveToDb, sandboxSessions.length]);
