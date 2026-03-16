@@ -2664,28 +2664,28 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       </div>
 
       {/* Action bar */}
-      <div className="flex flex-wrap items-center gap-1">
-        <button type="button" onClick={() => setShowImport(true)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 hover:text-white/80">Import</button>
-        <button type="button" onClick={autoArrange} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 hover:text-white/80">Arrange</button>
-        <button type="button" onClick={duplicateSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Duplicate</button>
-        <button type="button" onClick={() => { if (selectedIds.size !== 1) { toast.info("Select one card"); return; } setLinkSourceId(p => p ? null : Array.from(selectedIds)[0]); }} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">{linkSourceId ? "Cancel link" : "Link"}</button>
-        <button type="button" onClick={() => { const ids = Array.from(selRef.current); if (!ids.length) return; pushUndo(); setElements(p => p.map(e => ({ ...e, links: ids.includes(e.id) ? [] : e.links.filter(l => !ids.includes(l)) }))); }} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Unlink</button>
-        <button type="button" onClick={groupSelected} disabled={selectedIds.size < 2} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Group</button>
-        <button type="button" onClick={ungroupSelected} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Ungroup</button>
+      <div className="flex flex-wrap items-center gap-0.5">
+        <button type="button" onClick={() => setShowImport(true)} className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8 hover:text-white/80">Import</button>
+        <button type="button" onClick={autoArrange} className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8 hover:text-white/80">Arrange</button>
+        <button type="button" onClick={duplicateSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8 disabled:opacity-30">Duplicate</button>
+        <button type="button" onClick={() => { if (selectedIds.size !== 1) { toast.info("Select one card"); return; } setLinkSourceId(p => p ? null : Array.from(selectedIds)[0]); }} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8 disabled:opacity-30">{linkSourceId ? "Cancel link" : "Link"}</button>
+        <button type="button" onClick={() => { const ids = Array.from(selRef.current); if (!ids.length) return; pushUndo(); setElements(p => p.map(e => ({ ...e, links: ids.includes(e.id) ? [] : e.links.filter(l => !ids.includes(l)) }))); }} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8 disabled:opacity-30">Unlink</button>
+        <button type="button" onClick={groupSelected} disabled={selectedIds.size < 2} className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8 disabled:opacity-30">Group</button>
+        <button type="button" onClick={ungroupSelected} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8 disabled:opacity-30">Ungroup</button>
 
         {/* Mesh attach/detach */}
-        <button type="button" onClick={meshAttach} disabled={selectedIds.size < 2} className="rounded-md border border-amber-500/15 bg-amber-500/5 px-2.5 py-1 text-[10px] text-amber-400/70 hover:bg-amber-500/10 disabled:opacity-30" title="Attach elements into a rigid mesh">
-          <Paperclip className="inline h-3 w-3 mr-0.5" />Mesh
+        <button type="button" onClick={meshAttach} disabled={selectedIds.size < 2} className="rounded-md border border-amber-500/15 bg-amber-500/5 px-2 py-0.5 text-[9px] text-amber-400/70 hover:bg-amber-500/10 disabled:opacity-30" title="Attach elements into a rigid mesh">
+          <Paperclip className="inline h-2.5 w-2.5 mr-0.5" />Mesh
         </button>
-        <button type="button" onClick={meshDetach} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Detach</button>
+        <button type="button" onClick={meshDetach} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8 disabled:opacity-30">Detach</button>
 
-        <button type="button" onClick={clearInk} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">Clear ink</button>
+        <button type="button" onClick={clearInk} className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8">Clear ink</button>
 
-        <div className="h-4 w-px bg-white/8" />
+        <div className="h-3.5 w-px bg-white/8" />
 
         {/* Convenience features */}
         <div className="relative">
-          <button type="button" onClick={() => setZOrderPopup(p => p === "forward" ? null : "forward")} disabled={!selectedIds.size} title="Bring Forward ( ] )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↑ Forward</button>
+          <button type="button" onClick={() => setZOrderPopup(p => p === "forward" ? null : "forward")} disabled={!selectedIds.size} title="Bring Forward ( ] )" className="rounded-md border border-white/8 bg-white/4 px-1.5 py-0.5 text-[9px] text-white/60 hover:bg-white/8 disabled:opacity-30">↑ Forward</button>
           {zOrderPopup === "forward" && (
             <div className="absolute bottom-full left-0 mb-1 rounded-lg bg-[hsl(222,35%,10%)] border border-white/[0.08] p-1 flex flex-col gap-0.5 min-w-[140px] z-[9999] shadow-xl backdrop-blur-xl">
               <button type="button" onClick={() => { bringForward(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-blue-400">↑</span> Push Forward</button>
@@ -2694,7 +2694,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           )}
         </div>
         <div className="relative">
-          <button type="button" onClick={() => setZOrderPopup(p => p === "backward" ? null : "backward")} disabled={!selectedIds.size} title="Send Backward ( [ )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↓ Backward</button>
+          <button type="button" onClick={() => setZOrderPopup(p => p === "backward" ? null : "backward")} disabled={!selectedIds.size} title="Send Backward ( [ )" className="rounded-md border border-white/8 bg-white/4 px-1.5 py-0.5 text-[9px] text-white/60 hover:bg-white/8 disabled:opacity-30">↓ Backward</button>
           {zOrderPopup === "backward" && (
             <div className="absolute bottom-full left-0 mb-1 rounded-lg bg-[hsl(222,35%,10%)] border border-white/[0.08] p-1 flex flex-col gap-0.5 min-w-[140px] z-[9999] shadow-xl backdrop-blur-xl">
               <button type="button" onClick={() => { sendBackward(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-orange-400">↓</span> Push Backward</button>
@@ -2702,23 +2702,23 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
             </div>
           )}
         </div>
-        <button type="button" onClick={() => flipSelected("h")} disabled={!selectedIds.size} title="Flip Horizontal (Ctrl+Shift+F)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⇔ Flip H</button>
-        <button type="button" onClick={() => flipSelected("v")} disabled={!selectedIds.size} title="Flip Vertical" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⇕ Flip V</button>
-        <button type="button" onClick={centerOnCanvas} disabled={!selectedIds.size} title="Center on Canvas (Ctrl+Shift+C)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⊙ Center</button>
-        <button type="button" onClick={resetRotation} disabled={!selectedIds.size && !selectedStrokeIds.size} title="Reset Rotation (Ctrl+Shift+R)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↺ 0°</button>
-        <button type="button" onClick={matchSize} disabled={selectedIds.size < 2} title="Match Size (Ctrl+Shift+M)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⊞ Match</button>
+        <button type="button" onClick={() => flipSelected("h")} disabled={!selectedIds.size} title="Flip Horizontal" className="rounded-md border border-white/8 bg-white/4 px-1.5 py-0.5 text-[9px] text-white/60 hover:bg-white/8 disabled:opacity-30">⇔ Flip H</button>
+        <button type="button" onClick={() => flipSelected("v")} disabled={!selectedIds.size} title="Flip Vertical" className="rounded-md border border-white/8 bg-white/4 px-1.5 py-0.5 text-[9px] text-white/60 hover:bg-white/8 disabled:opacity-30">⇕ Flip V</button>
+        <button type="button" onClick={centerOnCanvas} disabled={!selectedIds.size} title="Center on Canvas" className="rounded-md border border-white/8 bg-white/4 px-1.5 py-0.5 text-[9px] text-white/60 hover:bg-white/8 disabled:opacity-30">⊙ Center</button>
+        <button type="button" onClick={resetRotation} disabled={!selectedIds.size && !selectedStrokeIds.size} title="Reset Rotation" className="rounded-md border border-white/8 bg-white/4 px-1.5 py-0.5 text-[9px] text-white/60 hover:bg-white/8 disabled:opacity-30">↺ 0°</button>
+        <button type="button" onClick={matchSize} disabled={selectedIds.size < 2} title="Match Size" className="rounded-md border border-white/8 bg-white/4 px-1.5 py-0.5 text-[9px] text-white/60 hover:bg-white/8 disabled:opacity-30">⊞ Match</button>
         {selectedIds.size >= 3 && (
           <>
-            <button type="button" onClick={() => distributeSelected("h")} title="Distribute Horizontally" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8">⋯ Dist H</button>
-            <button type="button" onClick={() => distributeSelected("v")} title="Distribute Vertically" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8">⋮ Dist V</button>
+            <button type="button" onClick={() => distributeSelected("h")} title="Distribute Horizontally" className="rounded-md border border-white/8 bg-white/4 px-1.5 py-0.5 text-[9px] text-white/60 hover:bg-white/8">⋯ Dist H</button>
+            <button type="button" onClick={() => distributeSelected("v")} title="Distribute Vertically" className="rounded-md border border-white/8 bg-white/4 px-1.5 py-0.5 text-[9px] text-white/60 hover:bg-white/8">⋮ Dist V</button>
           </>
         )}
 
-        <div className="h-4 w-px bg-white/8" />
+        <div className="h-3.5 w-px bg-white/8" />
 
-        <button type="button" onClick={() => { if (selectedIds.size === elements.length && elements.length > 0) { setSelectedIds(new Set()); setSelectedStrokeIds(new Set()); } else { selectAll(); } }} title="Ctrl+A" className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">{selectedIds.size === elements.length && elements.length > 0 ? "Deselect All" : "Select All"}</button>
-        <button type="button" onClick={fitToView} title="Ctrl+1" className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8"><Maximize className="inline h-3 w-3 mr-0.5" />Fit</button>
-        <button type="button" onClick={resetView} title="Ctrl+0" className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">Reset View</button>
+        <button type="button" onClick={() => { if (selectedIds.size === elements.length && elements.length > 0) { setSelectedIds(new Set()); setSelectedStrokeIds(new Set()); } else { selectAll(); } }} title="Ctrl+A" className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8">{selectedIds.size === elements.length && elements.length > 0 ? "Deselect All" : "Select All"}</button>
+        <button type="button" onClick={fitToView} title="Ctrl+1" className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8"><Maximize className="inline h-2.5 w-2.5 mr-0.5" />Fit</button>
+        <button type="button" onClick={resetView} title="Ctrl+0" className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8">Reset View</button>
         <button type="button" onClick={() => setSnapToGrid(p => !p)} className={cn("rounded-md border px-2.5 py-1 text-[10px] flex items-center gap-1", snapToGrid ? "border-blue-500/25 bg-blue-500/10 text-blue-400" : "border-white/8 bg-white/4 text-white/60 hover:bg-white/8")}>
           <Grid3X3 className="h-3 w-3" />Snap
         </button>
