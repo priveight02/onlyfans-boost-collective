@@ -968,6 +968,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         strokes: Array.isArray(s.strokes) ? s.strokes : [],
         viewport: s.viewport || DEFAULT_VIEWPORT,
         bg_image_url: s.bg_image_url,
+        thumbnail_url: s.thumbnail_url || null,
         updated_at: s.updated_at,
         is_active: s.is_active,
       }));
