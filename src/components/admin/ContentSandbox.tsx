@@ -2489,7 +2489,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                     )}
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       <button type="button" onClick={e => { e.stopPropagation(); setRenamingId(session.id); setRenameValue(session.name); }}
-                        className="rounded p-0.5 text-white/30 hover:text-white/60 hover:bg-white/5"><Edit3 className="h-2.5 w-2.5" /></button>
+                        className="rounded p-0.5 text-white/30 hover:text-white/60 hover:bg-white/5"><Pencil className="h-2.5 w-2.5" /></button>
                       {sandboxSessions.length > 1 && (
                         <button type="button" onClick={e => { e.stopPropagation(); deleteSandbox(session.id); }}
                           className="rounded p-0.5 text-red-400/30 hover:text-red-400/60 hover:bg-red-500/5"><Trash2 className="h-2.5 w-2.5" /></button>
