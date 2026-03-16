@@ -2377,12 +2377,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, [ctxMenu, exportBg]);
 
   /* ─── Upload blob to storage and save to sandbox_exports ─── */
-  const pushToStorage = useCallback(async (scope: "element" | "selected" | "board", format: string, targetPlatform: string) => {
+  const pushToStorage = useCallback(async (scope: "element" | "selected" | "board", format: string, targetPlatform: string, resOverride?: { w: number; h: number } | null) => {
     setCtxPushing(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { toast.error("Please sign in first"); return; }
-      const blob = await renderToBlob(scope, format);
+      const blob = await renderToBlob(scope, format, resOverride);
       if (!blob) { toast.error("Nothing to export"); return; }
       const fileName = `sandbox_${scope}_${Date.now()}.${format}`;
       const filePath = `sandbox-exports/${user.id}/${fileName}`;
