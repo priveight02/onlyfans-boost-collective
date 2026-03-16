@@ -485,7 +485,7 @@ const exportToPNG = (canvas: HTMLCanvasElement | null, elements: SandboxElement[
     ctx.strokeStyle = el.color + "60";
     ctx.lineWidth = 2;
     ctx.beginPath();
-    if (el.kind === "ellipse" || (el.kind === "shape" && el.shape === "ellipse")) {
+    if ((el.kind === "shape" && el.shape === "ellipse")) {
       ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, el.width / 2, el.height / 2, 0, 0, Math.PI * 2);
     } else {
       ctx.rect(el.x, el.y, el.width, el.height);
