@@ -1920,7 +1920,13 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    setCtxMenu({ x: e.clientX, y: e.clientY });
+    const board = boardRef.current;
+    if (!board) return;
+    const pt = scenePoint(e.clientX, e.clientY, board, vpRef.current);
+    // Find element under cursor
+    const sorted = [...elsRef.current].sort((a, b) => b.z - a.z);
+    const hit = sorted.find(el => pt.x >= el.x && pt.x <= el.x + el.width && pt.y >= el.y && pt.y <= el.y + el.height);
+    setCtxMenu({ x: e.clientX, y: e.clientY, elementId: hit?.id });
   }, []);
 
   /* ─── Render element/board to blob ─── */
