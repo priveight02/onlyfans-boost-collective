@@ -1469,7 +1469,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   /* ─── Render ─── */
   return (
-    <div ref={wrapperRef} data-sandbox-wrapper className="flex flex-col gap-1.5 w-full">
+    <div ref={wrapperRef} data-sandbox-wrapper className="flex flex-col gap-1 w-full h-full overflow-hidden" style={{ maxHeight: "calc(100vh - 64px)" }}>
+      {/* Hidden file inputs */}
+      <input ref={mediaInputRef} type="file" accept="image/*,video/*,audio/*,.gif" multiple className="hidden"
+        onChange={e => { if (e.target.files?.length) { handleMediaImport(e.target.files); e.target.value = ""; } }} />
+      <input ref={bgInputRef} type="file" accept="image/*" className="hidden"
+        onChange={e => { if (e.target.files?.[0]) { handleBgImport(e.target.files[0]); e.target.value = ""; } }} />
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-white/6 bg-[hsl(222,30%,10%)] px-2 py-1.5">
         {/* Tools */}
