@@ -2577,7 +2577,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <Palette className="inline h-3 w-3 mr-0.5" />BG
         </button>
         {canvasBgImage && (
-          <button type="button" onClick={() => { setCanvasBgImage(null); try { localStorage.removeItem("sandbox_bg_image"); } catch {} }} className="rounded-md border border-red-500/15 bg-red-500/5 px-2 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">✕ BG</button>
+          <button type="button" onClick={() => { setCanvasBgImage(null); try { localStorage.removeItem("sandbox_bg_image"); } catch {} if (activeSandboxId) supabase.from("sandbox_sessions").update({ bg_image_url: null } as any).eq("id", activeSandboxId); }} className="rounded-md border border-red-500/15 bg-red-500/5 px-2 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">✕ BG</button>
         )}
 
         {/* Align tools */}
