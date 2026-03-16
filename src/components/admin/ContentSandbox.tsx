@@ -876,6 +876,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [ctxPushing, setCtxPushing] = useState(false);
   const [connectedPlatforms, setConnectedPlatforms] = useState<Record<string, { account_id: string; username: string }[]>>({});
   const [ctxAccountSelect, setCtxAccountSelect] = useState<{ platform: string; accounts: { account_id: string; username: string }[] } | null>(null);
+  const [ctxExportScope, setCtxExportScope] = useState<"element" | "selected" | "board">("board");
+  const [ctxExportRes, setCtxExportRes] = useState<{ w: number; h: number } | null>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const spaceHeldRef = useRef(false);
