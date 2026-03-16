@@ -204,12 +204,125 @@ const rgbToHsv = (r: number, g: number, b: number) => {
 };
 const hexToHsv = (hex: string) => { const { r, g, b } = hexToRgb(hex); return rgbToHsv(r, g, b); };
 
-const parseAi = (raw: unknown) => {
-  const text = typeof raw === "string" ? raw : typeof raw === "object" && raw !== null && "choices" in raw ? (raw as any)?.choices?.[0]?.message?.content || JSON.stringify(raw) : JSON.stringify(raw ?? "");
-  const cleaned = text.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
-  const m = cleaned.match(/\{[\s\S]*\}/);
-  if (m) return JSON.parse(m[0].replace(/,\s*([}\]])/g, "$1"));
-  return { title: "Evolved concept", caption: cleaned, platform: "instagram", content_type: "post", hashtags: [], evolution_notes: "Combined inside Sandbox", viral_score: 82 };
+const stripCodeFences = (value: string) => value.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
+
+const extractBalancedJson = (input: string) => {
+  const starts = [input.indexOf("["), input.indexOf("{")].filter(i => i >= 0);
+  if (!starts.length) return null;
+
+  const start = Math.min(...starts);
+  const openChar = input[start];
+  const closeChar = openChar === "[" ? "]" : "}";
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = start; i < input.length; i++) {
+    const char = input[i];
+
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === "\\") escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+
+    if (char === openChar) depth += 1;
+    if (char === closeChar) {
+      depth -= 1;
+      if (depth === 0) return input.slice(start, i + 1);
+    }
+  }
+
+  return null;
+};
+
+const tryParseJsonCandidate = (candidate: string): unknown => {
+  const cleaned = stripCodeFences(candidate);
+  const attempts = new Set<string>([cleaned]);
+
+  if ((cleaned.startsWith('"') && cleaned.endsWith('"')) || (cleaned.startsWith("'") && cleaned.endsWith("'"))) {
+    attempts.add(cleaned.slice(1, -1).replace(/\\n/g, "\n").replace(/\\r/g, "\r").replace(/\\t/g, "\t").replace(/\\"/g, '"'));
+  }
+
+  const balanced = extractBalancedJson(cleaned);
+  if (balanced) attempts.add(balanced);
+
+  for (const attempt of attempts) {
+    try {
+      const parsed = JSON.parse(attempt.replace(/,\s*([}\]])/g, "$1"));
+      if (typeof parsed === "string" && parsed !== attempt) {
+        try {
+          return JSON.parse(parsed.replace(/,\s*([}\]])/g, "$1"));
+        } catch {
+          return parsed;
+        }
+      }
+      return parsed;
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return null;
+};
+
+const parseEvolverItems = (raw: unknown): any[] => {
+  const candidates: unknown[] = [];
+
+  if (Array.isArray(raw)) candidates.push(raw);
+
+  if (raw && typeof raw === "object") {
+    const obj = raw as any;
+    candidates.push(
+      obj.output,
+      obj.elements,
+      obj.content,
+      obj.result,
+      obj?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments,
+      obj?.choices?.[0]?.message?.content,
+    );
+  }
+
+  candidates.push(raw);
+
+  for (const candidate of candidates) {
+    if (!candidate) continue;
+    if (Array.isArray(candidate)) return candidate;
+
+    if (candidate && typeof candidate === "object") {
+      const obj = candidate as any;
+      if (Array.isArray(obj.elements)) return obj.elements;
+      if (Array.isArray(obj.output)) return obj.output;
+    }
+
+    if (typeof candidate === "string") {
+      const parsed = tryParseJsonCandidate(candidate);
+      if (Array.isArray(parsed)) return parsed as any[];
+      if (parsed && typeof parsed === "object") {
+        const obj = parsed as any;
+        if (Array.isArray(obj.elements)) return obj.elements;
+        if (Array.isArray(obj.output)) return obj.output;
+      }
+    }
+  }
+
+  return [];
+};
+
+const EVOLVER_FALLBACK_COLORS = ["#22c55e", "#f59e0b", "#8b5cf6", "#ec4899", "#3b82f6", "#14b8a6"];
+
+const getEvolverPalette = (selection: SandboxElement[]) => {
+  const sourceColors = selection
+    .map(el => el.color)
+    .filter((color): color is string => typeof color === "string" && /^#[0-9a-f]{6}$/i.test(color));
+
+  return [...new Set([...sourceColors, ...EVOLVER_FALLBACK_COLORS])].slice(0, 6);
 };
 
 const shapeSvg = (shape: ShapeKind, color: string) => {
