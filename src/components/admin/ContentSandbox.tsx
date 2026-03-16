@@ -1759,7 +1759,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <span>x:{Math.round(mouseScene.x)} y:{Math.round(mouseScene.y)}</span>
           <span>{Math.round(viewport.zoom * 100)}%</span>
           {snapToGrid && <span className="text-blue-400/50">⊞ Snap</span>}
-          <span className="hidden sm:inline">Space=Pan · Alt+Drag=Copy · ←→↑↓=Nudge · Ctrl+E=Export</span>
+          <span className="hidden sm:inline">Space=Pan · Alt+Drag=Copy · R=Rotate · ←→↑↓=Nudge · M=Media · Ctrl+E=Export</span>
         </div>
       </div>
 
