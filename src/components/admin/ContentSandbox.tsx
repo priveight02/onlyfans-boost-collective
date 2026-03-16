@@ -848,7 +848,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [exportCustomH, setExportCustomH] = useState(1080);
   const [exportScope, setExportScope] = useState<"all" | "selected" | "fov">("all");
   const [activeStamp, setActiveStamp] = useState("⭐");
-  const [canvasBgImage, setCanvasBgImage] = useState<string | null>(null);
+  const [canvasBgImage, setCanvasBgImage] = useState<string | null>(() => {
+    try { return localStorage.getItem("sandbox_bg_image") || null; } catch { return null; }
+  });
   const [showHelp, setShowHelp] = useState(false);
   const [showElementCount, setShowElementCount] = useState(true);
   const [proportionalResize, setProportionalResize] = useState(false);
@@ -859,6 +861,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; elementId?: string; strokeId?: string } | null>(null);
   const [ctxExportFormat, setCtxExportFormat] = useState<string | null>(null);
   const [ctxPushing, setCtxPushing] = useState(false);
+  const [connectedPlatforms, setConnectedPlatforms] = useState<Record<string, { account_id: string; username: string }[]>>({});
+  const [ctxAccountSelect, setCtxAccountSelect] = useState<{ platform: string; accounts: { account_id: string; username: string }[] } | null>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const spaceHeldRef = useRef(false);
@@ -929,6 +933,23 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       setLastSaved(new Date());
     } catch { /* noop */ }
   }, [HISTORY_KEY]);
+
+  /* ─── Load connected platforms for push menu ─── */
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: conns } = await supabase.from("social_connections").select("platform,platform_username,account_id,is_connected").eq("is_connected", true);
+        if (conns) {
+          const map: Record<string, { account_id: string; username: string }[]> = {};
+          for (const c of conns) {
+            if (!map[c.platform]) map[c.platform] = [];
+            map[c.platform].push({ account_id: c.account_id, username: c.platform_username || c.account_id });
+          }
+          setConnectedPlatforms(map);
+        }
+      } catch { /* noop */ }
+    })();
+  }, []);
 
   useEffect(() => {
     if (!dirty) return;
@@ -1563,6 +1584,18 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     }
   }, [pushUndo]);
 
+  /* ─── Helper: upload file to storage and return persistent URL ─── */
+  const uploadMediaToStorage = useCallback(async (file: File): Promise<string> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return URL.createObjectURL(file); // fallback
+    const ext = file.name.split(".").pop() || "bin";
+    const path = `sandbox-media/${user.id}/${Date.now()}_${crypto.randomUUID().slice(0, 8)}.${ext}`;
+    const { error } = await supabase.storage.from("copilot-media").upload(path, file, { contentType: file.type, cacheControl: "31536000" });
+    if (error) { console.warn("Upload failed, using blob URL", error); return URL.createObjectURL(file); }
+    const { data: urlData } = supabase.storage.from("copilot-media").getPublicUrl(path);
+    return urlData.publicUrl;
+  }, []);
+
   /* ─── Media import ─── */
   const handleMediaImport = useCallback((files: FileList) => {
     pushUndo();
@@ -1572,82 +1605,77 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     let importCount = 0;
 
     fileArr.forEach((file, i) => {
-      const url = URL.createObjectURL(file);
       let mediaType: "image" | "video" | "audio" | "gif" = "image";
       if (file.type.startsWith("video/")) mediaType = "video";
       else if (file.type.startsWith("audio/")) mediaType = "audio";
       else if (file.type === "image/gif") mediaType = "gif";
 
-      if (mediaType === "image" || mediaType === "gif") {
-        // Load actual image dimensions for full-quality sizing
-        const img = new Image();
-        img.onload = () => {
-          const maxDim = 800;
-          let w = img.naturalWidth, h = img.naturalHeight;
-          if (w > maxDim || h > maxDim) {
-            const scale = maxDim / Math.max(w, h);
-            w = Math.round(w * scale);
-            h = Math.round(h * scale);
-          }
+      // Upload to storage for persistence, then create element
+      uploadMediaToStorage(file).then(url => {
+        if (mediaType === "image" || mediaType === "gif") {
+          const img = new Image();
+          img.onload = () => {
+            const maxDim = 800;
+            let w = img.naturalWidth, h = img.naturalHeight;
+            if (w > maxDim || h > maxDim) { const scale = maxDim / Math.max(w, h); w = Math.round(w * scale); h = Math.round(h * scale); }
+            const el: SandboxElement = {
+              id: `sb-${crypto.randomUUID()}`, kind: "media",
+              x: center.x - w / 2 + i * 40, y: center.y - h / 2 + i * 40,
+              width: w, height: h, z: z + i, color: "#3b82f6", links: [], opacity: 1,
+              mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
+            };
+            setElements(p => [...p, el]);
+            setSelectedIds(prev => new Set([...prev, el.id]));
+            importCount++;
+            if (importCount === fileArr.length) toast.success(`${importCount} media file(s) imported`);
+          };
+          img.src = url;
+        } else if (mediaType === "video") {
+          const vid = document.createElement("video");
+          vid.preload = "metadata";
+          vid.onloadedmetadata = () => {
+            const maxDim = 800;
+            let w = vid.videoWidth || 640, h = vid.videoHeight || 360;
+            if (w > maxDim || h > maxDim) { const scale = maxDim / Math.max(w, h); w = Math.round(w * scale); h = Math.round(h * scale); }
+            const el: SandboxElement = {
+              id: `sb-${crypto.randomUUID()}`, kind: "media",
+              x: center.x - w / 2 + i * 40, y: center.y - h / 2 + i * 40,
+              width: w, height: h, z: z + i, color: "#3b82f6", links: [], opacity: 1,
+              mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
+            };
+            setElements(p => [...p, el]);
+            setSelectedIds(prev => new Set([...prev, el.id]));
+            importCount++;
+            if (importCount === fileArr.length) toast.success(`${importCount} media file(s) imported`);
+          };
+          vid.src = url;
+        } else {
           const el: SandboxElement = {
             id: `sb-${crypto.randomUUID()}`, kind: "media",
-            x: center.x - w / 2 + i * 40, y: center.y - h / 2 + i * 40,
-            width: w, height: h,
-            z: z + i, color: "#3b82f6", links: [], opacity: 1,
+            x: center.x - 150 + i * 40, y: center.y - 50 + i * 40,
+            width: 300, height: 100, z: z + i, color: "#3b82f6", links: [], opacity: 1,
             mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
           };
           setElements(p => [...p, el]);
           setSelectedIds(prev => new Set([...prev, el.id]));
           importCount++;
           if (importCount === fileArr.length) toast.success(`${importCount} media file(s) imported`);
-        };
-        img.src = url;
-      } else if (mediaType === "video") {
-        const vid = document.createElement("video");
-        vid.preload = "metadata";
-        vid.onloadedmetadata = () => {
-          const maxDim = 800;
-          let w = vid.videoWidth || 640, h = vid.videoHeight || 360;
-          if (w > maxDim || h > maxDim) {
-            const scale = maxDim / Math.max(w, h);
-            w = Math.round(w * scale);
-            h = Math.round(h * scale);
-          }
-          const el: SandboxElement = {
-            id: `sb-${crypto.randomUUID()}`, kind: "media",
-            x: center.x - w / 2 + i * 40, y: center.y - h / 2 + i * 40,
-            width: w, height: h,
-            z: z + i, color: "#3b82f6", links: [], opacity: 1,
-            mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
-          };
-          setElements(p => [...p, el]);
-          setSelectedIds(prev => new Set([...prev, el.id]));
-          importCount++;
-          if (importCount === fileArr.length) toast.success(`${importCount} media file(s) imported`);
-        };
-        vid.src = url;
-      } else {
-        // Audio
-        const el: SandboxElement = {
-          id: `sb-${crypto.randomUUID()}`, kind: "media",
-          x: center.x - 150 + i * 40, y: center.y - 50 + i * 40,
-          width: 300, height: 100,
-          z: z + i, color: "#3b82f6", links: [], opacity: 1,
-          mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
-        };
-        setElements(p => [...p, el]);
-        setSelectedIds(prev => new Set([...prev, el.id]));
-        importCount++;
-        if (importCount === fileArr.length) toast.success(`${importCount} media file(s) imported`);
-      }
+        }
+      });
     });
-  }, [pushUndo, getViewportCenter]);
+  }, [pushUndo, getViewportCenter, uploadMediaToStorage]);
 
   /* ─── Custom background ─── */
   const handleBgImport = useCallback((file: File) => {
-    const url = URL.createObjectURL(file);
-    setCanvasBgImage(url);
-    toast.success("Background set");
+    // Convert to data URL for localStorage persistence
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setCanvasBgImage(dataUrl);
+      try { localStorage.setItem("sandbox_bg_image", dataUrl); } catch { /* storage full */ }
+      toast.success("Background set");
+    };
+    reader.readAsDataURL(file);
   }, []);
 
   const handleBoardDown = useCallback((e: React.PointerEvent) => {
@@ -2071,6 +2099,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       setCtxPushing(false);
       setCtxMenu(null);
       setCtxExportFormat(null);
+      setCtxAccountSelect(null);
     }
   }, [renderToBlob, ctxMenu]);
 
@@ -2317,7 +2346,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <Palette className="inline h-3 w-3 mr-0.5" />BG
         </button>
         {canvasBgImage && (
-          <button type="button" onClick={() => setCanvasBgImage(null)} className="rounded-md border border-red-500/15 bg-red-500/5 px-2 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">✕ BG</button>
+          <button type="button" onClick={() => { setCanvasBgImage(null); try { localStorage.removeItem("sandbox_bg_image"); } catch {} }} className="rounded-md border border-red-500/15 bg-red-500/5 px-2 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">✕ BG</button>
         )}
 
         {/* Align tools */}
@@ -2624,7 +2653,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
       {/* Context Menu */}
       {ctxMenu && (
-        <div className="fixed inset-0 z-[99999]" onClick={() => { setCtxMenu(null); setCtxExportFormat(null); }}>
+        <div className="fixed inset-0 z-[99999]" onClick={() => { setCtxMenu(null); setCtxExportFormat(null); setCtxAccountSelect(null); }}>
           <div
             className="absolute rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-1.5 min-w-[200px]"
             style={{ left: Math.min(ctxMenu.x, window.innerWidth - 220), top: Math.min(ctxMenu.y, window.innerHeight - 400) }}
@@ -2666,13 +2695,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 <div className="px-2.5 py-1 text-[9px] text-white/25 uppercase tracking-wider">
                   Push as <span className="uppercase text-white/50">{ctxExportFormat}</span> to...
                 </div>
-                {/* Scope options */}
                 {ctxMenu.elementId && (
                   <div className="px-2.5 py-1">
                     <span className="text-[9px] text-purple-400/60">Element · Selected · Full Board</span>
                   </div>
                 )}
-                {/* Targets */}
+                {/* Content Drafts - always available */}
                 <button type="button" onClick={() => pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat, "content")}
                   disabled={ctxPushing}
                   className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2 disabled:opacity-50">
@@ -2680,13 +2708,54 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 </button>
                 <div className="h-px bg-white/[0.06] my-0.5" />
                 <div className="px-2.5 py-0.5 text-[9px] text-white/20 uppercase tracking-wider">Platform Hubs</div>
-                {["instagram", "tiktok", "facebook", "threads", "twitter", "youtube", "linkedin", "pinterest"].map(p => (
-                  <button key={p} type="button" onClick={() => pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat, p)}
-                    disabled={ctxPushing}
-                    className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2 capitalize disabled:opacity-50">
-                    <Send className="h-3 w-3 text-white/20" /> {p}
-                  </button>
-                ))}
+                {/* Account selection sub-panel */}
+                {ctxAccountSelect ? (
+                  <div className="space-y-0.5">
+                    <button type="button" onClick={() => setCtxAccountSelect(null)}
+                      className="w-full rounded-lg px-2.5 py-1 text-left text-[10px] text-white/40 hover:bg-white/[0.06] flex items-center gap-1">
+                      ← Back to platforms
+                    </button>
+                    <div className="px-2.5 py-0.5 text-[9px] text-white/30 capitalize">{ctxAccountSelect.platform} accounts:</div>
+                    {ctxAccountSelect.accounts.map(acc => (
+                      <button key={acc.account_id} type="button"
+                        onClick={() => {
+                          pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat!, ctxAccountSelect!.platform);
+                          setCtxAccountSelect(null);
+                        }}
+                        disabled={ctxPushing}
+                        className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2 disabled:opacity-50">
+                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        <span>@{acc.username}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    {["instagram", "tiktok", "facebook", "threads", "twitter", "youtube", "linkedin", "pinterest"].map(p => {
+                      const accs = connectedPlatforms[p] || [];
+                      const isConnected = accs.length > 0;
+                      return (
+                        <button key={p} type="button"
+                          onClick={() => {
+                            if (!isConnected) { toast.error(`No ${p} account connected`); return; }
+                            if (accs.length > 1) { setCtxAccountSelect({ platform: p, accounts: accs }); return; }
+                            pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat!, p);
+                          }}
+                          disabled={ctxPushing || !isConnected}
+                          className={cn(
+                            "w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] flex items-center gap-2 capitalize",
+                            isConnected
+                              ? "text-white/70 hover:bg-white/[0.06] disabled:opacity-50"
+                              : "text-white/20 cursor-not-allowed"
+                          )}>
+                          <div className={cn("h-1.5 w-1.5 rounded-full", isConnected ? "bg-emerald-400" : "bg-white/15")} />
+                          <Send className={cn("h-3 w-3", isConnected ? "text-emerald-400/40" : "text-white/10")} /> {p}
+                          {accs.length > 1 && <span className="ml-auto text-[9px] text-white/30">{accs.length} accs</span>}
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
                 {ctxPushing && (
                   <div className="flex items-center gap-2 px-2.5 py-1.5 text-[10px] text-white/40">
                     <Loader2 className="h-3 w-3 animate-spin" /> Uploading...
