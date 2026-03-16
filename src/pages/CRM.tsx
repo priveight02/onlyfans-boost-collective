@@ -464,7 +464,7 @@ const CRM = () => {
             <span className="text-[28px] font-extrabold text-white tracking-tight" style={{ fontFamily: "'Poppins', system-ui, -apple-system, sans-serif" }}>Uplyze</span>
           )}
           {sidebarCollapsed && (
-            <span className="text-[22px] font-extrabold text-white">U</span>
+            <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze" className="h-8 w-8 rounded-lg object-contain" />
           )}
         </div>
 
