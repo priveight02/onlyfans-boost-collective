@@ -466,28 +466,20 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
       )}
 
       {el.kind === "media" && el.mediaUrl && (
-        <div className="h-full w-full rounded-xl border border-white/8 bg-[hsl(222,30%,10%)] overflow-hidden flex flex-col">
-          <div className="flex items-center gap-1.5 border-b border-white/6 px-2 py-1">
-            {el.mediaType === "video" && <Film className="h-3 w-3 text-purple-400/70" />}
-            {el.mediaType === "audio" && <Music className="h-3 w-3 text-emerald-400/70" />}
-            {(el.mediaType === "image" || el.mediaType === "gif") && <ImageIcon className="h-3 w-3 text-blue-400/70" />}
-            <span className="text-[9px] text-white/40 truncate">{el.mediaName || "Media"}</span>
-          </div>
-          <div className="flex-1 flex items-center justify-center overflow-hidden" onPointerDown={e => e.stopPropagation()}>
-            {(el.mediaType === "image" || el.mediaType === "gif") && (
-              <img src={el.mediaUrl} alt={el.mediaName || "media"} className="max-h-full max-w-full object-contain" draggable={false} />
-            )}
-            {el.mediaType === "video" && (
-              <video src={el.mediaUrl} controls playsInline preload="metadata" className="max-h-full max-w-full object-contain" />
-            )}
-            {el.mediaType === "audio" && (
-              <div className="flex flex-col items-center gap-2 p-3 w-full">
-                <Music className="h-8 w-8 text-emerald-400/40" />
-                <audio src={el.mediaUrl} controls preload="metadata" className="w-full" style={{ maxWidth: "100%" }} />
-                <span className="text-[10px] text-white/30 truncate max-w-full">{el.mediaName}</span>
-              </div>
-            )}
-          </div>
+        <div className="h-full w-full overflow-hidden" onPointerDown={e => e.stopPropagation()}>
+          {(el.mediaType === "image" || el.mediaType === "gif") && (
+            <img src={el.mediaUrl} alt={el.mediaName || "media"} className="h-full w-full object-fill" draggable={false} />
+          )}
+          {el.mediaType === "video" && (
+            <video src={el.mediaUrl} controls playsInline preload="metadata" className="h-full w-full object-fill" />
+          )}
+          {el.mediaType === "audio" && (
+            <div className="flex flex-col items-center justify-center gap-2 p-3 w-full h-full bg-[hsl(222,30%,10%)] rounded-lg">
+              <Music className="h-8 w-8 text-emerald-400/40" />
+              <audio src={el.mediaUrl} controls preload="metadata" className="w-full" style={{ maxWidth: "100%" }} />
+              <span className="text-[10px] text-white/30 truncate max-w-full">{el.mediaName}</span>
+            </div>
+          )}
         </div>
       )}
 
