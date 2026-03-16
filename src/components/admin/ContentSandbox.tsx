@@ -24,6 +24,7 @@ import { exportSandboxToDrafts, pushSandboxDirectToPlatforms, getConnectedAccoun
 
 /* ─── Types ─── */
 type Tool = "select" | "pan" | "pen" | "eraser" | "text" | "note" | "rectangle" | "ellipse" | "triangle" | "diamond" | "arrow" | "connector" | "frame" | "stamp" | "media";
+type ExportFormat = "png" | "svg" | "json" | "csv" | "pdf" | "xlsx" | "html";
 type ShapeKind = "rectangle" | "ellipse" | "triangle" | "diamond" | "arrow";
 type ElementKind = "content" | "note" | "text" | "shape" | "frame" | "stamp" | "media";
 type Point = { x: number; y: number };
