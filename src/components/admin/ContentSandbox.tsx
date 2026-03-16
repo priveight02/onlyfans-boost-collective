@@ -990,7 +990,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         } as any).select().single();
         if (newSession) {
           const s = newSession as any;
-          const session: SandboxSession = { id: s.id, name: s.name, elements: els, strokes: stks, viewport: vpRef.current, bg_image_url: canvasBgImage, updated_at: s.updated_at, is_active: true };
+          const session: SandboxSession = { id: s.id, name: s.name, elements: els, strokes: stks, viewport: vpRef.current, bg_image_url: canvasBgImage, thumbnail_url: null, updated_at: s.updated_at, is_active: true };
           setSandboxSessions([session]);
           setActiveSandboxId(s.id);
         }
