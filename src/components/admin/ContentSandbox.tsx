@@ -830,9 +830,31 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         ctx.strokeStyle = "rgba(96,165,250,0.7)";
         ctx.lineWidth = 1.5;
         ctx.strokeRect(b.x, b.y, b.w, b.h);
-        // Draw resize handle for selected strokes
+        // Draw resize handle (bottom-right)
         ctx.fillStyle = "rgba(96,165,250,0.9)";
         ctx.fillRect(b.x + b.w - 5, b.y + b.h - 5, 10, 10);
+        // Draw rotate handle (top-center circle)
+        ctx.beginPath();
+        ctx.arc(b.x + b.w / 2, b.y - 16, 6, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(96,165,250,0.3)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(96,165,250,0.7)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // Draw rotate icon (circular arrow hint)
+        ctx.beginPath();
+        ctx.arc(b.x + b.w / 2, b.y - 16, 3.5, -Math.PI * 0.8, Math.PI * 0.5);
+        ctx.strokeStyle = "rgba(147,197,253,0.9)";
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        // Line from top-center to rotate handle
+        ctx.beginPath();
+        ctx.setLineDash([2, 2]);
+        ctx.strokeStyle = "rgba(96,165,250,0.4)";
+        ctx.lineWidth = 1;
+        ctx.moveTo(b.x + b.w / 2, b.y);
+        ctx.lineTo(b.x + b.w / 2, b.y - 10);
+        ctx.stroke();
         ctx.setLineDash([]);
       }
     }
