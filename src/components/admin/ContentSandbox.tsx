@@ -2432,7 +2432,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         <ColorPicker color={activeColor} onChange={setActiveColor} />
 
         {/* Quick preset row */}
-        <div className="flex items-center gap-0.5">
+        <div className="flex items-center gap-0.5 shrink-0">
           {["#ffffff", "#3b82f6", "#8b5cf6", "#ec4899", "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6", "#64748b"].map(c => (
             <button key={c} type="button" onClick={() => setActiveColor(c)}
               className={cn("h-5 w-5 rounded-md border transition-transform", activeColor === c ? "border-white/60 scale-110" : "border-transparent hover:scale-105")}
