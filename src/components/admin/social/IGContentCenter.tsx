@@ -818,6 +818,8 @@ const IGContentCenter = ({ selectedAccount: parentAccount, onNavigateToConnect, 
                   </div>
                 </CardContent>
               </Card>
+              {/* Sandbox Media */}
+              <SandboxMediaSection platform="instagram" onUseMedia={(url, name) => { setNewPostMediaUrl(url); toast.success(`Media "${name}" loaded`); }} />
             </>
           )}
         </TabsContent>
