@@ -385,9 +385,23 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
             {src && <span className="text-[10px] text-white/30">{src.replace(/_/g, " ")}</span>}
           </div>
           <div className="flex-1 space-y-1.5 overflow-hidden px-3 py-2">
-            <p className="line-clamp-2 text-[13px] font-medium text-white/90">{el.data.title}</p>
-            <p className="line-clamp-4 text-[11px] leading-relaxed text-white/45">{el.data.caption || "No caption"}</p>
-            {el.annotation && <div className="rounded-lg border border-blue-400/15 bg-blue-400/8 px-2 py-1 text-[10px] text-blue-300/80 line-clamp-2">{el.annotation}</div>}
+            <div contentEditable suppressContentEditableWarning
+              onPointerDown={e => e.stopPropagation()}
+              onBlur={e => onTextChange(el.id, `__title__${e.currentTarget.textContent || ""}`)}
+              className="line-clamp-2 text-[13px] font-medium text-white/90 outline-none cursor-text hover:bg-white/5 rounded px-0.5 -mx-0.5 transition-colors focus:bg-white/8 focus:ring-1 focus:ring-blue-400/30"
+            >{el.data.title}</div>
+            <div contentEditable suppressContentEditableWarning
+              onPointerDown={e => e.stopPropagation()}
+              onBlur={e => onTextChange(el.id, `__caption__${e.currentTarget.textContent || ""}`)}
+              className="line-clamp-4 text-[11px] leading-relaxed text-white/45 outline-none cursor-text hover:bg-white/5 rounded px-0.5 -mx-0.5 transition-colors focus:bg-white/8 focus:ring-1 focus:ring-blue-400/30"
+            >{el.data.caption || "No caption"}</div>
+            {el.annotation && (
+              <div contentEditable suppressContentEditableWarning
+                onPointerDown={e => e.stopPropagation()}
+                onBlur={e => onTextChange(el.id, `__annotation__${e.currentTarget.textContent || ""}`)}
+                className="rounded-lg border border-blue-400/15 bg-blue-400/8 px-2 py-1 text-[10px] text-blue-300/80 line-clamp-2 outline-none cursor-text hover:bg-blue-400/12 transition-colors focus:ring-1 focus:ring-blue-400/30"
+              >{el.annotation}</div>
+            )}
           </div>
           <div className="border-t border-white/6 px-3 py-1.5">
             <div className="flex items-center justify-between text-[9px] text-white/30">
