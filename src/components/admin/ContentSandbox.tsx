@@ -2959,10 +2959,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           })()}
 
           {/* Status bar */}
-          <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 px-3 py-1 bg-[hsl(222,30%,6%)]/80 backdrop-blur-sm border-t border-white/5 text-[9px] text-white/35 z-[999] overflow-hidden">
+          <div onPointerDown={(e) => e.stopPropagation()} className="absolute bottom-0 left-0 right-0 flex items-center gap-3 pl-1 pr-3 py-1 bg-[hsl(222,30%,6%)]/80 backdrop-blur-sm border-t border-white/5 text-[9px] text-white/35 z-[999] overflow-hidden">
             {/* Sandbox list + Evolve on the LEFT */}
             <div className="flex items-center gap-2 shrink-0">
-              <button type="button" onClick={() => setSandboxListOpen(p => !p)}
+              <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={() => setSandboxListOpen(p => !p)}
                 className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70 hover:bg-white/5 pointer-events-auto transition-colors shrink-0">
                 <FolderOpen className="h-3 w-3" />
                 <span className="text-[9px] max-w-[80px] truncate">{sandboxSessions.find(s => s.id === activeSandboxId)?.name || "Sandboxes"}</span>
@@ -2971,7 +2971,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               {selectedIds.size >= 1 && (
                 <>
                   <div className="h-3 w-px bg-white/10" />
-                  <button type="button" onClick={(e) => { e.stopPropagation(); evolve(); }} disabled={evolving}
+                  <button type="button" onPointerDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); void evolve(); }} disabled={evolving}
                     className="flex items-center gap-1 rounded-md bg-emerald-500/15 border border-emerald-500/25 px-2 py-0.5 text-[9px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50 pointer-events-auto transition-colors shrink-0">
                     {evolving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
                     Evolve {selectedIds.size}
