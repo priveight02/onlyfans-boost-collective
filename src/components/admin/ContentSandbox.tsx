@@ -2549,6 +2549,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                         { label: "Pinterest", res: "1000x1500", desc: "Pin" },
                         { label: "TikTok", res: "1080x1920", desc: "Video cover" },
                         { label: "Banner", res: "1500x500", desc: "X/Twitter" },
+                        { label: "iPhone 15", res: "1179x2556", desc: "Native res" },
+                        { label: "iPhone Pro Max", res: "1290x2796", desc: "Pro Max" },
+                        { label: "MacBook Air", res: "2560x1664", desc: "M2/M3 Air" },
                       ].map(t => (
                         <button key={t.label} onClick={() => { setExportFixedRes(t.res); const [w, h] = t.res.split("x").map(Number); setExportCustomW(w); setExportCustomH(h); }}
                           className={cn("rounded-md px-2 py-1.5 border text-left transition-all",
