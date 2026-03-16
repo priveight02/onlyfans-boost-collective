@@ -1612,6 +1612,13 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (ctrl && k === "e") { e.preventDefault(); setShowExportDialog(true); return; }
       if (e.key === "Escape") { setSelectedIds(new Set()); setSelectedStrokeIds(new Set()); setLinkSourceId(null); return; }
       if (e.key === "Delete" || (e.key === "Backspace" && !tgt?.isContentEditable)) { e.preventDefault(); deleteSel(); return; }
+      if (ctrl && shift && k === "f") { e.preventDefault(); flipSelected("h"); return; }
+      if (ctrl && shift && k === "b") { e.preventDefault(); sendToBack(); return; }
+      if (ctrl && shift && k === "c") { e.preventDefault(); centerOnCanvas(); return; }
+      if (ctrl && shift && k === "m") { e.preventDefault(); matchSize(); return; }
+      if (ctrl && shift && k === "r") { e.preventDefault(); resetRotation(); return; }
+      if (k === "[" && !ctrl) { e.preventDefault(); sendToBack(); return; }
+      if (k === "]" && !ctrl) { e.preventDefault(); bringForward(); return; }
       const step = shift ? 10 : 1;
       if (e.key === "ArrowLeft") { e.preventDefault(); nudge(-step, 0); return; }
       if (e.key === "ArrowRight") { e.preventDefault(); nudge(step, 0); return; }
@@ -1634,7 +1641,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     return () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); };
-  }, [undo, redo, save, deleteSel, duplicateSel, groupSelected, selectAll, fitToView, nudge, rotateSnap, tool]);
+  }, [undo, redo, save, deleteSel, duplicateSel, groupSelected, selectAll, fitToView, nudge, rotateSnap, tool, flipSelected, sendToBack, centerOnCanvas, matchSize, resetRotation, bringForward]);
 
   const activeSizes = tool === "eraser" ? ERASER_SIZES : BRUSH_SIZES;
 
