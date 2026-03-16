@@ -63,12 +63,22 @@ type InteractionState =
 
 interface SandboxSnapshot { elements: SandboxElement[]; strokes: SandboxStroke[]; }
 
+/* ─── Stroke bounding box helper ─── */
+const strokeBounds = (s: SandboxStroke): { x: number; y: number; w: number; h: number } => {
+  if (!s.points.length) return { x: 0, y: 0, w: 0, h: 0 };
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of s.points) { minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y); }
+  const pad = s.size / 2;
+  return { x: minX - pad, y: minY - pad, w: maxX - minX + s.size, h: maxY - minY + s.size };
+};
+
 /* ─── Constants ─── */
 const STORAGE_KEY = "content_sandbox_state_v7";
 const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 4;
 const DEFAULT_VIEWPORT: Viewport = { x: 32, y: 32, zoom: 1 };
 const MAX_UNDO = 80;
+const GRID_SIZE = 20;
 const AUTOSAVE_MS = 2500;
 
 const PRESET_COLORS = [
