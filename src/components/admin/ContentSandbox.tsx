@@ -16,7 +16,7 @@ import {
   Redo2, RotateCcw, RotateCw, Save, Search, Smile, Sparkles, Square, StickyNote, Strikethrough,
   Trash2, Triangle, Type, Underline, Unlink, Unlock, ZoomIn, ZoomOut, RefreshCw, Palette,
   Send, FileDown, Grid3X3, Magnet, FileJson, FileSpreadsheet, FileImage, Image as ImageIcon,
-  CaseSensitive, ALargeSmall, Minus, LetterText, Upload, Film, Music, ImagePlus,
+  CaseSensitive, ALargeSmall, Minus, LetterText, Upload, Film, Music, ImagePlus, HelpCircle, X,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
