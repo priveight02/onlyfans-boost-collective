@@ -1836,8 +1836,26 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
         <div className="h-4 w-px bg-white/8" />
 
+        {/* Convenience features */}
+        <button type="button" onClick={bringForward} disabled={!selectedIds.size} title="Bring Forward ( ] )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↑ Front</button>
+        <button type="button" onClick={sendToBack} disabled={!selectedIds.size} title="Send to Back ( [ )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↓ Back</button>
+        <button type="button" onClick={() => flipSelected("h")} disabled={!selectedIds.size} title="Flip Horizontal (Ctrl+Shift+F)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⇔ Flip H</button>
+        <button type="button" onClick={() => flipSelected("v")} disabled={!selectedIds.size} title="Flip Vertical" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⇕ Flip V</button>
+        <button type="button" onClick={centerOnCanvas} disabled={!selectedIds.size} title="Center on Canvas (Ctrl+Shift+C)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⊙ Center</button>
+        <button type="button" onClick={resetRotation} disabled={!selectedIds.size && !selectedStrokeIds.size} title="Reset Rotation (Ctrl+Shift+R)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↺ 0°</button>
+        <button type="button" onClick={matchSize} disabled={selectedIds.size < 2} title="Match Size (Ctrl+Shift+M)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⊞ Match</button>
+        {selectedIds.size >= 3 && (
+          <>
+            <button type="button" onClick={() => distributeSelected("h")} title="Distribute Horizontally" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8">⋯ Dist H</button>
+            <button type="button" onClick={() => distributeSelected("v")} title="Distribute Vertically" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8">⋮ Dist V</button>
+          </>
+        )}
+
+        <div className="h-4 w-px bg-white/8" />
+
         <button type="button" onClick={selectAll} title="Ctrl+A" className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">Select All</button>
         <button type="button" onClick={fitToView} title="Ctrl+1" className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8"><Maximize className="inline h-3 w-3 mr-0.5" />Fit</button>
+        <button type="button" onClick={resetView} title="Ctrl+0" className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">Reset View</button>
         <button type="button" onClick={() => setSnapToGrid(p => !p)} className={cn("rounded-md border px-2.5 py-1 text-[10px] flex items-center gap-1", snapToGrid ? "border-blue-500/25 bg-blue-500/10 text-blue-400" : "border-white/8 bg-white/4 text-white/60 hover:bg-white/8")}>
           <Grid3X3 className="h-3 w-3" />Snap
         </button>
