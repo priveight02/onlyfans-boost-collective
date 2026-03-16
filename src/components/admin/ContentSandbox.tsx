@@ -797,7 +797,17 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [tool, setTool] = useState<Tool>("select");
   const [activeColor, setActiveColor] = useState("#3b82f6");
   const [brushSize, setBrushSize] = useState(4);
-  const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT);
+  const [viewport, setViewportRaw] = useState<Viewport>(() => {
+    try { const v = localStorage.getItem(VIEWPORT_KEY); if (v) return JSON.parse(v); } catch {}
+    return DEFAULT_VIEWPORT;
+  });
+  const setViewport = useCallback((v: Viewport | ((p: Viewport) => Viewport)) => {
+    setViewportRaw(prev => {
+      const next = typeof v === "function" ? v(prev) : v;
+      try { localStorage.setItem(VIEWPORT_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
   const [linkSourceId, setLinkSourceId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [importQuery, setImportQuery] = useState("");
