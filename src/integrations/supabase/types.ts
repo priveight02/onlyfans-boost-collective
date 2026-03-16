@@ -3369,6 +3369,51 @@ export type Database = {
         }
         Relationships: []
       }
+      sandbox_sessions: {
+        Row: {
+          bg_image_url: string | null
+          created_at: string
+          elements: Json
+          id: string
+          is_active: boolean
+          metadata: Json | null
+          name: string
+          strokes: Json
+          thumbnail_url: string | null
+          updated_at: string
+          user_id: string
+          viewport: Json | null
+        }
+        Insert: {
+          bg_image_url?: string | null
+          created_at?: string
+          elements?: Json
+          id?: string
+          is_active?: boolean
+          metadata?: Json | null
+          name?: string
+          strokes?: Json
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id: string
+          viewport?: Json | null
+        }
+        Update: {
+          bg_image_url?: string | null
+          created_at?: string
+          elements?: Json
+          id?: string
+          is_active?: boolean
+          metadata?: Json | null
+          name?: string
+          strokes?: Json
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id?: string
+          viewport?: Json | null
+        }
+        Relationships: []
+      }
       script_steps: {
         Row: {
           condition_logic: Json | null
