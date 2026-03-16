@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import {
   AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical,
   AlignStartHorizontal, AlignStartVertical, ArrowRight, Bold, Check, Circle, Copy, Diamond, Download,
-  Eraser, Grip, Italic, Layers, Link2, Loader2, Lock, Map, Maximize, MousePointer, Move, Pencil,
+  Eraser, Grip, Italic, Layers, Link2, Loader2, Lock, Map as MapIcon, Maximize, MousePointer, Move, Pencil,
   Redo2, RotateCcw, Save, Search, Sparkles, Square, StickyNote,
   Trash2, Triangle, Type, Underline, Unlink, Unlock, ZoomIn, ZoomOut, RefreshCw, Palette,
   Send, FileDown, Grid3X3, Magnet,
