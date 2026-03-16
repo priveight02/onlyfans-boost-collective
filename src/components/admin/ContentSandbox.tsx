@@ -1361,6 +1361,16 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         }));
         return;
       }
+      // Rotate element
+      if (ix.type === "rotate") {
+        const pt2 = scenePoint(e.clientX, e.clientY, boardRef.current, vpRef.current);
+        const angle = Math.atan2(pt2.y - ix.center.y, pt2.x - ix.center.x) * (180 / Math.PI);
+        const delta = angle - ix.startAngle;
+        let newRot = ix.startRotation + delta;
+        // Normalize to 0-360
+        newRot = ((newRot % 360) + 360) % 360;
+        setElements(p => p.map(el => el.id === ix.elementId ? { ...el, rotation: Math.round(newRot * 10) / 10 } : el));
+        return;
     };
     const onUp = () => {
       const ix = interactionRef.current;
