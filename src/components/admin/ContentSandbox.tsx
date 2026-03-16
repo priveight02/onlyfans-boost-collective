@@ -930,20 +930,82 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     persistHistory();
   }, [persistHistory]);
 
+  /* ─── Save to DB ─── */
+  const saveToDb = useCallback(async (sessionId?: string) => {
+    const sid = sessionId || activeSandboxId;
+    if (!sid) return;
+    try {
+      await supabase.from("sandbox_sessions").update({
+        elements: elsRef.current as any,
+        strokes: strokesRef.current as any,
+        viewport: vpRef.current as any,
+        bg_image_url: canvasBgImage,
+        updated_at: new Date().toISOString(),
+      } as any).eq("id", sid);
+    } catch { /* noop */ }
+  }, [activeSandboxId, canvasBgImage]);
+
   const save = useCallback(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 7, elements: elsRef.current, strokes: strokesRef.current }));
     persistHistory();
     setDirty(false); setLastSaved(new Date());
-  }, [persistHistory]);
+    saveToDb();
+  }, [persistHistory, saveToDb]);
 
-  useEffect(() => {
+  /* ─── Load sandbox sessions from DB ─── */
+  const loadSandboxSessions = useCallback(async () => {
+    setSandboxLoading(true);
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const p = JSON.parse(raw);
-        setElements(Array.isArray(p?.elements) ? p.elements : []);
-        setStrokes(Array.isArray(p?.strokes) ? p.strokes : []);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setSandboxLoading(false); return; }
+      const { data, error } = await supabase.from("sandbox_sessions").select("*").eq("user_id", user.id).order("updated_at", { ascending: false });
+      if (error) throw error;
+      const sessions = (data || []).map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        elements: Array.isArray(s.elements) ? s.elements : [],
+        strokes: Array.isArray(s.strokes) ? s.strokes : [],
+        viewport: s.viewport || DEFAULT_VIEWPORT,
+        bg_image_url: s.bg_image_url,
+        updated_at: s.updated_at,
+        is_active: s.is_active,
+      }));
+      setSandboxSessions(sessions);
+      // If no sessions exist, create one from localStorage state
+      if (!sessions.length) {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        let els: SandboxElement[] = [];
+        let stks: SandboxStroke[] = [];
+        if (raw) { const p = JSON.parse(raw); els = Array.isArray(p?.elements) ? p.elements : []; stks = Array.isArray(p?.strokes) ? p.strokes : []; }
+        const { data: newSession } = await supabase.from("sandbox_sessions").insert({
+          user_id: user.id,
+          name: "Main Sandbox",
+          elements: els as any,
+          strokes: stks as any,
+          viewport: vpRef.current as any,
+          bg_image_url: canvasBgImage,
+          is_active: true,
+        } as any).select().single();
+        if (newSession) {
+          const s = newSession as any;
+          const session: SandboxSession = { id: s.id, name: s.name, elements: els, strokes: stks, viewport: vpRef.current, bg_image_url: canvasBgImage, updated_at: s.updated_at, is_active: true };
+          setSandboxSessions([session]);
+          setActiveSandboxId(s.id);
+        }
+      } else {
+        // Load the active session or first one
+        const active = sessions.find((s: SandboxSession) => s.is_active) || sessions[0];
+        setActiveSandboxId(active.id);
+        setElements(active.elements);
+        setStrokes(active.strokes);
+        if (active.viewport) {
+          const vp = active.viewport as Viewport;
+          setViewport(vp);
+        }
+        if (active.bg_image_url) setCanvasBgImage(active.bg_image_url);
+        else setCanvasBgImage(null);
       }
+      // Also load undo history from localStorage
       const histRaw = localStorage.getItem(HISTORY_KEY);
       if (histRaw) {
         const h = JSON.parse(histRaw);
@@ -951,8 +1013,97 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         if (Array.isArray(h?.redo)) redoStack.current = h.redo;
       }
       setLastSaved(new Date());
-    } catch { /* noop */ }
-  }, [HISTORY_KEY]);
+    } catch (err) { console.error("Failed to load sandbox sessions:", err); }
+    finally { setSandboxLoading(false); }
+  }, [HISTORY_KEY, canvasBgImage]);
+
+  useEffect(() => { loadSandboxSessions(); }, []);
+
+  /* ─── Create new sandbox ─── */
+  const createSandbox = useCallback(async (name?: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    // Save current sandbox first
+    if (activeSandboxId) await saveToDb();
+    // Deactivate all
+    await supabase.from("sandbox_sessions").update({ is_active: false } as any).eq("user_id", user.id);
+    const { data: newSession } = await supabase.from("sandbox_sessions").insert({
+      user_id: user.id,
+      name: name || `Sandbox ${sandboxSessions.length + 1}`,
+      elements: [] as any,
+      strokes: [] as any,
+      viewport: DEFAULT_VIEWPORT as any,
+      is_active: true,
+    } as any).select().single();
+    if (newSession) {
+      const s = newSession as any;
+      setElements([]);
+      setStrokes([]);
+      setViewport(DEFAULT_VIEWPORT);
+      setCanvasBgImage(null);
+      setSelectedIds(new Set());
+      setSelectedStrokeIds(new Set());
+      undoStack.current = [];
+      redoStack.current = [];
+      setActiveSandboxId(s.id);
+      setSandboxSessions(prev => [{ id: s.id, name: s.name, elements: [], strokes: [], viewport: DEFAULT_VIEWPORT, bg_image_url: null, updated_at: s.updated_at, is_active: true }, ...prev.map(p => ({ ...p, is_active: false }))]);
+      toast.success(`Created "${s.name}"`);
+    }
+  }, [activeSandboxId, saveToDb, sandboxSessions.length]);
+
+  /* ─── Switch sandbox ─── */
+  const switchSandbox = useCallback(async (sessionId: string) => {
+    if (sessionId === activeSandboxId) return;
+    // Save current first
+    if (activeSandboxId) await saveToDb();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    // Deactivate all, activate target
+    await supabase.from("sandbox_sessions").update({ is_active: false } as any).eq("user_id", user.id);
+    await supabase.from("sandbox_sessions").update({ is_active: true } as any).eq("id", sessionId);
+    // Load target
+    const { data } = await supabase.from("sandbox_sessions").select("*").eq("id", sessionId).single();
+    if (data) {
+      const s = data as any;
+      const els = Array.isArray(s.elements) ? s.elements : [];
+      const stks = Array.isArray(s.strokes) ? s.strokes : [];
+      setElements(els);
+      setStrokes(stks);
+      if (s.viewport) setViewport(s.viewport as Viewport);
+      setCanvasBgImage(s.bg_image_url || null);
+      setActiveSandboxId(sessionId);
+      setSelectedIds(new Set());
+      setSelectedStrokeIds(new Set());
+      undoStack.current = [];
+      redoStack.current = [];
+      setDirty(false);
+      setLastSaved(new Date());
+      setSandboxSessions(prev => prev.map(p => ({ ...p, is_active: p.id === sessionId })));
+      toast.success(`Switched to "${s.name}"`);
+    }
+  }, [activeSandboxId, saveToDb]);
+
+  /* ─── Delete sandbox ─── */
+  const deleteSandbox = useCallback(async (sessionId: string) => {
+    if (sandboxSessions.length <= 1) { toast.error("Cannot delete the last sandbox"); return; }
+    if (!confirm("Delete this sandbox permanently?")) return;
+    await supabase.from("sandbox_sessions").delete().eq("id", sessionId);
+    setSandboxSessions(prev => prev.filter(s => s.id !== sessionId));
+    if (sessionId === activeSandboxId) {
+      const remaining = sandboxSessions.filter(s => s.id !== sessionId);
+      if (remaining.length) switchSandbox(remaining[0].id);
+    }
+    toast.success("Sandbox deleted");
+  }, [activeSandboxId, sandboxSessions, switchSandbox]);
+
+  /* ─── Rename sandbox ─── */
+  const renameSandbox = useCallback(async (sessionId: string, newName: string) => {
+    if (!newName.trim()) return;
+    await supabase.from("sandbox_sessions").update({ name: newName.trim() } as any).eq("id", sessionId);
+    setSandboxSessions(prev => prev.map(s => s.id === sessionId ? { ...s, name: newName.trim() } : s));
+    setRenamingId(null);
+    toast.success("Renamed");
+  }, []);
 
   /* ─── Load connected platforms for push menu ─── */
   useEffect(() => {
