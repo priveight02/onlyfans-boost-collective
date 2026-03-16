@@ -946,6 +946,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, [locked]);
 
   const ordered = useMemo(() => [...elements].sort((a, b) => a.z - b.z), [elements]);
+  const belowStrokes = useMemo(() => ordered.filter(e => e.z < STROKE_Z), [ordered]);
+  const aboveStrokes = useMemo(() => ordered.filter(e => e.z >= STROKE_Z), [ordered]);
   const primaryId = useMemo(() => Array.from(selectedIds)[0] || null, [selectedIds]);
   const primaryEl = useMemo(() => ordered.find(e => e.id === primaryId) || null, [ordered, primaryId]);
   const importedSrcIds = useMemo(() => new Set(elements.map(e => e.sourceItemId).filter(Boolean)), [elements]);
