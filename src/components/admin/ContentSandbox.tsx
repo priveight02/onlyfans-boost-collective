@@ -934,6 +934,23 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     } catch { /* noop */ }
   }, [HISTORY_KEY]);
 
+  /* ─── Load connected platforms for push menu ─── */
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: conns } = await supabase.from("social_connections").select("platform,platform_username,account_id,is_connected").eq("is_connected", true);
+        if (conns) {
+          const map: Record<string, { account_id: string; username: string }[]> = {};
+          for (const c of conns) {
+            if (!map[c.platform]) map[c.platform] = [];
+            map[c.platform].push({ account_id: c.account_id, username: c.platform_username || c.account_id });
+          }
+          setConnectedPlatforms(map);
+        }
+      } catch { /* noop */ }
+    })();
+  }, []);
+
   useEffect(() => {
     if (!dirty) return;
     const t = setTimeout(() => save(), AUTOSAVE_MS);
