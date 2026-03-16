@@ -681,7 +681,7 @@ const CRM = () => {
         />
 
         {/* Page content — larger base text for all tabs */}
-        <div className={cn("text-base [&_h2]:text-xl [&_h2]:font-bold [&_h3]:text-lg [&_h3]:font-semibold [&_p]:text-[14px] [&_label]:text-[13px] min-w-0 overflow-hidden", activeTab === "content" ? "p-2" : "p-6")}>
+        <div className={cn("text-base [&_h2]:text-xl [&_h2]:font-bold [&_h3]:text-lg [&_h3]:font-semibold [&_p]:text-[14px] [&_label]:text-[13px] min-w-0 overflow-hidden", activeTab === "content" ? "p-3" : "p-6")}>
           {renderContent()}
         </div>
       </main>
