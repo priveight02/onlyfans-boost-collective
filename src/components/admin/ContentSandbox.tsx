@@ -2544,7 +2544,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         )}
 
         {/* Right side */}
-        <div className="ml-auto flex items-center gap-1">
+        <div className="ml-auto flex items-center gap-1 shrink-0">
           <button type="button" onClick={() => zoomTo(viewport.zoom - 0.15)} className="rounded-md p-1 text-white/40 hover:text-white/70"><ZoomOut className="h-3.5 w-3.5" /></button>
           <span className="min-w-[36px] text-center text-[10px] text-white/50">{Math.round(viewport.zoom * 100)}%</span>
           <button type="button" onClick={() => zoomTo(viewport.zoom + 0.15)} className="rounded-md p-1 text-white/40 hover:text-white/70"><ZoomIn className="h-3.5 w-3.5" /></button>
