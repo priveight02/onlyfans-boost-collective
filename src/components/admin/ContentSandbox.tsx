@@ -17,6 +17,7 @@ import {
   Trash2, Triangle, Type, Underline, Unlink, Unlock, ZoomIn, ZoomOut, RefreshCw, Palette,
   Send, FileDown, Grid3X3, Magnet, FileJson, FileSpreadsheet, FileImage, Image as ImageIcon,
   CaseSensitive, ALargeSmall, Minus, LetterText, Upload, Film, Music, ImagePlus, HelpCircle, X,
+  FolderOpen, Plus, ChevronDown, MoreHorizontal, Edit3,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
