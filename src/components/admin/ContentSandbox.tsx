@@ -672,6 +672,11 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [activeStamp, setActiveStamp] = useState("⭐");
   const [canvasBgImage, setCanvasBgImage] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [showElementCount, setShowElementCount] = useState(true);
+  const [proportionalResize, setProportionalResize] = useState(false);
+  const [showRulers, setShowRulers] = useState(false);
+  const [recentColors, setRecentColors] = useState<string[]>([]);
+  const [showCoords, setShowCoords] = useState(true);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const spaceHeldRef = useRef(false);
@@ -1047,6 +1052,100 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     setElements(p => p.map(e => { if (!targets.includes(e.id)) return e; const pt = gridPos(i++, cols); return { ...e, x: pt.x, y: pt.y }; }));
   }, [isMobile, pushUndo]);
 
+  /* ─── Convenience: Send to Back ─── */
+  const sendToBack = useCallback(() => {
+    const ids = Array.from(selRef.current);
+    if (!ids.length) return;
+    pushUndo();
+    const minZ = Math.min(...elsRef.current.map(e => e.z));
+    let z = minZ - ids.length;
+    setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
+  }, [pushUndo]);
+
+  /* ─── Convenience: Flip horizontal/vertical ─── */
+  const flipSelected = useCallback((axis: "h" | "v") => {
+    const ids = Array.from(selRef.current);
+    if (!ids.length) return;
+    pushUndo();
+    const sel = elsRef.current.filter(e => ids.includes(e.id));
+    if (axis === "h") {
+      const cx = sel.reduce((a, e) => a + e.x + e.width / 2, 0) / sel.length;
+      setElements(p => p.map(e => ids.includes(e.id) ? { ...e, x: cx * 2 - e.x - e.width } : e));
+    } else {
+      const cy = sel.reduce((a, e) => a + e.y + e.height / 2, 0) / sel.length;
+      setElements(p => p.map(e => ids.includes(e.id) ? { ...e, y: cy * 2 - e.y - e.height } : e));
+    }
+  }, [pushUndo]);
+
+  /* ─── Convenience: Center on canvas ─── */
+  const centerOnCanvas = useCallback(() => {
+    const board = boardRef.current;
+    const ids = Array.from(selRef.current);
+    if (!board || !ids.length) return;
+    pushUndo();
+    const r = board.getBoundingClientRect();
+    const sel = elsRef.current.filter(e => ids.includes(e.id));
+    const bounds = { minX: Math.min(...sel.map(e => e.x)), minY: Math.min(...sel.map(e => e.y)), maxX: Math.max(...sel.map(e => e.x + e.width)), maxY: Math.max(...sel.map(e => e.y + e.height)) };
+    const cx = (bounds.minX + bounds.maxX) / 2, cy = (bounds.minY + bounds.maxY) / 2;
+    const canvasCx = (-vpRef.current.x + r.width / 2) / vpRef.current.zoom;
+    const canvasCy = (-vpRef.current.y + r.height / 2) / vpRef.current.zoom;
+    const dx = canvasCx - cx, dy = canvasCy - cy;
+    setElements(p => p.map(e => ids.includes(e.id) ? { ...e, x: e.x + dx, y: e.y + dy } : e));
+  }, [pushUndo]);
+
+  /* ─── Convenience: Distribute evenly ─── */
+  const distributeSelected = useCallback((axis: "h" | "v") => {
+    const ids = Array.from(selRef.current);
+    if (ids.length < 3) { toast.info("Select 3+ elements to distribute"); return; }
+    pushUndo();
+    const sel = elsRef.current.filter(e => ids.includes(e.id)).sort((a, b) => axis === "h" ? a.x - b.x : a.y - b.y);
+    if (axis === "h") {
+      const totalW = sel.reduce((a, e) => a + e.width, 0);
+      const span = sel[sel.length - 1].x + sel[sel.length - 1].width - sel[0].x;
+      const gap = (span - totalW) / (sel.length - 1);
+      let x = sel[0].x;
+      const idToX: Record<string, number> = {};
+      sel.forEach(e => { idToX[e.id] = x; x += e.width + gap; });
+      setElements(p => p.map(e => ids.includes(e.id) ? { ...e, x: idToX[e.id] ?? e.x } : e));
+    } else {
+      const totalH = sel.reduce((a, e) => a + e.height, 0);
+      const span = sel[sel.length - 1].y + sel[sel.length - 1].height - sel[0].y;
+      const gap = (span - totalH) / (sel.length - 1);
+      let y = sel[0].y;
+      const idToY: Record<string, number> = {};
+      sel.forEach(e => { idToY[e.id] = y; y += e.height + gap; });
+      setElements(p => p.map(e => ids.includes(e.id) ? { ...e, y: idToY[e.id] ?? e.y } : e));
+    }
+  }, [pushUndo]);
+
+  /* ─── Convenience: Reset rotation ─── */
+  const resetRotation = useCallback(() => {
+    const ids = Array.from(selRef.current);
+    const sIds = Array.from(selStrokesRef.current);
+    if (!ids.length && !sIds.length) return;
+    pushUndo();
+    if (ids.length) setElements(p => p.map(e => ids.includes(e.id) ? { ...e, rotation: 0 } : e));
+    if (sIds.length) setStrokes(p => p.map(s => sIds.includes(s.id) ? { ...s, rotation: 0 } : s));
+    toast.success("Rotation reset to 0°");
+  }, [pushUndo]);
+
+  /* ─── Convenience: Match size (make selected same size as first) ─── */
+  const matchSize = useCallback(() => {
+    const ids = Array.from(selRef.current);
+    if (ids.length < 2) { toast.info("Select 2+ elements to match size"); return; }
+    pushUndo();
+    const ref = elsRef.current.find(e => e.id === ids[0]);
+    if (!ref) return;
+    setElements(p => p.map(e => ids.includes(e.id) && e.id !== ids[0] ? { ...e, width: ref.width, height: ref.height } : e));
+    toast.success("Sizes matched to first selection");
+  }, [pushUndo]);
+
+  /* ─── Convenience: Reset zoom & pan ─── */
+  const resetView = useCallback(() => {
+    setViewport(DEFAULT_VIEWPORT);
+    toast.success("View reset");
+  }, []);
+
   const importItems = useCallback((rows: any[]) => {
     const existing = new Set(elsRef.current.map(e => e.sourceItemId).filter(Boolean));
     const next = rows.filter(item => !existing.has(item.id));
@@ -1383,15 +1482,15 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       }
       if (ix.type === "resize") {
         const dx = pt.x - ix.anchor.x, dy = pt.y - ix.anchor.y;
-        const newW = clamp(ix.originRect.width + dx, 40, 2000);
-        const newH = clamp(ix.originRect.height + dy, 30, 1500);
+        const newW = Math.max(ix.originRect.width + dx, 10);
+        const newH = Math.max(ix.originRect.height + dy, 10);
         setElements(p => p.map(el => {
           if (el.id !== ix.elementId) return el;
           const patch: Partial<SandboxElement> = { width: newW, height: newH };
           // Scale font size proportionally for text elements
           if (el.kind === "text" && el.fontSize) {
             const scaleRatio = newW / ix.originRect.width;
-            patch.fontSize = clamp(Math.round((el.fontSize || 16) * scaleRatio), 8, 200);
+            patch.fontSize = Math.max(Math.round((el.fontSize || 16) * scaleRatio), 4);
           }
           return { ...el, ...patch };
         }));
@@ -1401,8 +1500,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (ix.type === "resize-stroke") {
         const dx = pt.x - ix.anchor.x, dy = pt.y - ix.anchor.y;
         const ob = ix.originBounds;
-        const newW = Math.max(ob.w + dx, 20);
-        const newH = Math.max(ob.h + dy, 20);
+        const newW = Math.max(ob.w + dx, 5);
+        const newH = Math.max(ob.h + dy, 5);
         const sx = newW / (ob.w || 1), sy = newH / (ob.h || 1);
         setStrokes(p => p.map(s => {
           if (s.id !== ix.strokeId) return s;
@@ -1513,6 +1612,13 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (ctrl && k === "e") { e.preventDefault(); setShowExportDialog(true); return; }
       if (e.key === "Escape") { setSelectedIds(new Set()); setSelectedStrokeIds(new Set()); setLinkSourceId(null); return; }
       if (e.key === "Delete" || (e.key === "Backspace" && !tgt?.isContentEditable)) { e.preventDefault(); deleteSel(); return; }
+      if (ctrl && shift && k === "f") { e.preventDefault(); flipSelected("h"); return; }
+      if (ctrl && shift && k === "b") { e.preventDefault(); sendToBack(); return; }
+      if (ctrl && shift && k === "c") { e.preventDefault(); centerOnCanvas(); return; }
+      if (ctrl && shift && k === "m") { e.preventDefault(); matchSize(); return; }
+      if (ctrl && shift && k === "r") { e.preventDefault(); resetRotation(); return; }
+      if (k === "[" && !ctrl) { e.preventDefault(); sendToBack(); return; }
+      if (k === "]" && !ctrl) { e.preventDefault(); bringForward(); return; }
       const step = shift ? 10 : 1;
       if (e.key === "ArrowLeft") { e.preventDefault(); nudge(-step, 0); return; }
       if (e.key === "ArrowRight") { e.preventDefault(); nudge(step, 0); return; }
@@ -1535,7 +1641,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     return () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); };
-  }, [undo, redo, save, deleteSel, duplicateSel, groupSelected, selectAll, fitToView, nudge, rotateSnap, tool]);
+  }, [undo, redo, save, deleteSel, duplicateSel, groupSelected, selectAll, fitToView, nudge, rotateSnap, tool, flipSelected, sendToBack, centerOnCanvas, matchSize, resetRotation, bringForward]);
 
   const activeSizes = tool === "eraser" ? ERASER_SIZES : BRUSH_SIZES;
 
@@ -1730,8 +1836,26 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
         <div className="h-4 w-px bg-white/8" />
 
+        {/* Convenience features */}
+        <button type="button" onClick={bringForward} disabled={!selectedIds.size} title="Bring Forward ( ] )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↑ Front</button>
+        <button type="button" onClick={sendToBack} disabled={!selectedIds.size} title="Send to Back ( [ )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↓ Back</button>
+        <button type="button" onClick={() => flipSelected("h")} disabled={!selectedIds.size} title="Flip Horizontal (Ctrl+Shift+F)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⇔ Flip H</button>
+        <button type="button" onClick={() => flipSelected("v")} disabled={!selectedIds.size} title="Flip Vertical" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⇕ Flip V</button>
+        <button type="button" onClick={centerOnCanvas} disabled={!selectedIds.size} title="Center on Canvas (Ctrl+Shift+C)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⊙ Center</button>
+        <button type="button" onClick={resetRotation} disabled={!selectedIds.size && !selectedStrokeIds.size} title="Reset Rotation (Ctrl+Shift+R)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↺ 0°</button>
+        <button type="button" onClick={matchSize} disabled={selectedIds.size < 2} title="Match Size (Ctrl+Shift+M)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⊞ Match</button>
+        {selectedIds.size >= 3 && (
+          <>
+            <button type="button" onClick={() => distributeSelected("h")} title="Distribute Horizontally" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8">⋯ Dist H</button>
+            <button type="button" onClick={() => distributeSelected("v")} title="Distribute Vertically" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8">⋮ Dist V</button>
+          </>
+        )}
+
+        <div className="h-4 w-px bg-white/8" />
+
         <button type="button" onClick={selectAll} title="Ctrl+A" className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">Select All</button>
         <button type="button" onClick={fitToView} title="Ctrl+1" className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8"><Maximize className="inline h-3 w-3 mr-0.5" />Fit</button>
+        <button type="button" onClick={resetView} title="Ctrl+0" className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">Reset View</button>
         <button type="button" onClick={() => setSnapToGrid(p => !p)} className={cn("rounded-md border px-2.5 py-1 text-[10px] flex items-center gap-1", snapToGrid ? "border-blue-500/25 bg-blue-500/10 text-blue-400" : "border-white/8 bg-white/4 text-white/60 hover:bg-white/8")}>
           <Grid3X3 className="h-3 w-3" />Snap
         </button>
@@ -1903,6 +2027,20 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               </div>
             );
           })()}
+          {/* Status bar */}
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-1 bg-[hsl(222,30%,6%)]/80 backdrop-blur-sm border-t border-white/5 text-[9px] text-white/35 pointer-events-none z-[999]">
+            <div className="flex items-center gap-3">
+              <span>{elements.length} elements · {strokes.length} strokes</span>
+              {selectedIds.size > 0 && <span className="text-blue-400/70">{selectedIds.size} selected</span>}
+              {selectedStrokeIds.size > 0 && <span className="text-blue-400/70">{selectedStrokeIds.size} strokes selected</span>}
+              {primaryEl && <span className="text-white/25">x:{Math.round(primaryEl.x)} y:{Math.round(primaryEl.y)} w:{Math.round(primaryEl.width)} h:{Math.round(primaryEl.height)}{primaryEl.rotation ? ` ${Math.round(primaryEl.rotation)}°` : ""}</span>}
+            </div>
+            <div className="flex items-center gap-3">
+              <span>cursor: {Math.round(mouseScene.x)}, {Math.round(mouseScene.y)}</span>
+              <span>{Math.round(viewport.zoom * 100)}%</span>
+              <span>{snapToGrid ? "⊞ Snap ON" : ""}</span>
+            </div>
+          </div>
         </div>
 
         {/* Inspector */}
@@ -2239,9 +2377,14 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 {[
                   ["Ctrl+Z", "Undo"], ["Ctrl+Shift+Z", "Redo"], ["Ctrl+S", "Save"],
                   ["Ctrl+A", "Select all"], ["Ctrl+E", "Export dialog"], ["Ctrl+1", "Fit to view"],
+                  ["Ctrl+0", "Reset view"], ["Ctrl+D", "Duplicate"],
                   ["Del / Bksp", "Delete selected"], ["Esc", "Deselect / cancel"],
                   ["Arrows", "Nudge 1px"], ["Shift+Arrows", "Nudge 10px"],
-                  ["R", "Rotate 45° snap"], ["M", "Media tool"], ["Space", "Pan mode"],
+                  ["R", "Rotate 45° snap"], ["[ / ]", "Send back / Bring front"],
+                  ["Ctrl+Shift+F", "Flip horizontal"], ["Ctrl+Shift+C", "Center on canvas"],
+                  ["Ctrl+Shift+R", "Reset rotation"], ["Ctrl+Shift+M", "Match sizes"],
+                  ["Ctrl+Shift+B", "Send to back"],
+                  ["M", "Media tool"], ["Space", "Pan mode"],
                 ].map(([k, d]) => (
                   <div key={k} className="flex items-center justify-between gap-1.5">
                     <kbd className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] sm:text-[10px] text-white/60 font-mono shrink-0">{k}</kbd>
@@ -2281,13 +2424,16 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               <div className="space-y-1.5 text-[10px] sm:text-[11px] text-white/45">
                 <p><span className="text-white/75 font-medium">Click</span> — Select element or stroke</p>
                 <p><span className="text-white/75 font-medium">Marquee drag</span> — Multi-select rectangle</p>
-                <p><span className="text-white/75 font-medium">Resize handles</span> — Scale proportionally</p>
+                <p><span className="text-white/75 font-medium">Resize</span> — Unlimited scaling, no size limits</p>
                 <p><span className="text-white/75 font-medium">Rotation handle</span> — Smooth 360° rotation</p>
                 <p><span className="text-white/75 font-medium">R key</span> — 8-direction snap (45° steps)</p>
                 <p><span className="text-white/75 font-medium">Alt+Drag</span> — Duplicate on the fly</p>
-                <p><span className="text-white/75 font-medium">Group / Ungroup</span> — Move as one unit</p>
-                <p><span className="text-white/75 font-medium">Mesh</span> — Rigid attach (amber indicator)</p>
-                <p><span className="text-white/75 font-medium">Link / Unlink</span> — Visual card connections</p>
+                <p><span className="text-white/75 font-medium">Flip H/V</span> — Mirror selections</p>
+                <p><span className="text-white/75 font-medium">Center</span> — Center selection on viewport</p>
+                <p><span className="text-white/75 font-medium">Match Size</span> — Make all same size as first</p>
+                <p><span className="text-white/75 font-medium">Distribute</span> — Even spacing (3+ elements)</p>
+                <p><span className="text-white/75 font-medium">Reset Rotation</span> — Set angle to 0°</p>
+                <p><span className="text-white/75 font-medium">Front / Back</span> — Z-order layering</p>
               </div>
             </div>
 
@@ -2298,8 +2444,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 Text Editing
               </h3>
               <div className="space-y-1.5 text-[10px] sm:text-[11px] text-white/45">
-                <p><span className="text-white/75 font-medium">Font Family</span> — 9 families (Inter, Playfair, JetBrains...)</p>
-                <p><span className="text-white/75 font-medium">Font Size</span> — 15 presets (10px–72px)</p>
+                <p><span className="text-white/75 font-medium">Font Family</span> — 12 families available</p>
+                <p><span className="text-white/75 font-medium">Font Size</span> — 8px–144px presets</p>
                 <p><span className="text-white/75 font-medium">B / I / U / S</span> — Bold, italic, underline, strikethrough</p>
                 <p><span className="text-white/75 font-medium">Align</span> — Left, center, right</p>
                 <p><span className="text-white/75 font-medium">Transform</span> — Aa, AA, aa, Ab modes</p>
@@ -2321,9 +2467,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 <p><span className="text-white/75 font-medium">Snap to Grid</span> — 20px precision snapping</p>
                 <p><span className="text-white/75 font-medium">Minimap</span> — Interactive overview navigation</p>
                 <p><span className="text-white/75 font-medium">Fit to View</span> — Auto-zoom all content (Ctrl+1)</p>
-                <p><span className="text-white/75 font-medium">Scroll Lock</span> — Lock/unlock page scrolling</p>
+                <p><span className="text-white/75 font-medium">Reset View</span> — Back to default zoom (Ctrl+0)</p>
+                <p><span className="text-white/75 font-medium">Status Bar</span> — Live element count, cursor coords, selection info</p>
                 <p><span className="text-white/75 font-medium">Custom BG</span> — Upload background image</p>
-                <p><span className="text-white/75 font-medium">Color Picker</span> — HSV picker with HEX input</p>
+                <p><span className="text-white/75 font-medium">Color Picker</span> — HSV picker with HEX/RGB input</p>
               </div>
             </div>
 
@@ -2382,8 +2529,11 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               </h3>
               <div className="space-y-1.5 text-[10px] sm:text-[11px] text-white/45">
                 <p><span className="text-white/75 font-medium">Align tools</span> — Left, Right, Top, Bottom, Center</p>
+                <p><span className="text-white/75 font-medium">Distribute H/V</span> — Even spacing (3+ elements)</p>
                 <p><span className="text-white/75 font-medium">Auto Arrange</span> — Grid layout all elements</p>
                 <p><span className="text-white/75 font-medium">Inspector</span> — Edit position, size, rotation</p>
+                <p><span className="text-white/75 font-medium">Group / Ungroup</span> — Move as one unit</p>
+                <p><span className="text-white/75 font-medium">Mesh</span> — Rigid attach (amber indicator)</p>
               </div>
             </div>
 
