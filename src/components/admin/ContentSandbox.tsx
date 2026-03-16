@@ -1571,30 +1571,33 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     setElements(p => p.map(e => { if (!targets.includes(e.id)) return e; const pt = gridPos(i++, cols); return { ...e, x: pt.x, y: pt.y }; }));
   }, [isMobile, pushUndo]);
 
-  /* ─── Convenience: Send to Back (behind strokes) ─── */
+  /* ─── Convenience: Send to Back ─── */
   const sendToBack = useCallback(() => {
-    const ids = Array.from(selRef.current);
-    if (!ids.length) return;
+    const ids = new Set(selRef.current);
+    if (!ids.size) return;
     pushUndo();
-    // Place selected elements below the stroke canvas layer (z < STROKE_Z)
-    let z = 0;
-    setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
+    setElements(p => {
+      const sorted = [...p].sort((a, b) => a.z - b.z);
+      const selected = sorted.filter(e => ids.has(e.id));
+      const rest = sorted.filter(e => !ids.has(e.id));
+      return [...selected, ...rest].map((e, idx) => ({ ...e, z: STROKE_Z + 1 + idx }));
+    });
   }, [pushUndo]);
 
   /* ─── Convenience: Send Backward (one step) ─── */
   const sendBackward = useCallback(() => {
-    const ids = Array.from(selRef.current);
-    if (!ids.length) return;
+    const ids = new Set(selRef.current);
+    if (!ids.size) return;
     pushUndo();
     setElements(p => {
       const sorted = [...p].sort((a, b) => a.z - b.z);
       const result = [...sorted];
-      for (let i = 0; i < result.length; i++) {
-        if (ids.includes(result[i].id) && i > 0 && !ids.includes(result[i - 1].id)) {
+      for (let i = 1; i < result.length; i++) {
+        if (ids.has(result[i].id) && !ids.has(result[i - 1].id)) {
           [result[i - 1], result[i]] = [result[i], result[i - 1]];
         }
       }
-      return result.map((e, idx) => ({ ...e, z: idx }));
+      return result.map((e, idx) => ({ ...e, z: STROKE_Z + 1 + idx }));
     });
   }, [pushUndo]);
 
