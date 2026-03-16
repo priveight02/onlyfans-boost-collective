@@ -1085,16 +1085,36 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   /* ─── Delete sandbox ─── */
   const deleteSandbox = useCallback(async (sessionId: string) => {
-    if (sandboxSessions.length <= 1) { toast.error("Cannot delete the last sandbox"); return; }
     if (!confirm("Delete this sandbox permanently?")) return;
     await supabase.from("sandbox_sessions").delete().eq("id", sessionId);
-    setSandboxSessions(prev => prev.filter(s => s.id !== sessionId));
+    const remaining = sandboxSessions.filter(s => s.id !== sessionId);
+    setSandboxSessions(remaining);
     if (sessionId === activeSandboxId) {
-      const remaining = sandboxSessions.filter(s => s.id !== sessionId);
-      if (remaining.length) switchSandbox(remaining[0].id);
+      if (remaining.length) {
+        switchSandbox(remaining[0].id);
+      } else {
+        // Deleted last one — create a fresh default
+        createSandbox("Main Sandbox");
+      }
     }
     toast.success("Sandbox deleted");
-  }, [activeSandboxId, sandboxSessions, switchSandbox]);
+  }, [activeSandboxId, sandboxSessions, switchSandbox, createSandbox]);
+
+  /* ─── Delete ALL sandboxes ─── */
+  const deleteAllSandboxes = useCallback(async () => {
+    if (!confirm("Delete ALL sandboxes permanently? This cannot be undone.")) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    await supabase.from("sandbox_sessions").delete().eq("user_id", user.id);
+    setSandboxSessions([]);
+    setElements([]); setStrokes([]); setViewport(DEFAULT_VIEWPORT); setCanvasBgImage(null);
+    setSelectedIds(new Set()); setSelectedStrokeIds(new Set());
+    undoStack.current = []; redoStack.current = [];
+    setActiveSandboxId(null);
+    // Create a fresh one
+    await createSandbox("Main Sandbox");
+    toast.success("All sandboxes deleted");
+  }, [createSandbox]);
 
   /* ─── Rename sandbox ─── */
   const renameSandbox = useCallback(async (sessionId: string, newName: string) => {
