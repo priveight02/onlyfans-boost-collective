@@ -13,19 +13,19 @@ import {
   AlignLeft, AlignRight, AlignStartHorizontal, AlignStartVertical, ArrowRight, Bold, Check, Circle,
   Copy, Diamond, Download, Eraser, Eye, EyeOff, Frame, Grip, Hash, Italic, Layers, Link2, Loader2,
   Lock, Map as MapIcon, Maximize, MousePointer, Move, Paperclip, Pencil, Pipette,
-  Redo2, RotateCcw, Save, Search, Smile, Sparkles, Square, StickyNote, Strikethrough,
+  Redo2, RotateCcw, RotateCw, Save, Search, Smile, Sparkles, Square, StickyNote, Strikethrough,
   Trash2, Triangle, Type, Underline, Unlink, Unlock, ZoomIn, ZoomOut, RefreshCw, Palette,
   Send, FileDown, Grid3X3, Magnet, FileJson, FileSpreadsheet, FileImage, Image as ImageIcon,
-  CaseSensitive, ALargeSmall, Minus, LetterText,
+  CaseSensitive, ALargeSmall, Minus, LetterText, Upload, Film, Music, ImagePlus,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { exportSandboxToDrafts, pushSandboxDirectToPlatforms, getConnectedAccounts, DEFAULT_BEST_TIMES, type ExecutionMode } from "@/lib/contentSync";
 
 /* ─── Types ─── */
-type Tool = "select" | "pan" | "pen" | "eraser" | "text" | "note" | "rectangle" | "ellipse" | "triangle" | "diamond" | "arrow" | "connector" | "frame" | "stamp";
+type Tool = "select" | "pan" | "pen" | "eraser" | "text" | "note" | "rectangle" | "ellipse" | "triangle" | "diamond" | "arrow" | "connector" | "frame" | "stamp" | "media";
 type ShapeKind = "rectangle" | "ellipse" | "triangle" | "diamond" | "arrow";
-type ElementKind = "content" | "note" | "text" | "shape" | "frame" | "stamp";
+type ElementKind = "content" | "note" | "text" | "shape" | "frame" | "stamp" | "media";
 type Point = { x: number; y: number };
 type Viewport = { x: number; y: number; zoom: number };
 
@@ -35,6 +35,7 @@ interface SandboxStroke {
   color: string;
   size: number;
   points: Point[];
+  rotation?: number;
 }
 
 interface SandboxElement {
@@ -61,6 +62,10 @@ interface SandboxElement {
   textTransform?: string;
   opacity?: number;
   emoji?: string;
+  rotation?: number;
+  mediaUrl?: string;
+  mediaType?: "image" | "video" | "audio" | "gif";
+  mediaName?: string;
 }
 
 type InteractionState =
@@ -70,7 +75,9 @@ type InteractionState =
   | { type: "resize"; elementId: string; anchor: Point; originRect: Pick<SandboxElement, "x" | "y" | "width" | "height"> }
   | { type: "marquee"; origin: Point; current: Point }
   | { type: "resize-stroke"; strokeId: string; anchor: Point; originBounds: { x: number; y: number; w: number; h: number }; originPoints: Point[] }
-  | { type: "connector-draw"; from: Point; current: Point };
+  | { type: "connector-draw"; from: Point; current: Point }
+  | { type: "rotate"; elementId: string; center: Point; startAngle: number; startRotation: number }
+  | { type: "rotate-stroke"; strokeId: string; center: Point; startAngle: number; startRotation: number };
 
 interface SandboxSnapshot { elements: SandboxElement[]; strokes: SandboxStroke[]; }
 
@@ -118,6 +125,8 @@ const LETTER_SPACINGS = [-2, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 10];
 const LINE_HEIGHTS = [0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2, 2.5, 3];
 const EMOJI_STAMPS = ["⭐", "🔥", "💡", "❤️", "✅", "⚡", "🎯", "🚀", "💰", "📌", "🏆", "💬", "📊", "🎨", "🔔", "⚠️"];
 
+const ROTATION_SNAPS = [0, 45, 90, 135, 180, 225, 270, 315];
+
 const TOOL_ITEMS: { id: Tool; label: string; icon: any }[] = [
   { id: "select", label: "V", icon: MousePointer },
   { id: "pan", label: "H", icon: Move },
@@ -133,6 +142,7 @@ const TOOL_ITEMS: { id: Tool; label: string; icon: any }[] = [
   { id: "connector", label: "Con", icon: Minus },
   { id: "frame", label: "F", icon: Frame },
   { id: "stamp", label: "S", icon: Smile },
+  { id: "media", label: "M", icon: Film },
 ];
 
 /* ─── Helpers ─── */
@@ -349,18 +359,20 @@ const ColorPicker = memo(function ColorPicker({ color, onChange }: { color: stri
 });
 
 /* ─── ElementView ─── */
-const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, onResize, onTextChange }: {
+const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, onResize, onTextChange, onRotate }: {
   el: SandboxElement; selected: boolean; linkSrc: boolean;
   onDown: (e: React.PointerEvent, el: SandboxElement) => void;
   onResize: (e: React.PointerEvent, el: SandboxElement) => void;
   onTextChange: (id: string, v: string) => void;
+  onRotate: (e: React.PointerEvent, el: SandboxElement) => void;
 }) {
   const src = el.data ? getSource(el.data) : "";
+  const rot = el.rotation || 0;
 
   return (
     <div
       className={cn("absolute", selected && "ring-2 ring-blue-400/80", linkSrc && "ring-2 ring-emerald-400")}
-      style={{ left: el.x, top: el.y, width: el.width, height: el.height, zIndex: el.z, willChange: "transform", opacity: el.opacity ?? 1 }}
+      style={{ left: el.x, top: el.y, width: el.width, height: el.height, zIndex: el.z, willChange: "transform", opacity: el.opacity ?? 1, transform: rot ? `rotate(${rot}deg)` : undefined, transformOrigin: "center center" }}
       onPointerDown={e => onDown(e, el)}
     >
       {el.kind === "content" && el.data && (
@@ -438,11 +450,48 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
         </div>
       )}
 
+      {el.kind === "media" && el.mediaUrl && (
+        <div className="h-full w-full rounded-xl border border-white/8 bg-[hsl(222,30%,10%)] overflow-hidden flex flex-col">
+          <div className="flex items-center gap-1.5 border-b border-white/6 px-2 py-1">
+            {el.mediaType === "video" && <Film className="h-3 w-3 text-purple-400/70" />}
+            {el.mediaType === "audio" && <Music className="h-3 w-3 text-emerald-400/70" />}
+            {(el.mediaType === "image" || el.mediaType === "gif") && <ImageIcon className="h-3 w-3 text-blue-400/70" />}
+            <span className="text-[9px] text-white/40 truncate">{el.mediaName || "Media"}</span>
+          </div>
+          <div className="flex-1 flex items-center justify-center overflow-hidden" onPointerDown={e => e.stopPropagation()}>
+            {(el.mediaType === "image" || el.mediaType === "gif") && (
+              <img src={el.mediaUrl} alt={el.mediaName || "media"} className="max-h-full max-w-full object-contain" draggable={false} />
+            )}
+            {el.mediaType === "video" && (
+              <video src={el.mediaUrl} controls playsInline preload="metadata" className="max-h-full max-w-full object-contain" />
+            )}
+            {el.mediaType === "audio" && (
+              <div className="flex flex-col items-center gap-2 p-3 w-full">
+                <Music className="h-8 w-8 text-emerald-400/40" />
+                <audio src={el.mediaUrl} controls preload="metadata" className="w-full" style={{ maxWidth: "100%" }} />
+                <span className="text-[10px] text-white/30 truncate max-w-full">{el.mediaName}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {(el.groupId || el.meshId) && (
         <div className={cn("absolute -top-1.5 -right-1.5 h-3 w-3 rounded-full border", el.meshId ? "bg-amber-400 border-amber-900" : "bg-emerald-400 border-emerald-900")}
           title={el.meshId ? "Meshed" : "Grouped"} />
       )}
+      {/* Resize handle */}
       <button type="button" aria-label="Resize" className="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full border border-white/15 bg-white/10 cursor-se-resize" onPointerDown={e => onResize(e as any, el)} />
+      {/* Rotate handle - shown when selected */}
+      {selected && (
+        <button type="button" aria-label="Rotate" className="absolute -top-5 left-1/2 -translate-x-1/2 h-4 w-4 rounded-full border border-blue-400/40 bg-blue-500/20 cursor-grab flex items-center justify-center hover:bg-blue-500/40 transition-colors"
+          onPointerDown={e => { e.stopPropagation(); onRotate(e as any, el); }}>
+          <RotateCw className="h-2.5 w-2.5 text-blue-300" />
+        </button>
+      )}
+      {rot !== 0 && (
+        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[8px] text-blue-400/50 whitespace-nowrap">{Math.round(rot)}°</div>
+      )}
     </div>
   );
 });
@@ -621,6 +670,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [exportBg, setExportBg] = useState("#1a1f2e");
   const [exportScope, setExportScope] = useState<"all" | "selected">("all");
   const [activeStamp, setActiveStamp] = useState("⭐");
+  const [canvasBgImage, setCanvasBgImage] = useState<string | null>(null);
+  const mediaInputRef = useRef<HTMLInputElement>(null);
+  const bgInputRef = useRef<HTMLInputElement>(null);
   const spaceHeldRef = useRef(false);
   const selStrokesRef = useRef<Set<string>>(new Set());
 
@@ -1111,6 +1163,82 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     setSelectedIds(new Set([el.id]));
   }, [pushUndo]);
 
+  const handleRotateDown = useCallback((e: React.PointerEvent, el: SandboxElement) => {
+    e.stopPropagation();
+    pushUndo();
+    const cx = el.x + el.width / 2;
+    const cy = el.y + el.height / 2;
+    const pt = scenePoint(e.clientX, e.clientY, boardRef.current, vpRef.current);
+    const startAngle = Math.atan2(pt.y - cy, pt.x - cx) * (180 / Math.PI);
+    interactionRef.current = { type: "rotate", elementId: el.id, center: { x: cx, y: cy }, startAngle, startRotation: el.rotation || 0 };
+    setSelectedIds(new Set([el.id]));
+  }, [pushUndo]);
+
+  /* ─── R key snap rotation ─── */
+  const rotateSnap = useCallback(() => {
+    const ids = Array.from(selRef.current);
+    const sIds = Array.from(selStrokesRef.current);
+    if (!ids.length && !sIds.length) return;
+    pushUndo();
+    if (ids.length) {
+      setElements(p => p.map(e => {
+        if (!ids.includes(e.id)) return e;
+        const cur = e.rotation || 0;
+        const nextSnap = ROTATION_SNAPS.find(s => s > cur) ?? 0;
+        return { ...e, rotation: nextSnap };
+      }));
+    }
+    if (sIds.length) {
+      setStrokes(p => p.map(s => {
+        if (!sIds.includes(s.id)) return s;
+        const cur = s.rotation || 0;
+        const nextSnap = ROTATION_SNAPS.find(sn => sn > cur) ?? 0;
+        // Rotate stroke points around center
+        const b = strokeBounds(s);
+        const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+        const angleDiff = (nextSnap - cur) * Math.PI / 180;
+        const newPoints = s.points.map(p => {
+          const dx = p.x - cx, dy = p.y - cy;
+          return { x: cx + dx * Math.cos(angleDiff) - dy * Math.sin(angleDiff), y: cy + dx * Math.sin(angleDiff) + dy * Math.cos(angleDiff) };
+        });
+        return { ...s, points: newPoints, rotation: nextSnap };
+      }));
+    }
+  }, [pushUndo]);
+
+  /* ─── Media import ─── */
+  const handleMediaImport = useCallback((files: FileList) => {
+    pushUndo();
+    const z = nextZ(elsRef.current);
+    const newEls: SandboxElement[] = [];
+    Array.from(files).forEach((file, i) => {
+      const url = URL.createObjectURL(file);
+      let mediaType: "image" | "video" | "audio" | "gif" = "image";
+      if (file.type.startsWith("video/")) mediaType = "video";
+      else if (file.type.startsWith("audio/")) mediaType = "audio";
+      else if (file.type === "image/gif") mediaType = "gif";
+      const el: SandboxElement = {
+        id: `sb-${crypto.randomUUID()}`, kind: "media",
+        x: 100 + i * 40, y: 100 + i * 40,
+        width: mediaType === "audio" ? 300 : 320,
+        height: mediaType === "audio" ? 120 : 240,
+        z: z + i, color: "#3b82f6", links: [], opacity: 1,
+        mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
+      };
+      newEls.push(el);
+    });
+    setElements(p => [...p, ...newEls]);
+    setSelectedIds(new Set(newEls.map(e => e.id)));
+    toast.success(`${newEls.length} media file(s) imported`);
+  }, [pushUndo]);
+
+  /* ─── Custom background ─── */
+  const handleBgImport = useCallback((file: File) => {
+    const url = URL.createObjectURL(file);
+    setCanvasBgImage(url);
+    toast.success("Background set");
+  }, []);
+
   const handleBoardDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0 && e.button !== 1) return;
     if (e.button === 1 || tool === "pan" || spaceHeldRef.current) {
@@ -1124,6 +1252,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       return;
     }
     if (["note", "text", "rectangle", "ellipse", "triangle", "diamond", "arrow", "frame", "stamp"].includes(tool)) { addEl(tool, pt); return; }
+    if (tool === "media") { mediaInputRef.current?.click(); return; }
     // Connector tool: start drawing a connection line
     if (tool === "connector") {
       interactionRef.current = { type: "draw", tool: "pen", color: activeColor, size: 3, points: [pt] };
@@ -1232,7 +1361,19 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         }));
         return;
       }
+      // Rotate element
+      if (ix.type === "rotate") {
+        const pt2 = scenePoint(e.clientX, e.clientY, boardRef.current, vpRef.current);
+        const angle = Math.atan2(pt2.y - ix.center.y, pt2.x - ix.center.x) * (180 / Math.PI);
+        const delta = angle - ix.startAngle;
+        let newRot = ix.startRotation + delta;
+        // Normalize to 0-360
+        newRot = ((newRot % 360) + 360) % 360;
+        setElements(p => p.map(el => el.id === ix.elementId ? { ...el, rotation: Math.round(newRot * 10) / 10 } : el));
+        return;
+      }
     };
+
     const onUp = () => {
       const ix = interactionRef.current;
       if (!ix) return;
@@ -1300,6 +1441,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (e.key === "ArrowRight") { e.preventDefault(); nudge(step, 0); return; }
       if (e.key === "ArrowUp") { e.preventDefault(); nudge(0, -step); return; }
       if (e.key === "ArrowDown") { e.preventDefault(); nudge(0, step); return; }
+      // R key for snap rotation (only when not in a tool that uses R)
+      if (k === "r" && !ctrl && tool === "select" && (selRef.current.size || selStrokesRef.current.size)) { e.preventDefault(); rotateSnap(); return; }
       if (k === "v" && !ctrl) setTool("select");
       if (k === "h" && !ctrl) setTool("pan");
       if (k === "p" && !ctrl) setTool("pen");
@@ -1307,6 +1450,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (k === "n" && !ctrl) setTool("note");
       if (k === "t" && !ctrl) setTool("text");
       if (k === "f" && !ctrl) setTool("frame");
+      if (k === "m" && !ctrl) setTool("media");
     };
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.key === " ") spaceHeldRef.current = false;
@@ -1314,7 +1458,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("keyup", onKeyUp);
     return () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); };
-  }, [undo, redo, save, deleteSel, duplicateSel, groupSelected, selectAll, fitToView, nudge]);
+  }, [undo, redo, save, deleteSel, duplicateSel, groupSelected, selectAll, fitToView, nudge, rotateSnap, tool]);
 
   const activeSizes = tool === "eraser" ? ERASER_SIZES : BRUSH_SIZES;
 
@@ -1325,7 +1469,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   /* ─── Render ─── */
   return (
-    <div ref={wrapperRef} data-sandbox-wrapper className="flex flex-col gap-1.5 w-full">
+    <div ref={wrapperRef} data-sandbox-wrapper className="flex flex-col gap-1 w-full h-full overflow-hidden" style={{ maxHeight: "calc(100vh - 64px)" }}>
+      {/* Hidden file inputs */}
+      <input ref={mediaInputRef} type="file" accept="image/*,video/*,audio/*,.gif" multiple className="hidden"
+        onChange={e => { if (e.target.files?.length) { handleMediaImport(e.target.files); e.target.value = ""; } }} />
+      <input ref={bgInputRef} type="file" accept="image/*" className="hidden"
+        onChange={e => { if (e.target.files?.[0]) { handleBgImport(e.target.files[0]); e.target.value = ""; } }} />
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-white/6 bg-[hsl(222,30%,10%)] px-2 py-1.5">
         {/* Tools */}
@@ -1512,6 +1661,17 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         <button type="button" onClick={() => setShowMinimap(p => !p)} className={cn("rounded-md border px-2.5 py-1 text-[10px] flex items-center gap-1", showMinimap ? "border-blue-500/25 bg-blue-500/10 text-blue-400" : "border-white/8 bg-white/4 text-white/60 hover:bg-white/8")}>
           <MapIcon className="h-3 w-3" />Map
         </button>
+        {/* Media import button */}
+        <button type="button" onClick={() => mediaInputRef.current?.click()} className="rounded-md border border-purple-500/15 bg-purple-500/5 px-2.5 py-1 text-[10px] text-purple-400/70 hover:bg-purple-500/10" title="Import media files (images, videos, audio, GIFs)">
+          <Upload className="inline h-3 w-3 mr-0.5" />Media
+        </button>
+        {/* Background */}
+        <button type="button" onClick={() => bgInputRef.current?.click()} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8" title="Set custom background">
+          <Palette className="inline h-3 w-3 mr-0.5" />BG
+        </button>
+        {canvasBgImage && (
+          <button type="button" onClick={() => setCanvasBgImage(null)} className="rounded-md border border-red-500/15 bg-red-500/5 px-2 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">✕ BG</button>
+        )}
 
         {/* Align tools */}
         {selectedIds.size >= 2 && (
@@ -1599,23 +1759,25 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <span>x:{Math.round(mouseScene.x)} y:{Math.round(mouseScene.y)}</span>
           <span>{Math.round(viewport.zoom * 100)}%</span>
           {snapToGrid && <span className="text-blue-400/50">⊞ Snap</span>}
-          <span className="hidden sm:inline">Space=Pan · Alt+Drag=Copy · ←→↑↓=Nudge · Ctrl+E=Export</span>
+          <span className="hidden sm:inline">Space=Pan · Alt+Drag=Copy · R=Rotate · ←→↑↓=Nudge · M=Media · Ctrl+E=Export</span>
         </div>
       </div>
 
       {/* Board + Inspector */}
-      <div className={cn("flex gap-2", showInspector ? "flex-col lg:flex-row" : "")}>
+      <div className={cn("flex gap-2 flex-1 min-h-0", showInspector ? "flex-col lg:flex-row" : "")}>
         <div
           ref={boardRef}
           data-sandbox-board
           onPointerDown={handleBoardDown}
-          className="relative flex-1 overflow-hidden rounded-xl border border-white/6 bg-[hsl(222,32%,8%)] touch-none"
+          className="relative flex-1 overflow-hidden rounded-xl border border-white/6 bg-[hsl(222,32%,8%)] touch-none min-h-0"
           style={{
-            height: isMobile ? "75vh" : "80vh",
-            cursor: tool === "pan" ? "grab" : tool === "pen" ? "crosshair" : tool === "eraser" ? "cell" : tool === "text" ? "text" : tool === "stamp" ? "copy" : "default",
-            backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0)",
-            backgroundSize: `${32 * viewport.zoom}px ${32 * viewport.zoom}px`,
-            backgroundPosition: `${viewport.x}px ${viewport.y}px`,
+            cursor: tool === "pan" ? "grab" : tool === "pen" ? "crosshair" : tool === "eraser" ? "cell" : tool === "text" ? "text" : tool === "stamp" ? "copy" : tool === "media" ? "cell" : "default",
+            backgroundImage: canvasBgImage
+              ? `url(${canvasBgImage})`
+              : "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0)",
+            backgroundSize: canvasBgImage ? "cover" : `${32 * viewport.zoom}px ${32 * viewport.zoom}px`,
+            backgroundPosition: canvasBgImage ? "center" : `${viewport.x}px ${viewport.y}px`,
+            backgroundRepeat: canvasBgImage ? "no-repeat" : undefined,
           }}
         >
           <canvas ref={canvasRef} className="absolute inset-0 h-full w-full pointer-events-none" />
@@ -1632,7 +1794,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <div className="absolute inset-0" style={{ transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0" }}>
             {ordered.map(el => (
               <ElementView key={el.id} el={el} selected={selectedIds.has(el.id)} linkSrc={linkSourceId === el.id}
-                onDown={handleElDown} onResize={handleResizeDown} onTextChange={(id, v) => updateEl(id, { text: v })} />
+                onDown={handleElDown} onResize={handleResizeDown} onTextChange={(id, v) => updateEl(id, { text: v })} onRotate={handleRotateDown} />
             ))}
           </div>
           {!elements.length && !strokes.length && (
@@ -1704,6 +1866,15 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                       onChange={e => updateEl(primaryEl.id, { opacity: Number(e.target.value) })}
                       className="flex-1 h-1 accent-blue-500" />
                     <span className="text-[9px] text-white/40 w-7">{Math.round((primaryEl.opacity ?? 1) * 100)}%</span>
+                  </div>
+                  {/* Rotation */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-white/35">Rotation</span>
+                    <input type="range" min={0} max={360} step={1} value={primaryEl.rotation || 0}
+                      onChange={e => { pushUndo(); updateEl(primaryEl.id, { rotation: Number(e.target.value) }); }}
+                      className="flex-1 h-1 accent-blue-500" />
+                    <span className="text-[9px] text-white/40 w-8">{Math.round(primaryEl.rotation || 0)}°</span>
+                    <button type="button" onClick={() => { pushUndo(); updateEl(primaryEl.id, { rotation: 0 }); }} className="text-[8px] text-white/30 hover:text-white/60">Reset</button>
                   </div>
                   {/* Color */}
                   <div className="flex items-center gap-2">

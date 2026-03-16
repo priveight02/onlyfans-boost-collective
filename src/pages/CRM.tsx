@@ -464,7 +464,7 @@ const CRM = () => {
             <span className="text-[28px] font-extrabold text-white tracking-tight" style={{ fontFamily: "'Poppins', system-ui, -apple-system, sans-serif" }}>Uplyze</span>
           )}
           {sidebarCollapsed && (
-            <span className="text-[22px] font-extrabold text-white">U</span>
+            <img src="/lovable-uploads/uplyze-logo.png" alt="Uplyze" className="h-8 w-8 rounded-lg object-contain" />
           )}
         </div>
 
@@ -546,7 +546,7 @@ const CRM = () => {
       {/* ═══════ MAIN CONTENT ═══════ */}
       <main className={cn(
         "flex-1 transition-all duration-300 min-h-screen relative z-10",
-        sidebarCollapsed ? "ml-[72px]" : "ml-[240px]"
+        sidebarCollapsed ? "ml-[72px]" : "ml-[244px]"
       )}>
         {/* Top bar */}
         <header className="h-[56px] sticky top-0 z-50 flex items-center justify-between px-6" style={{
