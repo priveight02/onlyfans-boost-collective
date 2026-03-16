@@ -2960,17 +2960,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
           {/* Status bar */}
           <div className="absolute bottom-0 left-0 right-0 flex items-center gap-3 px-3 py-1 bg-[hsl(222,30%,6%)]/80 backdrop-blur-sm border-t border-white/5 text-[9px] text-white/35 z-[999] overflow-hidden">
-            <div className="flex items-center gap-3 min-w-0 pointer-events-none">
-              <span>{elements.length + strokes.length} elements total</span>
-              {(selectedIds.size + selectedStrokeIds.size) > 0 && (
-                <span className="text-blue-400/70">{selectedIds.size + selectedStrokeIds.size} selected</span>
-              )}
-            </div>
-            <div className="ml-auto flex items-center gap-2 shrink-0">
-              <span className="pointer-events-none">cursor: {Math.round(mouseScene.x)}, {Math.round(mouseScene.y)}</span>
-              <span className="pointer-events-none">{Math.round(viewport.zoom * 100)}%</span>
-              {snapToGrid && <span className="pointer-events-none">⊞ Snap ON</span>}
-              <div className="h-3 w-px bg-white/10" />
+            {/* Sandbox list + Evolve on the LEFT */}
+            <div className="flex items-center gap-2 shrink-0">
               <button type="button" onClick={() => setSandboxListOpen(p => !p)}
                 className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70 hover:bg-white/5 pointer-events-auto transition-colors shrink-0">
                 <FolderOpen className="h-3 w-3" />
@@ -2987,6 +2978,20 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                   </button>
                 </>
               )}
+              <div className="h-3 w-px bg-white/10" />
+            </div>
+            {/* Element count + selection */}
+            <div className="flex items-center gap-3 min-w-0 pointer-events-none">
+              <span>{elements.length + strokes.length} elements total</span>
+              {(selectedIds.size + selectedStrokeIds.size) > 0 && (
+                <span className="text-blue-400/70">{selectedIds.size + selectedStrokeIds.size} selected</span>
+              )}
+            </div>
+            {/* Cursor + zoom on the RIGHT */}
+            <div className="ml-auto flex items-center gap-2 shrink-0 pointer-events-none">
+              <span>cursor: {Math.round(mouseScene.x)}, {Math.round(mouseScene.y)}</span>
+              <span>{Math.round(viewport.zoom * 100)}%</span>
+              {snapToGrid && <span>⊞ Snap ON</span>}
             </div>
           </div>
         </div>
