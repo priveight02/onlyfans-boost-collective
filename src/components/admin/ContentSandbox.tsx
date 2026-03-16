@@ -1745,23 +1745,6 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         </div>
       </div>
 
-      {/* Status bar */}
-      <div className="flex items-center justify-between rounded-lg border border-white/4 bg-white/[0.02] px-3 py-0.5 text-[9px] text-white/30">
-        <div className="flex items-center gap-3">
-          <span>{elements.filter(e => e.kind === "content").length} cards</span>
-          <span>{elements.filter(e => e.kind !== "content").length} els</span>
-          <span>{strokes.length} strokes</span>
-          <span className="text-white/20">|</span>
-          <span>Sel: {selectedIds.size} els + {selectedStrokeIds.size} strokes</span>
-        </div>
-        <div className="flex items-center gap-3">
-          {linkSourceId && <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-400/70">Click target to link</span>}
-          <span>x:{Math.round(mouseScene.x)} y:{Math.round(mouseScene.y)}</span>
-          <span>{Math.round(viewport.zoom * 100)}%</span>
-          {snapToGrid && <span className="text-blue-400/50">⊞ Snap</span>}
-          <span className="hidden sm:inline">Space=Pan · Alt+Drag=Copy · R=Rotate · ←→↑↓=Nudge · M=Media · Ctrl+E=Export</span>
-        </div>
-      </div>
 
       {/* Board + Inspector */}
       <div className={cn("flex gap-2 flex-1 min-h-0", showInspector ? "flex-col lg:flex-row" : "")}>
