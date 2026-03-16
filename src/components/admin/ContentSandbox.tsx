@@ -512,15 +512,18 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
 });
 
 /* ─── Export helpers ─── */
-const exportToPNG = (canvas: HTMLCanvasElement | null, elements: SandboxElement[], strokes: SandboxStroke[], vp: Viewport, board: HTMLDivElement | null, bgColor: string, scale: number) => {
+const exportToPNG = (canvas: HTMLCanvasElement | null, elements: SandboxElement[], strokes: SandboxStroke[], vp: Viewport, board: HTMLDivElement | null, bgColor: string, scale: number, fovBounds?: { minX: number; minY: number; maxX: number; maxY: number }) => {
   if (!board) return;
-  // Calculate bounds of all content
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const el of elements) { minX = Math.min(minX, el.x); minY = Math.min(minY, el.y); maxX = Math.max(maxX, el.x + el.width); maxY = Math.max(maxY, el.y + el.height); }
-  for (const s of strokes) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
-  if (!isFinite(minX)) { toast.info("Nothing to export"); return; }
-  const pad = 40;
-  minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+  let minX: number, minY: number, maxX: number, maxY: number;
+  if (fovBounds) {
+    minX = fovBounds.minX; minY = fovBounds.minY; maxX = fovBounds.maxX; maxY = fovBounds.maxY;
+  } else {
+    minX = Infinity; minY = Infinity; maxX = -Infinity; maxY = -Infinity;
+    for (const el of elements) { minX = Math.min(minX, el.x); minY = Math.min(minY, el.y); maxX = Math.max(maxX, el.x + el.width); maxY = Math.max(maxY, el.y + el.height); }
+    for (const s of strokes) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
+    if (!isFinite(minX)) { toast.info("Nothing to export"); return; }
+    const pad = 40; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+  }
   const w = (maxX - minX) * scale, h = (maxY - minY) * scale;
   const offscreen = document.createElement("canvas");
   offscreen.width = w; offscreen.height = h;
