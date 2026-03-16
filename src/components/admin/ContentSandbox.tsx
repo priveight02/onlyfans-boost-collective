@@ -1424,6 +1424,31 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         setElements(p => p.map(el => el.id === ix.elementId ? { ...el, rotation: Math.round(newRot * 10) / 10 } : el));
         return;
       }
+      // Rotate stroke
+      if (ix.type === "rotate-stroke") {
+        const pt2 = scenePoint(e.clientX, e.clientY, boardRef.current, vpRef.current);
+        const angle = Math.atan2(pt2.y - ix.center.y, pt2.x - ix.center.x) * (180 / Math.PI);
+        const delta = angle - ix.startAngle;
+        let newRot = ix.startRotation + delta;
+        newRot = ((newRot % 360) + 360) % 360;
+        const radDelta = (delta * Math.PI) / 180;
+        setStrokes(p => p.map(s => {
+          if (s.id !== ix.strokeId) return s;
+          const cos = Math.cos(radDelta), sin = Math.sin(radDelta);
+          return {
+            ...s,
+            rotation: Math.round(newRot * 10) / 10,
+            points: s.points.map(op => ({
+              x: ix.center.x + (op.x - ix.center.x) * cos - (op.y - ix.center.y) * sin,
+              y: ix.center.y + (op.x - ix.center.x) * sin + (op.y - ix.center.y) * cos,
+            })),
+          };
+        }));
+        // Update center for continuous rotation
+        ix.startAngle = angle;
+        ix.startRotation = newRot;
+        return;
+      }
     };
 
     const onUp = () => {
