@@ -3179,6 +3179,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                       className={cn("rounded-md px-2 py-0.5 text-[9px] border", ctxExportScope === "board" ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/8 text-white/40 hover:bg-white/5")}>
                       Full Board
                     </button>
+                    <button type="button" onClick={() => setCtxExportScope("viewport")}
+                      className={cn("rounded-md px-2 py-0.5 text-[9px] border", ctxExportScope === "viewport" ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/8 text-white/40 hover:bg-white/5")}>
+                      Current View
+                    </button>
                   </div>
                 </div>
                 
