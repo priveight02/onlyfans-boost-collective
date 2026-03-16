@@ -3318,6 +3318,57 @@ export type Database = {
         }
         Relationships: []
       }
+      sandbox_exports: {
+        Row: {
+          created_at: string
+          file_format: string
+          file_name: string
+          file_size_bytes: number | null
+          file_url: string
+          height: number | null
+          id: string
+          metadata: Json | null
+          source_element_ids: string[] | null
+          target_platform: string | null
+          target_tab: string | null
+          updated_at: string
+          user_id: string
+          width: number | null
+        }
+        Insert: {
+          created_at?: string
+          file_format?: string
+          file_name: string
+          file_size_bytes?: number | null
+          file_url: string
+          height?: number | null
+          id?: string
+          metadata?: Json | null
+          source_element_ids?: string[] | null
+          target_platform?: string | null
+          target_tab?: string | null
+          updated_at?: string
+          user_id: string
+          width?: number | null
+        }
+        Update: {
+          created_at?: string
+          file_format?: string
+          file_name?: string
+          file_size_bytes?: number | null
+          file_url?: string
+          height?: number | null
+          id?: string
+          metadata?: Json | null
+          source_element_ids?: string[] | null
+          target_platform?: string | null
+          target_tab?: string | null
+          updated_at?: string
+          user_id?: string
+          width?: number | null
+        }
+        Relationships: []
+      }
       script_steps: {
         Row: {
           condition_logic: Json | null

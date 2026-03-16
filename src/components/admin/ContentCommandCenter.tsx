@@ -26,6 +26,7 @@ import { useCreditAction } from "@/hooks/useCreditAction";
 import CreditCostBadge from "./CreditCostBadge";
 import InsufficientCreditsModal from "@/components/InsufficientCreditsModal";
 import ContentSandbox from "./ContentSandbox";
+import SandboxMediaSection from "./social/SandboxMediaSection";
 import { pushToSocialHub, pullContentPlanForPlatform, getConnectedAccounts, DEFAULT_BEST_TIMES, importCompetitorIntelToPlan, distributeToAllPlatforms, cloneAsTemplate, syncMediaPlanIdeas, getSyncLog, detectPlanPlatforms, orchestratePlanToPlatforms, batchPrepareContent, generateMediaPlaceholders, getSyncDashboard, autoGenerateCaptionsForPlan, crossPlatformMirror, getPlanProgress, recycleTopContent, type ExecutionMode, type OrchestrationResult, type PlatformSyncStatus, type PlanProgress } from "@/lib/contentSync";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -2589,6 +2590,9 @@ ONLY the JSON array.`;
 
       {/* ═══ CONTENT MODE ═══ */}
       {!sandboxMode && (<>
+
+      {/* Sandbox Media Imports */}
+      <SandboxMediaSection platform="content" onUseMedia={(url, name) => { toast.success(`Media "${name}" ready to use`); }} />
 
       {/* Competitor Intel Sync Bar */}
       {(competitorProfiles.length > 0 || competitorSyncedItems.length > 0) && (

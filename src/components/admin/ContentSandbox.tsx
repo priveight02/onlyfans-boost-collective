@@ -841,6 +841,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const [showCoords, setShowCoords] = useState(true);
   const [zOrderPopup, setZOrderPopup] = useState<"forward" | "backward" | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; elementId?: string } | null>(null);
+  const [ctxExportFormat, setCtxExportFormat] = useState<string | null>(null);
+  const [ctxPushing, setCtxPushing] = useState(false);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const spaceHeldRef = useRef(false);
@@ -1913,6 +1916,126 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   const activeSizes = tool === "eraser" ? ERASER_SIZES : BRUSH_SIZES;
 
+  /* ─── Context menu handler ─── */
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const board = boardRef.current;
+    if (!board) return;
+    const pt = scenePoint(e.clientX, e.clientY, board, vpRef.current);
+    // Find element under cursor
+    const sorted = [...elsRef.current].sort((a, b) => b.z - a.z);
+    const hit = sorted.find(el => pt.x >= el.x && pt.x <= el.x + el.width && pt.y >= el.y && pt.y <= el.y + el.height);
+    setCtxMenu({ x: e.clientX, y: e.clientY, elementId: hit?.id });
+  }, []);
+
+  /* ─── Render element/board to blob ─── */
+  const renderToBlob = useCallback((scope: "element" | "selected" | "board", format: string): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      const els = scope === "element" && ctxMenu?.elementId
+        ? elsRef.current.filter(e => e.id === ctxMenu.elementId)
+        : scope === "selected" && selRef.current.size
+        ? elsRef.current.filter(e => selRef.current.has(e.id))
+        : elsRef.current;
+      const stks = strokesRef.current;
+      if (!els.length && !stks.length) { resolve(null); return; }
+
+      // Check if it's a single media element with original file
+      if (scope === "element" && els.length === 1 && els[0].kind === "media" && els[0].mediaUrl) {
+        fetch(els[0].mediaUrl).then(r => r.blob()).then(resolve).catch(() => resolve(null));
+        return;
+      }
+
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const el of els) { minX = Math.min(minX, el.x); minY = Math.min(minY, el.y); maxX = Math.max(maxX, el.x + el.width); maxY = Math.max(maxY, el.y + el.height); }
+      if (scope === "board") { for (const s of stks) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); } }
+      if (!isFinite(minX)) { resolve(null); return; }
+      const pad = 20; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+      const scale = 2;
+      const w = (maxX - minX) * scale, h = (maxY - minY) * scale;
+      const offscreen = document.createElement("canvas");
+      offscreen.width = w; offscreen.height = h;
+      const ctx = offscreen.getContext("2d");
+      if (!ctx) { resolve(null); return; }
+      ctx.fillStyle = exportBg;
+      ctx.fillRect(0, 0, w, h);
+      ctx.save();
+      ctx.scale(scale, scale);
+      ctx.translate(-minX, -minY);
+      for (const s of stks) {
+        if (s.points.length < 2) continue;
+        ctx.beginPath(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = s.size;
+        ctx.globalCompositeOperation = s.tool === "eraser" ? "destination-out" : "source-over";
+        ctx.strokeStyle = s.color;
+        ctx.moveTo(s.points[0].x, s.points[0].y);
+        for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
+        ctx.stroke(); ctx.globalCompositeOperation = "source-over";
+      }
+      for (const el of els) {
+        ctx.globalAlpha = el.opacity ?? 1;
+        ctx.fillStyle = el.color + "18"; ctx.strokeStyle = el.color + "60"; ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (el.kind === "shape" && el.shape === "ellipse") ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, el.width / 2, el.height / 2, 0, 0, Math.PI * 2);
+        else ctx.rect(el.x, el.y, el.width, el.height);
+        ctx.fill(); ctx.stroke();
+        const label = el.text || el.data?.title || el.emoji || "";
+        if (label) { ctx.fillStyle = el.kind === "stamp" ? "#000" : el.color; ctx.font = `${el.fontWeight || "normal"} ${el.fontSize || 14}px ${(el.fontFamily || "Inter").split(",")[0]}`; ctx.textBaseline = "top"; ctx.fillText(label.substring(0, 100), el.x + 8, el.y + 8, el.width - 16); }
+        ctx.globalAlpha = 1;
+      }
+      ctx.restore();
+      const mimeMap: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", svg: "image/svg+xml" };
+      const mime = mimeMap[format] || "image/png";
+      offscreen.toBlob(blob => resolve(blob), mime, 1.0);
+    });
+  }, [ctxMenu, exportBg]);
+
+  /* ─── Upload blob to storage and save to sandbox_exports ─── */
+  const pushToStorage = useCallback(async (scope: "element" | "selected" | "board", format: string, targetPlatform: string) => {
+    setCtxPushing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Please sign in first"); return; }
+      const blob = await renderToBlob(scope, format);
+      if (!blob) { toast.error("Nothing to export"); return; }
+      const fileName = `sandbox_${scope}_${Date.now()}.${format}`;
+      const filePath = `sandbox-exports/${user.id}/${fileName}`;
+      const { error: uploadError } = await supabase.storage.from("copilot-media").upload(filePath, blob, {
+        contentType: blob.type, cacheControl: "3600",
+      });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("copilot-media").getPublicUrl(filePath);
+      const fileUrl = urlData.publicUrl;
+
+      // Get dimensions
+      let w: number | null = null, h: number | null = null;
+      if (scope === "element" && ctxMenu?.elementId) {
+        const el = elsRef.current.find(e => e.id === ctxMenu.elementId);
+        if (el) { w = el.width; h = el.height; }
+      }
+
+      const { error: dbError } = await supabase.from("sandbox_exports").insert({
+        user_id: user.id,
+        file_name: fileName,
+        file_url: fileUrl,
+        file_format: format,
+        file_size_bytes: blob.size,
+        width: w,
+        height: h,
+        target_platform: targetPlatform,
+        source_element_ids: scope === "element" && ctxMenu?.elementId ? [ctxMenu.elementId] : scope === "selected" ? Array.from(selRef.current) : [],
+        metadata: { scope, exported_at: new Date().toISOString() },
+      } as any);
+      if (dbError) throw dbError;
+      toast.success(`Pushed to ${targetPlatform === "content" ? "Content drafts" : targetPlatform}!`);
+    } catch (err: any) {
+      toast.error(err.message || "Export failed");
+    } finally {
+      setCtxPushing(false);
+      setCtxMenu(null);
+      setCtxExportFormat(null);
+    }
+  }, [renderToBlob, ctxMenu]);
+
   /* ─── Text formatting helper ─── */
   const applyTextProp = useCallback((prop: string, value: any) => {
     if (primaryEl?.kind === "text") { pushUndo(); updateEl(primaryEl.id, { [prop]: value }); }
@@ -2239,6 +2362,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           ref={boardRef}
           data-sandbox-board
           onPointerDown={handleBoardDown}
+          onContextMenu={handleContextMenu}
           className="relative flex-1 overflow-hidden rounded-xl border border-white/6 bg-[hsl(222,32%,8%)] touch-none min-h-0"
           style={{
             cursor: tool === "pan" ? "grab" : tool === "pen" ? "crosshair" : tool === "eraser" ? "cell" : tool === "text" ? "text" : tool === "stamp" ? "copy" : tool === "media" ? "cell" : "default",
@@ -2438,6 +2562,82 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           </div>
         )}
       </div>
+
+      {/* Context Menu */}
+      {ctxMenu && (
+        <div className="fixed inset-0 z-[99999]" onClick={() => { setCtxMenu(null); setCtxExportFormat(null); }}>
+          <div
+            className="absolute rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-1.5 min-w-[200px]"
+            style={{ left: Math.min(ctxMenu.x, window.innerWidth - 220), top: Math.min(ctxMenu.y, window.innerHeight - 400) }}
+            onClick={e => e.stopPropagation()}
+          >
+            {!ctxExportFormat ? (
+              <>
+                <div className="px-2.5 py-1 text-[9px] text-white/25 uppercase tracking-wider">Push to...</div>
+                {/* Export format selection */}
+                {["png", "jpg", "webp", "svg", "mp4", "gif", "pdf", "json"].map(fmt => (
+                  <button key={fmt} type="button" onClick={() => setCtxExportFormat(fmt)}
+                    className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2">
+                    <FileImage className="h-3.5 w-3.5 text-white/30" />
+                    <span>Export as <span className="uppercase font-medium text-white/90">{fmt}</span></span>
+                    <ArrowRight className="h-3 w-3 text-white/20 ml-auto" />
+                  </button>
+                ))}
+                <div className="h-px bg-white/[0.06] my-1" />
+                {ctxMenu.elementId && (
+                  <>
+                    <button type="button" onClick={() => { bringToFront(); setCtxMenu(null); }}
+                      className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06]">⤒ Bring to Front</button>
+                    <button type="button" onClick={() => { sendToBack(); setCtxMenu(null); }}
+                      className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06]">⤓ Send to Back</button>
+                    <button type="button" onClick={() => { duplicateSel(); setCtxMenu(null); }}
+                      className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06]">⊕ Duplicate</button>
+                    <div className="h-px bg-white/[0.06] my-1" />
+                    <button type="button" onClick={() => { deleteSel(); setCtxMenu(null); }}
+                      className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-red-400/70 hover:bg-red-500/[0.06]">🗑 Delete</button>
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <button type="button" onClick={() => setCtxExportFormat(null)}
+                  className="w-full rounded-lg px-2.5 py-1.5 text-left text-[10px] text-white/40 hover:bg-white/[0.06] flex items-center gap-1 mb-1">
+                  ← Back
+                </button>
+                <div className="px-2.5 py-1 text-[9px] text-white/25 uppercase tracking-wider">
+                  Push as <span className="uppercase text-white/50">{ctxExportFormat}</span> to...
+                </div>
+                {/* Scope options */}
+                {ctxMenu.elementId && (
+                  <div className="px-2.5 py-1">
+                    <span className="text-[9px] text-purple-400/60">Element · Selected · Full Board</span>
+                  </div>
+                )}
+                {/* Targets */}
+                <button type="button" onClick={() => pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat, "content")}
+                  disabled={ctxPushing}
+                  className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2 disabled:opacity-50">
+                  <FileDown className="h-3.5 w-3.5 text-blue-400/50" /> Content Drafts
+                </button>
+                <div className="h-px bg-white/[0.06] my-0.5" />
+                <div className="px-2.5 py-0.5 text-[9px] text-white/20 uppercase tracking-wider">Platform Hubs</div>
+                {["instagram", "tiktok", "facebook", "threads", "twitter", "youtube", "linkedin", "pinterest"].map(p => (
+                  <button key={p} type="button" onClick={() => pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat, p)}
+                    disabled={ctxPushing}
+                    className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2 capitalize disabled:opacity-50">
+                    <Send className="h-3 w-3 text-white/20" /> {p}
+                  </button>
+                ))}
+                {ctxPushing && (
+                  <div className="flex items-center gap-2 px-2.5 py-1.5 text-[10px] text-white/40">
+                    <Loader2 className="h-3 w-3 animate-spin" /> Uploading...
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Import Dialog */}
       <Dialog open={showImport} onOpenChange={setShowImport}>

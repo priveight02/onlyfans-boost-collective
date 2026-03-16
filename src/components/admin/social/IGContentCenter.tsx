@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import SandboxMediaSection from "./SandboxMediaSection";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -818,6 +819,8 @@ const IGContentCenter = ({ selectedAccount: parentAccount, onNavigateToConnect, 
                   </div>
                 </CardContent>
               </Card>
+              {/* Sandbox Media */}
+              <SandboxMediaSection platform="instagram" onUseMedia={(url, name) => { setNewPostMediaUrl(url); toast.success(`Media "${name}" loaded`); }} />
             </>
           )}
         </TabsContent>
