@@ -2567,58 +2567,13 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <button type="button" onClick={() => { save(); toast.success("Saved"); }} title="Ctrl+S" className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70">
             <Save className="h-3 w-3" /><span className="text-[10px]">Save</span>
           </button>
-          {/* Sandbox Switcher */}
-          <div className="relative">
-            <button type="button" onClick={() => setSandboxListOpen(p => !p)}
-              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70 border border-white/8 bg-white/4">
-              <FolderOpen className="h-3 w-3" />
-              <span className="text-[10px] max-w-[80px] truncate">{sandboxSessions.find(s => s.id === activeSandboxId)?.name || "Sandboxes"}</span>
-              <ChevronDown className="h-2.5 w-2.5" />
-            </button>
-            {sandboxListOpen && (
-              <div className="absolute top-full right-0 mt-1 rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-1.5 min-w-[220px] max-h-[300px] overflow-y-auto z-[9999]">
-                <div className="px-2 py-1 text-[9px] text-white/25 uppercase tracking-wider flex items-center justify-between">
-                  <span>Sandboxes ({sandboxSessions.length})</span>
-                  <button type="button" onClick={() => { createSandbox(); setSandboxListOpen(false); }} className="text-emerald-400/70 hover:text-emerald-400 flex items-center gap-0.5">
-                    <Plus className="h-3 w-3" /> New
-                  </button>
-                </div>
-                <div className="h-px bg-white/[0.06] my-0.5" />
-                {sandboxSessions.map(session => (
-                  <div key={session.id}
-                    className={cn("group flex items-center gap-1.5 rounded-lg px-2 py-1.5 cursor-pointer transition-all",
-                      session.id === activeSandboxId ? "bg-blue-500/10 ring-1 ring-blue-500/20" : "hover:bg-white/[0.04]")}
-                  >
-                    {renamingId === session.id ? (
-                      <input autoFocus value={renameValue}
-                        onChange={e => setRenameValue(e.target.value)}
-                        onBlur={() => { renameSandbox(session.id, renameValue); }}
-                        onKeyDown={e => { if (e.key === "Enter") renameSandbox(session.id, renameValue); if (e.key === "Escape") setRenamingId(null); }}
-                        className="flex-1 h-5 rounded border border-white/10 bg-white/5 px-1.5 text-[10px] text-white/80 outline-none"
-                        onClick={e => e.stopPropagation()} />
-                    ) : (
-                      <button type="button" onClick={() => { switchSandbox(session.id); setSandboxListOpen(false); }}
-                        className="flex-1 text-left min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", session.id === activeSandboxId ? "bg-blue-400" : "bg-white/15")} />
-                          <span className={cn("text-[11px] truncate", session.id === activeSandboxId ? "text-blue-300 font-medium" : "text-white/60")}>{session.name}</span>
-                        </div>
-                        <div className="text-[8px] text-white/20 pl-3">{new Date(session.updated_at).toLocaleDateString()} · {(session.elements?.length || 0)} els</div>
-                      </button>
-                    )}
-                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                      <button type="button" onClick={e => { e.stopPropagation(); setRenamingId(session.id); setRenameValue(session.name); }}
-                        className="rounded p-0.5 text-white/30 hover:text-white/60 hover:bg-white/5"><Pencil className="h-2.5 w-2.5" /></button>
-                      {sandboxSessions.length > 1 && (
-                        <button type="button" onClick={e => { e.stopPropagation(); deleteSandbox(session.id); }}
-                          className="rounded p-0.5 text-red-400/30 hover:text-red-400/60 hover:bg-red-500/5"><Trash2 className="h-2.5 w-2.5" /></button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Sandbox Switcher - compact button only */}
+          <button type="button" onClick={() => setSandboxListOpen(p => !p)}
+            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70 border border-white/8 bg-white/4 shrink-0">
+            <FolderOpen className="h-3 w-3" />
+            <span className="text-[10px] max-w-[80px] truncate">{sandboxSessions.find(s => s.id === activeSandboxId)?.name || "Sandboxes"}</span>
+            <ChevronDown className="h-2.5 w-2.5" />
+          </button>
           <button type="button" onClick={() => setShowHelp(true)} className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:bg-white/8 hover:text-white/80" title="Help & Shortcuts">
             <HelpCircle className="h-3 w-3" /><span className="text-[10px]">Help</span>
           </button>
