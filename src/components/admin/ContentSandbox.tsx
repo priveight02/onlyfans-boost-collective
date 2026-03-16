@@ -1085,36 +1085,16 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   /* ─── Delete sandbox ─── */
   const deleteSandbox = useCallback(async (sessionId: string) => {
+    if (sandboxSessions.length <= 1) { toast.error("Cannot delete the last sandbox"); return; }
     if (!confirm("Delete this sandbox permanently?")) return;
     await supabase.from("sandbox_sessions").delete().eq("id", sessionId);
-    const remaining = sandboxSessions.filter(s => s.id !== sessionId);
-    setSandboxSessions(remaining);
+    setSandboxSessions(prev => prev.filter(s => s.id !== sessionId));
     if (sessionId === activeSandboxId) {
-      if (remaining.length) {
-        switchSandbox(remaining[0].id);
-      } else {
-        // Deleted last one — create a fresh default
-        createSandbox("Main Sandbox");
-      }
+      const remaining = sandboxSessions.filter(s => s.id !== sessionId);
+      if (remaining.length) switchSandbox(remaining[0].id);
     }
     toast.success("Sandbox deleted");
-  }, [activeSandboxId, sandboxSessions, switchSandbox, createSandbox]);
-
-  /* ─── Delete ALL sandboxes ─── */
-  const deleteAllSandboxes = useCallback(async () => {
-    if (!confirm("Delete ALL sandboxes permanently? This cannot be undone.")) return;
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase.from("sandbox_sessions").delete().eq("user_id", user.id);
-    setSandboxSessions([]);
-    setElements([]); setStrokes([]); setViewport(DEFAULT_VIEWPORT); setCanvasBgImage(null);
-    setSelectedIds(new Set()); setSelectedStrokeIds(new Set());
-    undoStack.current = []; redoStack.current = [];
-    setActiveSandboxId(null);
-    // Create a fresh one
-    await createSandbox("Main Sandbox");
-    toast.success("All sandboxes deleted");
-  }, [createSandbox]);
+  }, [activeSandboxId, sandboxSessions, switchSandbox]);
 
   /* ─── Rename sandbox ─── */
   const renameSandbox = useCallback(async (sessionId: string, newName: string) => {
@@ -2316,7 +2296,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       <input ref={bgInputRef} type="file" accept="image/*" className="hidden"
         onChange={e => { if (e.target.files?.[0]) { handleBgImport(e.target.files[0]); e.target.value = ""; } }} />
       {/* Toolbar */}
-      <div className="flex items-center gap-1.5 rounded-xl border border-white/6 bg-[hsl(222,30%,10%)] px-2 py-1.5 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent" style={{ flexWrap: "nowrap" }}>
+      <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-white/6 bg-[hsl(222,30%,10%)] px-2 py-1.5">
         {/* Tools */}
         <div className="flex items-center gap-px rounded-lg bg-white/4 p-px">
           {TOOL_ITEMS.map(t => (
@@ -2480,16 +2460,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               <div className="absolute top-full right-0 mt-1 rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-1.5 min-w-[220px] max-h-[300px] overflow-y-auto z-[9999]">
                 <div className="px-2 py-1 text-[9px] text-white/25 uppercase tracking-wider flex items-center justify-between">
                   <span>Sandboxes ({sandboxSessions.length})</span>
-                  <div className="flex items-center gap-1">
-                    <button type="button" onClick={() => { createSandbox(); setSandboxListOpen(false); }} className="text-emerald-400/70 hover:text-emerald-400 flex items-center gap-0.5">
-                      <Plus className="h-3 w-3" /> New
-                    </button>
-                    {sandboxSessions.length > 1 && (
-                      <button type="button" onClick={() => { deleteAllSandboxes(); setSandboxListOpen(false); }} className="text-red-400/50 hover:text-red-400 flex items-center gap-0.5 text-[9px]">
-                        <Trash2 className="h-2.5 w-2.5" /> All
-                      </button>
-                    )}
-                  </div>
+                  <button type="button" onClick={() => { createSandbox(); setSandboxListOpen(false); }} className="text-emerald-400/70 hover:text-emerald-400 flex items-center gap-0.5">
+                    <Plus className="h-3 w-3" /> New
+                  </button>
                 </div>
                 <div className="h-px bg-white/[0.06] my-0.5" />
                 {sandboxSessions.map(session => (
@@ -2517,8 +2490,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       <button type="button" onClick={e => { e.stopPropagation(); setRenamingId(session.id); setRenameValue(session.name); }}
                         className="rounded p-0.5 text-white/30 hover:text-white/60 hover:bg-white/5"><Pencil className="h-2.5 w-2.5" /></button>
+                      {sandboxSessions.length > 1 && (
                         <button type="button" onClick={e => { e.stopPropagation(); deleteSandbox(session.id); }}
                           className="rounded p-0.5 text-red-400/30 hover:text-red-400/60 hover:bg-red-500/5"><Trash2 className="h-2.5 w-2.5" /></button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -2531,8 +2506,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         </div>
       </div>
 
-      {/* Action bar — single-line scrollable */}
-      <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent" style={{ flexWrap: "nowrap" }}>
+      {/* Action bar */}
+      <div className="flex flex-wrap items-center gap-1">
         <button type="button" onClick={() => setShowImport(true)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 hover:text-white/80">Import</button>
         <button type="button" onClick={autoArrange} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 hover:text-white/80">Arrange</button>
         <button type="button" onClick={duplicateSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Duplicate</button>
