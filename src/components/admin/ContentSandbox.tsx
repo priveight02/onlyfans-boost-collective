@@ -1764,18 +1764,20 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       </div>
 
       {/* Board + Inspector */}
-      <div className={cn("flex gap-2", showInspector ? "flex-col lg:flex-row" : "")}>
+      <div className={cn("flex gap-2 flex-1 min-h-0", showInspector ? "flex-col lg:flex-row" : "")}>
         <div
           ref={boardRef}
           data-sandbox-board
           onPointerDown={handleBoardDown}
-          className="relative flex-1 overflow-hidden rounded-xl border border-white/6 bg-[hsl(222,32%,8%)] touch-none"
+          className="relative flex-1 overflow-hidden rounded-xl border border-white/6 bg-[hsl(222,32%,8%)] touch-none min-h-0"
           style={{
-            height: isMobile ? "75vh" : "80vh",
-            cursor: tool === "pan" ? "grab" : tool === "pen" ? "crosshair" : tool === "eraser" ? "cell" : tool === "text" ? "text" : tool === "stamp" ? "copy" : "default",
-            backgroundImage: "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0)",
-            backgroundSize: `${32 * viewport.zoom}px ${32 * viewport.zoom}px`,
-            backgroundPosition: `${viewport.x}px ${viewport.y}px`,
+            cursor: tool === "pan" ? "grab" : tool === "pen" ? "crosshair" : tool === "eraser" ? "cell" : tool === "text" ? "text" : tool === "stamp" ? "copy" : tool === "media" ? "cell" : "default",
+            backgroundImage: canvasBgImage
+              ? `url(${canvasBgImage})`
+              : "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.04) 1px, transparent 0)",
+            backgroundSize: canvasBgImage ? "cover" : `${32 * viewport.zoom}px ${32 * viewport.zoom}px`,
+            backgroundPosition: canvasBgImage ? "center" : `${viewport.x}px ${viewport.y}px`,
+            backgroundRepeat: canvasBgImage ? "no-repeat" : undefined,
           }}
         >
           <canvas ref={canvasRef} className="absolute inset-0 h-full w-full pointer-events-none" />
