@@ -3118,18 +3118,46 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           >
             {!ctxExportFormat ? (
               <>
-                <div className="px-2.5 py-1 text-[9px] text-white/25 uppercase tracking-wider">Push to...</div>
-                {/* Export format selection */}
+                <div className="px-2.5 py-1 text-[9px] text-white/25 uppercase tracking-wider">Image formats</div>
                 {["png", "jpg", "webp", "svg"].map(fmt => (
                   <button key={fmt} type="button" onClick={() => {
                     setCtxExportFormat(fmt);
-                    // Auto-detect scope
                     if (ctxMenu.elementId) setCtxExportScope("element");
                     else if (selRef.current.size > 0) setCtxExportScope("selected");
                     else setCtxExportScope("board");
                   }}
-                    className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2">
+                    className="w-full rounded-lg px-2.5 py-1 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2">
                     <FileImage className="h-3.5 w-3.5 text-white/30" />
+                    <span>Export as <span className="uppercase font-medium text-white/90">{fmt}</span></span>
+                    <ArrowRight className="h-3 w-3 text-white/20 ml-auto" />
+                  </button>
+                ))}
+                <div className="h-px bg-white/[0.06] my-0.5" />
+                <div className="px-2.5 py-1 text-[9px] text-white/25 uppercase tracking-wider">Document formats</div>
+                {["pdf", "csv", "xlsx", "docx"].map(fmt => (
+                  <button key={fmt} type="button" onClick={() => {
+                    setCtxExportFormat(fmt);
+                    if (ctxMenu.elementId) setCtxExportScope("element");
+                    else if (selRef.current.size > 0) setCtxExportScope("selected");
+                    else setCtxExportScope("board");
+                  }}
+                    className="w-full rounded-lg px-2.5 py-1 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2">
+                    <FileText className="h-3.5 w-3.5 text-white/30" />
+                    <span>Export as <span className="uppercase font-medium text-white/90">{fmt}</span></span>
+                    <ArrowRight className="h-3 w-3 text-white/20 ml-auto" />
+                  </button>
+                ))}
+                <div className="h-px bg-white/[0.06] my-0.5" />
+                <div className="px-2.5 py-1 text-[9px] text-white/25 uppercase tracking-wider">Media formats</div>
+                {["mp4", "mp3", "gif"].map(fmt => (
+                  <button key={fmt} type="button" onClick={() => {
+                    setCtxExportFormat(fmt);
+                    if (ctxMenu.elementId) setCtxExportScope("element");
+                    else if (selRef.current.size > 0) setCtxExportScope("selected");
+                    else setCtxExportScope("board");
+                  }}
+                    className="w-full rounded-lg px-2.5 py-1 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2">
+                    <Film className="h-3.5 w-3.5 text-white/30" />
                     <span>Export as <span className="uppercase font-medium text-white/90">{fmt}</span></span>
                     <ArrowRight className="h-3 w-3 text-white/20 ml-auto" />
                   </button>
