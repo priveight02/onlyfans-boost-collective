@@ -1383,15 +1383,15 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       }
       if (ix.type === "resize") {
         const dx = pt.x - ix.anchor.x, dy = pt.y - ix.anchor.y;
-        const newW = clamp(ix.originRect.width + dx, 40, 2000);
-        const newH = clamp(ix.originRect.height + dy, 30, 1500);
+        const newW = Math.max(ix.originRect.width + dx, 10);
+        const newH = Math.max(ix.originRect.height + dy, 10);
         setElements(p => p.map(el => {
           if (el.id !== ix.elementId) return el;
           const patch: Partial<SandboxElement> = { width: newW, height: newH };
           // Scale font size proportionally for text elements
           if (el.kind === "text" && el.fontSize) {
             const scaleRatio = newW / ix.originRect.width;
-            patch.fontSize = clamp(Math.round((el.fontSize || 16) * scaleRatio), 8, 200);
+            patch.fontSize = Math.max(Math.round((el.fontSize || 16) * scaleRatio), 4);
           }
           return { ...el, ...patch };
         }));
@@ -1401,8 +1401,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (ix.type === "resize-stroke") {
         const dx = pt.x - ix.anchor.x, dy = pt.y - ix.anchor.y;
         const ob = ix.originBounds;
-        const newW = Math.max(ob.w + dx, 20);
-        const newH = Math.max(ob.h + dy, 20);
+        const newW = Math.max(ob.w + dx, 5);
+        const newH = Math.max(ob.h + dy, 5);
         const sx = newW / (ob.w || 1), sy = newH / (ob.h || 1);
         setStrokes(p => p.map(s => {
           if (s.id !== ix.strokeId) return s;
