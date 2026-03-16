@@ -1052,6 +1052,100 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     setElements(p => p.map(e => { if (!targets.includes(e.id)) return e; const pt = gridPos(i++, cols); return { ...e, x: pt.x, y: pt.y }; }));
   }, [isMobile, pushUndo]);
 
+  /* ─── Convenience: Send to Back ─── */
+  const sendToBack = useCallback(() => {
+    const ids = Array.from(selRef.current);
+    if (!ids.length) return;
+    pushUndo();
+    const minZ = Math.min(...elsRef.current.map(e => e.z));
+    let z = minZ - ids.length;
+    setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
+  }, [pushUndo]);
+
+  /* ─── Convenience: Flip horizontal/vertical ─── */
+  const flipSelected = useCallback((axis: "h" | "v") => {
+    const ids = Array.from(selRef.current);
+    if (!ids.length) return;
+    pushUndo();
+    const sel = elsRef.current.filter(e => ids.includes(e.id));
+    if (axis === "h") {
+      const cx = sel.reduce((a, e) => a + e.x + e.width / 2, 0) / sel.length;
+      setElements(p => p.map(e => ids.includes(e.id) ? { ...e, x: cx * 2 - e.x - e.width } : e));
+    } else {
+      const cy = sel.reduce((a, e) => a + e.y + e.height / 2, 0) / sel.length;
+      setElements(p => p.map(e => ids.includes(e.id) ? { ...e, y: cy * 2 - e.y - e.height } : e));
+    }
+  }, [pushUndo]);
+
+  /* ─── Convenience: Center on canvas ─── */
+  const centerOnCanvas = useCallback(() => {
+    const board = boardRef.current;
+    const ids = Array.from(selRef.current);
+    if (!board || !ids.length) return;
+    pushUndo();
+    const r = board.getBoundingClientRect();
+    const sel = elsRef.current.filter(e => ids.includes(e.id));
+    const bounds = { minX: Math.min(...sel.map(e => e.x)), minY: Math.min(...sel.map(e => e.y)), maxX: Math.max(...sel.map(e => e.x + e.width)), maxY: Math.max(...sel.map(e => e.y + e.height)) };
+    const cx = (bounds.minX + bounds.maxX) / 2, cy = (bounds.minY + bounds.maxY) / 2;
+    const canvasCx = (-vpRef.current.x + r.width / 2) / vpRef.current.zoom;
+    const canvasCy = (-vpRef.current.y + r.height / 2) / vpRef.current.zoom;
+    const dx = canvasCx - cx, dy = canvasCy - cy;
+    setElements(p => p.map(e => ids.includes(e.id) ? { ...e, x: e.x + dx, y: e.y + dy } : e));
+  }, [pushUndo]);
+
+  /* ─── Convenience: Distribute evenly ─── */
+  const distributeSelected = useCallback((axis: "h" | "v") => {
+    const ids = Array.from(selRef.current);
+    if (ids.length < 3) { toast.info("Select 3+ elements to distribute"); return; }
+    pushUndo();
+    const sel = elsRef.current.filter(e => ids.includes(e.id)).sort((a, b) => axis === "h" ? a.x - b.x : a.y - b.y);
+    if (axis === "h") {
+      const totalW = sel.reduce((a, e) => a + e.width, 0);
+      const span = sel[sel.length - 1].x + sel[sel.length - 1].width - sel[0].x;
+      const gap = (span - totalW) / (sel.length - 1);
+      let x = sel[0].x;
+      const idToX: Record<string, number> = {};
+      sel.forEach(e => { idToX[e.id] = x; x += e.width + gap; });
+      setElements(p => p.map(e => ids.includes(e.id) ? { ...e, x: idToX[e.id] ?? e.x } : e));
+    } else {
+      const totalH = sel.reduce((a, e) => a + e.height, 0);
+      const span = sel[sel.length - 1].y + sel[sel.length - 1].height - sel[0].y;
+      const gap = (span - totalH) / (sel.length - 1);
+      let y = sel[0].y;
+      const idToY: Record<string, number> = {};
+      sel.forEach(e => { idToY[e.id] = y; y += e.height + gap; });
+      setElements(p => p.map(e => ids.includes(e.id) ? { ...e, y: idToY[e.id] ?? e.y } : e));
+    }
+  }, [pushUndo]);
+
+  /* ─── Convenience: Reset rotation ─── */
+  const resetRotation = useCallback(() => {
+    const ids = Array.from(selRef.current);
+    const sIds = Array.from(selStrokesRef.current);
+    if (!ids.length && !sIds.length) return;
+    pushUndo();
+    if (ids.length) setElements(p => p.map(e => ids.includes(e.id) ? { ...e, rotation: 0 } : e));
+    if (sIds.length) setStrokes(p => p.map(s => sIds.includes(s.id) ? { ...s, rotation: 0 } : s));
+    toast.success("Rotation reset to 0°");
+  }, [pushUndo]);
+
+  /* ─── Convenience: Match size (make selected same size as first) ─── */
+  const matchSize = useCallback(() => {
+    const ids = Array.from(selRef.current);
+    if (ids.length < 2) { toast.info("Select 2+ elements to match size"); return; }
+    pushUndo();
+    const ref = elsRef.current.find(e => e.id === ids[0]);
+    if (!ref) return;
+    setElements(p => p.map(e => ids.includes(e.id) && e.id !== ids[0] ? { ...e, width: ref.width, height: ref.height } : e));
+    toast.success("Sizes matched to first selection");
+  }, [pushUndo]);
+
+  /* ─── Convenience: Reset zoom & pan ─── */
+  const resetView = useCallback(() => {
+    setViewport(DEFAULT_VIEWPORT);
+    toast.success("View reset");
+  }, []);
+
   const importItems = useCallback((rows: any[]) => {
     const existing = new Set(elsRef.current.map(e => e.sourceItemId).filter(Boolean));
     const next = rows.filter(item => !existing.has(item.id));
