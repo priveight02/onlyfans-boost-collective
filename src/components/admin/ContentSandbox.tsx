@@ -2159,7 +2159,19 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <div className="absolute inset-0" style={{ transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased" }}>
             {ordered.map(el => (
               <ElementView key={el.id} el={el} selected={selectedIds.has(el.id)} linkSrc={linkSourceId === el.id}
-                onDown={handleElDown} onResize={handleResizeDown} onTextChange={(id, v) => updateEl(id, { text: v })} onRotate={handleRotateDown} />
+                onDown={handleElDown} onResize={handleResizeDown} onTextChange={(id, v) => {
+                  if (v.startsWith("__title__")) {
+                    const el = elsRef.current.find(e => e.id === id);
+                    if (el?.kind === "content" && el.data) { pushUndo(); updateEl(id, { data: { ...el.data, title: v.slice(9) } }); }
+                  } else if (v.startsWith("__caption__")) {
+                    const el = elsRef.current.find(e => e.id === id);
+                    if (el?.kind === "content" && el.data) { pushUndo(); updateEl(id, { data: { ...el.data, caption: v.slice(11) } }); }
+                  } else if (v.startsWith("__annotation__")) {
+                    pushUndo(); updateEl(id, { annotation: v.slice(14) });
+                  } else {
+                    updateEl(id, { text: v });
+                  }
+                }} onRotate={handleRotateDown} />
             ))}
           </div>
           {!elements.length && !strokes.length && (
