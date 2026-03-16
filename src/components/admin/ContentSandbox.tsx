@@ -1837,8 +1837,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (ctrl && shift && k === "c") { e.preventDefault(); centerOnCanvas(); return; }
       if (ctrl && shift && k === "m") { e.preventDefault(); matchSize(); return; }
       if (ctrl && shift && k === "r") { e.preventDefault(); resetRotation(); return; }
-      if (k === "[" && !ctrl) { e.preventDefault(); sendToBack(); return; }
-      if (k === "]" && !ctrl) { e.preventDefault(); bringForward(); return; }
+      if (k === "[" && !ctrl && !shift) { e.preventDefault(); sendBackward(); return; }
+      if (k === "]" && !ctrl && !shift) { e.preventDefault(); bringForward(); return; }
+      if (k === "[" && !ctrl && shift) { e.preventDefault(); sendToBack(); return; }
+      if (k === "]" && !ctrl && shift) { e.preventDefault(); bringToFront(); return; }
       const step = shift ? 10 : 1;
       if (e.key === "ArrowLeft") { e.preventDefault(); nudge(-step, 0); return; }
       if (e.key === "ArrowRight") { e.preventDefault(); nudge(step, 0); return; }
