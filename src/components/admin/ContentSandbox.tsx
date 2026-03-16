@@ -2033,8 +2033,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <button type="button" onClick={() => { save(); toast.success("Saved"); }} title="Ctrl+S" className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70">
             <Save className="h-3 w-3" /><span className="text-[10px]">Save</span>
           </button>
-          <div className={cn("h-2.5 w-2.5 rounded-full", dirty ? "bg-amber-400" : "bg-emerald-400")} title={dirty ? "Unsaved" : "Saved"} />
-          {lastSaved && <span className="text-[9px] text-white/25 hidden sm:inline">{lastSaved.toLocaleTimeString()}</span>}
+          <button type="button" onClick={() => setShowHelp(true)} className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:bg-white/8 hover:text-white/80" title="Help & Shortcuts">
+            <HelpCircle className="h-3 w-3" /><span className="text-[10px]">Help</span>
+          </button>
         </div>
       </div>
 
