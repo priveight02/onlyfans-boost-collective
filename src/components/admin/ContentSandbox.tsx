@@ -1916,6 +1916,120 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   const activeSizes = tool === "eraser" ? ERASER_SIZES : BRUSH_SIZES;
 
+  /* ─── Context menu handler ─── */
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCtxMenu({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  /* ─── Render element/board to blob ─── */
+  const renderToBlob = useCallback((scope: "element" | "selected" | "board", format: string): Promise<Blob | null> => {
+    return new Promise((resolve) => {
+      const els = scope === "element" && ctxMenu?.elementId
+        ? elsRef.current.filter(e => e.id === ctxMenu.elementId)
+        : scope === "selected" && selRef.current.size
+        ? elsRef.current.filter(e => selRef.current.has(e.id))
+        : elsRef.current;
+      const stks = strokesRef.current;
+      if (!els.length && !stks.length) { resolve(null); return; }
+
+      // Check if it's a single media element with original file
+      if (scope === "element" && els.length === 1 && els[0].kind === "media" && els[0].mediaUrl) {
+        fetch(els[0].mediaUrl).then(r => r.blob()).then(resolve).catch(() => resolve(null));
+        return;
+      }
+
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const el of els) { minX = Math.min(minX, el.x); minY = Math.min(minY, el.y); maxX = Math.max(maxX, el.x + el.width); maxY = Math.max(maxY, el.y + el.height); }
+      if (scope === "board") { for (const s of stks) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); } }
+      if (!isFinite(minX)) { resolve(null); return; }
+      const pad = 20; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+      const scale = 2;
+      const w = (maxX - minX) * scale, h = (maxY - minY) * scale;
+      const offscreen = document.createElement("canvas");
+      offscreen.width = w; offscreen.height = h;
+      const ctx = offscreen.getContext("2d");
+      if (!ctx) { resolve(null); return; }
+      ctx.fillStyle = exportBg;
+      ctx.fillRect(0, 0, w, h);
+      ctx.save();
+      ctx.scale(scale, scale);
+      ctx.translate(-minX, -minY);
+      for (const s of stks) {
+        if (s.points.length < 2) continue;
+        ctx.beginPath(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = s.size;
+        ctx.globalCompositeOperation = s.tool === "eraser" ? "destination-out" : "source-over";
+        ctx.strokeStyle = s.color;
+        ctx.moveTo(s.points[0].x, s.points[0].y);
+        for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
+        ctx.stroke(); ctx.globalCompositeOperation = "source-over";
+      }
+      for (const el of els) {
+        ctx.globalAlpha = el.opacity ?? 1;
+        ctx.fillStyle = el.color + "18"; ctx.strokeStyle = el.color + "60"; ctx.lineWidth = 2;
+        ctx.beginPath();
+        if (el.kind === "shape" && el.shape === "ellipse") ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, el.width / 2, el.height / 2, 0, 0, Math.PI * 2);
+        else ctx.rect(el.x, el.y, el.width, el.height);
+        ctx.fill(); ctx.stroke();
+        const label = el.text || el.data?.title || el.emoji || "";
+        if (label) { ctx.fillStyle = el.kind === "stamp" ? "#000" : el.color; ctx.font = `${el.fontWeight || "normal"} ${el.fontSize || 14}px ${(el.fontFamily || "Inter").split(",")[0]}`; ctx.textBaseline = "top"; ctx.fillText(label.substring(0, 100), el.x + 8, el.y + 8, el.width - 16); }
+        ctx.globalAlpha = 1;
+      }
+      ctx.restore();
+      const mimeMap: Record<string, string> = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", webp: "image/webp", svg: "image/svg+xml" };
+      const mime = mimeMap[format] || "image/png";
+      offscreen.toBlob(blob => resolve(blob), mime, 1.0);
+    });
+  }, [ctxMenu, exportBg]);
+
+  /* ─── Upload blob to storage and save to sandbox_exports ─── */
+  const pushToStorage = useCallback(async (scope: "element" | "selected" | "board", format: string, targetPlatform: string) => {
+    setCtxPushing(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { toast.error("Please sign in first"); return; }
+      const blob = await renderToBlob(scope, format);
+      if (!blob) { toast.error("Nothing to export"); return; }
+      const fileName = `sandbox_${scope}_${Date.now()}.${format}`;
+      const filePath = `sandbox-exports/${user.id}/${fileName}`;
+      const { error: uploadError } = await supabase.storage.from("copilot-media").upload(filePath, blob, {
+        contentType: blob.type, cacheControl: "3600",
+      });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("copilot-media").getPublicUrl(filePath);
+      const fileUrl = urlData.publicUrl;
+
+      // Get dimensions
+      let w: number | null = null, h: number | null = null;
+      if (scope === "element" && ctxMenu?.elementId) {
+        const el = elsRef.current.find(e => e.id === ctxMenu.elementId);
+        if (el) { w = el.width; h = el.height; }
+      }
+
+      const { error: dbError } = await supabase.from("sandbox_exports").insert({
+        user_id: user.id,
+        file_name: fileName,
+        file_url: fileUrl,
+        file_format: format,
+        file_size_bytes: blob.size,
+        width: w,
+        height: h,
+        target_platform: targetPlatform,
+        source_element_ids: scope === "element" && ctxMenu?.elementId ? [ctxMenu.elementId] : scope === "selected" ? Array.from(selRef.current) : [],
+        metadata: { scope, exported_at: new Date().toISOString() },
+      } as any);
+      if (dbError) throw dbError;
+      toast.success(`Pushed to ${targetPlatform === "content" ? "Content drafts" : targetPlatform}!`);
+    } catch (err: any) {
+      toast.error(err.message || "Export failed");
+    } finally {
+      setCtxPushing(false);
+      setCtxMenu(null);
+      setCtxExportFormat(null);
+    }
+  }, [renderToBlob, ctxMenu]);
+
   /* ─── Text formatting helper ─── */
   const applyTextProp = useCallback((prop: string, value: any) => {
     if (primaryEl?.kind === "text") { pushUndo(); updateEl(primaryEl.id, { [prop]: value }); }
