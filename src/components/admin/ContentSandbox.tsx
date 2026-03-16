@@ -1492,9 +1492,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (el.meshId) elsRef.current.filter(g => g.meshId === el.meshId).forEach(g => next.add(g.id));
     }
     setSelectedIds(new Set(next));
-    bringForward();
     if (tool === "select") startDrag(el, e.clientX, e.clientY, e.altKey);
-  }, [tool, bringForward, linkEls, linkSourceId, startDrag, pushUndo]);
+  }, [tool, linkEls, linkSourceId, startDrag, pushUndo]);
 
   const handleResizeDown = useCallback((e: React.PointerEvent, el: SandboxElement) => {
     e.stopPropagation();
@@ -2033,8 +2032,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <button type="button" onClick={() => { save(); toast.success("Saved"); }} title="Ctrl+S" className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70">
             <Save className="h-3 w-3" /><span className="text-[10px]">Save</span>
           </button>
-          <div className={cn("h-2.5 w-2.5 rounded-full", dirty ? "bg-amber-400" : "bg-emerald-400")} title={dirty ? "Unsaved" : "Saved"} />
-          {lastSaved && <span className="text-[9px] text-white/25 hidden sm:inline">{lastSaved.toLocaleTimeString()}</span>}
+          <button type="button" onClick={() => setShowHelp(true)} className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:bg-white/8 hover:text-white/80" title="Help & Shortcuts">
+            <HelpCircle className="h-3 w-3" /><span className="text-[10px]">Help</span>
+          </button>
         </div>
       </div>
 
@@ -2062,18 +2062,18 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         <div className="relative">
           <button type="button" onClick={() => setZOrderPopup(p => p === "forward" ? null : "forward")} disabled={!selectedIds.size} title="Bring Forward ( ] )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↑ Forward</button>
           {zOrderPopup === "forward" && (
-            <div className="absolute bottom-full left-0 mb-1 rounded-lg bg-[hsl(222,35%,10%)] border border-white/[0.08] p-1 flex flex-col gap-0.5 min-w-[120px] z-[9999] shadow-xl backdrop-blur-xl">
-              <button type="button" onClick={() => { bringForward(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-blue-400">↑</span> Forward one</button>
-              <button type="button" onClick={() => { bringToFront(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-blue-400">⤒</span> Bring to front</button>
+            <div className="absolute bottom-full left-0 mb-1 rounded-lg bg-[hsl(222,35%,10%)] border border-white/[0.08] p-1 flex flex-col gap-0.5 min-w-[140px] z-[9999] shadow-xl backdrop-blur-xl">
+              <button type="button" onClick={() => { bringForward(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-blue-400">↑</span> Push Forward</button>
+              <button type="button" onClick={() => { bringToFront(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-blue-400">⤒</span> Bring to Front</button>
             </div>
           )}
         </div>
         <div className="relative">
           <button type="button" onClick={() => setZOrderPopup(p => p === "backward" ? null : "backward")} disabled={!selectedIds.size} title="Send Backward ( [ )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↓ Backward</button>
           {zOrderPopup === "backward" && (
-            <div className="absolute bottom-full left-0 mb-1 rounded-lg bg-[hsl(222,35%,10%)] border border-white/[0.08] p-1 flex flex-col gap-0.5 min-w-[120px] z-[9999] shadow-xl backdrop-blur-xl">
-              <button type="button" onClick={() => { sendBackward(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-orange-400">↓</span> Backward one</button>
-              <button type="button" onClick={() => { sendToBack(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-orange-400">⤓</span> Send to back</button>
+            <div className="absolute bottom-full left-0 mb-1 rounded-lg bg-[hsl(222,35%,10%)] border border-white/[0.08] p-1 flex flex-col gap-0.5 min-w-[140px] z-[9999] shadow-xl backdrop-blur-xl">
+              <button type="button" onClick={() => { sendBackward(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-orange-400">↓</span> Push Backward</button>
+              <button type="button" onClick={() => { sendToBack(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-orange-400">⤓</span> Send to Back</button>
             </div>
           )}
         </div>
@@ -2178,9 +2178,6 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         <button type="button" onClick={deleteSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
         <button type="button" onClick={clearBoard} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">Clear board</button>
         <button type="button" onClick={() => setShowInspector(p => !p)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">{showInspector ? "Hide panel" : "Inspector"}</button>
-        <button type="button" onClick={() => setShowHelp(true)} className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8 hover:text-white/80" title="Help & Shortcuts">
-          <HelpCircle className="h-3.5 w-3.5" />
-        </button>
         {selectedIds.size >= 2 && (
           <button type="button" onClick={evolve} disabled={evolving} className="ml-auto rounded-md bg-emerald-500/15 border border-emerald-500/20 px-3 py-1 text-[10px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50">
             {evolving ? <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> : null}Evolve {selectedIds.size}
