@@ -2592,8 +2592,25 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
             {/* Export button */}
             <button type="button" onClick={() => {
-              const scopeEls = exportScope === "selected" ? elements.filter(e => selectedIds.has(e.id)) : elements;
-              const scopeStrokes = exportScope === "selected" ? strokes.filter(s => selectedStrokeIds.has(s.id)) : strokes;
+              let scopeEls: SandboxElement[];
+              let scopeStrokes: SandboxStroke[];
+              if (exportScope === "selected") {
+                scopeEls = elements.filter(e => selectedIds.has(e.id));
+                scopeStrokes = strokes.filter(s => selectedStrokeIds.has(s.id));
+              } else if (exportScope === "fov") {
+                const board = boardRef.current;
+                if (board) {
+                  const r = board.getBoundingClientRect();
+                  const vp = vpRef.current;
+                  const fovMinX = -vp.x / vp.zoom, fovMinY = -vp.y / vp.zoom;
+                  const fovMaxX = fovMinX + r.width / vp.zoom, fovMaxY = fovMinY + r.height / vp.zoom;
+                  scopeEls = elements.filter(e => e.x + e.width > fovMinX && e.x < fovMaxX && e.y + e.height > fovMinY && e.y < fovMaxY);
+                  scopeStrokes = strokes.filter(s => { const b = strokeBounds(s); return b.x + b.w > fovMinX && b.x < fovMaxX && b.y + b.h > fovMinY && b.y < fovMaxY; });
+                } else { scopeEls = elements; scopeStrokes = strokes; }
+              } else {
+                scopeEls = elements;
+                scopeStrokes = strokes;
+              }
               switch (exportFormat) {
                 case "png":
                   if (exportFixedRes && exportFixedRes !== "custom") {
