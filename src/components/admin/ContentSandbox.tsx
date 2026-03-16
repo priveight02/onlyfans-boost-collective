@@ -1743,6 +1743,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               {evolving ? <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> : null}Evolve {selectedIds.size}
             </button>
           )}
+          <button type="button" onClick={() => setShowHelp(true)} className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8 hover:text-white/80" title="Help & Shortcuts">
+            <HelpCircle className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
 
