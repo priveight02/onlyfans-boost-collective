@@ -1265,9 +1265,38 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       for (const s of strokesRef.current) {
         if (!selStrokesRef.current.has(s.id)) continue;
         const b = strokeBounds(s);
+        // Resize handle (bottom-right corner)
         const handleX = b.x + b.w, handleY = b.y + b.h;
         if (Math.abs(pt.x - handleX) < 12 && Math.abs(pt.y - handleY) < 12) {
           interactionRef.current = { type: "resize-stroke", strokeId: s.id, anchor: pt, originBounds: b, originPoints: s.points.map(p => ({ ...p })) };
+          return;
+        }
+        // Rotate handle (top-center)
+        const rotHandleX = b.x + b.w / 2, rotHandleY = b.y - 16;
+        if (Math.abs(pt.x - rotHandleX) < 12 && Math.abs(pt.y - rotHandleY) < 12) {
+          const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+          const startAngle = Math.atan2(pt.y - cy, pt.x - cx) * (180 / Math.PI);
+          interactionRef.current = { type: "rotate-stroke", strokeId: s.id, center: { x: cx, y: cy }, startAngle, startRotation: s.rotation || 0 };
+          return;
+        }
+      }
+    }
+    // Check if clicking inside a selected stroke to drag it
+    if (tool === "select" && selStrokesRef.current.size) {
+      for (const s of strokesRef.current) {
+        if (!selStrokesRef.current.has(s.id)) continue;
+        const b = strokeBounds(s);
+        if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) {
+          pushUndo();
+          const origins: Record<string, Point> = {};
+          for (const el of elsRef.current) {
+            if (selRef.current.has(el.id)) origins[el.id] = { x: el.x, y: el.y };
+          }
+          const strokeOrigins: Record<string, Point[]> = {};
+          for (const ss of strokesRef.current) {
+            if (selStrokesRef.current.has(ss.id)) strokeOrigins[ss.id] = ss.points.map(p => ({ ...p }));
+          }
+          interactionRef.current = { type: "drag", anchor: pt, originPositions: { ...origins, __strokeOrigins: strokeOrigins as any } };
           return;
         }
       }
