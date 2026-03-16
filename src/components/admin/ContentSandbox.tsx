@@ -83,6 +83,17 @@ type InteractionState =
 
 interface SandboxSnapshot { elements: SandboxElement[]; strokes: SandboxStroke[]; }
 
+interface SandboxSession {
+  id: string;
+  name: string;
+  elements: SandboxElement[];
+  strokes: SandboxStroke[];
+  viewport: Viewport;
+  bg_image_url: string | null;
+  updated_at: string;
+  is_active: boolean;
+}
+
 /* ─── Stroke bounding box helper ─── */
 const strokeBounds = (s: SandboxStroke): { x: number; y: number; w: number; h: number } => {
   if (!s.points.length) return { x: 0, y: 0, w: 0, h: 0 };
