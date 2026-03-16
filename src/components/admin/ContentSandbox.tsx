@@ -1731,21 +1731,22 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   /* ─── AI Evolver ─── */
   const evolve = useCallback(async () => {
     const sel = elsRef.current.filter(e => selRef.current.has(e.id));
-    if (sel.length < 2) { toast.error("Select 2+ cards to evolve"); return; }
+    if (sel.length < 1) { toast.error("Select elements to evolve"); return; }
     setEvolving(true);
     try {
       const prompt = sel.map(e => {
         if (e.kind === "content" && e.data) return `CONTENT\nTitle: ${e.data.title}\nPlatform: ${e.data.platform}\nType: ${e.data.content_type}\nCaption: ${e.data.caption || ""}\nNotes: ${e.annotation || "none"}`;
         if (e.kind === "note") return `NOTE\n${e.text || ""}`;
         if (e.kind === "text") return `TEXT\n${e.text || ""}`;
-        return `SHAPE\n${e.shape}`;
+        if (e.kind === "media") return `MEDIA\nURL: ${e.mediaUrl || ""}\nNotes: ${e.annotation || "none"}`;
+        return `SHAPE\n${e.shape || "rectangle"}\nColor: ${e.color}\nNotes: ${e.annotation || "none"}`;
       }).join("\n\n---\n\n");
 
       const { data, error } = await supabase.functions.invoke("agency-copilot", {
         body: {
           messages: [{
             role: "user",
-            content: `You are an elite creative director in a visual sandbox. Combine these selected elements into one stronger, evolved concept.\n\n${prompt}\n\nGoal: ${evolverPrompt || "Make the concept more strategic, original, and publishable."}\nTarget platform: ${evolverPlatform}\n\nReturn ONLY valid JSON:\n{"title":"...","caption":"...","platform":"${evolverPlatform}","content_type":"post/reel/story/tweet/promo","hashtags":["tag"],"evolution_notes":"...","viral_score":85,"hook":"...","cta":"...","angle":"..."}`,
+            content: `You are an elite creative director in a visual sandbox. ${sel.length === 1 ? "Evolve this element into a stronger, more refined version." : "Combine these selected elements into one stronger, evolved concept."}\n\nSelected elements:\n${prompt}\n\nGoal: ${evolverPrompt || "Make the concept more strategic, original, creative, and publishable. Focus on business value and creative impact."}\nTarget platform: ${evolverPlatform}\n\nReturn ONLY valid JSON:\n{"title":"...","caption":"...","platform":"${evolverPlatform}","content_type":"post/reel/story/tweet/promo","hashtags":["tag"],"evolution_notes":"...","viral_score":85,"hook":"...","cta":"...","angle":"..."}`,
           }],
         },
       });
@@ -1765,17 +1766,19 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (ie) throw ie;
 
       const c = sel.reduce((a, e) => ({ x: a.x + e.x, y: a.y + e.y }), { x: 0, y: 0 });
+      const selIds = new Set(sel.map(e => e.id));
       const evolved_el: SandboxElement = {
         id: `sb-${crypto.randomUUID()}`, kind: "content",
-        x: c.x / sel.length + 48, y: c.y / sel.length - 120, width: 304, height: 208,
-        z: nextZ(elsRef.current), color: "#22c55e", links: sel.map(e => e.id),
+        x: c.x / sel.length, y: c.y / sel.length, width: 304, height: 208,
+        z: nextZ(elsRef.current), color: "#22c55e", links: [],
         sourceItemId: newItem.id, data: newItem, annotation: evolved.evolution_notes || "", fontSize: 14,
       };
-      setElements(p => [...p, evolved_el]);
+      // Remove old elements and add evolved one
+      setElements(p => [...p.filter(e => !selIds.has(e.id)), evolved_el]);
       setSelectedIds(new Set([evolved_el.id]));
       setEvolverPrompt("");
       onRefresh();
-      toast.success(`Evolved ${sel.length} cards`);
+      toast.success(`Evolved ${sel.length} element${sel.length > 1 ? "s" : ""} into 1`);
     } catch (err: any) { toast.error(err.message || "Evolver failed"); }
     finally { setEvolving(false); }
   }, [evolverPlatform, evolverPrompt, onRefresh, pushUndo]);
