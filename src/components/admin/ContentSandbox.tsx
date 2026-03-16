@@ -1094,8 +1094,25 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const bringForward = useCallback(() => {
     const ids = Array.from(selRef.current);
     if (!ids.length) return;
+    pushUndo();
+    setElements(p => {
+      const sorted = [...p].sort((a, b) => a.z - b.z);
+      const result = [...sorted];
+      for (let i = result.length - 1; i >= 0; i--) {
+        if (ids.includes(result[i].id) && i < result.length - 1 && !ids.includes(result[i + 1].id)) {
+          [result[i], result[i + 1]] = [result[i + 1], result[i]];
+        }
+      }
+      return result.map((e, idx) => ({ ...e, z: idx }));
+    });
+  }, [pushUndo]);
+
+  const bringToFront = useCallback(() => {
+    const ids = Array.from(selRef.current);
+    if (!ids.length) return;
+    pushUndo();
     setElements(p => { let z = nextZ(p); return p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e); });
-  }, []);
+  }, [pushUndo]);
 
   const duplicateSel = useCallback(() => {
     const ids = Array.from(selRef.current);
