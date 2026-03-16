@@ -491,7 +491,7 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
           {el.mediaType === "audio" && (
             <div className="flex flex-col items-center justify-center gap-2 p-3 w-full h-full bg-[hsl(222,30%,10%)] rounded-lg">
               <Music className="h-8 w-8 text-emerald-400/40" />
-              <audio src={el.mediaUrl} controls preload="metadata" className="w-full" style={{ maxWidth: "100%" }} />
+              <audio src={el.mediaUrl} controls preload="metadata" className="w-full pointer-events-auto" style={{ maxWidth: "100%" }} />
               <span className="text-[10px] text-white/30 truncate max-w-full">{el.mediaName}</span>
             </div>
           )}
