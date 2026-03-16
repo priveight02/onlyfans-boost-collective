@@ -2590,6 +2590,9 @@ ONLY the JSON array.`;
       {/* ═══ CONTENT MODE ═══ */}
       {!sandboxMode && (<>
 
+      {/* Sandbox Media Imports */}
+      <SandboxMediaSection platform="content" onUseMedia={(url, name) => { toast.success(`Media "${name}" ready to use`); }} />
+
       {/* Competitor Intel Sync Bar */}
       {(competitorProfiles.length > 0 || competitorSyncedItems.length > 0) && (
         <Card className="border-border bg-card/70">
