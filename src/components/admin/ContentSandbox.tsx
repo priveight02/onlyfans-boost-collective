@@ -1233,13 +1233,13 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     setElements(p => p.map(e => { if (!targets.includes(e.id)) return e; const pt = gridPos(i++, cols); return { ...e, x: pt.x, y: pt.y }; }));
   }, [isMobile, pushUndo]);
 
-  /* ─── Convenience: Send to Back ─── */
+  /* ─── Convenience: Send to Back (behind strokes) ─── */
   const sendToBack = useCallback(() => {
     const ids = Array.from(selRef.current);
     if (!ids.length) return;
     pushUndo();
-    const minZ = Math.min(...elsRef.current.map(e => e.z));
-    let z = minZ - ids.length;
+    // Place selected elements below the stroke canvas layer (z < 500)
+    let z = 0;
     setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
   }, [pushUndo]);
 
