@@ -489,6 +489,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     return () => obs.disconnect();
   }, [drawScene]);
 
+  /* ─── Snap helper ─── */
+  const snap = useCallback((v: number) => snapToGrid ? Math.round(v / GRID_SIZE) * GRID_SIZE : v, [snapToGrid]);
+
   /* ─── Element ops ─── */
   const linkEls = useCallback((from: string, to: string) => {
     pushUndo();
@@ -498,7 +501,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const addEl = useCallback((t: Tool, pt: Point) => {
     pushUndo();
     const z = nextZ(elsRef.current);
-    const base: Partial<SandboxElement> = { id: `sb-${crypto.randomUUID()}`, x: pt.x, y: pt.y, z, color: activeColor, links: [], annotation: "", fontSize, fontFamily, fontWeight: "normal", fontStyle: "normal", textDecoration: "none" };
+    const base: Partial<SandboxElement> = { id: `sb-${crypto.randomUUID()}`, x: snap(pt.x), y: snap(pt.y), z, color: activeColor, links: [], annotation: "", fontSize, fontFamily, fontWeight: "normal", fontStyle: "normal", textDecoration: "none" };
     let el: SandboxElement | null = null;
     if (t === "note") el = { ...base, kind: "note", width: 240, height: 180, text: "" } as SandboxElement;
     if (t === "text") el = { ...base, kind: "text", width: 260, height: 96, text: "Type here" } as SandboxElement;
@@ -507,7 +510,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     if (!el) return;
     setElements(p => [...p, el!]);
     setSelectedIds(new Set([el.id]));
-  }, [activeColor, pushUndo, fontSize, fontFamily]);
+  }, [activeColor, pushUndo, fontSize, fontFamily, snap]);
 
   const updateEl = useCallback((id: string, patch: Partial<SandboxElement>) => {
     setElements(p => p.map(e => e.id === id ? { ...e, ...patch } : e));
@@ -528,22 +531,84 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   const duplicateSel = useCallback(() => {
     const ids = Array.from(selRef.current);
-    if (!ids.length) return;
+    if (!ids.length && !selStrokesRef.current.size) return;
     pushUndo();
-    const src = elsRef.current.filter(e => ids.includes(e.id));
-    let z = nextZ(elsRef.current);
-    const dups = src.map(e => ({ ...clone(e), id: `sb-${crypto.randomUUID()}`, x: e.x + 28, y: e.y + 28, z: z++, links: [] }));
-    setElements(p => [...p, ...dups]);
-    setSelectedIds(new Set(dups.map(e => e.id)));
+    // Duplicate elements
+    if (ids.length) {
+      const src = elsRef.current.filter(e => ids.includes(e.id));
+      let z = nextZ(elsRef.current);
+      const dups = src.map(e => ({ ...clone(e), id: `sb-${crypto.randomUUID()}`, x: e.x + 28, y: e.y + 28, z: z++, links: [] }));
+      setElements(p => [...p, ...dups]);
+      setSelectedIds(new Set(dups.map(e => e.id)));
+    }
+    // Duplicate strokes
+    if (selStrokesRef.current.size) {
+      const selS = strokesRef.current.filter(s => selStrokesRef.current.has(s.id));
+      const dupStrokes = selS.map(s => ({ ...clone(s), id: crypto.randomUUID(), points: s.points.map(p => ({ x: p.x + 28, y: p.y + 28 })) }));
+      setStrokes(p => [...p, ...dupStrokes]);
+      setSelectedStrokeIds(new Set(dupStrokes.map(s => s.id)));
+    }
   }, [pushUndo]);
 
   const deleteSel = useCallback(() => {
     const ids = new Set(selRef.current);
-    if (!ids.size) return;
+    const sIds = new Set(selStrokesRef.current);
+    if (!ids.size && !sIds.size) return;
     pushUndo();
-    setElements(p => p.filter(e => !ids.has(e.id)).map(e => ({ ...e, links: e.links.filter(l => !ids.has(l)) })));
-    setSelectedIds(new Set()); setLinkSourceId(null);
+    if (ids.size) setElements(p => p.filter(e => !ids.has(e.id)).map(e => ({ ...e, links: e.links.filter(l => !ids.has(l)) })));
+    if (sIds.size) setStrokes(p => p.filter(s => !sIds.has(s.id)));
+    setSelectedIds(new Set()); setSelectedStrokeIds(new Set()); setLinkSourceId(null);
   }, [pushUndo]);
+
+  /* ─── Select All ─── */
+  const selectAll = useCallback(() => {
+    setSelectedIds(new Set(elsRef.current.map(e => e.id)));
+    setSelectedStrokeIds(new Set(strokesRef.current.map(s => s.id)));
+  }, []);
+
+  /* ─── Fit to View ─── */
+  const fitToView = useCallback(() => {
+    const board = boardRef.current;
+    if (!board) return;
+    const r = board.getBoundingClientRect();
+    const allEls = elsRef.current;
+    const allStrokes = strokesRef.current;
+    if (!allEls.length && !allStrokes.length) return;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const el of allEls) { minX = Math.min(minX, el.x); minY = Math.min(minY, el.y); maxX = Math.max(maxX, el.x + el.width); maxY = Math.max(maxY, el.y + el.height); }
+    for (const s of allStrokes) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
+    const cw = maxX - minX + 80, ch = maxY - minY + 80;
+    const z = clamp(Math.min(r.width / cw, r.height / ch), MIN_ZOOM, MAX_ZOOM);
+    setViewport({ zoom: z, x: (r.width - cw * z) / 2 - minX * z + 40, y: (r.height - ch * z) / 2 - minY * z + 40 });
+  }, []);
+
+  /* ─── Align tools ─── */
+  const alignSelected = useCallback((dir: "left" | "right" | "top" | "bottom" | "center-h" | "center-v") => {
+    const ids = Array.from(selRef.current);
+    if (ids.length < 2) { toast.info("Select 2+ elements to align"); return; }
+    pushUndo();
+    const sel = elsRef.current.filter(e => ids.includes(e.id));
+    let target: number;
+    switch (dir) {
+      case "left": target = Math.min(...sel.map(e => e.x)); setElements(p => p.map(e => ids.includes(e.id) ? { ...e, x: target } : e)); break;
+      case "right": target = Math.max(...sel.map(e => e.x + e.width)); setElements(p => p.map(e => ids.includes(e.id) ? { ...e, x: target - e.width } : e)); break;
+      case "top": target = Math.min(...sel.map(e => e.y)); setElements(p => p.map(e => ids.includes(e.id) ? { ...e, y: target } : e)); break;
+      case "bottom": target = Math.max(...sel.map(e => e.y + e.height)); setElements(p => p.map(e => ids.includes(e.id) ? { ...e, y: target - e.height } : e)); break;
+      case "center-h": { const cx = sel.reduce((a, e) => a + e.x + e.width / 2, 0) / sel.length; setElements(p => p.map(e => ids.includes(e.id) ? { ...e, x: cx - e.width / 2 } : e)); break; }
+      case "center-v": { const cy = sel.reduce((a, e) => a + e.y + e.height / 2, 0) / sel.length; setElements(p => p.map(e => ids.includes(e.id) ? { ...e, y: cy - e.height / 2 } : e)); break; }
+    }
+  }, [pushUndo]);
+
+  /* ─── Arrow nudge ─── */
+  const nudge = useCallback((dx: number, dy: number) => {
+    const ids = Array.from(selRef.current);
+    const sIds = Array.from(selStrokesRef.current);
+    if (!ids.length && !sIds.length) return;
+    pushUndo();
+    const sdx = snap(dx) || dx, sdy = snap(dy) || dy;
+    if (ids.length) setElements(p => p.map(e => ids.includes(e.id) ? { ...e, x: e.x + sdx, y: e.y + sdy } : e));
+    if (sIds.length) setStrokes(p => p.map(s => sIds.includes(s.id) ? { ...s, points: s.points.map(pt => ({ x: pt.x + sdx, y: pt.y + sdy })) } : s));
+  }, [pushUndo, snap]);
 
   const clearBoard = useCallback(() => {
     if (!confirm("Clear the entire board? All elements and strokes will be removed. You can undo with Ctrl+Z.")) return;
