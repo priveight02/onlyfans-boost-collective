@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import SandboxMediaSection from "./SandboxMediaSection";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -2346,6 +2347,8 @@ const TKAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
             )}
           </CardContent>
         </Card>
+        {/* Sandbox Media for TikTok */}
+        <SandboxMediaSection platform="tiktok" onUseMedia={(url, name) => { toast.success(`Media "${name}" ready for TikTok`); }} />
       </TabsContent>
 
       {/* ===== SCHEDULE SUBTAB ===== */}

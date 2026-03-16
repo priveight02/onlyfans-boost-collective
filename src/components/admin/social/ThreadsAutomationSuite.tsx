@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import SandboxMediaSection from "./SandboxMediaSection";
 import PlatformAccountSelector from "./PlatformAccountSelector";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -543,6 +544,8 @@ const ThreadsAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToCo
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Send className="h-4 w-4 mr-2" />}Publish Thread
           </Button>
         </CardContent></Card>
+        {/* Sandbox Media for Threads */}
+        <SandboxMediaSection platform="threads" onUseMedia={(url, name) => { toast.success(`Media "${name}" ready for Threads`); }} />
       </TabsContent>
 
       {/* ===== MY THREADS ===== */}

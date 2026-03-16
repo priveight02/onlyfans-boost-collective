@@ -93,6 +93,8 @@ const strokeBounds = (s: SandboxStroke): { x: number; y: number; w: number; h: n
 
 /* ─── Constants ─── */
 const STORAGE_KEY = "content_sandbox_state_v7";
+const VIEWPORT_KEY = "content_sandbox_viewport_v1";
+const STROKE_Z = 500;
 const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 4;
 const DEFAULT_VIEWPORT: Viewport = { x: 32, y: 32, zoom: 1 };
@@ -150,7 +152,7 @@ const TOOL_ITEMS: { id: Tool; label: string; icon: any }[] = [
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 const center = (el: SandboxElement) => ({ x: el.x + el.width / 2, y: el.y + el.height / 2 });
-const nextZ = (els: SandboxElement[]) => (els.length ? Math.max(1000, ...els.map(e => e.z)) + 1 : 1000);
+const nextZ = (els: SandboxElement[]) => (els.length ? Math.max(STROKE_Z + 1, ...els.map(e => e.z)) + 1 : STROKE_Z + 1);
 const getSource = (item: any) => (typeof item?.metadata?.source === "string" ? item.metadata.source : "");
 const gridPos = (i: number, cols: number) => ({ x: 48 + (i % cols) * 312, y: 48 + Math.floor(i / cols) * 228 });
 
@@ -373,7 +375,7 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
   return (
     <div
       className={cn("absolute", selected && "ring-2 ring-blue-400/80", linkSrc && "ring-2 ring-emerald-400")}
-      style={{ left: el.x, top: el.y, width: el.width, height: el.height, zIndex: el.z, opacity: el.opacity ?? 1, transform: rot ? `rotate(${rot}deg)` : undefined, transformOrigin: "center center", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased", imageRendering: "auto" }}
+      style={{ left: el.x, top: el.y, width: el.width, height: el.height, zIndex: el.z, opacity: el.opacity ?? 1, transform: rot ? `rotate(${rot}deg)` : undefined, transformOrigin: "center center", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased", imageRendering: "auto", pointerEvents: "auto" }}
       onPointerDown={e => onDown(e, el)}
     >
       {el.kind === "content" && el.data && (
@@ -785,7 +787,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const interactionRef = useRef<InteractionState | null>(null);
   const elsRef = useRef<SandboxElement[]>([]);
   const selRef = useRef<Set<string>>(new Set());
-  const vpRef = useRef<Viewport>(DEFAULT_VIEWPORT);
+  const vpRef = useRef<Viewport>((() => {
+    try { const v = localStorage.getItem(VIEWPORT_KEY); if (v) return JSON.parse(v); } catch {}
+    return DEFAULT_VIEWPORT;
+  })());
   const rafRef = useRef<number>(0);
 
   const [elements, setElements] = useState<SandboxElement[]>([]);
@@ -795,7 +800,17 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [tool, setTool] = useState<Tool>("select");
   const [activeColor, setActiveColor] = useState("#3b82f6");
   const [brushSize, setBrushSize] = useState(4);
-  const [viewport, setViewport] = useState<Viewport>(DEFAULT_VIEWPORT);
+  const [viewport, setViewportRaw] = useState<Viewport>(() => {
+    try { const v = localStorage.getItem(VIEWPORT_KEY); if (v) return JSON.parse(v); } catch {}
+    return DEFAULT_VIEWPORT;
+  });
+  const setViewport = useCallback((v: Viewport | ((p: Viewport) => Viewport)) => {
+    setViewportRaw(prev => {
+      const next = typeof v === "function" ? v(prev) : v;
+      try { localStorage.setItem(VIEWPORT_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
   const [linkSourceId, setLinkSourceId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [importQuery, setImportQuery] = useState("");
@@ -841,7 +856,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const [showCoords, setShowCoords] = useState(true);
   const [zOrderPopup, setZOrderPopup] = useState<"forward" | "backward" | null>(null);
-  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; elementId?: string } | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; elementId?: string; strokeId?: string } | null>(null);
   const [ctxExportFormat, setCtxExportFormat] = useState<string | null>(null);
   const [ctxPushing, setCtxPushing] = useState(false);
   const mediaInputRef = useRef<HTMLInputElement>(null);
@@ -934,6 +949,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, [locked]);
 
   const ordered = useMemo(() => [...elements].sort((a, b) => a.z - b.z), [elements]);
+  const belowStrokes = useMemo(() => ordered.filter(e => e.z < STROKE_Z), [ordered]);
+  const aboveStrokes = useMemo(() => ordered.filter(e => e.z >= STROKE_Z), [ordered]);
   const primaryId = useMemo(() => Array.from(selectedIds)[0] || null, [selectedIds]);
   const primaryEl = useMemo(() => ordered.find(e => e.id === primaryId) || null, [ordered, primaryId]);
   const importedSrcIds = useMemo(() => new Set(elements.map(e => e.sourceItemId).filter(Boolean)), [elements]);
@@ -1105,11 +1122,14 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   const bringToFront = useCallback(() => {
     const ids = Array.from(selRef.current);
-    if (!ids.length) return;
+    const sids = Array.from(selStrokesRef.current);
+    if (!ids.length && !sids.length) return;
     pushUndo();
-    // Place above stroke canvas layer (z >= 1000)
-    let z = Math.max(1000, ...elsRef.current.map(e => e.z)) + 1;
-    setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
+    // Place elements above stroke canvas layer (z >= STROKE_Z + 1)
+    if (ids.length) {
+      let z = Math.max(STROKE_Z + 1, ...elsRef.current.map(e => e.z)) + 1;
+      setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
+    }
   }, [pushUndo]);
 
   const duplicateSel = useCallback(() => {
@@ -1243,7 +1263,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     const ids = Array.from(selRef.current);
     if (!ids.length) return;
     pushUndo();
-    // Place selected elements below the stroke canvas layer (z < 500)
+    // Place selected elements below the stroke canvas layer (z < STROKE_Z)
     let z = 0;
     setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
   }, [pushUndo]);
@@ -1926,7 +1946,25 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     // Find element under cursor
     const sorted = [...elsRef.current].sort((a, b) => b.z - a.z);
     const hit = sorted.find(el => pt.x >= el.x && pt.x <= el.x + el.width && pt.y >= el.y && pt.y <= el.y + el.height);
-    setCtxMenu({ x: e.clientX, y: e.clientY, elementId: hit?.id });
+    // Find stroke under cursor if no element hit
+    let strokeHit: string | undefined;
+    if (!hit) {
+      for (const s of strokesRef.current) {
+        const b = strokeBounds(s);
+        if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) {
+          strokeHit = s.id;
+          // Select the stroke
+          setSelectedStrokeIds(new Set([s.id]));
+          break;
+        }
+      }
+    } else {
+      // Select the element if not already selected
+      if (!selRef.current.has(hit.id)) {
+        setSelectedIds(new Set([hit.id]));
+      }
+    }
+    setCtxMenu({ x: e.clientX, y: e.clientY, elementId: hit?.id, strokeId: strokeHit });
   }, []);
 
   /* ─── Render element/board to blob ─── */
@@ -2374,19 +2412,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
             backgroundRepeat: canvasBgImage ? "no-repeat" : undefined,
           }}
         >
-          <canvas ref={canvasRef} className="absolute inset-0 h-full w-full pointer-events-none" style={{ zIndex: 500 }} />
-          {/* Marquee selection rectangle */}
-          {marqueeRect && marqueeRect.w > 2 && marqueeRect.h > 2 && (
-            <div className="absolute pointer-events-none border-2 border-blue-400/60 bg-blue-400/10 rounded-sm" style={{
-              left: viewport.x + marqueeRect.x * viewport.zoom,
-              top: viewport.y + marqueeRect.y * viewport.zoom,
-              width: marqueeRect.w * viewport.zoom,
-              height: marqueeRect.h * viewport.zoom,
-              zIndex: 999999,
-            }} />
-          )}
-          <div className="absolute inset-0" style={{ transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased" }}>
-            {ordered.map(el => (
+          {/* Elements BELOW strokes (z < STROKE_Z) */}
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased" }}>
+            {belowStrokes.map(el => (
               <ElementView key={el.id} el={el} selected={selectedIds.has(el.id)} linkSrc={linkSourceId === el.id}
                 onDown={handleElDown} onResize={handleResizeDown} onTextChange={(id, v) => {
                   if (v.startsWith("__title__")) {
@@ -2403,6 +2431,37 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 }} onRotate={handleRotateDown} />
             ))}
           </div>
+          {/* Stroke canvas layer */}
+          <canvas ref={canvasRef} className="absolute inset-0 h-full w-full pointer-events-none" style={{ zIndex: STROKE_Z }} />
+          {/* Elements ABOVE strokes (z >= STROKE_Z) */}
+          <div className="absolute inset-0 pointer-events-none" style={{ zIndex: STROKE_Z + 1, transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased" }}>
+            {aboveStrokes.map(el => (
+              <ElementView key={el.id} el={el} selected={selectedIds.has(el.id)} linkSrc={linkSourceId === el.id}
+                onDown={handleElDown} onResize={handleResizeDown} onTextChange={(id, v) => {
+                  if (v.startsWith("__title__")) {
+                    const el = elsRef.current.find(e => e.id === id);
+                    if (el?.kind === "content" && el.data) { pushUndo(); updateEl(id, { data: { ...el.data, title: v.slice(9) } }); }
+                  } else if (v.startsWith("__caption__")) {
+                    const el = elsRef.current.find(e => e.id === id);
+                    if (el?.kind === "content" && el.data) { pushUndo(); updateEl(id, { data: { ...el.data, caption: v.slice(11) } }); }
+                  } else if (v.startsWith("__annotation__")) {
+                    pushUndo(); updateEl(id, { annotation: v.slice(14) });
+                  } else {
+                    updateEl(id, { text: v });
+                  }
+                }} onRotate={handleRotateDown} />
+            ))}
+          </div>
+          {/* Marquee selection rectangle */}
+          {marqueeRect && marqueeRect.w > 2 && marqueeRect.h > 2 && (
+            <div className="absolute pointer-events-none border-2 border-blue-400/60 bg-blue-400/10 rounded-sm" style={{
+              left: viewport.x + marqueeRect.x * viewport.zoom,
+              top: viewport.y + marqueeRect.y * viewport.zoom,
+              width: marqueeRect.w * viewport.zoom,
+              height: marqueeRect.h * viewport.zoom,
+              zIndex: 999999,
+            }} />
+          )}
           {!elements.length && !strokes.length && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <div className="max-w-xs rounded-xl border border-white/6 bg-white/3 p-5 text-center backdrop-blur-sm">
@@ -2584,7 +2643,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                   </button>
                 ))}
                 <div className="h-px bg-white/[0.06] my-1" />
-                {ctxMenu.elementId && (
+                {(ctxMenu.elementId || ctxMenu.strokeId) && (
                   <>
                     <button type="button" onClick={() => { bringToFront(); setCtxMenu(null); }}
                       className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06]">⤒ Bring to Front</button>

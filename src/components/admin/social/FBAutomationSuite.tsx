@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import SandboxMediaSection from "./SandboxMediaSection";
 import PlatformAccountSelector from "./PlatformAccountSelector";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -569,6 +570,8 @@ const FBAutomationSuite = ({ selectedAccount: parentAccount, onNavigateToConnect
               </Card>
             ))}
           </div>
+          {/* Sandbox Media for Facebook */}
+          <SandboxMediaSection platform="facebook" onUseMedia={(url, name) => { toast.success(`Media "${name}" ready for Facebook`); }} />
         </TabsContent>
 
         {/* ===== COMMENTS ===== */}
