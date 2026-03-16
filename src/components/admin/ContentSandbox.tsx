@@ -2500,11 +2500,14 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Scope</label>
               <div className="flex gap-2">
                 <button onClick={() => setExportScope("all")} className={cn("rounded-md px-3 py-1.5 text-[10px] border flex-1", exportScope === "all" ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>
-                  Entire Board
+                  Full Board
+                </button>
+                <button onClick={() => setExportScope("fov")} className={cn("rounded-md px-3 py-1.5 text-[10px] border flex-1", exportScope === "fov" ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>
+                  Current View
                 </button>
                 <button onClick={() => setExportScope("selected")} disabled={!selectedIds.size && !selectedStrokeIds.size}
                   className={cn("rounded-md px-3 py-1.5 text-[10px] border flex-1 disabled:opacity-30", exportScope === "selected" ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>
-                  Selected Only ({selectedIds.size + selectedStrokeIds.size})
+                  Selected ({selectedIds.size + selectedStrokeIds.size})
                 </button>
               </div>
             </div>
