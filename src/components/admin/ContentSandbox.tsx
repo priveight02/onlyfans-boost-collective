@@ -729,16 +729,31 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, [evolverPlatform, evolverPrompt, onRefresh, pushUndo]);
 
   /* ─── Pointer handlers ─── */
-  const startDrag = useCallback((el: SandboxElement, cx: number, cy: number) => {
+  const startDrag = useCallback((el: SandboxElement, cx: number, cy: number, altDup?: boolean) => {
     const pt = scenePoint(cx, cy, boardRef.current, vpRef.current);
     let ids = selRef.current.has(el.id) ? Array.from(selRef.current) : [el.id];
     if (el.groupId) {
       const groupEls = elsRef.current.filter(e => e.groupId === el.groupId).map(e => e.id);
       ids = [...new Set([...ids, ...groupEls])];
     }
-    const origins = Object.fromEntries(elsRef.current.filter(e => ids.includes(e.id)).map(e => [e.id, { x: e.x, y: e.y }]));
-    interactionRef.current = { type: "drag", anchor: pt, originPositions: origins };
-  }, []);
+    // Alt+drag = duplicate then drag
+    if (altDup) {
+      pushUndo();
+      const src = elsRef.current.filter(e => ids.includes(e.id));
+      let z = nextZ(elsRef.current);
+      const dups = src.map(e => ({ ...clone(e), id: `sb-${crypto.randomUUID()}`, z: z++, links: [] }));
+      setElements(p => [...p, ...dups]);
+      ids = dups.map(e => e.id);
+      setSelectedIds(new Set(ids));
+    }
+    const origins = Object.fromEntries(elsRef.current.concat(altDup ? [] : []).filter(e => ids.includes(e.id)).map(e => [e.id, { x: e.x, y: e.y }]));
+    // Also track selected stroke origins for movement
+    const strokeOrigins: Record<string, Point[]> = {};
+    for (const s of strokesRef.current) {
+      if (selStrokesRef.current.has(s.id)) strokeOrigins[s.id] = s.points.map(p => ({ ...p }));
+    }
+    interactionRef.current = { type: "drag", anchor: pt, originPositions: { ...origins, __strokeOrigins: strokeOrigins as any } };
+  }, [pushUndo]);
 
   const handleElDown = useCallback((e: React.PointerEvent, el: SandboxElement) => {
     e.stopPropagation();
@@ -746,10 +761,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     pushUndo();
     const next = new Set(selRef.current);
     if (e.shiftKey) { next.has(el.id) ? next.delete(el.id) : next.add(el.id); }
-    else { next.clear(); next.add(el.id); if (el.groupId) elsRef.current.filter(g => g.groupId === el.groupId).forEach(g => next.add(g.id)); }
+    else if (!next.has(el.id)) { next.clear(); next.add(el.id); setSelectedStrokeIds(new Set()); if (el.groupId) elsRef.current.filter(g => g.groupId === el.groupId).forEach(g => next.add(g.id)); }
     setSelectedIds(new Set(next));
     bringForward();
-    if (tool === "select") startDrag(el, e.clientX, e.clientY);
+    if (tool === "select") startDrag(el, e.clientX, e.clientY, e.altKey);
   }, [tool, bringForward, linkEls, linkSourceId, startDrag, pushUndo]);
 
   const handleResizeDown = useCallback((e: React.PointerEvent, el: SandboxElement) => {
@@ -762,7 +777,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   const handleBoardDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0 && e.button !== 1) return;
-    if (e.button === 1 || tool === "pan") {
+    // Space+click or middle click = pan
+    if (e.button === 1 || tool === "pan" || spaceHeldRef.current) {
       interactionRef.current = { type: "pan", originClient: { x: e.clientX, y: e.clientY }, originViewport: vpRef.current };
       return;
     }
@@ -778,15 +794,21 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       interactionRef.current = { type: "marquee", origin: pt, current: pt };
       setMarqueeRect(null);
       setSelectedIds(new Set());
+      setSelectedStrokeIds(new Set());
       setLinkSourceId(null);
       return;
     }
     setSelectedIds(new Set());
+    setSelectedStrokeIds(new Set());
     setLinkSourceId(null);
   }, [tool, activeColor, addEl, brushSize]);
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
+      // Track mouse position in scene coords for status bar
+      const pt0 = scenePoint(e.clientX, e.clientY, boardRef.current, vpRef.current);
+      setMouseScene(pt0);
+
       const ix = interactionRef.current;
       if (!ix) return;
       if (ix.type === "pan") { setViewport({ ...ix.originViewport, x: ix.originViewport.x + e.clientX - ix.originClient.x, y: ix.originViewport.y + e.clientY - ix.originClient.y }); return; }
@@ -805,12 +827,28 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           }
         }
         setSelectedIds(hit);
+        // Live-select strokes intersecting the marquee
+        const hitStrokes = new Set<string>();
+        for (const s of strokesRef.current) {
+          const b = strokeBounds(s);
+          if (b.x + b.w > mx && b.x < mx + mw && b.y + b.h > my && b.y < my + mh) hitStrokes.add(s.id);
+        }
+        setSelectedStrokeIds(hitStrokes);
         return;
       }
       if (ix.type === "draw") { ix.points.push(pt); setDraftStroke({ id: "draft", tool: ix.tool, color: ix.color, size: ix.size, points: [...ix.points] }); return; }
       if (ix.type === "drag") {
         const dx = pt.x - ix.anchor.x, dy = pt.y - ix.anchor.y;
-        setElements(p => p.map(el => { const o = ix.originPositions[el.id]; return o ? { ...el, x: o.x + dx, y: o.y + dy } : el; }));
+        setElements(p => p.map(el => { const o = ix.originPositions[el.id]; return o ? { ...el, x: snap(o.x + dx), y: snap(o.y + dy) } : el; }));
+        // Also move selected strokes
+        const so = (ix.originPositions as any).__strokeOrigins as Record<string, Point[]> | undefined;
+        if (so && Object.keys(so).length) {
+          setStrokes(p => p.map(s => {
+            const orig = so[s.id];
+            if (!orig) return s;
+            return { ...s, points: orig.map(op => ({ x: op.x + dx, y: op.y + dy })) };
+          }));
+        }
         return;
       }
       if (ix.type === "resize") {
