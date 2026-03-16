@@ -2437,7 +2437,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, [ctxMenu, exportBg]);
 
   /* ─── Upload blob to storage and save to sandbox_exports ─── */
-  const pushToStorage = useCallback(async (scope: "element" | "selected" | "board", format: string, targetPlatform: string, resOverride?: { w: number; h: number } | null) => {
+  const pushToStorage = useCallback(async (scope: "element" | "selected" | "board" | "viewport", format: string, targetPlatform: string, resOverride?: { w: number; h: number } | null) => {
     setCtxPushing(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
