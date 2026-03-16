@@ -1837,17 +1837,25 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, [pushUndo, getViewportCenter, uploadMediaToStorage]);
 
   /* ─── Custom background ─── */
-  const handleBgImport = useCallback((file: File) => {
-    // Convert to data URL for localStorage persistence
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setCanvasBgImage(dataUrl);
-      try { localStorage.setItem("sandbox_bg_image", dataUrl); } catch { /* storage full */ }
+  const handleBgImport = useCallback(async (file: File) => {
+    try {
+      // Upload to storage for persistence across sessions
+      const url = await uploadMediaToStorage(file);
+      setCanvasBgImage(url);
+      try { localStorage.setItem("sandbox_bg_image", url); } catch { /* storage full */ }
       toast.success("Background set");
-    };
-    reader.readAsDataURL(file);
-  }, []);
+    } catch {
+      // Fallback to data URL
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setCanvasBgImage(dataUrl);
+        try { localStorage.setItem("sandbox_bg_image", dataUrl); } catch {}
+        toast.success("Background set");
+      };
+      reader.readAsDataURL(file);
+    }
+  }, [uploadMediaToStorage]);
 
   const handleBoardDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0 && e.button !== 1) return;
