@@ -1418,31 +1418,31 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, [primaryEl, pushUndo]);
 
   const bringForward = useCallback(() => {
-    const ids = Array.from(selRef.current);
-    if (!ids.length) return;
+    const ids = new Set(selRef.current);
+    if (!ids.size) return;
     pushUndo();
     setElements(p => {
       const sorted = [...p].sort((a, b) => a.z - b.z);
       const result = [...sorted];
-      for (let i = result.length - 1; i >= 0; i--) {
-        if (ids.includes(result[i].id) && i < result.length - 1 && !ids.includes(result[i + 1].id)) {
+      for (let i = result.length - 2; i >= 0; i--) {
+        if (ids.has(result[i].id) && !ids.has(result[i + 1].id)) {
           [result[i], result[i + 1]] = [result[i + 1], result[i]];
         }
       }
-      return result.map((e, idx) => ({ ...e, z: idx }));
+      return result.map((e, idx) => ({ ...e, z: STROKE_Z + 1 + idx }));
     });
   }, [pushUndo]);
 
   const bringToFront = useCallback(() => {
-    const ids = Array.from(selRef.current);
-    const sids = Array.from(selStrokesRef.current);
-    if (!ids.length && !sids.length) return;
+    const ids = new Set(selRef.current);
+    if (!ids.size) return;
     pushUndo();
-    // Place elements above stroke canvas layer (z >= STROKE_Z + 1)
-    if (ids.length) {
-      let z = Math.max(STROKE_Z + 1, ...elsRef.current.map(e => e.z)) + 1;
-      setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
-    }
+    setElements(p => {
+      const sorted = [...p].sort((a, b) => a.z - b.z);
+      const selected = sorted.filter(e => ids.has(e.id));
+      const rest = sorted.filter(e => !ids.has(e.id));
+      return [...rest, ...selected].map((e, idx) => ({ ...e, z: STROKE_Z + 1 + idx }));
+    });
   }, [pushUndo]);
 
   const duplicateSel = useCallback(() => {
