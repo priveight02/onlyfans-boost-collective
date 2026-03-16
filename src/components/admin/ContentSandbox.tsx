@@ -1494,6 +1494,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const handleMediaImport = useCallback((files: FileList) => {
     pushUndo();
     const z = nextZ(elsRef.current);
+    const center = getViewportCenter();
     const newEls: SandboxElement[] = [];
     Array.from(files).forEach((file, i) => {
       const url = URL.createObjectURL(file);
@@ -1503,7 +1504,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       else if (file.type === "image/gif") mediaType = "gif";
       const el: SandboxElement = {
         id: `sb-${crypto.randomUUID()}`, kind: "media",
-        x: 100 + i * 40, y: 100 + i * 40,
+        x: center.x - 160 + i * 40, y: center.y - 120 + i * 40,
         width: mediaType === "audio" ? 300 : 320,
         height: mediaType === "audio" ? 120 : 240,
         z: z + i, color: "#3b82f6", links: [], opacity: 1,
@@ -1514,7 +1515,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     setElements(p => [...p, ...newEls]);
     setSelectedIds(new Set(newEls.map(e => e.id)));
     toast.success(`${newEls.length} media file(s) imported`);
-  }, [pushUndo]);
+  }, [pushUndo, getViewportCenter]);
 
   /* ─── Custom background ─── */
   const handleBgImport = useCallback((file: File) => {
