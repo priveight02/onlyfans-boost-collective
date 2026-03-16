@@ -2456,122 +2456,122 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
       {/* Export Board Dialog */}
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-        <DialogContent className="max-w-lg border-white/8 bg-[hsl(222,30%,10%)] text-white max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="text-white/90 flex items-center gap-2"><Download className="h-4 w-4 text-purple-400" />Export Board</DialogTitle></DialogHeader>
-          <div className="space-y-4">
-            {/* Format */}
+        <DialogContent className="max-w-2xl border-white/[0.06] bg-[hsl(222,35%,7%)] text-white p-0 overflow-hidden backdrop-blur-xl [&>button]:text-white/40 [&>button]:hover:text-white/80">
+          {/* Header */}
+          <div className="flex items-center gap-3 px-5 pt-4 pb-2">
+            <div className="rounded-xl bg-gradient-to-br from-purple-500/20 to-blue-500/20 p-2 ring-1 ring-purple-500/15">
+              <Download className="h-4 w-4 text-purple-400" />
+            </div>
             <div>
-              <label className="text-[10px] text-white/40 uppercase tracking-wider mb-2 block">Format</label>
-              <div className="grid grid-cols-4 gap-1.5 mb-1.5">
+              <h2 className="text-sm font-bold text-white tracking-tight">Export Board</h2>
+              <p className="text-[10px] text-white/30">Choose format, scope & resolution</p>
+            </div>
+          </div>
+
+          <div className="px-5 pb-4 space-y-3">
+            {/* Format row - all 7 in one line */}
+            <div>
+              <span className="text-[9px] text-white/30 uppercase tracking-widest">Format</span>
+              <div className="flex gap-1 mt-1">
                 {([
-                  { id: "png" as ExportFormat, label: "PNG", desc: "High-res image", icon: FileImage },
-                  { id: "svg" as ExportFormat, label: "SVG", desc: "Vector lossless", icon: FileImage },
-                  { id: "json" as ExportFormat, label: "JSON", desc: "Full backup", icon: FileJson },
-                  { id: "csv" as ExportFormat, label: "CSV", desc: "Sheets / Excel", icon: FileSpreadsheet },
+                  { id: "png" as ExportFormat, label: "PNG", icon: FileImage },
+                  { id: "svg" as ExportFormat, label: "SVG", icon: FileImage },
+                  { id: "json" as ExportFormat, label: "JSON", icon: FileJson },
+                  { id: "csv" as ExportFormat, label: "CSV", icon: FileSpreadsheet },
+                  { id: "pdf" as ExportFormat, label: "PDF", icon: FileDown },
+                  { id: "xlsx" as ExportFormat, label: "XLS", icon: FileSpreadsheet },
+                  { id: "html" as ExportFormat, label: "HTML", icon: FileJson },
                 ]).map(f => (
                   <button key={f.id} type="button" onClick={() => setExportFormat(f.id)}
-                    className={cn("p-2 rounded-lg border text-center transition-all",
-                      exportFormat === f.id ? "border-purple-500/30 bg-purple-500/10" : "border-white/6 hover:border-white/12")}>
-                    <f.icon className={cn("h-4 w-4 mx-auto mb-0.5", exportFormat === f.id ? "text-purple-400" : "text-white/40")} />
-                    <p className={cn("text-[10px] font-semibold", exportFormat === f.id ? "text-purple-400" : "text-white/50")}>{f.label}</p>
-                    <p className="text-[8px] text-white/25">{f.desc}</p>
-                  </button>
-                ))}
-              </div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {([
-                  { id: "pdf" as ExportFormat, label: "PDF", desc: "Print-ready", icon: FileDown },
-                  { id: "xlsx" as ExportFormat, label: "XLS", desc: "Excel native", icon: FileSpreadsheet },
-                  { id: "html" as ExportFormat, label: "HTML", desc: "Styled report", icon: FileJson },
-                ]).map(f => (
-                  <button key={f.id} type="button" onClick={() => setExportFormat(f.id)}
-                    className={cn("p-2 rounded-lg border text-center transition-all",
-                      exportFormat === f.id ? "border-purple-500/30 bg-purple-500/10" : "border-white/6 hover:border-white/12")}>
-                    <f.icon className={cn("h-4 w-4 mx-auto mb-0.5", exportFormat === f.id ? "text-purple-400" : "text-white/40")} />
-                    <p className={cn("text-[10px] font-semibold", exportFormat === f.id ? "text-purple-400" : "text-white/50")}>{f.label}</p>
-                    <p className="text-[8px] text-white/25">{f.desc}</p>
+                    className={cn("flex-1 flex flex-col items-center gap-0.5 rounded-lg py-1.5 transition-all",
+                      exportFormat === f.id ? "bg-purple-500/15 ring-1 ring-purple-500/25 text-purple-400" : "bg-white/[0.03] hover:bg-white/[0.06] text-white/40")}>
+                    <f.icon className="h-3.5 w-3.5" />
+                    <span className="text-[9px] font-semibold">{f.label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Scope */}
+            {/* Scope row */}
             <div>
-              <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Scope</label>
-              <div className="flex gap-2">
-                <button onClick={() => setExportScope("all")} className={cn("rounded-md px-3 py-1.5 text-[10px] border flex-1", exportScope === "all" ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>
-                  Full Board
-                </button>
-                <button onClick={() => setExportScope("fov")} className={cn("rounded-md px-3 py-1.5 text-[10px] border flex-1", exportScope === "fov" ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>
-                  Current View
-                </button>
-                <button onClick={() => setExportScope("selected")} disabled={!selectedIds.size && !selectedStrokeIds.size}
-                  className={cn("rounded-md px-3 py-1.5 text-[10px] border flex-1 disabled:opacity-30", exportScope === "selected" ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>
-                  Selected ({selectedIds.size + selectedStrokeIds.size})
-                </button>
+              <span className="text-[9px] text-white/30 uppercase tracking-widest">Scope</span>
+              <div className="flex gap-1.5 mt-1">
+                {([
+                  { id: "all" as const, label: "Full Board" },
+                  { id: "fov" as const, label: "Current View" },
+                  { id: "selected" as const, label: `Selected (${selectedIds.size + selectedStrokeIds.size})`, disabled: !selectedIds.size && !selectedStrokeIds.size },
+                ]).map(s => (
+                  <button key={s.id} onClick={() => setExportScope(s.id)} disabled={s.disabled}
+                    className={cn("flex-1 rounded-lg py-1.5 text-[10px] font-medium transition-all disabled:opacity-25",
+                      exportScope === s.id ? "bg-purple-500/15 ring-1 ring-purple-500/25 text-purple-400" : "bg-white/[0.03] hover:bg-white/[0.06] text-white/40")}>
+                    {s.label}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* PNG/SVG settings */}
+            {/* PNG/SVG-specific: scale + templates + bg — compact layout */}
             {(exportFormat === "png" || exportFormat === "svg") && (
-              <div className="space-y-3">
-                {/* Resolution scale */}
-                <div>
-                  <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Resolution Scale</label>
-                  <div className="flex gap-1.5">
+              <div className="space-y-2.5">
+                {/* Scale */}
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] text-white/30 uppercase tracking-widest shrink-0 w-10">Scale</span>
+                  <div className="flex gap-1 flex-1">
                     {[1, 2, 3, 4, 5, 6].map(s => (
                       <button key={s} onClick={() => { setExportScale(s); setExportFixedRes(null); }}
-                        className={cn("rounded-md px-2 py-1.5 text-[10px] border flex-1", exportScale === s && !exportFixedRes ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>
+                        className={cn("flex-1 rounded-md py-1 text-[10px] font-medium transition-all",
+                          exportScale === s && !exportFixedRes ? "bg-purple-500/15 ring-1 ring-purple-500/25 text-purple-400" : "bg-white/[0.03] text-white/35 hover:bg-white/[0.06]")}>
                         {s}x
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Resolution templates */}
+                {/* Resolution templates - compact grid */}
                 {exportFormat === "png" && (
                   <div>
-                    <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Resolution Template</label>
-                    <div className="grid grid-cols-3 gap-1.5">
+                    <span className="text-[9px] text-white/30 uppercase tracking-widest">Template</span>
+                    <div className="grid grid-cols-6 gap-1 mt-1">
                       {[
-                        { label: "Logo", res: "500x500", desc: "Square logo" },
-                        { label: "Favicon", res: "512x512", desc: "App icon" },
-                        { label: "IG Post", res: "1080x1080", desc: "Instagram" },
-                        { label: "IG Story", res: "1080x1920", desc: "Story/Reel" },
-                        { label: "FB Cover", res: "820x312", desc: "Facebook" },
-                        { label: "Twitter", res: "1200x675", desc: "Post image" },
-                        { label: "LinkedIn", res: "1200x627", desc: "Share card" },
-                        { label: "YouTube", res: "1280x720", desc: "Thumbnail" },
-                        { label: "HD", res: "1920x1080", desc: "Full HD" },
-                        { label: "2K", res: "2560x1440", desc: "QHD" },
-                        { label: "4K", res: "3840x2160", desc: "Ultra HD" },
-                        { label: "OG Image", res: "1200x630", desc: "Open Graph" },
-                        { label: "Pinterest", res: "1000x1500", desc: "Pin" },
-                        { label: "TikTok", res: "1080x1920", desc: "Video cover" },
-                        { label: "Banner", res: "1500x500", desc: "X/Twitter" },
-                        { label: "iPhone 15", res: "1179x2556", desc: "Native res" },
-                        { label: "iPhone Pro Max", res: "1290x2796", desc: "Pro Max" },
-                        { label: "MacBook Air", res: "2560x1664", desc: "M2/M3 Air" },
+                        { label: "Logo", res: "500x500" },
+                        { label: "Favicon", res: "512x512" },
+                        { label: "IG Post", res: "1080x1080" },
+                        { label: "IG Story", res: "1080x1920" },
+                        { label: "FB Cover", res: "820x312" },
+                        { label: "Twitter", res: "1200x675" },
+                        { label: "LinkedIn", res: "1200x627" },
+                        { label: "YouTube", res: "1280x720" },
+                        { label: "HD", res: "1920x1080" },
+                        { label: "2K", res: "2560x1440" },
+                        { label: "4K", res: "3840x2160" },
+                        { label: "OG Image", res: "1200x630" },
+                        { label: "Pinterest", res: "1000x1500" },
+                        { label: "TikTok", res: "1080x1920" },
+                        { label: "Banner", res: "1500x500" },
+                        { label: "iPhone 15", res: "1179x2556" },
+                        { label: "Pro Max", res: "1290x2796" },
+                        { label: "MacBook", res: "2560x1664" },
                       ].map(t => (
                         <button key={t.label} onClick={() => { setExportFixedRes(t.res); const [w, h] = t.res.split("x").map(Number); setExportCustomW(w); setExportCustomH(h); }}
-                          className={cn("rounded-md px-2 py-1.5 border text-left transition-all",
-                            exportFixedRes === t.res ? "border-purple-500/30 bg-purple-500/10" : "border-white/6 hover:border-white/12")}>
-                          <p className={cn("text-[10px] font-medium", exportFixedRes === t.res ? "text-purple-400" : "text-white/60")}>{t.label}</p>
-                          <p className="text-[8px] text-white/25">{t.res} · {t.desc}</p>
+                          className={cn("rounded-md py-1 px-1 text-center transition-all",
+                            exportFixedRes === t.res ? "bg-purple-500/15 ring-1 ring-purple-500/25" : "bg-white/[0.03] hover:bg-white/[0.06]")}>
+                          <p className={cn("text-[9px] font-medium leading-tight", exportFixedRes === t.res ? "text-purple-400" : "text-white/50")}>{t.label}</p>
+                          <p className="text-[7px] text-white/20">{t.res}</p>
                         </button>
                       ))}
                     </div>
-                    {/* Custom resolution */}
-                    <div className="flex items-center gap-2 mt-2">
-                      <button onClick={() => setExportFixedRes("custom")} className={cn("rounded-md px-2.5 py-1.5 text-[10px] border", exportFixedRes === "custom" ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>Custom</button>
+                    {/* Custom */}
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <button onClick={() => setExportFixedRes("custom")} className={cn("rounded-md px-2 py-1 text-[9px] font-medium transition-all",
+                        exportFixedRes === "custom" ? "bg-purple-500/15 ring-1 ring-purple-500/25 text-purple-400" : "bg-white/[0.03] text-white/35 hover:bg-white/[0.06]")}>Custom</button>
                       {exportFixedRes === "custom" && (
                         <>
                           <input type="number" min={16} max={8192} value={exportCustomW} onChange={e => setExportCustomW(Number(e.target.value) || 500)}
-                            className="h-7 w-16 rounded border border-white/10 bg-white/5 px-2 text-[10px] text-white/80 outline-none" placeholder="Width" />
-                          <span className="text-white/30 text-[10px]">×</span>
+                            className="h-6 w-14 rounded-md bg-white/[0.04] px-1.5 text-[10px] text-white/70 outline-none focus:ring-1 focus:ring-purple-500/30" placeholder="W" />
+                          <span className="text-white/20 text-[9px]">×</span>
                           <input type="number" min={16} max={8192} value={exportCustomH} onChange={e => setExportCustomH(Number(e.target.value) || 500)}
-                            className="h-7 w-16 rounded border border-white/10 bg-white/5 px-2 text-[10px] text-white/80 outline-none" placeholder="Height" />
-                          <span className="text-[9px] text-white/25">px</span>
+                            className="h-6 w-14 rounded-md bg-white/[0.04] px-1.5 text-[10px] text-white/70 outline-none focus:ring-1 focus:ring-purple-500/30" placeholder="H" />
+                          <span className="text-[8px] text-white/20">px</span>
                         </>
                       )}
                     </div>
@@ -2579,21 +2579,19 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 )}
 
                 {/* Background */}
-                <div>
-                  <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Background</label>
-                  <div className="flex items-center gap-2">
-                    {["#1a1f2e", "#ffffff", "#000000", "transparent"].map(bg => (
-                      <button key={bg} onClick={() => setExportBg(bg)}
-                        className={cn("h-7 w-7 rounded-lg border-2 transition-transform", exportBg === bg ? "border-purple-400 scale-110" : "border-white/10")}
-                        style={{ backgroundColor: bg === "transparent" ? "transparent" : bg, backgroundImage: bg === "transparent" ? "linear-gradient(45deg, #666 25%, transparent 25%), linear-gradient(-45deg, #666 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #666 75%), linear-gradient(-45deg, transparent 75%, #666 75%)" : undefined, backgroundSize: bg === "transparent" ? "8px 8px" : undefined }} />
-                    ))}
-                    <ColorPicker color={exportBg === "transparent" ? "#1a1f2e" : exportBg} onChange={setExportBg} />
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[9px] text-white/30 uppercase tracking-widest shrink-0">BG</span>
+                  {["#1a1f2e", "#ffffff", "#000000", "transparent"].map(bg => (
+                    <button key={bg} onClick={() => setExportBg(bg)}
+                      className={cn("h-6 w-6 rounded-md transition-transform", exportBg === bg ? "ring-1 ring-purple-400 scale-110" : "ring-1 ring-white/[0.06]")}
+                      style={{ backgroundColor: bg === "transparent" ? "transparent" : bg, backgroundImage: bg === "transparent" ? "linear-gradient(45deg, #444 25%, transparent 25%), linear-gradient(-45deg, #444 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #444 75%), linear-gradient(-45deg, transparent 75%, #444 75%)" : undefined, backgroundSize: bg === "transparent" ? "6px 6px" : undefined }} />
+                  ))}
+                  <ColorPicker color={exportBg === "transparent" ? "#1a1f2e" : exportBg} onChange={setExportBg} />
                 </div>
               </div>
             )}
 
-            {/* Export button */}
+            {/* Export action */}
             <button type="button" onClick={() => {
               let scopeEls: SandboxElement[];
               let scopeStrokes: SandboxStroke[];
@@ -2633,13 +2631,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 case "html": exportToHTML(scopeEls, scopeStrokes); break;
               }
               setShowExportDialog(false);
-            }} className="w-full rounded-md bg-purple-500/15 border border-purple-500/20 py-2.5 text-[12px] font-medium text-purple-400 hover:bg-purple-500/25">
-              <Download className="inline h-4 w-4 mr-1.5" />
+            }} className="w-full rounded-xl bg-gradient-to-r from-purple-500/20 to-blue-500/20 ring-1 ring-purple-500/20 py-2.5 text-[11px] font-semibold text-purple-300 hover:from-purple-500/30 hover:to-blue-500/30 transition-all">
+              <Download className="inline h-3.5 w-3.5 mr-1.5" />
               Export as {exportFormat.toUpperCase()}
-              {exportFormat === "png" && exportFixedRes && exportFixedRes !== "custom" && ` (${exportFixedRes})`}
-              {exportFormat === "png" && exportFixedRes === "custom" && ` (${exportCustomW}×${exportCustomH})`}
+              {exportFormat === "png" && exportFixedRes && exportFixedRes !== "custom" && ` · ${exportFixedRes}`}
+              {exportFormat === "png" && exportFixedRes === "custom" && ` · ${exportCustomW}×${exportCustomH}`}
             </button>
-            <p className="text-[9px] text-white/20 text-center">PNG & SVG = visual · PDF = print-ready · JSON = backup · CSV & XLS = spreadsheets · HTML = styled report</p>
           </div>
         </DialogContent>
       </Dialog>
