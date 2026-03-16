@@ -2356,6 +2356,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           ref={boardRef}
           data-sandbox-board
           onPointerDown={handleBoardDown}
+          onContextMenu={handleContextMenu}
           className="relative flex-1 overflow-hidden rounded-xl border border-white/6 bg-[hsl(222,32%,8%)] touch-none min-h-0"
           style={{
             cursor: tool === "pan" ? "grab" : tool === "pen" ? "crosshair" : tool === "eraser" ? "cell" : tool === "text" ? "text" : tool === "stamp" ? "copy" : tool === "media" ? "cell" : "default",
