@@ -730,12 +730,17 @@ const exportToHTML = (elements: SandboxElement[], strokes: SandboxStroke[]) => {
 };
 
 /* ─── PNG with fixed resolution ─── */
-const exportToPNGFixed = (elements: SandboxElement[], strokes: SandboxStroke[], bgColor: string, targetW: number, targetH: number) => {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  for (const el of elements) { minX = Math.min(minX, el.x); minY = Math.min(minY, el.y); maxX = Math.max(maxX, el.x + el.width); maxY = Math.max(maxY, el.y + el.height); }
-  for (const s of strokes) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
-  if (!isFinite(minX)) { toast.info("Nothing to export"); return; }
-  const pad = 20; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+const exportToPNGFixed = (elements: SandboxElement[], strokes: SandboxStroke[], bgColor: string, targetW: number, targetH: number, fovBounds?: { minX: number; minY: number; maxX: number; maxY: number }) => {
+  let minX: number, minY: number, maxX: number, maxY: number;
+  if (fovBounds) {
+    minX = fovBounds.minX; minY = fovBounds.minY; maxX = fovBounds.maxX; maxY = fovBounds.maxY;
+  } else {
+    minX = Infinity; minY = Infinity; maxX = -Infinity; maxY = -Infinity;
+    for (const el of elements) { minX = Math.min(minX, el.x); minY = Math.min(minY, el.y); maxX = Math.max(maxX, el.x + el.width); maxY = Math.max(maxY, el.y + el.height); }
+    for (const s of strokes) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
+    if (!isFinite(minX)) { toast.info("Nothing to export"); return; }
+    const pad = 20; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+  }
   const contentW = maxX - minX, contentH = maxY - minY;
   const scale = Math.min(targetW / contentW, targetH / contentH);
   const offscreen = document.createElement("canvas");
