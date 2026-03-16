@@ -672,6 +672,11 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [activeStamp, setActiveStamp] = useState("⭐");
   const [canvasBgImage, setCanvasBgImage] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState(false);
+  const [showElementCount, setShowElementCount] = useState(true);
+  const [proportionalResize, setProportionalResize] = useState(false);
+  const [showRulers, setShowRulers] = useState(false);
+  const [recentColors, setRecentColors] = useState<string[]>([]);
+  const [showCoords, setShowCoords] = useState(true);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const spaceHeldRef = useRef(false);
