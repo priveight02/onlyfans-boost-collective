@@ -3050,18 +3050,24 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
       {/* Context Menu */}
       {ctxMenu && (
-        <div className="fixed inset-0 z-[99999]" onClick={() => { setCtxMenu(null); setCtxExportFormat(null); setCtxAccountSelect(null); }}>
+        <div className="fixed inset-0 z-[99999]" onClick={() => { setCtxMenu(null); setCtxExportFormat(null); setCtxAccountSelect(null); setCtxExportRes(null); setCtxExportScope("board"); }}>
           <div
-            className="absolute rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-1.5 min-w-[200px]"
-            style={{ left: Math.min(ctxMenu.x, window.innerWidth - 220), top: Math.min(ctxMenu.y, window.innerHeight - 400) }}
+            className="absolute rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-1.5 min-w-[220px] max-h-[500px] overflow-y-auto"
+            style={{ left: Math.min(ctxMenu.x, window.innerWidth - 240), top: Math.min(ctxMenu.y, window.innerHeight - 500) }}
             onClick={e => e.stopPropagation()}
           >
             {!ctxExportFormat ? (
               <>
                 <div className="px-2.5 py-1 text-[9px] text-white/25 uppercase tracking-wider">Push to...</div>
                 {/* Export format selection */}
-                {["png", "jpg", "webp", "svg", "mp4", "gif", "pdf", "json"].map(fmt => (
-                  <button key={fmt} type="button" onClick={() => setCtxExportFormat(fmt)}
+                {["png", "jpg", "webp", "svg"].map(fmt => (
+                  <button key={fmt} type="button" onClick={() => {
+                    setCtxExportFormat(fmt);
+                    // Auto-detect scope
+                    if (ctxMenu.elementId) setCtxExportScope("element");
+                    else if (selRef.current.size > 0) setCtxExportScope("selected");
+                    else setCtxExportScope("board");
+                  }}
                     className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2">
                     <FileImage className="h-3.5 w-3.5 text-white/30" />
                     <span>Export as <span className="uppercase font-medium text-white/90">{fmt}</span></span>
@@ -3085,20 +3091,78 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               </>
             ) : (
               <>
-                <button type="button" onClick={() => setCtxExportFormat(null)}
+                <button type="button" onClick={() => { setCtxExportFormat(null); setCtxAccountSelect(null); setCtxExportRes(null); }}
                   className="w-full rounded-lg px-2.5 py-1.5 text-left text-[10px] text-white/40 hover:bg-white/[0.06] flex items-center gap-1 mb-1">
                   ← Back
                 </button>
                 <div className="px-2.5 py-1 text-[9px] text-white/25 uppercase tracking-wider">
-                  Push as <span className="uppercase text-white/50">{ctxExportFormat}</span> to...
+                  Push as <span className="uppercase text-white/50">{ctxExportFormat}</span>
                 </div>
-                {ctxMenu.elementId && (
-                  <div className="px-2.5 py-1">
-                    <span className="text-[9px] text-purple-400/60">Element · Selected · Full Board</span>
+                
+                {/* Scope selector */}
+                <div className="px-2.5 py-1.5 space-y-1">
+                  <span className="text-[9px] text-white/30 uppercase tracking-wider">Scope</span>
+                  <div className="flex gap-1">
+                    {ctxMenu.elementId && (
+                      <button type="button" onClick={() => setCtxExportScope("element")}
+                        className={cn("rounded-md px-2 py-0.5 text-[9px] border", ctxExportScope === "element" ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/8 text-white/40 hover:bg-white/5")}>
+                        Element
+                      </button>
+                    )}
+                    {selRef.current.size > 0 && (
+                      <button type="button" onClick={() => setCtxExportScope("selected")}
+                        className={cn("rounded-md px-2 py-0.5 text-[9px] border", ctxExportScope === "selected" ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/8 text-white/40 hover:bg-white/5")}>
+                        Selected ({selRef.current.size})
+                      </button>
+                    )}
+                    <button type="button" onClick={() => setCtxExportScope("board")}
+                      className={cn("rounded-md px-2 py-0.5 text-[9px] border", ctxExportScope === "board" ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/8 text-white/40 hover:bg-white/5")}>
+                      Full Board
+                    </button>
                   </div>
-                )}
+                </div>
+                
+                {/* Resolution selector */}
+                <div className="px-2.5 py-1.5 space-y-1">
+                  <span className="text-[9px] text-white/30 uppercase tracking-wider">Resolution</span>
+                  <div className="flex flex-wrap gap-1">
+                    <button type="button" onClick={() => setCtxExportRes(null)}
+                      className={cn("rounded-md px-2 py-0.5 text-[9px] border", !ctxExportRes ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/8 text-white/40 hover:bg-white/5")}>
+                      Auto
+                    </button>
+                    {[
+                      { label: "1080×1080", w: 1080, h: 1080 },
+                      { label: "1080×1350", w: 1080, h: 1350 },
+                      { label: "1080×1920", w: 1080, h: 1920 },
+                      { label: "1920×1080", w: 1920, h: 1080 },
+                      { label: "2560×1440", w: 2560, h: 1440 },
+                      { label: "4K", w: 3840, h: 2160 },
+                    ].map(r => (
+                      <button key={r.label} type="button" onClick={() => setCtxExportRes({ w: r.w, h: r.h })}
+                        className={cn("rounded-md px-2 py-0.5 text-[9px] border",
+                          ctxExportRes?.w === r.w && ctxExportRes?.h === r.h ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/8 text-white/40 hover:bg-white/5")}>
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Custom resolution */}
+                  <div className="flex items-center gap-1 mt-1">
+                    <input type="number" placeholder="W" min={100} max={7680}
+                      value={ctxExportRes?.w || ""}
+                      onChange={e => setCtxExportRes(prev => ({ w: Number(e.target.value) || 1920, h: prev?.h || 1080 }))}
+                      className="h-5 w-14 rounded border border-white/10 bg-white/5 text-[9px] text-white/70 px-1 outline-none text-center" />
+                    <span className="text-[9px] text-white/20">×</span>
+                    <input type="number" placeholder="H" min={100} max={7680}
+                      value={ctxExportRes?.h || ""}
+                      onChange={e => setCtxExportRes(prev => ({ w: prev?.w || 1920, h: Number(e.target.value) || 1080 }))}
+                      className="h-5 w-14 rounded border border-white/10 bg-white/5 text-[9px] text-white/70 px-1 outline-none text-center" />
+                  </div>
+                </div>
+                
+                <div className="h-px bg-white/[0.06] my-1" />
+                
                 {/* Content Drafts - always available */}
-                <button type="button" onClick={() => pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat, "content")}
+                <button type="button" onClick={() => pushToStorage(ctxExportScope, ctxExportFormat!, "content", ctxExportRes)}
                   disabled={ctxPushing}
                   className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2 disabled:opacity-50">
                   <FileDown className="h-3.5 w-3.5 text-blue-400/50" /> Content Drafts
@@ -3116,7 +3180,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                     {ctxAccountSelect.accounts.map(acc => (
                       <button key={acc.account_id} type="button"
                         onClick={() => {
-                          pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat!, ctxAccountSelect!.platform);
+                          pushToStorage(ctxExportScope, ctxExportFormat!, ctxAccountSelect!.platform, ctxExportRes);
                           setCtxAccountSelect(null);
                         }}
                         disabled={ctxPushing}
@@ -3136,7 +3200,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                           onClick={() => {
                             if (!isConnected) { toast.error(`No ${p} account connected`); return; }
                             if (accs.length > 1) { setCtxAccountSelect({ platform: p, accounts: accs }); return; }
-                            pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat!, p);
+                            pushToStorage(ctxExportScope, ctxExportFormat!, p, ctxExportRes);
                           }}
                           disabled={ctxPushing || !isConnected}
                           className={cn(
