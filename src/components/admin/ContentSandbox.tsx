@@ -9,11 +9,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import {
-  ArrowRight, Bold, Check, Circle, Copy, Diamond, Download,
-  Eraser, Grip, Italic, Layers, Link2, Loader2, Lock, MousePointer, Move, Pencil,
+  AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical,
+  AlignStartHorizontal, AlignStartVertical, ArrowRight, Bold, Check, Circle, Copy, Diamond, Download,
+  Eraser, Grip, Italic, Layers, Link2, Loader2, Lock, Map, Maximize, MousePointer, Move, Pencil,
   Redo2, RotateCcw, Save, Search, Sparkles, Square, StickyNote,
   Trash2, Triangle, Type, Underline, Unlink, Unlock, ZoomIn, ZoomOut, RefreshCw, Palette,
-  Send, FileDown,
+  Send, FileDown, Grid3X3, Magnet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
