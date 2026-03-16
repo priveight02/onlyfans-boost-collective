@@ -931,20 +931,100 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     persistHistory();
   }, [persistHistory]);
 
+  /* ─── Generate thumbnail from current canvas ─── */
+  const generateThumbnail = useCallback(async (): Promise<string | null> => {
+    try {
+      const canvas = canvasRef.current;
+      const board = boardRef.current;
+      if (!canvas || !board) return null;
+      // Create a small offscreen canvas capturing the board
+      const thumbW = 320, thumbH = 200;
+      const offscreen = document.createElement("canvas");
+      offscreen.width = thumbW;
+      offscreen.height = thumbH;
+      const ctx = offscreen.getContext("2d");
+      if (!ctx) return null;
+      // Calculate bounds of all elements + strokes
+      const allEls = elsRef.current;
+      const allStks = strokesRef.current;
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const e of allEls) { minX = Math.min(minX, e.x); minY = Math.min(minY, e.y); maxX = Math.max(maxX, e.x + e.width); maxY = Math.max(maxY, e.y + e.height); }
+      for (const s of allStks) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
+      if (!isFinite(minX)) { minX = 0; minY = 0; maxX = 800; maxY = 600; }
+      const pad = 20;
+      minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+      const sceneW = maxX - minX || 1, sceneH = maxY - minY || 1;
+      const scale = Math.min(thumbW / sceneW, thumbH / sceneH);
+      const offX = (thumbW - sceneW * scale) / 2, offY = (thumbH - sceneH * scale) / 2;
+      // Background
+      ctx.fillStyle = "#1a1f2e";
+      ctx.fillRect(0, 0, thumbW, thumbH);
+      ctx.save();
+      ctx.translate(offX, offY);
+      ctx.scale(scale, scale);
+      ctx.translate(-minX, -minY);
+      // Draw strokes
+      for (const s of allStks) {
+        if (s.points.length < 2) continue;
+        ctx.strokeStyle = s.tool === "eraser" ? "#1a1f2e" : s.color;
+        ctx.lineWidth = s.size;
+        ctx.lineCap = "round"; ctx.lineJoin = "round";
+        ctx.beginPath();
+        ctx.moveTo(s.points[0].x, s.points[0].y);
+        for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
+        ctx.stroke();
+      }
+      // Draw element placeholders
+      for (const el of allEls) {
+        ctx.fillStyle = el.color + "33";
+        ctx.strokeStyle = el.color + "88";
+        ctx.lineWidth = 2;
+        if (el.kind === "media" && el.mediaUrl && el.mediaType === "image") {
+          ctx.fillStyle = "#334155";
+          ctx.fillRect(el.x, el.y, el.width, el.height);
+          // Draw a small image icon
+          ctx.fillStyle = "#94a3b8";
+          ctx.font = `${Math.min(el.width, el.height) * 0.3}px sans-serif`;
+          ctx.textAlign = "center"; ctx.textBaseline = "middle";
+          ctx.fillText("🖼", el.x + el.width / 2, el.y + el.height / 2);
+        } else if (el.kind === "text") {
+          ctx.fillStyle = el.color || "#fff";
+          ctx.font = `${el.fontSize || 16}px sans-serif`;
+          ctx.textBaseline = "top";
+          ctx.fillText(el.text?.substring(0, 30) || "", el.x, el.y);
+        } else if (el.shape) {
+          ctx.fillRect(el.x, el.y, el.width, el.height);
+          ctx.strokeRect(el.x, el.y, el.width, el.height);
+        } else {
+          ctx.fillRect(el.x, el.y, el.width, el.height);
+          ctx.strokeRect(el.x, el.y, el.width, el.height);
+        }
+      }
+      ctx.restore();
+      return offscreen.toDataURL("image/jpeg", 0.6);
+    } catch { return null; }
+  }, []);
+
   /* ─── Save to DB ─── */
   const saveToDb = useCallback(async (sessionId?: string) => {
     const sid = sessionId || activeSandboxId;
     if (!sid) return;
     try {
+      const thumb = await generateThumbnail();
       await supabase.from("sandbox_sessions").update({
         elements: elsRef.current as any,
         strokes: strokesRef.current as any,
         viewport: vpRef.current as any,
         bg_image_url: canvasBgImage,
+        thumbnail_url: thumb,
         updated_at: new Date().toISOString(),
       } as any).eq("id", sid);
+      // Update local session thumbnail
+      if (thumb) {
+        setSandboxSessions(prev => prev.map(s => s.id === sid ? { ...s, thumbnail_url: thumb, elements: [...elsRef.current], strokes: [...strokesRef.current] } : s));
+      }
     } catch { /* noop */ }
-  }, [activeSandboxId, canvasBgImage]);
+  }, [activeSandboxId, canvasBgImage, generateThumbnail]);
 
   const save = useCallback(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 7, elements: elsRef.current, strokes: strokesRef.current }));
