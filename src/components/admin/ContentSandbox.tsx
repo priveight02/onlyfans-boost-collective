@@ -125,6 +125,8 @@ const LETTER_SPACINGS = [-2, -1, -0.5, 0, 0.5, 1, 1.5, 2, 3, 4, 6, 8, 10];
 const LINE_HEIGHTS = [0.8, 0.9, 1, 1.15, 1.3, 1.5, 1.75, 2, 2.5, 3];
 const EMOJI_STAMPS = ["⭐", "🔥", "💡", "❤️", "✅", "⚡", "🎯", "🚀", "💰", "📌", "🏆", "💬", "📊", "🎨", "🔔", "⚠️"];
 
+const ROTATION_SNAPS = [0, 45, 90, 135, 180, 225, 270, 315];
+
 const TOOL_ITEMS: { id: Tool; label: string; icon: any }[] = [
   { id: "select", label: "V", icon: MousePointer },
   { id: "pan", label: "H", icon: Move },
@@ -140,6 +142,7 @@ const TOOL_ITEMS: { id: Tool; label: string; icon: any }[] = [
   { id: "connector", label: "Con", icon: Minus },
   { id: "frame", label: "F", icon: Frame },
   { id: "stamp", label: "S", icon: Smile },
+  { id: "media", label: "M", icon: Film },
 ];
 
 /* ─── Helpers ─── */
