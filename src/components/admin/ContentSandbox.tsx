@@ -2416,25 +2416,40 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
       {/* Export Board Dialog */}
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-        <DialogContent className="max-w-md border-white/8 bg-[hsl(222,30%,10%)] text-white">
+        <DialogContent className="max-w-lg border-white/8 bg-[hsl(222,30%,10%)] text-white max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-white/90 flex items-center gap-2"><Download className="h-4 w-4 text-purple-400" />Export Board</DialogTitle></DialogHeader>
           <div className="space-y-4">
             {/* Format */}
             <div>
               <label className="text-[10px] text-white/40 uppercase tracking-wider mb-2 block">Format</label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-1.5 mb-1.5">
                 {([
-                  { id: "png" as const, label: "PNG", desc: "High-res image", icon: FileImage },
-                  { id: "svg" as const, label: "SVG", desc: "Vector, no pixel loss", icon: FileImage },
-                  { id: "json" as const, label: "JSON", desc: "Full data backup", icon: FileJson },
-                  { id: "csv" as const, label: "CSV", desc: "Excel / Sheets", icon: FileSpreadsheet },
+                  { id: "png" as ExportFormat, label: "PNG", desc: "High-res image", icon: FileImage },
+                  { id: "svg" as ExportFormat, label: "SVG", desc: "Vector lossless", icon: FileImage },
+                  { id: "json" as ExportFormat, label: "JSON", desc: "Full backup", icon: FileJson },
+                  { id: "csv" as ExportFormat, label: "CSV", desc: "Sheets / Excel", icon: FileSpreadsheet },
                 ]).map(f => (
                   <button key={f.id} type="button" onClick={() => setExportFormat(f.id)}
-                    className={cn("p-2.5 rounded-lg border text-center transition-all",
+                    className={cn("p-2 rounded-lg border text-center transition-all",
                       exportFormat === f.id ? "border-purple-500/30 bg-purple-500/10" : "border-white/6 hover:border-white/12")}>
-                    <f.icon className={cn("h-5 w-5 mx-auto mb-1", exportFormat === f.id ? "text-purple-400" : "text-white/40")} />
-                    <p className={cn("text-[11px] font-semibold", exportFormat === f.id ? "text-purple-400" : "text-white/50")}>{f.label}</p>
-                    <p className="text-[8px] text-white/25 mt-0.5">{f.desc}</p>
+                    <f.icon className={cn("h-4 w-4 mx-auto mb-0.5", exportFormat === f.id ? "text-purple-400" : "text-white/40")} />
+                    <p className={cn("text-[10px] font-semibold", exportFormat === f.id ? "text-purple-400" : "text-white/50")}>{f.label}</p>
+                    <p className="text-[8px] text-white/25">{f.desc}</p>
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {([
+                  { id: "pdf" as ExportFormat, label: "PDF", desc: "Print-ready", icon: FileDown },
+                  { id: "xlsx" as ExportFormat, label: "XLS", desc: "Excel native", icon: FileSpreadsheet },
+                  { id: "html" as ExportFormat, label: "HTML", desc: "Styled report", icon: FileJson },
+                ]).map(f => (
+                  <button key={f.id} type="button" onClick={() => setExportFormat(f.id)}
+                    className={cn("p-2 rounded-lg border text-center transition-all",
+                      exportFormat === f.id ? "border-purple-500/30 bg-purple-500/10" : "border-white/6 hover:border-white/12")}>
+                    <f.icon className={cn("h-4 w-4 mx-auto mb-0.5", exportFormat === f.id ? "text-purple-400" : "text-white/40")} />
+                    <p className={cn("text-[10px] font-semibold", exportFormat === f.id ? "text-purple-400" : "text-white/50")}>{f.label}</p>
+                    <p className="text-[8px] text-white/25">{f.desc}</p>
                   </button>
                 ))}
               </div>
@@ -2454,20 +2469,70 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               </div>
             </div>
 
-            {/* PNG settings */}
-            {exportFormat === "png" && (
-              <div className="space-y-2">
+            {/* PNG/SVG settings */}
+            {(exportFormat === "png" || exportFormat === "svg") && (
+              <div className="space-y-3">
+                {/* Resolution scale */}
                 <div>
                   <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Resolution Scale</label>
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 4].map(s => (
-                      <button key={s} onClick={() => setExportScale(s)}
-                        className={cn("rounded-md px-3 py-1.5 text-[10px] border flex-1", exportScale === s ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>
-                        {s}x {s === 1 ? "(1:1)" : s === 2 ? "(Retina)" : s === 3 ? "(HiDPI)" : "(Ultra)"}
+                  <div className="flex gap-1.5">
+                    {[1, 2, 3, 4, 5, 6].map(s => (
+                      <button key={s} onClick={() => { setExportScale(s); setExportFixedRes(null); }}
+                        className={cn("rounded-md px-2 py-1.5 text-[10px] border flex-1", exportScale === s && !exportFixedRes ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>
+                        {s}x
                       </button>
                     ))}
                   </div>
                 </div>
+
+                {/* Resolution templates */}
+                {exportFormat === "png" && (
+                  <div>
+                    <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Resolution Template</label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[
+                        { label: "Logo", res: "500x500", desc: "Square logo" },
+                        { label: "Favicon", res: "512x512", desc: "App icon" },
+                        { label: "IG Post", res: "1080x1080", desc: "Instagram" },
+                        { label: "IG Story", res: "1080x1920", desc: "Story/Reel" },
+                        { label: "FB Cover", res: "820x312", desc: "Facebook" },
+                        { label: "Twitter", res: "1200x675", desc: "Post image" },
+                        { label: "LinkedIn", res: "1200x627", desc: "Share card" },
+                        { label: "YouTube", res: "1280x720", desc: "Thumbnail" },
+                        { label: "HD", res: "1920x1080", desc: "Full HD" },
+                        { label: "2K", res: "2560x1440", desc: "QHD" },
+                        { label: "4K", res: "3840x2160", desc: "Ultra HD" },
+                        { label: "OG Image", res: "1200x630", desc: "Open Graph" },
+                        { label: "Pinterest", res: "1000x1500", desc: "Pin" },
+                        { label: "TikTok", res: "1080x1920", desc: "Video cover" },
+                        { label: "Banner", res: "1500x500", desc: "X/Twitter" },
+                      ].map(t => (
+                        <button key={t.label} onClick={() => { setExportFixedRes(t.res); const [w, h] = t.res.split("x").map(Number); setExportCustomW(w); setExportCustomH(h); }}
+                          className={cn("rounded-md px-2 py-1.5 border text-left transition-all",
+                            exportFixedRes === t.res ? "border-purple-500/30 bg-purple-500/10" : "border-white/6 hover:border-white/12")}>
+                          <p className={cn("text-[10px] font-medium", exportFixedRes === t.res ? "text-purple-400" : "text-white/60")}>{t.label}</p>
+                          <p className="text-[8px] text-white/25">{t.res} · {t.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                    {/* Custom resolution */}
+                    <div className="flex items-center gap-2 mt-2">
+                      <button onClick={() => setExportFixedRes("custom")} className={cn("rounded-md px-2.5 py-1.5 text-[10px] border", exportFixedRes === "custom" ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>Custom</button>
+                      {exportFixedRes === "custom" && (
+                        <>
+                          <input type="number" min={16} max={8192} value={exportCustomW} onChange={e => setExportCustomW(Number(e.target.value) || 500)}
+                            className="h-7 w-16 rounded border border-white/10 bg-white/5 px-2 text-[10px] text-white/80 outline-none" placeholder="Width" />
+                          <span className="text-white/30 text-[10px]">×</span>
+                          <input type="number" min={16} max={8192} value={exportCustomH} onChange={e => setExportCustomH(Number(e.target.value) || 500)}
+                            className="h-7 w-16 rounded border border-white/10 bg-white/5 px-2 text-[10px] text-white/80 outline-none" placeholder="Height" />
+                          <span className="text-[9px] text-white/25">px</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Background */}
                 <div>
                   <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Background</label>
                   <div className="flex items-center gap-2">
@@ -2487,17 +2552,31 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               const scopeEls = exportScope === "selected" ? elements.filter(e => selectedIds.has(e.id)) : elements;
               const scopeStrokes = exportScope === "selected" ? strokes.filter(s => selectedStrokeIds.has(s.id)) : strokes;
               switch (exportFormat) {
-                case "png": exportToPNG(canvasRef.current, scopeEls, scopeStrokes, viewport, boardRef.current, exportBg, exportScale); break;
+                case "png":
+                  if (exportFixedRes && exportFixedRes !== "custom") {
+                    const [w, h] = exportFixedRes.split("x").map(Number);
+                    exportToPNGFixed(scopeEls, scopeStrokes, exportBg, w, h);
+                  } else if (exportFixedRes === "custom") {
+                    exportToPNGFixed(scopeEls, scopeStrokes, exportBg, exportCustomW, exportCustomH);
+                  } else {
+                    exportToPNG(canvasRef.current, scopeEls, scopeStrokes, viewport, boardRef.current, exportBg, exportScale);
+                  }
+                  break;
                 case "svg": exportToSVG(scopeEls, scopeStrokes); break;
                 case "json": exportToJSON(scopeEls, scopeStrokes); break;
                 case "csv": exportToCSV(scopeEls); break;
+                case "pdf": exportToPDF(scopeEls, scopeStrokes); break;
+                case "xlsx": exportToXLSX(scopeEls); break;
+                case "html": exportToHTML(scopeEls, scopeStrokes); break;
               }
               setShowExportDialog(false);
             }} className="w-full rounded-md bg-purple-500/15 border border-purple-500/20 py-2.5 text-[12px] font-medium text-purple-400 hover:bg-purple-500/25">
               <Download className="inline h-4 w-4 mr-1.5" />
               Export as {exportFormat.toUpperCase()}
+              {exportFormat === "png" && exportFixedRes && exportFixedRes !== "custom" && ` (${exportFixedRes})`}
+              {exportFormat === "png" && exportFixedRes === "custom" && ` (${exportCustomW}×${exportCustomH})`}
             </button>
-            <p className="text-[9px] text-white/20 text-center">PNG & SVG = full visual quality · JSON = complete backup · CSV = Excel/Sheets/LibreOffice compatible</p>
+            <p className="text-[9px] text-white/20 text-center">PNG & SVG = visual · PDF = print-ready · JSON = backup · CSV & XLS = spreadsheets · HTML = styled report</p>
           </div>
         </DialogContent>
       </Dialog>
