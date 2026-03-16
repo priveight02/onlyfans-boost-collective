@@ -359,18 +359,20 @@ const ColorPicker = memo(function ColorPicker({ color, onChange }: { color: stri
 });
 
 /* ─── ElementView ─── */
-const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, onResize, onTextChange }: {
+const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, onResize, onTextChange, onRotate }: {
   el: SandboxElement; selected: boolean; linkSrc: boolean;
   onDown: (e: React.PointerEvent, el: SandboxElement) => void;
   onResize: (e: React.PointerEvent, el: SandboxElement) => void;
   onTextChange: (id: string, v: string) => void;
+  onRotate: (e: React.PointerEvent, el: SandboxElement) => void;
 }) {
   const src = el.data ? getSource(el.data) : "";
+  const rot = el.rotation || 0;
 
   return (
     <div
       className={cn("absolute", selected && "ring-2 ring-blue-400/80", linkSrc && "ring-2 ring-emerald-400")}
-      style={{ left: el.x, top: el.y, width: el.width, height: el.height, zIndex: el.z, willChange: "transform", opacity: el.opacity ?? 1 }}
+      style={{ left: el.x, top: el.y, width: el.width, height: el.height, zIndex: el.z, willChange: "transform", opacity: el.opacity ?? 1, transform: rot ? `rotate(${rot}deg)` : undefined, transformOrigin: "center center" }}
       onPointerDown={e => onDown(e, el)}
     >
       {el.kind === "content" && el.data && (
@@ -448,11 +450,48 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
         </div>
       )}
 
+      {el.kind === "media" && el.mediaUrl && (
+        <div className="h-full w-full rounded-xl border border-white/8 bg-[hsl(222,30%,10%)] overflow-hidden flex flex-col">
+          <div className="flex items-center gap-1.5 border-b border-white/6 px-2 py-1">
+            {el.mediaType === "video" && <Film className="h-3 w-3 text-purple-400/70" />}
+            {el.mediaType === "audio" && <Music className="h-3 w-3 text-emerald-400/70" />}
+            {(el.mediaType === "image" || el.mediaType === "gif") && <ImageIcon className="h-3 w-3 text-blue-400/70" />}
+            <span className="text-[9px] text-white/40 truncate">{el.mediaName || "Media"}</span>
+          </div>
+          <div className="flex-1 flex items-center justify-center overflow-hidden" onPointerDown={e => e.stopPropagation()}>
+            {(el.mediaType === "image" || el.mediaType === "gif") && (
+              <img src={el.mediaUrl} alt={el.mediaName || "media"} className="max-h-full max-w-full object-contain" draggable={false} />
+            )}
+            {el.mediaType === "video" && (
+              <video src={el.mediaUrl} controls playsInline preload="metadata" className="max-h-full max-w-full object-contain" />
+            )}
+            {el.mediaType === "audio" && (
+              <div className="flex flex-col items-center gap-2 p-3 w-full">
+                <Music className="h-8 w-8 text-emerald-400/40" />
+                <audio src={el.mediaUrl} controls preload="metadata" className="w-full" style={{ maxWidth: "100%" }} />
+                <span className="text-[10px] text-white/30 truncate max-w-full">{el.mediaName}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {(el.groupId || el.meshId) && (
         <div className={cn("absolute -top-1.5 -right-1.5 h-3 w-3 rounded-full border", el.meshId ? "bg-amber-400 border-amber-900" : "bg-emerald-400 border-emerald-900")}
           title={el.meshId ? "Meshed" : "Grouped"} />
       )}
+      {/* Resize handle */}
       <button type="button" aria-label="Resize" className="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full border border-white/15 bg-white/10 cursor-se-resize" onPointerDown={e => onResize(e as any, el)} />
+      {/* Rotate handle - shown when selected */}
+      {selected && (
+        <button type="button" aria-label="Rotate" className="absolute -top-5 left-1/2 -translate-x-1/2 h-4 w-4 rounded-full border border-blue-400/40 bg-blue-500/20 cursor-grab flex items-center justify-center hover:bg-blue-500/40 transition-colors"
+          onPointerDown={e => { e.stopPropagation(); onRotate(e as any, el); }}>
+          <RotateCw className="h-2.5 w-2.5 text-blue-300" />
+        </button>
+      )}
+      {rot !== 0 && (
+        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[8px] text-blue-400/50 whitespace-nowrap">{Math.round(rot)}°</div>
+      )}
     </div>
   );
 });
