@@ -1295,6 +1295,15 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     toast.success("View reset");
   }, []);
 
+  /* Helper: get center of current viewport in scene coords */
+  const getViewportCenter = useCallback((): Point => {
+    const board = boardRef.current;
+    if (!board) return { x: 200, y: 200 };
+    const r = board.getBoundingClientRect();
+    const vp = vpRef.current;
+    return { x: (-vp.x + r.width / 2) / vp.zoom, y: (-vp.y + r.height / 2) / vp.zoom };
+  }, []);
+
   const importItems = useCallback((rows: any[]) => {
     const existing = new Set(elsRef.current.map(e => e.sourceItemId).filter(Boolean));
     const next = rows.filter(item => !existing.has(item.id));
@@ -1302,15 +1311,19 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     pushUndo();
     const cols = isMobile ? 1 : 3;
     let z = nextZ(elsRef.current);
+    const center = getViewportCenter();
+    const gridW = cols * 312, gridH = Math.ceil(next.length / cols) * 228;
+    const startX = center.x - gridW / 2, startY = center.y - gridH / 2;
     const imported = next.map((item, i) => ({
-      id: `sb-${crypto.randomUUID()}`, kind: "content" as const, x: gridPos(i, cols).x, y: gridPos(i, cols).y,
+      id: `sb-${crypto.randomUUID()}`, kind: "content" as const,
+      x: startX + (i % cols) * 312, y: startY + Math.floor(i / cols) * 228,
       width: 284, height: 192, z: z++, color: "#3b82f6", links: [], sourceItemId: item.id,
       data: clone(item), annotation: item.description || "", fontSize: 14,
     } as SandboxElement));
     setElements(p => [...p, ...imported]);
     setSelectedIds(new Set(imported.map(e => e.id)));
     toast.success(`${imported.length} cards imported`);
-  }, [isMobile, pushUndo]);
+  }, [isMobile, pushUndo, getViewportCenter]);
 
   const saveBack = useCallback(async () => {
     if (!primaryEl || primaryEl.kind !== "content" || !primaryEl.data?.id) return;
