@@ -841,6 +841,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [recentColors, setRecentColors] = useState<string[]>([]);
   const [showCoords, setShowCoords] = useState(true);
   const [zOrderPopup, setZOrderPopup] = useState<"forward" | "backward" | null>(null);
+  const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; elementId?: string } | null>(null);
+  const [ctxExportFormat, setCtxExportFormat] = useState<string | null>(null);
+  const [ctxPushing, setCtxPushing] = useState(false);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const spaceHeldRef = useRef(false);
