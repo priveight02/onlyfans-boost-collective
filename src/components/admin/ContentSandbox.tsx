@@ -150,7 +150,7 @@ const TOOL_ITEMS: { id: Tool; label: string; icon: any }[] = [
 const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v));
 const center = (el: SandboxElement) => ({ x: el.x + el.width / 2, y: el.y + el.height / 2 });
-const nextZ = (els: SandboxElement[]) => (els.length ? Math.max(...els.map(e => e.z)) + 1 : 1);
+const nextZ = (els: SandboxElement[]) => (els.length ? Math.max(1000, ...els.map(e => e.z)) + 1 : 1000);
 const getSource = (item: any) => (typeof item?.metadata?.source === "string" ? item.metadata.source : "");
 const gridPos = (i: number, cols: number) => ({ x: 48 + (i % cols) * 312, y: 48 + Math.floor(i / cols) * 228 });
 
@@ -468,10 +468,10 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
       {el.kind === "media" && el.mediaUrl && (
         <div className="h-full w-full overflow-hidden" onPointerDown={e => e.stopPropagation()}>
           {(el.mediaType === "image" || el.mediaType === "gif") && (
-            <img src={el.mediaUrl} alt={el.mediaName || "media"} className="h-full w-full object-fill" draggable={false} />
+            <img src={el.mediaUrl} alt={el.mediaName || "media"} className="h-full w-full object-contain" draggable={false} style={{ imageRendering: "auto" }} />
           )}
           {el.mediaType === "video" && (
-            <video src={el.mediaUrl} controls playsInline preload="metadata" className="h-full w-full object-fill" />
+            <video src={el.mediaUrl} controls playsInline preload="metadata" className="h-full w-full object-contain" />
           )}
           {el.mediaType === "audio" && (
             <div className="flex flex-col items-center justify-center gap-2 p-3 w-full h-full bg-[hsl(222,30%,10%)] rounded-lg">
@@ -1104,7 +1104,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     const ids = Array.from(selRef.current);
     if (!ids.length) return;
     pushUndo();
-    setElements(p => { let z = nextZ(p); return p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e); });
+    // Place above stroke canvas layer (z >= 1000)
+    let z = Math.max(1000, ...elsRef.current.map(e => e.z)) + 1;
+    setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
   }, [pushUndo]);
 
   const duplicateSel = useCallback(() => {
@@ -1233,13 +1235,13 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     setElements(p => p.map(e => { if (!targets.includes(e.id)) return e; const pt = gridPos(i++, cols); return { ...e, x: pt.x, y: pt.y }; }));
   }, [isMobile, pushUndo]);
 
-  /* ─── Convenience: Send to Back ─── */
+  /* ─── Convenience: Send to Back (behind strokes) ─── */
   const sendToBack = useCallback(() => {
     const ids = Array.from(selRef.current);
     if (!ids.length) return;
     pushUndo();
-    const minZ = Math.min(...elsRef.current.map(e => e.z));
-    let z = minZ - ids.length;
+    // Place selected elements below the stroke canvas layer (z < 500)
+    let z = 0;
     setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
   }, [pushUndo]);
 
@@ -2248,7 +2250,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
             backgroundRepeat: canvasBgImage ? "no-repeat" : undefined,
           }}
         >
-          <canvas ref={canvasRef} className="absolute inset-0 h-full w-full pointer-events-none" />
+          <canvas ref={canvasRef} className="absolute inset-0 h-full w-full pointer-events-none" style={{ zIndex: 500 }} />
           {/* Marquee selection rectangle */}
           {marqueeRect && marqueeRect.w > 2 && marqueeRect.h > 2 && (
             <div className="absolute pointer-events-none border-2 border-blue-400/60 bg-blue-400/10 rounded-sm" style={{
