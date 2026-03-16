@@ -3296,7 +3296,7 @@ Creative rules:
 
       {/* Sandbox List Floating Panel - appears above bottom bar */}
       {sandboxListOpen && (
-        <div onPointerDown={(e) => e.stopPropagation()} className="fixed z-[9999] rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-2 w-[300px] max-h-[420px] overflow-hidden flex flex-col" style={{ bottom: "40px", left: "60px" }}>
+        <div onPointerDown={(e) => e.stopPropagation()} className="absolute z-[9999] rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-2 w-[300px] max-h-[420px] overflow-hidden flex flex-col" style={{ top: "8px", right: "8px" }}>
           <div className="flex items-center justify-between px-1 pb-1.5 border-b border-white/[0.06]">
             <span className="text-[10px] text-white/30 uppercase tracking-wider">Sandboxes ({sandboxSessions.length})</span>
             <div className="flex items-center gap-1">
