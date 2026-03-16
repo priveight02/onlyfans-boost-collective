@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, Fragment } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +17,7 @@ import {
   Trash2, Triangle, Type, Underline, Unlink, Unlock, ZoomIn, ZoomOut, RefreshCw, Palette,
   Send, FileDown, Grid3X3, Magnet, FileJson, FileSpreadsheet, FileImage, Image as ImageIcon,
   CaseSensitive, ALargeSmall, Minus, LetterText, Upload, Film, Music, ImagePlus, HelpCircle, X,
+  FolderOpen, Plus, ChevronDown, MoreHorizontal,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -81,6 +82,17 @@ type InteractionState =
   | { type: "rotate-stroke"; strokeId: string; center: Point; startAngle: number; startRotation: number };
 
 interface SandboxSnapshot { elements: SandboxElement[]; strokes: SandboxStroke[]; }
+
+interface SandboxSession {
+  id: string;
+  name: string;
+  elements: SandboxElement[];
+  strokes: SandboxStroke[];
+  viewport: Viewport;
+  bg_image_url: string | null;
+  updated_at: string;
+  is_active: boolean;
+}
 
 /* ─── Stroke bounding box helper ─── */
 const strokeBounds = (s: SandboxStroke): { x: number; y: number; w: number; h: number } => {
@@ -868,6 +880,14 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const spaceHeldRef = useRef(false);
   const selStrokesRef = useRef<Set<string>>(new Set());
 
+  /* ─── Sandbox sessions state ─── */
+  const [sandboxSessions, setSandboxSessions] = useState<SandboxSession[]>([]);
+  const [activeSandboxId, setActiveSandboxId] = useState<string | null>(null);
+  const [sandboxListOpen, setSandboxListOpen] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [sandboxLoading, setSandboxLoading] = useState(false);
+
   const HISTORY_KEY = STORAGE_KEY + "_history";
   const undoStack = useRef<SandboxSnapshot[]>([]);
   const redoStack = useRef<SandboxSnapshot[]>([]);
@@ -910,20 +930,82 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     persistHistory();
   }, [persistHistory]);
 
+  /* ─── Save to DB ─── */
+  const saveToDb = useCallback(async (sessionId?: string) => {
+    const sid = sessionId || activeSandboxId;
+    if (!sid) return;
+    try {
+      await supabase.from("sandbox_sessions").update({
+        elements: elsRef.current as any,
+        strokes: strokesRef.current as any,
+        viewport: vpRef.current as any,
+        bg_image_url: canvasBgImage,
+        updated_at: new Date().toISOString(),
+      } as any).eq("id", sid);
+    } catch { /* noop */ }
+  }, [activeSandboxId, canvasBgImage]);
+
   const save = useCallback(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ v: 7, elements: elsRef.current, strokes: strokesRef.current }));
     persistHistory();
     setDirty(false); setLastSaved(new Date());
-  }, [persistHistory]);
+    saveToDb();
+  }, [persistHistory, saveToDb]);
 
-  useEffect(() => {
+  /* ─── Load sandbox sessions from DB ─── */
+  const loadSandboxSessions = useCallback(async () => {
+    setSandboxLoading(true);
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const p = JSON.parse(raw);
-        setElements(Array.isArray(p?.elements) ? p.elements : []);
-        setStrokes(Array.isArray(p?.strokes) ? p.strokes : []);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { setSandboxLoading(false); return; }
+      const { data, error } = await supabase.from("sandbox_sessions").select("*").eq("user_id", user.id).order("updated_at", { ascending: false });
+      if (error) throw error;
+      const sessions = (data || []).map((s: any) => ({
+        id: s.id,
+        name: s.name,
+        elements: Array.isArray(s.elements) ? s.elements : [],
+        strokes: Array.isArray(s.strokes) ? s.strokes : [],
+        viewport: s.viewport || DEFAULT_VIEWPORT,
+        bg_image_url: s.bg_image_url,
+        updated_at: s.updated_at,
+        is_active: s.is_active,
+      }));
+      setSandboxSessions(sessions);
+      // If no sessions exist, create one from localStorage state
+      if (!sessions.length) {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        let els: SandboxElement[] = [];
+        let stks: SandboxStroke[] = [];
+        if (raw) { const p = JSON.parse(raw); els = Array.isArray(p?.elements) ? p.elements : []; stks = Array.isArray(p?.strokes) ? p.strokes : []; }
+        const { data: newSession } = await supabase.from("sandbox_sessions").insert({
+          user_id: user.id,
+          name: "Main Sandbox",
+          elements: els as any,
+          strokes: stks as any,
+          viewport: vpRef.current as any,
+          bg_image_url: canvasBgImage,
+          is_active: true,
+        } as any).select().single();
+        if (newSession) {
+          const s = newSession as any;
+          const session: SandboxSession = { id: s.id, name: s.name, elements: els, strokes: stks, viewport: vpRef.current, bg_image_url: canvasBgImage, updated_at: s.updated_at, is_active: true };
+          setSandboxSessions([session]);
+          setActiveSandboxId(s.id);
+        }
+      } else {
+        // Load the active session or first one
+        const active = sessions.find((s: SandboxSession) => s.is_active) || sessions[0];
+        setActiveSandboxId(active.id);
+        setElements(active.elements);
+        setStrokes(active.strokes);
+        if (active.viewport) {
+          const vp = active.viewport as Viewport;
+          setViewport(vp);
+        }
+        if (active.bg_image_url) setCanvasBgImage(active.bg_image_url);
+        else setCanvasBgImage(null);
       }
+      // Also load undo history from localStorage
       const histRaw = localStorage.getItem(HISTORY_KEY);
       if (histRaw) {
         const h = JSON.parse(histRaw);
@@ -931,8 +1013,97 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         if (Array.isArray(h?.redo)) redoStack.current = h.redo;
       }
       setLastSaved(new Date());
-    } catch { /* noop */ }
-  }, [HISTORY_KEY]);
+    } catch (err) { console.error("Failed to load sandbox sessions:", err); }
+    finally { setSandboxLoading(false); }
+  }, [HISTORY_KEY, canvasBgImage]);
+
+  useEffect(() => { loadSandboxSessions(); }, []);
+
+  /* ─── Create new sandbox ─── */
+  const createSandbox = useCallback(async (name?: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    // Save current sandbox first
+    if (activeSandboxId) await saveToDb();
+    // Deactivate all
+    await supabase.from("sandbox_sessions").update({ is_active: false } as any).eq("user_id", user.id);
+    const { data: newSession } = await supabase.from("sandbox_sessions").insert({
+      user_id: user.id,
+      name: name || `Sandbox ${sandboxSessions.length + 1}`,
+      elements: [] as any,
+      strokes: [] as any,
+      viewport: DEFAULT_VIEWPORT as any,
+      is_active: true,
+    } as any).select().single();
+    if (newSession) {
+      const s = newSession as any;
+      setElements([]);
+      setStrokes([]);
+      setViewport(DEFAULT_VIEWPORT);
+      setCanvasBgImage(null);
+      setSelectedIds(new Set());
+      setSelectedStrokeIds(new Set());
+      undoStack.current = [];
+      redoStack.current = [];
+      setActiveSandboxId(s.id);
+      setSandboxSessions(prev => [{ id: s.id, name: s.name, elements: [], strokes: [], viewport: DEFAULT_VIEWPORT, bg_image_url: null, updated_at: s.updated_at, is_active: true }, ...prev.map(p => ({ ...p, is_active: false }))]);
+      toast.success(`Created "${s.name}"`);
+    }
+  }, [activeSandboxId, saveToDb, sandboxSessions.length]);
+
+  /* ─── Switch sandbox ─── */
+  const switchSandbox = useCallback(async (sessionId: string) => {
+    if (sessionId === activeSandboxId) return;
+    // Save current first
+    if (activeSandboxId) await saveToDb();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    // Deactivate all, activate target
+    await supabase.from("sandbox_sessions").update({ is_active: false } as any).eq("user_id", user.id);
+    await supabase.from("sandbox_sessions").update({ is_active: true } as any).eq("id", sessionId);
+    // Load target
+    const { data } = await supabase.from("sandbox_sessions").select("*").eq("id", sessionId).single();
+    if (data) {
+      const s = data as any;
+      const els = Array.isArray(s.elements) ? s.elements : [];
+      const stks = Array.isArray(s.strokes) ? s.strokes : [];
+      setElements(els);
+      setStrokes(stks);
+      if (s.viewport) setViewport(s.viewport as Viewport);
+      setCanvasBgImage(s.bg_image_url || null);
+      setActiveSandboxId(sessionId);
+      setSelectedIds(new Set());
+      setSelectedStrokeIds(new Set());
+      undoStack.current = [];
+      redoStack.current = [];
+      setDirty(false);
+      setLastSaved(new Date());
+      setSandboxSessions(prev => prev.map(p => ({ ...p, is_active: p.id === sessionId })));
+      toast.success(`Switched to "${s.name}"`);
+    }
+  }, [activeSandboxId, saveToDb]);
+
+  /* ─── Delete sandbox ─── */
+  const deleteSandbox = useCallback(async (sessionId: string) => {
+    if (sandboxSessions.length <= 1) { toast.error("Cannot delete the last sandbox"); return; }
+    if (!confirm("Delete this sandbox permanently?")) return;
+    await supabase.from("sandbox_sessions").delete().eq("id", sessionId);
+    setSandboxSessions(prev => prev.filter(s => s.id !== sessionId));
+    if (sessionId === activeSandboxId) {
+      const remaining = sandboxSessions.filter(s => s.id !== sessionId);
+      if (remaining.length) switchSandbox(remaining[0].id);
+    }
+    toast.success("Sandbox deleted");
+  }, [activeSandboxId, sandboxSessions, switchSandbox]);
+
+  /* ─── Rename sandbox ─── */
+  const renameSandbox = useCallback(async (sessionId: string, newName: string) => {
+    if (!newName.trim()) return;
+    await supabase.from("sandbox_sessions").update({ name: newName.trim() } as any).eq("id", sessionId);
+    setSandboxSessions(prev => prev.map(s => s.id === sessionId ? { ...s, name: newName.trim() } : s));
+    setRenamingId(null);
+    toast.success("Renamed");
+  }, []);
 
   /* ─── Load connected platforms for push menu ─── */
   useEffect(() => {
@@ -1666,17 +1837,25 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, [pushUndo, getViewportCenter, uploadMediaToStorage]);
 
   /* ─── Custom background ─── */
-  const handleBgImport = useCallback((file: File) => {
-    // Convert to data URL for localStorage persistence
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setCanvasBgImage(dataUrl);
-      try { localStorage.setItem("sandbox_bg_image", dataUrl); } catch { /* storage full */ }
+  const handleBgImport = useCallback(async (file: File) => {
+    try {
+      // Upload to storage for persistence across sessions
+      const url = await uploadMediaToStorage(file);
+      setCanvasBgImage(url);
+      try { localStorage.setItem("sandbox_bg_image", url); } catch { /* storage full */ }
       toast.success("Background set");
-    };
-    reader.readAsDataURL(file);
-  }, []);
+    } catch {
+      // Fallback to data URL
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        setCanvasBgImage(dataUrl);
+        try { localStorage.setItem("sandbox_bg_image", dataUrl); } catch {}
+        toast.success("Background set");
+      };
+      reader.readAsDataURL(file);
+    }
+  }, [uploadMediaToStorage]);
 
   const handleBoardDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0 && e.button !== 1) return;
@@ -2269,6 +2448,58 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <button type="button" onClick={() => { save(); toast.success("Saved"); }} title="Ctrl+S" className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70">
             <Save className="h-3 w-3" /><span className="text-[10px]">Save</span>
           </button>
+          {/* Sandbox Switcher */}
+          <div className="relative">
+            <button type="button" onClick={() => setSandboxListOpen(p => !p)}
+              className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70 border border-white/8 bg-white/4">
+              <FolderOpen className="h-3 w-3" />
+              <span className="text-[10px] max-w-[80px] truncate">{sandboxSessions.find(s => s.id === activeSandboxId)?.name || "Sandboxes"}</span>
+              <ChevronDown className="h-2.5 w-2.5" />
+            </button>
+            {sandboxListOpen && (
+              <div className="absolute top-full right-0 mt-1 rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-1.5 min-w-[220px] max-h-[300px] overflow-y-auto z-[9999]">
+                <div className="px-2 py-1 text-[9px] text-white/25 uppercase tracking-wider flex items-center justify-between">
+                  <span>Sandboxes ({sandboxSessions.length})</span>
+                  <button type="button" onClick={() => { createSandbox(); setSandboxListOpen(false); }} className="text-emerald-400/70 hover:text-emerald-400 flex items-center gap-0.5">
+                    <Plus className="h-3 w-3" /> New
+                  </button>
+                </div>
+                <div className="h-px bg-white/[0.06] my-0.5" />
+                {sandboxSessions.map(session => (
+                  <div key={session.id}
+                    className={cn("group flex items-center gap-1.5 rounded-lg px-2 py-1.5 cursor-pointer transition-all",
+                      session.id === activeSandboxId ? "bg-blue-500/10 ring-1 ring-blue-500/20" : "hover:bg-white/[0.04]")}
+                  >
+                    {renamingId === session.id ? (
+                      <input autoFocus value={renameValue}
+                        onChange={e => setRenameValue(e.target.value)}
+                        onBlur={() => { renameSandbox(session.id, renameValue); }}
+                        onKeyDown={e => { if (e.key === "Enter") renameSandbox(session.id, renameValue); if (e.key === "Escape") setRenamingId(null); }}
+                        className="flex-1 h-5 rounded border border-white/10 bg-white/5 px-1.5 text-[10px] text-white/80 outline-none"
+                        onClick={e => e.stopPropagation()} />
+                    ) : (
+                      <button type="button" onClick={() => { switchSandbox(session.id); setSandboxListOpen(false); }}
+                        className="flex-1 text-left min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <div className={cn("h-1.5 w-1.5 rounded-full shrink-0", session.id === activeSandboxId ? "bg-blue-400" : "bg-white/15")} />
+                          <span className={cn("text-[11px] truncate", session.id === activeSandboxId ? "text-blue-300 font-medium" : "text-white/60")}>{session.name}</span>
+                        </div>
+                        <div className="text-[8px] text-white/20 pl-3">{new Date(session.updated_at).toLocaleDateString()} · {(session.elements?.length || 0)} els</div>
+                      </button>
+                    )}
+                    <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                      <button type="button" onClick={e => { e.stopPropagation(); setRenamingId(session.id); setRenameValue(session.name); }}
+                        className="rounded p-0.5 text-white/30 hover:text-white/60 hover:bg-white/5"><Pencil className="h-2.5 w-2.5" /></button>
+                      {sandboxSessions.length > 1 && (
+                        <button type="button" onClick={e => { e.stopPropagation(); deleteSandbox(session.id); }}
+                          className="rounded p-0.5 text-red-400/30 hover:text-red-400/60 hover:bg-red-500/5"><Trash2 className="h-2.5 w-2.5" /></button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <button type="button" onClick={() => setShowHelp(true)} className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:bg-white/8 hover:text-white/80" title="Help & Shortcuts">
             <HelpCircle className="h-3 w-3" /><span className="text-[10px]">Help</span>
           </button>
@@ -2346,7 +2577,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <Palette className="inline h-3 w-3 mr-0.5" />BG
         </button>
         {canvasBgImage && (
-          <button type="button" onClick={() => { setCanvasBgImage(null); try { localStorage.removeItem("sandbox_bg_image"); } catch {} }} className="rounded-md border border-red-500/15 bg-red-500/5 px-2 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">✕ BG</button>
+          <button type="button" onClick={() => { setCanvasBgImage(null); try { localStorage.removeItem("sandbox_bg_image"); } catch {} if (activeSandboxId) supabase.from("sandbox_sessions").update({ bg_image_url: null } as any).eq("id", activeSandboxId); }} className="rounded-md border border-red-500/15 bg-red-500/5 px-2 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">✕ BG</button>
         )}
 
         {/* Align tools */}
