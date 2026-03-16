@@ -481,17 +481,17 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
       )}
 
       {el.kind === "media" && el.mediaUrl && (
-        <div className="h-full w-full overflow-hidden" onPointerDown={e => e.stopPropagation()}>
+        <div className="h-full w-full overflow-hidden pointer-events-none">
           {(el.mediaType === "image" || el.mediaType === "gif") && (
             <img src={el.mediaUrl} alt={el.mediaName || "media"} className="h-full w-full object-contain" draggable={false} style={{ imageRendering: "auto" }} />
           )}
           {el.mediaType === "video" && (
-            <video src={el.mediaUrl} controls playsInline preload="metadata" className="h-full w-full object-contain" />
+            <video src={el.mediaUrl} controls playsInline preload="metadata" className="h-full w-full object-contain pointer-events-auto" />
           )}
           {el.mediaType === "audio" && (
             <div className="flex flex-col items-center justify-center gap-2 p-3 w-full h-full bg-[hsl(222,30%,10%)] rounded-lg">
               <Music className="h-8 w-8 text-emerald-400/40" />
-              <audio src={el.mediaUrl} controls preload="metadata" className="w-full" style={{ maxWidth: "100%" }} />
+              <audio src={el.mediaUrl} controls preload="metadata" className="w-full pointer-events-auto" style={{ maxWidth: "100%" }} />
               <span className="text-[10px] text-white/30 truncate max-w-full">{el.mediaName}</span>
             </div>
           )}
@@ -876,6 +876,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [ctxPushing, setCtxPushing] = useState(false);
   const [connectedPlatforms, setConnectedPlatforms] = useState<Record<string, { account_id: string; username: string }[]>>({});
   const [ctxAccountSelect, setCtxAccountSelect] = useState<{ platform: string; accounts: { account_id: string; username: string }[] } | null>(null);
+  const [ctxExportScope, setCtxExportScope] = useState<"element" | "selected" | "board">("board");
+  const [ctxExportRes, setCtxExportRes] = useState<{ w: number; h: number } | null>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const spaceHeldRef = useRef(false);
@@ -2294,7 +2296,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, []);
 
   /* ─── Render element/board to blob ─── */
-  const renderToBlob = useCallback((scope: "element" | "selected" | "board", format: string): Promise<Blob | null> => {
+  const renderToBlob = useCallback((scope: "element" | "selected" | "board", format: string, overrideRes?: { w: number; h: number } | null): Promise<Blob | null> => {
     return new Promise((resolve) => {
       const els = scope === "element" && ctxMenu?.elementId
         ? elsRef.current.filter(e => e.id === ctxMenu.elementId)
@@ -2304,8 +2306,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       const stks = strokesRef.current;
       if (!els.length && !stks.length) { resolve(null); return; }
 
-      // Check if it's a single media element with original file
-      if (scope === "element" && els.length === 1 && els[0].kind === "media" && els[0].mediaUrl) {
+      // Check if it's a single media element with original file and no resolution override
+      if (!overrideRes && scope === "element" && els.length === 1 && els[0].kind === "media" && els[0].mediaUrl) {
         fetch(els[0].mediaUrl).then(r => r.blob()).then(resolve).catch(() => resolve(null));
         return;
       }
@@ -2315,17 +2317,38 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (scope === "board") { for (const s of stks) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); } }
       if (!isFinite(minX)) { resolve(null); return; }
       const pad = 20; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
-      const scale = 2;
-      const w = (maxX - minX) * scale, h = (maxY - minY) * scale;
+      
+      const sceneW = maxX - minX || 1, sceneH = maxY - minY || 1;
+      let canvasW: number, canvasH: number, renderScale: number;
+      
+      if (overrideRes) {
+        canvasW = overrideRes.w;
+        canvasH = overrideRes.h;
+        renderScale = Math.min(canvasW / sceneW, canvasH / sceneH);
+      } else {
+        renderScale = 2;
+        canvasW = sceneW * renderScale;
+        canvasH = sceneH * renderScale;
+      }
+      
       const offscreen = document.createElement("canvas");
-      offscreen.width = w; offscreen.height = h;
+      offscreen.width = canvasW; offscreen.height = canvasH;
       const ctx = offscreen.getContext("2d");
       if (!ctx) { resolve(null); return; }
       ctx.fillStyle = exportBg;
-      ctx.fillRect(0, 0, w, h);
+      ctx.fillRect(0, 0, canvasW, canvasH);
       ctx.save();
-      ctx.scale(scale, scale);
+      
+      if (overrideRes) {
+        const offX = (canvasW - sceneW * renderScale) / 2;
+        const offY = (canvasH - sceneH * renderScale) / 2;
+        ctx.translate(offX, offY);
+        ctx.scale(renderScale, renderScale);
+      } else {
+        ctx.scale(renderScale, renderScale);
+      }
       ctx.translate(-minX, -minY);
+      
       for (const s of stks) {
         if (s.points.length < 2) continue;
         ctx.beginPath(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = s.size;
@@ -2354,12 +2377,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, [ctxMenu, exportBg]);
 
   /* ─── Upload blob to storage and save to sandbox_exports ─── */
-  const pushToStorage = useCallback(async (scope: "element" | "selected" | "board", format: string, targetPlatform: string) => {
+  const pushToStorage = useCallback(async (scope: "element" | "selected" | "board", format: string, targetPlatform: string, resOverride?: { w: number; h: number } | null) => {
     setCtxPushing(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { toast.error("Please sign in first"); return; }
-      const blob = await renderToBlob(scope, format);
+      const blob = await renderToBlob(scope, format, resOverride);
       if (!blob) { toast.error("Nothing to export"); return; }
       const fileName = `sandbox_${scope}_${Date.now()}.${format}`;
       const filePath = `sandbox-exports/${user.id}/${fileName}`;
@@ -2408,7 +2431,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   /* ─── Render ─── */
   return (
-    <div ref={wrapperRef} data-sandbox-wrapper className="flex flex-col gap-1 w-full overflow-hidden" style={{ height: "calc(100vh - 64px)" }}>
+    <div ref={wrapperRef} data-sandbox-wrapper className="flex flex-col gap-1 w-full overflow-hidden pl-0.5 pr-1" style={{ height: "calc(100vh - 64px)" }}>
       {/* Hidden file inputs */}
       <input ref={mediaInputRef} type="file" accept="image/*,video/*,audio/*,.gif" multiple className="hidden"
         onChange={e => { if (e.target.files?.length) { handleMediaImport(e.target.files); e.target.value = ""; } }} />
@@ -3027,18 +3050,24 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
       {/* Context Menu */}
       {ctxMenu && (
-        <div className="fixed inset-0 z-[99999]" onClick={() => { setCtxMenu(null); setCtxExportFormat(null); setCtxAccountSelect(null); }}>
+        <div className="fixed inset-0 z-[99999]" onClick={() => { setCtxMenu(null); setCtxExportFormat(null); setCtxAccountSelect(null); setCtxExportRes(null); setCtxExportScope("board"); }}>
           <div
-            className="absolute rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-1.5 min-w-[200px]"
-            style={{ left: Math.min(ctxMenu.x, window.innerWidth - 220), top: Math.min(ctxMenu.y, window.innerHeight - 400) }}
+            className="absolute rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-1.5 min-w-[220px] max-h-[500px] overflow-y-auto"
+            style={{ left: Math.min(ctxMenu.x, window.innerWidth - 240), top: Math.min(ctxMenu.y, window.innerHeight - 500) }}
             onClick={e => e.stopPropagation()}
           >
             {!ctxExportFormat ? (
               <>
                 <div className="px-2.5 py-1 text-[9px] text-white/25 uppercase tracking-wider">Push to...</div>
                 {/* Export format selection */}
-                {["png", "jpg", "webp", "svg", "mp4", "gif", "pdf", "json"].map(fmt => (
-                  <button key={fmt} type="button" onClick={() => setCtxExportFormat(fmt)}
+                {["png", "jpg", "webp", "svg"].map(fmt => (
+                  <button key={fmt} type="button" onClick={() => {
+                    setCtxExportFormat(fmt);
+                    // Auto-detect scope
+                    if (ctxMenu.elementId) setCtxExportScope("element");
+                    else if (selRef.current.size > 0) setCtxExportScope("selected");
+                    else setCtxExportScope("board");
+                  }}
                     className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2">
                     <FileImage className="h-3.5 w-3.5 text-white/30" />
                     <span>Export as <span className="uppercase font-medium text-white/90">{fmt}</span></span>
@@ -3062,20 +3091,78 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               </>
             ) : (
               <>
-                <button type="button" onClick={() => setCtxExportFormat(null)}
+                <button type="button" onClick={() => { setCtxExportFormat(null); setCtxAccountSelect(null); setCtxExportRes(null); }}
                   className="w-full rounded-lg px-2.5 py-1.5 text-left text-[10px] text-white/40 hover:bg-white/[0.06] flex items-center gap-1 mb-1">
                   ← Back
                 </button>
                 <div className="px-2.5 py-1 text-[9px] text-white/25 uppercase tracking-wider">
-                  Push as <span className="uppercase text-white/50">{ctxExportFormat}</span> to...
+                  Push as <span className="uppercase text-white/50">{ctxExportFormat}</span>
                 </div>
-                {ctxMenu.elementId && (
-                  <div className="px-2.5 py-1">
-                    <span className="text-[9px] text-purple-400/60">Element · Selected · Full Board</span>
+                
+                {/* Scope selector */}
+                <div className="px-2.5 py-1.5 space-y-1">
+                  <span className="text-[9px] text-white/30 uppercase tracking-wider">Scope</span>
+                  <div className="flex gap-1">
+                    {ctxMenu.elementId && (
+                      <button type="button" onClick={() => setCtxExportScope("element")}
+                        className={cn("rounded-md px-2 py-0.5 text-[9px] border", ctxExportScope === "element" ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/8 text-white/40 hover:bg-white/5")}>
+                        Element
+                      </button>
+                    )}
+                    {selRef.current.size > 0 && (
+                      <button type="button" onClick={() => setCtxExportScope("selected")}
+                        className={cn("rounded-md px-2 py-0.5 text-[9px] border", ctxExportScope === "selected" ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/8 text-white/40 hover:bg-white/5")}>
+                        Selected ({selRef.current.size})
+                      </button>
+                    )}
+                    <button type="button" onClick={() => setCtxExportScope("board")}
+                      className={cn("rounded-md px-2 py-0.5 text-[9px] border", ctxExportScope === "board" ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/8 text-white/40 hover:bg-white/5")}>
+                      Full Board
+                    </button>
                   </div>
-                )}
+                </div>
+                
+                {/* Resolution selector */}
+                <div className="px-2.5 py-1.5 space-y-1">
+                  <span className="text-[9px] text-white/30 uppercase tracking-wider">Resolution</span>
+                  <div className="flex flex-wrap gap-1">
+                    <button type="button" onClick={() => setCtxExportRes(null)}
+                      className={cn("rounded-md px-2 py-0.5 text-[9px] border", !ctxExportRes ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/8 text-white/40 hover:bg-white/5")}>
+                      Auto
+                    </button>
+                    {[
+                      { label: "1080×1080", w: 1080, h: 1080 },
+                      { label: "1080×1350", w: 1080, h: 1350 },
+                      { label: "1080×1920", w: 1080, h: 1920 },
+                      { label: "1920×1080", w: 1920, h: 1080 },
+                      { label: "2560×1440", w: 2560, h: 1440 },
+                      { label: "4K", w: 3840, h: 2160 },
+                    ].map(r => (
+                      <button key={r.label} type="button" onClick={() => setCtxExportRes({ w: r.w, h: r.h })}
+                        className={cn("rounded-md px-2 py-0.5 text-[9px] border",
+                          ctxExportRes?.w === r.w && ctxExportRes?.h === r.h ? "border-blue-500/30 bg-blue-500/15 text-blue-300" : "border-white/8 text-white/40 hover:bg-white/5")}>
+                        {r.label}
+                      </button>
+                    ))}
+                  </div>
+                  {/* Custom resolution */}
+                  <div className="flex items-center gap-1 mt-1">
+                    <input type="number" placeholder="W" min={100} max={7680}
+                      value={ctxExportRes?.w || ""}
+                      onChange={e => setCtxExportRes(prev => ({ w: Number(e.target.value) || 1920, h: prev?.h || 1080 }))}
+                      className="h-5 w-14 rounded border border-white/10 bg-white/5 text-[9px] text-white/70 px-1 outline-none text-center" />
+                    <span className="text-[9px] text-white/20">×</span>
+                    <input type="number" placeholder="H" min={100} max={7680}
+                      value={ctxExportRes?.h || ""}
+                      onChange={e => setCtxExportRes(prev => ({ w: prev?.w || 1920, h: Number(e.target.value) || 1080 }))}
+                      className="h-5 w-14 rounded border border-white/10 bg-white/5 text-[9px] text-white/70 px-1 outline-none text-center" />
+                  </div>
+                </div>
+                
+                <div className="h-px bg-white/[0.06] my-1" />
+                
                 {/* Content Drafts - always available */}
-                <button type="button" onClick={() => pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat, "content")}
+                <button type="button" onClick={() => pushToStorage(ctxExportScope, ctxExportFormat!, "content", ctxExportRes)}
                   disabled={ctxPushing}
                   className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2 disabled:opacity-50">
                   <FileDown className="h-3.5 w-3.5 text-blue-400/50" /> Content Drafts
@@ -3093,7 +3180,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                     {ctxAccountSelect.accounts.map(acc => (
                       <button key={acc.account_id} type="button"
                         onClick={() => {
-                          pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat!, ctxAccountSelect!.platform);
+                          pushToStorage(ctxExportScope, ctxExportFormat!, ctxAccountSelect!.platform, ctxExportRes);
                           setCtxAccountSelect(null);
                         }}
                         disabled={ctxPushing}
@@ -3113,7 +3200,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                           onClick={() => {
                             if (!isConnected) { toast.error(`No ${p} account connected`); return; }
                             if (accs.length > 1) { setCtxAccountSelect({ platform: p, accounts: accs }); return; }
-                            pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat!, p);
+                            pushToStorage(ctxExportScope, ctxExportFormat!, p, ctxExportRes);
                           }}
                           disabled={ctxPushing || !isConnected}
                           className={cn(
