@@ -466,28 +466,20 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
       )}
 
       {el.kind === "media" && el.mediaUrl && (
-        <div className="h-full w-full rounded-xl border border-white/8 bg-[hsl(222,30%,10%)] overflow-hidden flex flex-col">
-          <div className="flex items-center gap-1.5 border-b border-white/6 px-2 py-1">
-            {el.mediaType === "video" && <Film className="h-3 w-3 text-purple-400/70" />}
-            {el.mediaType === "audio" && <Music className="h-3 w-3 text-emerald-400/70" />}
-            {(el.mediaType === "image" || el.mediaType === "gif") && <ImageIcon className="h-3 w-3 text-blue-400/70" />}
-            <span className="text-[9px] text-white/40 truncate">{el.mediaName || "Media"}</span>
-          </div>
-          <div className="flex-1 flex items-center justify-center overflow-hidden" onPointerDown={e => e.stopPropagation()}>
-            {(el.mediaType === "image" || el.mediaType === "gif") && (
-              <img src={el.mediaUrl} alt={el.mediaName || "media"} className="max-h-full max-w-full object-contain" draggable={false} />
-            )}
-            {el.mediaType === "video" && (
-              <video src={el.mediaUrl} controls playsInline preload="metadata" className="max-h-full max-w-full object-contain" />
-            )}
-            {el.mediaType === "audio" && (
-              <div className="flex flex-col items-center gap-2 p-3 w-full">
-                <Music className="h-8 w-8 text-emerald-400/40" />
-                <audio src={el.mediaUrl} controls preload="metadata" className="w-full" style={{ maxWidth: "100%" }} />
-                <span className="text-[10px] text-white/30 truncate max-w-full">{el.mediaName}</span>
-              </div>
-            )}
-          </div>
+        <div className="h-full w-full overflow-hidden" onPointerDown={e => e.stopPropagation()}>
+          {(el.mediaType === "image" || el.mediaType === "gif") && (
+            <img src={el.mediaUrl} alt={el.mediaName || "media"} className="h-full w-full object-fill" draggable={false} />
+          )}
+          {el.mediaType === "video" && (
+            <video src={el.mediaUrl} controls playsInline preload="metadata" className="h-full w-full object-fill" />
+          )}
+          {el.mediaType === "audio" && (
+            <div className="flex flex-col items-center justify-center gap-2 p-3 w-full h-full bg-[hsl(222,30%,10%)] rounded-lg">
+              <Music className="h-8 w-8 text-emerald-400/40" />
+              <audio src={el.mediaUrl} controls preload="metadata" className="w-full" style={{ maxWidth: "100%" }} />
+              <span className="text-[10px] text-white/30 truncate max-w-full">{el.mediaName}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -1551,26 +1543,79 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     pushUndo();
     const z = nextZ(elsRef.current);
     const center = getViewportCenter();
-    const newEls: SandboxElement[] = [];
-    Array.from(files).forEach((file, i) => {
+    const fileArr = Array.from(files);
+    let importCount = 0;
+
+    fileArr.forEach((file, i) => {
       const url = URL.createObjectURL(file);
       let mediaType: "image" | "video" | "audio" | "gif" = "image";
       if (file.type.startsWith("video/")) mediaType = "video";
       else if (file.type.startsWith("audio/")) mediaType = "audio";
       else if (file.type === "image/gif") mediaType = "gif";
-      const el: SandboxElement = {
-        id: `sb-${crypto.randomUUID()}`, kind: "media",
-        x: center.x - 160 + i * 40, y: center.y - 120 + i * 40,
-        width: mediaType === "audio" ? 300 : 320,
-        height: mediaType === "audio" ? 120 : 240,
-        z: z + i, color: "#3b82f6", links: [], opacity: 1,
-        mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
-      };
-      newEls.push(el);
+
+      if (mediaType === "image" || mediaType === "gif") {
+        // Load actual image dimensions for full-quality sizing
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 800;
+          let w = img.naturalWidth, h = img.naturalHeight;
+          if (w > maxDim || h > maxDim) {
+            const scale = maxDim / Math.max(w, h);
+            w = Math.round(w * scale);
+            h = Math.round(h * scale);
+          }
+          const el: SandboxElement = {
+            id: `sb-${crypto.randomUUID()}`, kind: "media",
+            x: center.x - w / 2 + i * 40, y: center.y - h / 2 + i * 40,
+            width: w, height: h,
+            z: z + i, color: "#3b82f6", links: [], opacity: 1,
+            mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
+          };
+          setElements(p => [...p, el]);
+          setSelectedIds(prev => new Set([...prev, el.id]));
+          importCount++;
+          if (importCount === fileArr.length) toast.success(`${importCount} media file(s) imported`);
+        };
+        img.src = url;
+      } else if (mediaType === "video") {
+        const vid = document.createElement("video");
+        vid.preload = "metadata";
+        vid.onloadedmetadata = () => {
+          const maxDim = 800;
+          let w = vid.videoWidth || 640, h = vid.videoHeight || 360;
+          if (w > maxDim || h > maxDim) {
+            const scale = maxDim / Math.max(w, h);
+            w = Math.round(w * scale);
+            h = Math.round(h * scale);
+          }
+          const el: SandboxElement = {
+            id: `sb-${crypto.randomUUID()}`, kind: "media",
+            x: center.x - w / 2 + i * 40, y: center.y - h / 2 + i * 40,
+            width: w, height: h,
+            z: z + i, color: "#3b82f6", links: [], opacity: 1,
+            mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
+          };
+          setElements(p => [...p, el]);
+          setSelectedIds(prev => new Set([...prev, el.id]));
+          importCount++;
+          if (importCount === fileArr.length) toast.success(`${importCount} media file(s) imported`);
+        };
+        vid.src = url;
+      } else {
+        // Audio
+        const el: SandboxElement = {
+          id: `sb-${crypto.randomUUID()}`, kind: "media",
+          x: center.x - 150 + i * 40, y: center.y - 50 + i * 40,
+          width: 300, height: 100,
+          z: z + i, color: "#3b82f6", links: [], opacity: 1,
+          mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
+        };
+        setElements(p => [...p, el]);
+        setSelectedIds(prev => new Set([...prev, el.id]));
+        importCount++;
+        if (importCount === fileArr.length) toast.success(`${importCount} media file(s) imported`);
+      }
     });
-    setElements(p => [...p, ...newEls]);
-    setSelectedIds(new Set(newEls.map(e => e.id)));
-    toast.success(`${newEls.length} media file(s) imported`);
   }, [pushUndo, getViewportCenter]);
 
   /* ─── Custom background ─── */
