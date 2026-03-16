@@ -1258,7 +1258,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     const ids = Array.from(selRef.current);
     if (!ids.length) return;
     pushUndo();
-    // Place selected elements below the stroke canvas layer (z < 500)
+    // Place selected elements below the stroke canvas layer (z < STROKE_Z)
     let z = 0;
     setElements(p => p.map(e => ids.includes(e.id) ? { ...e, z: z++ } : e));
   }, [pushUndo]);
