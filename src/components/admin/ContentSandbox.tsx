@@ -2480,9 +2480,16 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               <div className="absolute top-full right-0 mt-1 rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-1.5 min-w-[220px] max-h-[300px] overflow-y-auto z-[9999]">
                 <div className="px-2 py-1 text-[9px] text-white/25 uppercase tracking-wider flex items-center justify-between">
                   <span>Sandboxes ({sandboxSessions.length})</span>
-                  <button type="button" onClick={() => { createSandbox(); setSandboxListOpen(false); }} className="text-emerald-400/70 hover:text-emerald-400 flex items-center gap-0.5">
-                    <Plus className="h-3 w-3" /> New
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => { createSandbox(); setSandboxListOpen(false); }} className="text-emerald-400/70 hover:text-emerald-400 flex items-center gap-0.5">
+                      <Plus className="h-3 w-3" /> New
+                    </button>
+                    {sandboxSessions.length > 1 && (
+                      <button type="button" onClick={() => { deleteAllSandboxes(); setSandboxListOpen(false); }} className="text-red-400/50 hover:text-red-400 flex items-center gap-0.5 text-[9px]">
+                        <Trash2 className="h-2.5 w-2.5" /> All
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="h-px bg-white/[0.06] my-0.5" />
                 {sandboxSessions.map(session => (
