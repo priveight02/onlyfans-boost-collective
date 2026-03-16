@@ -13,19 +13,19 @@ import {
   AlignLeft, AlignRight, AlignStartHorizontal, AlignStartVertical, ArrowRight, Bold, Check, Circle,
   Copy, Diamond, Download, Eraser, Eye, EyeOff, Frame, Grip, Hash, Italic, Layers, Link2, Loader2,
   Lock, Map as MapIcon, Maximize, MousePointer, Move, Paperclip, Pencil, Pipette,
-  Redo2, RotateCcw, Save, Search, Smile, Sparkles, Square, StickyNote, Strikethrough,
+  Redo2, RotateCcw, RotateCw, Save, Search, Smile, Sparkles, Square, StickyNote, Strikethrough,
   Trash2, Triangle, Type, Underline, Unlink, Unlock, ZoomIn, ZoomOut, RefreshCw, Palette,
   Send, FileDown, Grid3X3, Magnet, FileJson, FileSpreadsheet, FileImage, Image as ImageIcon,
-  CaseSensitive, ALargeSmall, Minus, LetterText,
+  CaseSensitive, ALargeSmall, Minus, LetterText, Upload, Film, Music, ImagePlus,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { exportSandboxToDrafts, pushSandboxDirectToPlatforms, getConnectedAccounts, DEFAULT_BEST_TIMES, type ExecutionMode } from "@/lib/contentSync";
 
 /* ─── Types ─── */
-type Tool = "select" | "pan" | "pen" | "eraser" | "text" | "note" | "rectangle" | "ellipse" | "triangle" | "diamond" | "arrow" | "connector" | "frame" | "stamp";
+type Tool = "select" | "pan" | "pen" | "eraser" | "text" | "note" | "rectangle" | "ellipse" | "triangle" | "diamond" | "arrow" | "connector" | "frame" | "stamp" | "media";
 type ShapeKind = "rectangle" | "ellipse" | "triangle" | "diamond" | "arrow";
-type ElementKind = "content" | "note" | "text" | "shape" | "frame" | "stamp";
+type ElementKind = "content" | "note" | "text" | "shape" | "frame" | "stamp" | "media";
 type Point = { x: number; y: number };
 type Viewport = { x: number; y: number; zoom: number };
 
@@ -35,6 +35,7 @@ interface SandboxStroke {
   color: string;
   size: number;
   points: Point[];
+  rotation?: number;
 }
 
 interface SandboxElement {
@@ -61,6 +62,10 @@ interface SandboxElement {
   textTransform?: string;
   opacity?: number;
   emoji?: string;
+  rotation?: number;
+  mediaUrl?: string;
+  mediaType?: "image" | "video" | "audio" | "gif";
+  mediaName?: string;
 }
 
 type InteractionState =
@@ -70,7 +75,9 @@ type InteractionState =
   | { type: "resize"; elementId: string; anchor: Point; originRect: Pick<SandboxElement, "x" | "y" | "width" | "height"> }
   | { type: "marquee"; origin: Point; current: Point }
   | { type: "resize-stroke"; strokeId: string; anchor: Point; originBounds: { x: number; y: number; w: number; h: number }; originPoints: Point[] }
-  | { type: "connector-draw"; from: Point; current: Point };
+  | { type: "connector-draw"; from: Point; current: Point }
+  | { type: "rotate"; elementId: string; center: Point; startAngle: number; startRotation: number }
+  | { type: "rotate-stroke"; strokeId: string; center: Point; startAngle: number; startRotation: number };
 
 interface SandboxSnapshot { elements: SandboxElement[]; strokes: SandboxStroke[]; }
 
