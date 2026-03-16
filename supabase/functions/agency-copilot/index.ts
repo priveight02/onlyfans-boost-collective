@@ -450,7 +450,18 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, context, quality, skipTools } = await req.json();
+    const {
+      messages,
+      context,
+      quality,
+      skipTools,
+      tools,
+      tool_choice,
+      model,
+      temperature,
+      modalities,
+      response_format,
+    } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -623,8 +634,13 @@ serve(async (req) => {
         method: "POST",
         headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
+          model: model || "google/gemini-3-flash-preview",
           messages: [...messages],
+          ...(Array.isArray(tools) && tools.length ? { tools } : {}),
+          ...(tool_choice ? { tool_choice } : {}),
+          ...(typeof temperature === "number" ? { temperature } : {}),
+          ...(Array.isArray(modalities) && modalities.length ? { modalities } : {}),
+          ...(response_format ? { response_format } : {}),
           stream: false,
         }),
       });
