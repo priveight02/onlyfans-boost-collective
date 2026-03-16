@@ -1867,6 +1867,15 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                       className="flex-1 h-1 accent-blue-500" />
                     <span className="text-[9px] text-white/40 w-7">{Math.round((primaryEl.opacity ?? 1) * 100)}%</span>
                   </div>
+                  {/* Rotation */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] text-white/35">Rotation</span>
+                    <input type="range" min={0} max={360} step={1} value={primaryEl.rotation || 0}
+                      onChange={e => { pushUndo(); updateEl(primaryEl.id, { rotation: Number(e.target.value) }); }}
+                      className="flex-1 h-1 accent-blue-500" />
+                    <span className="text-[9px] text-white/40 w-8">{Math.round(primaryEl.rotation || 0)}°</span>
+                    <button type="button" onClick={() => { pushUndo(); updateEl(primaryEl.id, { rotation: 0 }); }} className="text-[8px] text-white/30 hover:text-white/60">Reset</button>
+                  </div>
                   {/* Color */}
                   <div className="flex items-center gap-2">
                     <span className="text-[9px] text-white/35">Color</span>
