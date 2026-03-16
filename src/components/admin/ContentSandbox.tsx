@@ -1193,10 +1193,43 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               <div className="max-w-xs rounded-xl border border-white/6 bg-white/3 p-5 text-center backdrop-blur-sm">
                 <h3 className="text-base font-medium text-white/80">Sandbox</h3>
                 <p className="mt-1.5 text-[12px] text-white/35">Import content, draw, link ideas, evolve with AI</p>
-                <p className="mt-1 text-[10px] text-white/20">Ctrl+Z undo · Ctrl+Shift+Z redo · Ctrl+S save · Scroll to zoom</p>
+                <p className="mt-1 text-[10px] text-white/20">Ctrl+A select all · Ctrl+1 fit · Space+drag pan · Alt+drag copy</p>
               </div>
             </div>
           )}
+          {/* Minimap */}
+          {showMinimap && (elements.length > 0 || strokes.length > 0) && (() => {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const el of elements) { minX = Math.min(minX, el.x); minY = Math.min(minY, el.y); maxX = Math.max(maxX, el.x + el.width); maxY = Math.max(maxY, el.y + el.height); }
+            for (const s of strokes) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
+            const pad = 40; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+            const cw = maxX - minX || 1, ch = maxY - minY || 1;
+            const mmW = 160, mmH = 120;
+            const sc = Math.min(mmW / cw, mmH / ch);
+            const board = boardRef.current;
+            const bw = board ? board.clientWidth : 800, bh = board ? board.clientHeight : 600;
+            const vpLeft = (-viewport.x / viewport.zoom - minX) * sc, vpTop = (-viewport.y / viewport.zoom - minY) * sc;
+            const vpW = (bw / viewport.zoom) * sc, vpH = (bh / viewport.zoom) * sc;
+            return (
+              <div className="absolute bottom-3 right-3 rounded-lg border border-white/10 bg-[hsl(222,30%,8%)]/90 backdrop-blur-sm overflow-hidden pointer-events-auto" style={{ width: mmW, height: mmH }}
+                onClick={(ev) => {
+                  const r = ev.currentTarget.getBoundingClientRect();
+                  const mx = (ev.clientX - r.left) / sc + minX, my = (ev.clientY - r.top) / sc + minY;
+                  setViewport(v => ({ ...v, x: -mx * v.zoom + bw / 2, y: -my * v.zoom + bh / 2 }));
+                }}>
+                {elements.map(el => (
+                  <div key={el.id} className={cn("absolute rounded-sm", selectedIds.has(el.id) ? "bg-blue-400/60" : el.kind === "content" ? "bg-white/20" : "bg-white/10")}
+                    style={{ left: (el.x - minX) * sc, top: (el.y - minY) * sc, width: Math.max(el.width * sc, 2), height: Math.max(el.height * sc, 2) }} />
+                ))}
+                {strokes.map(s => {
+                  const b = strokeBounds(s);
+                  return <div key={s.id} className={cn("absolute rounded-sm", selectedStrokeIds.has(s.id) ? "bg-blue-400/40" : "bg-white/8")}
+                    style={{ left: (b.x - minX) * sc, top: (b.y - minY) * sc, width: Math.max(b.w * sc, 1), height: Math.max(b.h * sc, 1) }} />;
+                })}
+                <div className="absolute border border-blue-400/50 rounded-sm" style={{ left: clamp(vpLeft, 0, mmW), top: clamp(vpTop, 0, mmH), width: clamp(vpW, 4, mmW), height: clamp(vpH, 4, mmH) }} />
+              </div>
+            );
+          })()}
         </div>
 
         {/* Inspector */}
