@@ -1731,21 +1731,22 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   /* ─── AI Evolver ─── */
   const evolve = useCallback(async () => {
     const sel = elsRef.current.filter(e => selRef.current.has(e.id));
-    if (sel.length < 2) { toast.error("Select 2+ cards to evolve"); return; }
+    if (sel.length < 1) { toast.error("Select elements to evolve"); return; }
     setEvolving(true);
     try {
       const prompt = sel.map(e => {
         if (e.kind === "content" && e.data) return `CONTENT\nTitle: ${e.data.title}\nPlatform: ${e.data.platform}\nType: ${e.data.content_type}\nCaption: ${e.data.caption || ""}\nNotes: ${e.annotation || "none"}`;
         if (e.kind === "note") return `NOTE\n${e.text || ""}`;
         if (e.kind === "text") return `TEXT\n${e.text || ""}`;
-        return `SHAPE\n${e.shape}`;
+        if (e.kind === "media") return `MEDIA\nURL: ${e.mediaUrl || ""}\nNotes: ${e.annotation || "none"}`;
+        return `SHAPE\n${e.shape || "rectangle"}\nColor: ${e.color}\nNotes: ${e.annotation || "none"}`;
       }).join("\n\n---\n\n");
 
       const { data, error } = await supabase.functions.invoke("agency-copilot", {
         body: {
           messages: [{
             role: "user",
-            content: `You are an elite creative director in a visual sandbox. Combine these selected elements into one stronger, evolved concept.\n\n${prompt}\n\nGoal: ${evolverPrompt || "Make the concept more strategic, original, and publishable."}\nTarget platform: ${evolverPlatform}\n\nReturn ONLY valid JSON:\n{"title":"...","caption":"...","platform":"${evolverPlatform}","content_type":"post/reel/story/tweet/promo","hashtags":["tag"],"evolution_notes":"...","viral_score":85,"hook":"...","cta":"...","angle":"..."}`,
+            content: `You are an elite creative director in a visual sandbox. ${sel.length === 1 ? "Evolve this element into a stronger, more refined version." : "Combine these selected elements into one stronger, evolved concept."}\n\nSelected elements:\n${prompt}\n\nGoal: ${evolverPrompt || "Make the concept more strategic, original, creative, and publishable. Focus on business value and creative impact."}\nTarget platform: ${evolverPlatform}\n\nReturn ONLY valid JSON:\n{"title":"...","caption":"...","platform":"${evolverPlatform}","content_type":"post/reel/story/tweet/promo","hashtags":["tag"],"evolution_notes":"...","viral_score":85,"hook":"...","cta":"...","angle":"..."}`,
           }],
         },
       });
@@ -1765,17 +1766,19 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (ie) throw ie;
 
       const c = sel.reduce((a, e) => ({ x: a.x + e.x, y: a.y + e.y }), { x: 0, y: 0 });
+      const selIds = new Set(sel.map(e => e.id));
       const evolved_el: SandboxElement = {
         id: `sb-${crypto.randomUUID()}`, kind: "content",
-        x: c.x / sel.length + 48, y: c.y / sel.length - 120, width: 304, height: 208,
-        z: nextZ(elsRef.current), color: "#22c55e", links: sel.map(e => e.id),
+        x: c.x / sel.length, y: c.y / sel.length, width: 304, height: 208,
+        z: nextZ(elsRef.current), color: "#22c55e", links: [],
         sourceItemId: newItem.id, data: newItem, annotation: evolved.evolution_notes || "", fontSize: 14,
       };
-      setElements(p => [...p, evolved_el]);
+      // Remove old elements and add evolved one
+      setElements(p => [...p.filter(e => !selIds.has(e.id)), evolved_el]);
       setSelectedIds(new Set([evolved_el.id]));
       setEvolverPrompt("");
       onRefresh();
-      toast.success(`Evolved ${sel.length} cards`);
+      toast.success(`Evolved ${sel.length} element${sel.length > 1 ? "s" : ""} into 1`);
     } catch (err: any) { toast.error(err.message || "Evolver failed"); }
     finally { setEvolving(false); }
   }, [evolverPlatform, evolverPrompt, onRefresh, pushUndo]);
@@ -2650,13 +2653,6 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <button type="button" onClick={() => { save(); toast.success("Saved"); }} title="Ctrl+S" className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70">
             <Save className="h-3 w-3" /><span className="text-[10px]">Save</span>
           </button>
-          {/* Sandbox Switcher - compact button only */}
-          <button type="button" onClick={() => setSandboxListOpen(p => !p)}
-            className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70 border border-white/8 bg-white/4 shrink-0">
-            <FolderOpen className="h-3 w-3" />
-            <span className="text-[10px] max-w-[80px] truncate">{sandboxSessions.find(s => s.id === activeSandboxId)?.name || "Sandboxes"}</span>
-            <ChevronDown className="h-2.5 w-2.5" />
-          </button>
           <button type="button" onClick={() => setShowHelp(true)} className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:bg-white/8 hover:text-white/80" title="Help & Shortcuts">
             <HelpCircle className="h-3 w-3" /><span className="text-[10px]">Help</span>
           </button>
@@ -2734,18 +2730,6 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         {canvasBgImage && (
           <button type="button" onClick={() => { setCanvasBgImage(null); try { localStorage.removeItem("sandbox_bg_image"); } catch {} if (activeSandboxId) supabase.from("sandbox_sessions").update({ bg_image_url: null } as any).eq("id", activeSandboxId); }} className="rounded-md border border-red-500/15 bg-red-500/5 px-2 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">✕ BG</button>
         )}
-        {selectedIds.size >= 2 && (
-          <>
-            <div className="h-4 w-px bg-white/8" />
-            <span className="text-[9px] text-white/30">Align:</span>
-            <button type="button" onClick={() => alignSelected("left")} title="Align Left" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignStartHorizontal className="h-3 w-3" /></button>
-            <button type="button" onClick={() => alignSelected("center-h")} title="Align Center H" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignCenterHorizontal className="h-3 w-3" /></button>
-            <button type="button" onClick={() => alignSelected("right")} title="Align Right" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignEndHorizontal className="h-3 w-3" /></button>
-            <button type="button" onClick={() => alignSelected("top")} title="Align Top" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignStartVertical className="h-3 w-3" /></button>
-            <button type="button" onClick={() => alignSelected("center-v")} title="Align Center V" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignCenterVertical className="h-3 w-3" /></button>
-            <button type="button" onClick={() => alignSelected("bottom")} title="Align Bottom" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignEndVertical className="h-3 w-3" /></button>
-          </>
-        )}
         <div className="h-4 w-px bg-white/8" />
         <button type="button" onClick={async () => {
           const contentEls = elements.filter(e => e.kind === "content" && e.data);
@@ -2788,11 +2772,6 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         <button type="button" onClick={deleteSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
         <button type="button" onClick={clearBoard} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">Clear board</button>
         <button type="button" onClick={() => setShowInspector(p => !p)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">{showInspector ? "Hide panel" : "Inspector"}</button>
-        {selectedIds.size >= 2 && (
-          <button type="button" onClick={evolve} disabled={evolving} className="ml-auto rounded-md bg-emerald-500/15 border border-emerald-500/20 px-3 py-1 text-[10px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50">
-            {evolving ? <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> : null}Evolve {selectedIds.size}
-          </button>
-        )}
       </div>
 
 
@@ -2975,18 +2954,37 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               </div>
             );
           })()}
+
+          {/* Floating Evolve Button - top right of canvas */}
+          {selectedIds.size >= 1 && (
+            <div className="absolute top-3 right-3 z-[998] pointer-events-auto">
+              <button type="button" onClick={evolve} disabled={evolving}
+                className="flex items-center gap-1.5 rounded-lg bg-emerald-500/15 border border-emerald-500/25 px-3 py-1.5 text-[11px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50 backdrop-blur-sm shadow-lg transition-all hover:scale-105">
+                {evolving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                Evolve {selectedIds.size}
+              </button>
+            </div>
+          )}
+
           {/* Status bar */}
-          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-1 bg-[hsl(222,30%,6%)]/80 backdrop-blur-sm border-t border-white/5 text-[9px] text-white/35 pointer-events-none z-[999]">
-            <div className="flex items-center gap-3">
+          <div className="absolute bottom-0 left-0 right-0 flex items-center justify-between px-3 py-1 bg-[hsl(222,30%,6%)]/80 backdrop-blur-sm border-t border-white/5 text-[9px] text-white/35 z-[999]">
+            <div className="flex items-center gap-3 pointer-events-none">
               <span>{elements.length} elements · {strokes.length} strokes</span>
               {selectedIds.size > 0 && <span className="text-blue-400/70">{selectedIds.size} selected</span>}
               {selectedStrokeIds.size > 0 && <span className="text-blue-400/70">{selectedStrokeIds.size} strokes selected</span>}
               {primaryEl && <span className="text-white/25">x:{Math.round(primaryEl.x)} y:{Math.round(primaryEl.y)} w:{Math.round(primaryEl.width)} h:{Math.round(primaryEl.height)}{primaryEl.rotation ? ` ${Math.round(primaryEl.rotation)}°` : ""}</span>}
             </div>
             <div className="flex items-center gap-3">
-              <span>cursor: {Math.round(mouseScene.x)}, {Math.round(mouseScene.y)}</span>
-              <span>{Math.round(viewport.zoom * 100)}%</span>
-              <span>{snapToGrid ? "⊞ Snap ON" : ""}</span>
+              <span className="pointer-events-none">cursor: {Math.round(mouseScene.x)}, {Math.round(mouseScene.y)}</span>
+              <span className="pointer-events-none">{Math.round(viewport.zoom * 100)}%</span>
+              {snapToGrid && <span className="pointer-events-none">⊞ Snap ON</span>}
+              <div className="h-3 w-px bg-white/10" />
+              <button type="button" onClick={() => setSandboxListOpen(p => !p)}
+                className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-white/40 hover:text-white/70 hover:bg-white/5 pointer-events-auto transition-colors">
+                <FolderOpen className="h-3 w-3" />
+                <span className="text-[9px] max-w-[80px] truncate">{sandboxSessions.find(s => s.id === activeSandboxId)?.name || "Sandboxes"}</span>
+                <ChevronDown className="h-2.5 w-2.5" />
+              </button>
             </div>
           </div>
         </div>
@@ -3095,7 +3093,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
       {/* Context Menu */}
       {ctxMenu && (
-        <div className="fixed inset-0 z-[99999]" onClick={() => { setCtxMenu(null); setCtxExportFormat(null); setCtxAccountSelect(null); setCtxExportRes(null); setCtxExportScope("board"); }}>
+        <div className="fixed inset-0 z-[99999]" onClick={() => { setCtxMenu(null); setCtxExportFormat(null); setCtxAccountSelect(null); setCtxExportRes(null); setCtxExportScope("board"); }} onContextMenu={(e) => { e.preventDefault(); setCtxMenu(null); setCtxExportFormat(null); setCtxAccountSelect(null); setCtxExportRes(null); setCtxExportScope("board"); }}>
           <div
             className="absolute rounded-xl bg-[hsl(222,35%,8%)] border border-white/[0.08] shadow-2xl backdrop-blur-xl p-1.5 min-w-[220px] max-h-[500px] overflow-y-auto"
             style={{ left: Math.min(ctxMenu.x, window.innerWidth - 240), top: Math.min(ctxMenu.y, window.innerHeight - 500) }}
