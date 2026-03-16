@@ -2526,8 +2526,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         </div>
       </div>
 
-      {/* Action bar */}
-      <div className="flex flex-wrap items-center gap-1">
+      {/* Action bar — single-line scrollable */}
+      <div className="flex items-center gap-1 overflow-x-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent" style={{ flexWrap: "nowrap" }}>
         <button type="button" onClick={() => setShowImport(true)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 hover:text-white/80">Import</button>
         <button type="button" onClick={autoArrange} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 hover:text-white/80">Arrange</button>
         <button type="button" onClick={duplicateSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Duplicate</button>
