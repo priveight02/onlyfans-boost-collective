@@ -1252,6 +1252,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       return;
     }
     if (["note", "text", "rectangle", "ellipse", "triangle", "diamond", "arrow", "frame", "stamp"].includes(tool)) { addEl(tool, pt); return; }
+    if (tool === "media") { mediaInputRef.current?.click(); return; }
     // Connector tool: start drawing a connection line
     if (tool === "connector") {
       interactionRef.current = { type: "draw", tool: "pen", color: activeColor, size: 3, points: [pt] };
