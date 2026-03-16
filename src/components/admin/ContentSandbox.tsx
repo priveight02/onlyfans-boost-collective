@@ -2099,6 +2099,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       setCtxPushing(false);
       setCtxMenu(null);
       setCtxExportFormat(null);
+      setCtxAccountSelect(null);
     }
   }, [renderToBlob, ctxMenu]);
 
