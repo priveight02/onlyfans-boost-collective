@@ -2782,12 +2782,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           setPushAvailablePlatforms(platformList);
           setPushSelectedPlatforms(new Set(platformList.filter(p => p.connected).map(p => p.platform)));
           setShowPushPlatform(true);
-        }} className="rounded-md border border-emerald-500/15 bg-emerald-500/5 px-2 py-0.5 text-[9px] text-emerald-400/70 hover:bg-emerald-500/10">
-          <Layers className="inline h-2.5 w-2.5 mr-0.5" />Push to Platforms
+        }} className="rounded-md border border-emerald-500/15 bg-emerald-500/5 px-2.5 py-1 text-[10px] text-emerald-400/70 hover:bg-emerald-500/10">
+          <Layers className="inline h-3 w-3 mr-0.5" />Push to Platforms
         </button>
-        <button type="button" onClick={deleteSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2 py-0.5 text-[9px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
-        <button type="button" onClick={clearBoard} className="rounded-md border border-red-500/15 bg-red-500/5 px-2 py-0.5 text-[9px] text-red-400/70 hover:bg-red-500/10">Clear board</button>
-        <button type="button" onClick={() => setShowInspector(p => !p)} className="rounded-md border border-white/8 bg-white/4 px-2 py-0.5 text-[9px] text-white/60 hover:bg-white/8">{showInspector ? "Hide panel" : "Inspector"}</button>
+        <button type="button" onClick={deleteSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
+        <button type="button" onClick={clearBoard} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">Clear board</button>
+        <button type="button" onClick={() => setShowInspector(p => !p)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">{showInspector ? "Hide panel" : "Inspector"}</button>
         {selectedIds.size >= 2 && (
           <button type="button" onClick={evolve} disabled={evolving} className="ml-auto rounded-md bg-emerald-500/15 border border-emerald-500/20 px-3 py-1 text-[10px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50">
             {evolving ? <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> : null}Evolve {selectedIds.size}
