@@ -471,6 +471,15 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
       ctx.stroke();
       ctx.globalCompositeOperation = "source-over";
+      // Highlight selected strokes
+      if (selStrokesRef.current.has(s.id)) {
+        const b = strokeBounds(s);
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = "rgba(96,165,250,0.7)";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(b.x, b.y, b.w, b.h);
+        ctx.setLineDash([]);
+      }
     }
     ctx.restore();
   }, [draftStroke]);
