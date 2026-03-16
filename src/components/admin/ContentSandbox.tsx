@@ -1163,6 +1163,82 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     setSelectedIds(new Set([el.id]));
   }, [pushUndo]);
 
+  const handleRotateDown = useCallback((e: React.PointerEvent, el: SandboxElement) => {
+    e.stopPropagation();
+    pushUndo();
+    const cx = el.x + el.width / 2;
+    const cy = el.y + el.height / 2;
+    const pt = scenePoint(e.clientX, e.clientY, boardRef.current, vpRef.current);
+    const startAngle = Math.atan2(pt.y - cy, pt.x - cx) * (180 / Math.PI);
+    interactionRef.current = { type: "rotate", elementId: el.id, center: { x: cx, y: cy }, startAngle, startRotation: el.rotation || 0 };
+    setSelectedIds(new Set([el.id]));
+  }, [pushUndo]);
+
+  /* ─── R key snap rotation ─── */
+  const rotateSnap = useCallback(() => {
+    const ids = Array.from(selRef.current);
+    const sIds = Array.from(selStrokesRef.current);
+    if (!ids.length && !sIds.length) return;
+    pushUndo();
+    if (ids.length) {
+      setElements(p => p.map(e => {
+        if (!ids.includes(e.id)) return e;
+        const cur = e.rotation || 0;
+        const nextSnap = ROTATION_SNAPS.find(s => s > cur) ?? 0;
+        return { ...e, rotation: nextSnap };
+      }));
+    }
+    if (sIds.length) {
+      setStrokes(p => p.map(s => {
+        if (!sIds.includes(s.id)) return s;
+        const cur = s.rotation || 0;
+        const nextSnap = ROTATION_SNAPS.find(sn => sn > cur) ?? 0;
+        // Rotate stroke points around center
+        const b = strokeBounds(s);
+        const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+        const angleDiff = (nextSnap - cur) * Math.PI / 180;
+        const newPoints = s.points.map(p => {
+          const dx = p.x - cx, dy = p.y - cy;
+          return { x: cx + dx * Math.cos(angleDiff) - dy * Math.sin(angleDiff), y: cy + dx * Math.sin(angleDiff) + dy * Math.cos(angleDiff) };
+        });
+        return { ...s, points: newPoints, rotation: nextSnap };
+      }));
+    }
+  }, [pushUndo]);
+
+  /* ─── Media import ─── */
+  const handleMediaImport = useCallback((files: FileList) => {
+    pushUndo();
+    const z = nextZ(elsRef.current);
+    const newEls: SandboxElement[] = [];
+    Array.from(files).forEach((file, i) => {
+      const url = URL.createObjectURL(file);
+      let mediaType: "image" | "video" | "audio" | "gif" = "image";
+      if (file.type.startsWith("video/")) mediaType = "video";
+      else if (file.type.startsWith("audio/")) mediaType = "audio";
+      else if (file.type === "image/gif") mediaType = "gif";
+      const el: SandboxElement = {
+        id: `sb-${crypto.randomUUID()}`, kind: "media",
+        x: 100 + i * 40, y: 100 + i * 40,
+        width: mediaType === "audio" ? 300 : 320,
+        height: mediaType === "audio" ? 120 : 240,
+        z: z + i, color: "#3b82f6", links: [], opacity: 1,
+        mediaUrl: url, mediaType, mediaName: file.name, rotation: 0,
+      };
+      newEls.push(el);
+    });
+    setElements(p => [...p, ...newEls]);
+    setSelectedIds(new Set(newEls.map(e => e.id)));
+    toast.success(`${newEls.length} media file(s) imported`);
+  }, [pushUndo]);
+
+  /* ─── Custom background ─── */
+  const handleBgImport = useCallback((file: File) => {
+    const url = URL.createObjectURL(file);
+    setCanvasBgImage(url);
+    toast.success("Background set");
+  }, []);
+
   const handleBoardDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0 && e.button !== 1) return;
     if (e.button === 1 || tool === "pan" || spaceHeldRef.current) {
