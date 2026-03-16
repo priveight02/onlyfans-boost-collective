@@ -2431,6 +2431,16 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 }} onRotate={handleRotateDown} />
             ))}
           </div>
+          {/* Marquee selection rectangle */}
+          {marqueeRect && marqueeRect.w > 2 && marqueeRect.h > 2 && (
+            <div className="absolute pointer-events-none border-2 border-blue-400/60 bg-blue-400/10 rounded-sm" style={{
+              left: viewport.x + marqueeRect.x * viewport.zoom,
+              top: viewport.y + marqueeRect.y * viewport.zoom,
+              width: marqueeRect.w * viewport.zoom,
+              height: marqueeRect.h * viewport.zoom,
+              zIndex: 999999,
+            }} />
+          )}
           {!elements.length && !strokes.length && (
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <div className="max-w-xs rounded-xl border border-white/6 bg-white/3 p-5 text-center backdrop-blur-sm">
