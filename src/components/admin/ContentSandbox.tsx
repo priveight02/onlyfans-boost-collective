@@ -2694,13 +2694,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 <div className="px-2.5 py-1 text-[9px] text-white/25 uppercase tracking-wider">
                   Push as <span className="uppercase text-white/50">{ctxExportFormat}</span> to...
                 </div>
-                {/* Scope options */}
                 {ctxMenu.elementId && (
                   <div className="px-2.5 py-1">
                     <span className="text-[9px] text-purple-400/60">Element · Selected · Full Board</span>
                   </div>
                 )}
-                {/* Targets */}
+                {/* Content Drafts - always available */}
                 <button type="button" onClick={() => pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat, "content")}
                   disabled={ctxPushing}
                   className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2 disabled:opacity-50">
@@ -2708,13 +2707,54 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 </button>
                 <div className="h-px bg-white/[0.06] my-0.5" />
                 <div className="px-2.5 py-0.5 text-[9px] text-white/20 uppercase tracking-wider">Platform Hubs</div>
-                {["instagram", "tiktok", "facebook", "threads", "twitter", "youtube", "linkedin", "pinterest"].map(p => (
-                  <button key={p} type="button" onClick={() => pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat, p)}
-                    disabled={ctxPushing}
-                    className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2 capitalize disabled:opacity-50">
-                    <Send className="h-3 w-3 text-white/20" /> {p}
-                  </button>
-                ))}
+                {/* Account selection sub-panel */}
+                {ctxAccountSelect ? (
+                  <div className="space-y-0.5">
+                    <button type="button" onClick={() => setCtxAccountSelect(null)}
+                      className="w-full rounded-lg px-2.5 py-1 text-left text-[10px] text-white/40 hover:bg-white/[0.06] flex items-center gap-1">
+                      ← Back to platforms
+                    </button>
+                    <div className="px-2.5 py-0.5 text-[9px] text-white/30 capitalize">{ctxAccountSelect.platform} accounts:</div>
+                    {ctxAccountSelect.accounts.map(acc => (
+                      <button key={acc.account_id} type="button"
+                        onClick={() => {
+                          pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat!, ctxAccountSelect!.platform);
+                          setCtxAccountSelect(null);
+                        }}
+                        disabled={ctxPushing}
+                        className="w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] text-white/70 hover:bg-white/[0.06] flex items-center gap-2 disabled:opacity-50">
+                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        <span>@{acc.username}</span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    {["instagram", "tiktok", "facebook", "threads", "twitter", "youtube", "linkedin", "pinterest"].map(p => {
+                      const accs = connectedPlatforms[p] || [];
+                      const isConnected = accs.length > 0;
+                      return (
+                        <button key={p} type="button"
+                          onClick={() => {
+                            if (!isConnected) { toast.error(`No ${p} account connected`); return; }
+                            if (accs.length > 1) { setCtxAccountSelect({ platform: p, accounts: accs }); return; }
+                            pushToStorage(ctxMenu.elementId ? "element" : selectedIds.size ? "selected" : "board", ctxExportFormat!, p);
+                          }}
+                          disabled={ctxPushing || !isConnected}
+                          className={cn(
+                            "w-full rounded-lg px-2.5 py-1.5 text-left text-[11px] flex items-center gap-2 capitalize",
+                            isConnected
+                              ? "text-white/70 hover:bg-white/[0.06] disabled:opacity-50"
+                              : "text-white/20 cursor-not-allowed"
+                          )}>
+                          <div className={cn("h-1.5 w-1.5 rounded-full", isConnected ? "bg-emerald-400" : "bg-white/15")} />
+                          <Send className={cn("h-3 w-3", isConnected ? "text-emerald-400/40" : "text-white/10")} /> {p}
+                          {accs.length > 1 && <span className="ml-auto text-[9px] text-white/30">{accs.length} accs</span>}
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
                 {ctxPushing && (
                   <div className="flex items-center gap-2 px-2.5 py-1.5 text-[10px] text-white/40">
                     <Loader2 className="h-3 w-3 animate-spin" /> Uploading...
