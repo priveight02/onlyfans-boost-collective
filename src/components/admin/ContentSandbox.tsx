@@ -1371,7 +1371,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         newRot = ((newRot % 360) + 360) % 360;
         setElements(p => p.map(el => el.id === ix.elementId ? { ...el, rotation: Math.round(newRot * 10) / 10 } : el));
         return;
+      }
     };
+
     const onUp = () => {
       const ix = interactionRef.current;
       if (!ix) return;
