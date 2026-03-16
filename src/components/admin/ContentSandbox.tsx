@@ -9,11 +9,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import {
-  ArrowRight, Bold, Check, Circle, Copy, Diamond, Download,
-  Eraser, Grip, Italic, Layers, Link2, Loader2, Lock, MousePointer, Move, Pencil,
+  AlignCenterHorizontal, AlignCenterVertical, AlignEndHorizontal, AlignEndVertical,
+  AlignStartHorizontal, AlignStartVertical, ArrowRight, Bold, Check, Circle, Copy, Diamond, Download,
+  Eraser, Grip, Italic, Layers, Link2, Loader2, Lock, Map as MapIcon, Maximize, MousePointer, Move, Pencil,
   Redo2, RotateCcw, Save, Search, Sparkles, Square, StickyNote,
   Trash2, Triangle, Type, Underline, Unlink, Unlock, ZoomIn, ZoomOut, RefreshCw, Palette,
-  Send, FileDown,
+  Send, FileDown, Grid3X3, Magnet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -62,12 +63,22 @@ type InteractionState =
 
 interface SandboxSnapshot { elements: SandboxElement[]; strokes: SandboxStroke[]; }
 
+/* ─── Stroke bounding box helper ─── */
+const strokeBounds = (s: SandboxStroke): { x: number; y: number; w: number; h: number } => {
+  if (!s.points.length) return { x: 0, y: 0, w: 0, h: 0 };
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const p of s.points) { minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y); }
+  const pad = s.size / 2;
+  return { x: minX - pad, y: minY - pad, w: maxX - minX + s.size, h: maxY - minY + s.size };
+};
+
 /* ─── Constants ─── */
 const STORAGE_KEY = "content_sandbox_state_v7";
 const MIN_ZOOM = 0.15;
 const MAX_ZOOM = 4;
 const DEFAULT_VIEWPORT: Viewport = { x: 32, y: 32, zoom: 1 };
 const MAX_UNDO = 80;
+const GRID_SIZE = 20;
 const AUTOSAVE_MS = 2500;
 
 const PRESET_COLORS = [
@@ -304,6 +315,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [locked, setLocked] = useState(true);
   const [zoomSpeed, setZoomSpeed] = useState(1);
   const [marqueeRect, setMarqueeRect] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [selectedStrokeIds, setSelectedStrokeIds] = useState<Set<string>>(new Set());
+  const [snapToGrid, setSnapToGrid] = useState(false);
+  const [showMinimap, setShowMinimap] = useState(false);
+  const [mouseScene, setMouseScene] = useState<Point>({ x: 0, y: 0 });
+  const spaceHeldRef = useRef(false);
+  const selStrokesRef = useRef<Set<string>>(new Set());
 
   const HISTORY_KEY = STORAGE_KEY + "_history";
   const undoStack = useRef<SandboxSnapshot[]>([]);
@@ -382,6 +399,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   useEffect(() => { elsRef.current = elements; }, [elements]);
   useEffect(() => { selRef.current = selectedIds; }, [selectedIds]);
+  useEffect(() => { selStrokesRef.current = selectedStrokeIds; }, [selectedStrokeIds]);
   useEffect(() => { vpRef.current = viewport; }, [viewport]);
 
   useEffect(() => {
@@ -453,6 +471,15 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
       ctx.stroke();
       ctx.globalCompositeOperation = "source-over";
+      // Highlight selected strokes
+      if (selStrokesRef.current.has(s.id)) {
+        const b = strokeBounds(s);
+        ctx.setLineDash([4, 3]);
+        ctx.strokeStyle = "rgba(96,165,250,0.7)";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(b.x, b.y, b.w, b.h);
+        ctx.setLineDash([]);
+      }
     }
     ctx.restore();
   }, [draftStroke]);
@@ -461,7 +488,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(drawScene);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [drawScene, elements, strokes, viewport]);
+  }, [drawScene, elements, strokes, viewport, selectedStrokeIds]);
 
   useEffect(() => {
     const board = boardRef.current;
@@ -470,6 +497,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     obs.observe(board);
     return () => obs.disconnect();
   }, [drawScene]);
+
+  /* ─── Snap helper ─── */
+  const snap = useCallback((v: number) => snapToGrid ? Math.round(v / GRID_SIZE) * GRID_SIZE : v, [snapToGrid]);
 
   /* ─── Element ops ─── */
   const linkEls = useCallback((from: string, to: string) => {
@@ -480,7 +510,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const addEl = useCallback((t: Tool, pt: Point) => {
     pushUndo();
     const z = nextZ(elsRef.current);
-    const base: Partial<SandboxElement> = { id: `sb-${crypto.randomUUID()}`, x: pt.x, y: pt.y, z, color: activeColor, links: [], annotation: "", fontSize, fontFamily, fontWeight: "normal", fontStyle: "normal", textDecoration: "none" };
+    const base: Partial<SandboxElement> = { id: `sb-${crypto.randomUUID()}`, x: snap(pt.x), y: snap(pt.y), z, color: activeColor, links: [], annotation: "", fontSize, fontFamily, fontWeight: "normal", fontStyle: "normal", textDecoration: "none" };
     let el: SandboxElement | null = null;
     if (t === "note") el = { ...base, kind: "note", width: 240, height: 180, text: "" } as SandboxElement;
     if (t === "text") el = { ...base, kind: "text", width: 260, height: 96, text: "Type here" } as SandboxElement;
@@ -489,7 +519,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     if (!el) return;
     setElements(p => [...p, el!]);
     setSelectedIds(new Set([el.id]));
-  }, [activeColor, pushUndo, fontSize, fontFamily]);
+  }, [activeColor, pushUndo, fontSize, fontFamily, snap]);
 
   const updateEl = useCallback((id: string, patch: Partial<SandboxElement>) => {
     setElements(p => p.map(e => e.id === id ? { ...e, ...patch } : e));
@@ -510,22 +540,84 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   const duplicateSel = useCallback(() => {
     const ids = Array.from(selRef.current);
-    if (!ids.length) return;
+    if (!ids.length && !selStrokesRef.current.size) return;
     pushUndo();
-    const src = elsRef.current.filter(e => ids.includes(e.id));
-    let z = nextZ(elsRef.current);
-    const dups = src.map(e => ({ ...clone(e), id: `sb-${crypto.randomUUID()}`, x: e.x + 28, y: e.y + 28, z: z++, links: [] }));
-    setElements(p => [...p, ...dups]);
-    setSelectedIds(new Set(dups.map(e => e.id)));
+    // Duplicate elements
+    if (ids.length) {
+      const src = elsRef.current.filter(e => ids.includes(e.id));
+      let z = nextZ(elsRef.current);
+      const dups = src.map(e => ({ ...clone(e), id: `sb-${crypto.randomUUID()}`, x: e.x + 28, y: e.y + 28, z: z++, links: [] }));
+      setElements(p => [...p, ...dups]);
+      setSelectedIds(new Set(dups.map(e => e.id)));
+    }
+    // Duplicate strokes
+    if (selStrokesRef.current.size) {
+      const selS = strokesRef.current.filter(s => selStrokesRef.current.has(s.id));
+      const dupStrokes = selS.map(s => ({ ...clone(s), id: crypto.randomUUID(), points: s.points.map(p => ({ x: p.x + 28, y: p.y + 28 })) }));
+      setStrokes(p => [...p, ...dupStrokes]);
+      setSelectedStrokeIds(new Set(dupStrokes.map(s => s.id)));
+    }
   }, [pushUndo]);
 
   const deleteSel = useCallback(() => {
     const ids = new Set(selRef.current);
-    if (!ids.size) return;
+    const sIds = new Set(selStrokesRef.current);
+    if (!ids.size && !sIds.size) return;
     pushUndo();
-    setElements(p => p.filter(e => !ids.has(e.id)).map(e => ({ ...e, links: e.links.filter(l => !ids.has(l)) })));
-    setSelectedIds(new Set()); setLinkSourceId(null);
+    if (ids.size) setElements(p => p.filter(e => !ids.has(e.id)).map(e => ({ ...e, links: e.links.filter(l => !ids.has(l)) })));
+    if (sIds.size) setStrokes(p => p.filter(s => !sIds.has(s.id)));
+    setSelectedIds(new Set()); setSelectedStrokeIds(new Set()); setLinkSourceId(null);
   }, [pushUndo]);
+
+  /* ─── Select All ─── */
+  const selectAll = useCallback(() => {
+    setSelectedIds(new Set(elsRef.current.map(e => e.id)));
+    setSelectedStrokeIds(new Set(strokesRef.current.map(s => s.id)));
+  }, []);
+
+  /* ─── Fit to View ─── */
+  const fitToView = useCallback(() => {
+    const board = boardRef.current;
+    if (!board) return;
+    const r = board.getBoundingClientRect();
+    const allEls = elsRef.current;
+    const allStrokes = strokesRef.current;
+    if (!allEls.length && !allStrokes.length) return;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const el of allEls) { minX = Math.min(minX, el.x); minY = Math.min(minY, el.y); maxX = Math.max(maxX, el.x + el.width); maxY = Math.max(maxY, el.y + el.height); }
+    for (const s of allStrokes) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
+    const cw = maxX - minX + 80, ch = maxY - minY + 80;
+    const z = clamp(Math.min(r.width / cw, r.height / ch), MIN_ZOOM, MAX_ZOOM);
+    setViewport({ zoom: z, x: (r.width - cw * z) / 2 - minX * z + 40, y: (r.height - ch * z) / 2 - minY * z + 40 });
+  }, []);
+
+  /* ─── Align tools ─── */
+  const alignSelected = useCallback((dir: "left" | "right" | "top" | "bottom" | "center-h" | "center-v") => {
+    const ids = Array.from(selRef.current);
+    if (ids.length < 2) { toast.info("Select 2+ elements to align"); return; }
+    pushUndo();
+    const sel = elsRef.current.filter(e => ids.includes(e.id));
+    let target: number;
+    switch (dir) {
+      case "left": target = Math.min(...sel.map(e => e.x)); setElements(p => p.map(e => ids.includes(e.id) ? { ...e, x: target } : e)); break;
+      case "right": target = Math.max(...sel.map(e => e.x + e.width)); setElements(p => p.map(e => ids.includes(e.id) ? { ...e, x: target - e.width } : e)); break;
+      case "top": target = Math.min(...sel.map(e => e.y)); setElements(p => p.map(e => ids.includes(e.id) ? { ...e, y: target } : e)); break;
+      case "bottom": target = Math.max(...sel.map(e => e.y + e.height)); setElements(p => p.map(e => ids.includes(e.id) ? { ...e, y: target - e.height } : e)); break;
+      case "center-h": { const cx = sel.reduce((a, e) => a + e.x + e.width / 2, 0) / sel.length; setElements(p => p.map(e => ids.includes(e.id) ? { ...e, x: cx - e.width / 2 } : e)); break; }
+      case "center-v": { const cy = sel.reduce((a, e) => a + e.y + e.height / 2, 0) / sel.length; setElements(p => p.map(e => ids.includes(e.id) ? { ...e, y: cy - e.height / 2 } : e)); break; }
+    }
+  }, [pushUndo]);
+
+  /* ─── Arrow nudge ─── */
+  const nudge = useCallback((dx: number, dy: number) => {
+    const ids = Array.from(selRef.current);
+    const sIds = Array.from(selStrokesRef.current);
+    if (!ids.length && !sIds.length) return;
+    pushUndo();
+    const sdx = snap(dx) || dx, sdy = snap(dy) || dy;
+    if (ids.length) setElements(p => p.map(e => ids.includes(e.id) ? { ...e, x: e.x + sdx, y: e.y + sdy } : e));
+    if (sIds.length) setStrokes(p => p.map(s => sIds.includes(s.id) ? { ...s, points: s.points.map(pt => ({ x: pt.x + sdx, y: pt.y + sdy })) } : s));
+  }, [pushUndo, snap]);
 
   const clearBoard = useCallback(() => {
     if (!confirm("Clear the entire board? All elements and strokes will be removed. You can undo with Ctrl+Z.")) return;
@@ -646,16 +738,31 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   }, [evolverPlatform, evolverPrompt, onRefresh, pushUndo]);
 
   /* ─── Pointer handlers ─── */
-  const startDrag = useCallback((el: SandboxElement, cx: number, cy: number) => {
+  const startDrag = useCallback((el: SandboxElement, cx: number, cy: number, altDup?: boolean) => {
     const pt = scenePoint(cx, cy, boardRef.current, vpRef.current);
     let ids = selRef.current.has(el.id) ? Array.from(selRef.current) : [el.id];
     if (el.groupId) {
       const groupEls = elsRef.current.filter(e => e.groupId === el.groupId).map(e => e.id);
       ids = [...new Set([...ids, ...groupEls])];
     }
-    const origins = Object.fromEntries(elsRef.current.filter(e => ids.includes(e.id)).map(e => [e.id, { x: e.x, y: e.y }]));
-    interactionRef.current = { type: "drag", anchor: pt, originPositions: origins };
-  }, []);
+    // Alt+drag = duplicate then drag
+    if (altDup) {
+      pushUndo();
+      const src = elsRef.current.filter(e => ids.includes(e.id));
+      let z = nextZ(elsRef.current);
+      const dups = src.map(e => ({ ...clone(e), id: `sb-${crypto.randomUUID()}`, z: z++, links: [] }));
+      setElements(p => [...p, ...dups]);
+      ids = dups.map(e => e.id);
+      setSelectedIds(new Set(ids));
+    }
+    const origins = Object.fromEntries(elsRef.current.concat(altDup ? [] : []).filter(e => ids.includes(e.id)).map(e => [e.id, { x: e.x, y: e.y }]));
+    // Also track selected stroke origins for movement
+    const strokeOrigins: Record<string, Point[]> = {};
+    for (const s of strokesRef.current) {
+      if (selStrokesRef.current.has(s.id)) strokeOrigins[s.id] = s.points.map(p => ({ ...p }));
+    }
+    interactionRef.current = { type: "drag", anchor: pt, originPositions: { ...origins, __strokeOrigins: strokeOrigins as any } };
+  }, [pushUndo]);
 
   const handleElDown = useCallback((e: React.PointerEvent, el: SandboxElement) => {
     e.stopPropagation();
@@ -663,10 +770,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     pushUndo();
     const next = new Set(selRef.current);
     if (e.shiftKey) { next.has(el.id) ? next.delete(el.id) : next.add(el.id); }
-    else { next.clear(); next.add(el.id); if (el.groupId) elsRef.current.filter(g => g.groupId === el.groupId).forEach(g => next.add(g.id)); }
+    else if (!next.has(el.id)) { next.clear(); next.add(el.id); setSelectedStrokeIds(new Set()); if (el.groupId) elsRef.current.filter(g => g.groupId === el.groupId).forEach(g => next.add(g.id)); }
     setSelectedIds(new Set(next));
     bringForward();
-    if (tool === "select") startDrag(el, e.clientX, e.clientY);
+    if (tool === "select") startDrag(el, e.clientX, e.clientY, e.altKey);
   }, [tool, bringForward, linkEls, linkSourceId, startDrag, pushUndo]);
 
   const handleResizeDown = useCallback((e: React.PointerEvent, el: SandboxElement) => {
@@ -679,7 +786,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   const handleBoardDown = useCallback((e: React.PointerEvent) => {
     if (e.button !== 0 && e.button !== 1) return;
-    if (e.button === 1 || tool === "pan") {
+    // Space+click or middle click = pan
+    if (e.button === 1 || tool === "pan" || spaceHeldRef.current) {
       interactionRef.current = { type: "pan", originClient: { x: e.clientX, y: e.clientY }, originViewport: vpRef.current };
       return;
     }
@@ -695,15 +803,21 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       interactionRef.current = { type: "marquee", origin: pt, current: pt };
       setMarqueeRect(null);
       setSelectedIds(new Set());
+      setSelectedStrokeIds(new Set());
       setLinkSourceId(null);
       return;
     }
     setSelectedIds(new Set());
+    setSelectedStrokeIds(new Set());
     setLinkSourceId(null);
   }, [tool, activeColor, addEl, brushSize]);
 
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
+      // Track mouse position in scene coords for status bar
+      const pt0 = scenePoint(e.clientX, e.clientY, boardRef.current, vpRef.current);
+      setMouseScene(pt0);
+
       const ix = interactionRef.current;
       if (!ix) return;
       if (ix.type === "pan") { setViewport({ ...ix.originViewport, x: ix.originViewport.x + e.clientX - ix.originClient.x, y: ix.originViewport.y + e.clientY - ix.originClient.y }); return; }
@@ -722,12 +836,28 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           }
         }
         setSelectedIds(hit);
+        // Live-select strokes intersecting the marquee
+        const hitStrokes = new Set<string>();
+        for (const s of strokesRef.current) {
+          const b = strokeBounds(s);
+          if (b.x + b.w > mx && b.x < mx + mw && b.y + b.h > my && b.y < my + mh) hitStrokes.add(s.id);
+        }
+        setSelectedStrokeIds(hitStrokes);
         return;
       }
       if (ix.type === "draw") { ix.points.push(pt); setDraftStroke({ id: "draft", tool: ix.tool, color: ix.color, size: ix.size, points: [...ix.points] }); return; }
       if (ix.type === "drag") {
         const dx = pt.x - ix.anchor.x, dy = pt.y - ix.anchor.y;
-        setElements(p => p.map(el => { const o = ix.originPositions[el.id]; return o ? { ...el, x: o.x + dx, y: o.y + dy } : el; }));
+        setElements(p => p.map(el => { const o = ix.originPositions[el.id]; return o ? { ...el, x: snap(o.x + dx), y: snap(o.y + dy) } : el; }));
+        // Also move selected strokes
+        const so = (ix.originPositions as any).__strokeOrigins as Record<string, Point[]> | undefined;
+        if (so && Object.keys(so).length) {
+          setStrokes(p => p.map(s => {
+            const orig = so[s.id];
+            if (!orig) return s;
+            return { ...s, points: orig.map(op => ({ x: op.x + dx, y: op.y + dy })) };
+          }));
+        }
         return;
       }
       if (ix.type === "resize") {
@@ -779,20 +909,31 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   /* ─── Keys ─── */
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === " " && !e.repeat) { spaceHeldRef.current = true; return; }
       const tgt = e.target as HTMLElement;
       if (tgt && ["INPUT", "TEXTAREA", "SELECT"].includes(tgt.tagName)) return;
       if (tgt?.isContentEditable) return;
       const ctrl = e.metaKey || e.ctrlKey;
+      const shift = e.shiftKey;
       const k = e.key.toLowerCase();
-      if (ctrl && k === "z" && !e.shiftKey) { e.preventDefault(); undo(); return; }
-      if (ctrl && k === "z" && e.shiftKey) { e.preventDefault(); redo(); return; }
+      if (ctrl && k === "z" && !shift) { e.preventDefault(); undo(); return; }
+      if (ctrl && k === "z" && shift) { e.preventDefault(); redo(); return; }
       if (ctrl && k === "y") { e.preventDefault(); redo(); return; }
       if (ctrl && k === "s") { e.preventDefault(); save(); toast.success("Saved"); return; }
       if (ctrl && k === "d") { e.preventDefault(); duplicateSel(); return; }
       if (ctrl && k === "g") { e.preventDefault(); groupSelected(); return; }
+      if (ctrl && k === "a") { e.preventDefault(); selectAll(); return; }
       if (ctrl && k === "0") { e.preventDefault(); setViewport(DEFAULT_VIEWPORT); return; }
-      if (e.key === "Delete" || (e.key === "Backspace" && !tgt?.isContentEditable)) { e.preventDefault(); deleteSel(); }
+      if (ctrl && k === "1") { e.preventDefault(); fitToView(); return; }
+      if (e.key === "Escape") { setSelectedIds(new Set()); setSelectedStrokeIds(new Set()); setLinkSourceId(null); return; }
+      if (e.key === "Delete" || (e.key === "Backspace" && !tgt?.isContentEditable)) { e.preventDefault(); deleteSel(); return; }
+      // Arrow nudge (1px, shift = 10px)
+      const step = shift ? 10 : 1;
+      if (e.key === "ArrowLeft") { e.preventDefault(); nudge(-step, 0); return; }
+      if (e.key === "ArrowRight") { e.preventDefault(); nudge(step, 0); return; }
+      if (e.key === "ArrowUp") { e.preventDefault(); nudge(0, -step); return; }
+      if (e.key === "ArrowDown") { e.preventDefault(); nudge(0, step); return; }
       if (k === "v" && !ctrl) setTool("select");
       if (k === "h" && !ctrl) setTool("pan");
       if (k === "p" && !ctrl) setTool("pen");
@@ -800,9 +941,13 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       if (k === "n" && !ctrl) setTool("note");
       if (k === "t" && !ctrl) setTool("text");
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, save, deleteSel, duplicateSel, groupSelected]);
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === " ") spaceHeldRef.current = false;
+    };
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => { window.removeEventListener("keydown", onKeyDown); window.removeEventListener("keyup", onKeyUp); };
+  }, [undo, redo, save, deleteSel, duplicateSel, groupSelected, selectAll, fitToView, nudge]);
 
   const activeSizes = tool === "eraser" ? ERASER_SIZES : BRUSH_SIZES;
 
@@ -907,12 +1052,40 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       <div className="flex flex-wrap items-center gap-1">
         <button type="button" onClick={() => setShowImport(true)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 hover:text-white/80">Import</button>
         <button type="button" onClick={autoArrange} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 hover:text-white/80">Arrange</button>
-        <button type="button" onClick={duplicateSel} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Duplicate</button>
+        <button type="button" onClick={duplicateSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Duplicate</button>
         <button type="button" onClick={() => { if (selectedIds.size !== 1) { toast.info("Select one card"); return; } setLinkSourceId(p => p ? null : Array.from(selectedIds)[0]); }} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">{linkSourceId ? "Cancel link" : "Link"}</button>
         <button type="button" onClick={() => { const ids = Array.from(selRef.current); if (!ids.length) return; pushUndo(); setElements(p => p.map(e => ({ ...e, links: ids.includes(e.id) ? [] : e.links.filter(l => !ids.includes(l)) }))); }} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Unlink</button>
         <button type="button" onClick={groupSelected} disabled={selectedIds.size < 2} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Group</button>
         <button type="button" onClick={ungroupSelected} disabled={!selectedIds.size} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">Ungroup</button>
         <button type="button" onClick={clearInk} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">Clear ink</button>
+
+        <div className="h-4 w-px bg-white/8" />
+
+        {/* New convenience tools */}
+        <button type="button" onClick={selectAll} title="Ctrl+A" className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">Select All</button>
+        <button type="button" onClick={fitToView} title="Ctrl+1" className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8"><Maximize className="inline h-3 w-3 mr-0.5" />Fit</button>
+        <button type="button" onClick={() => setSnapToGrid(p => !p)} className={cn("rounded-md border px-2.5 py-1 text-[10px] flex items-center gap-1", snapToGrid ? "border-blue-500/25 bg-blue-500/10 text-blue-400" : "border-white/8 bg-white/4 text-white/60 hover:bg-white/8")}>
+          <Grid3X3 className="h-3 w-3" />Snap
+        </button>
+        <button type="button" onClick={() => setShowMinimap(p => !p)} className={cn("rounded-md border px-2.5 py-1 text-[10px] flex items-center gap-1", showMinimap ? "border-blue-500/25 bg-blue-500/10 text-blue-400" : "border-white/8 bg-white/4 text-white/60 hover:bg-white/8")}>
+          <MapIcon className="h-3 w-3" />Map
+        </button>
+
+        {/* Align tools */}
+        {selectedIds.size >= 2 && (
+          <>
+            <div className="h-4 w-px bg-white/8" />
+            <span className="text-[9px] text-white/30">Align:</span>
+            <button type="button" onClick={() => alignSelected("left")} title="Align Left" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignStartHorizontal className="h-3 w-3" /></button>
+            <button type="button" onClick={() => alignSelected("center-h")} title="Align Center H" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignCenterHorizontal className="h-3 w-3" /></button>
+            <button type="button" onClick={() => alignSelected("right")} title="Align Right" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignEndHorizontal className="h-3 w-3" /></button>
+            <button type="button" onClick={() => alignSelected("top")} title="Align Top" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignStartVertical className="h-3 w-3" /></button>
+            <button type="button" onClick={() => alignSelected("center-v")} title="Align Center V" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignCenterVertical className="h-3 w-3" /></button>
+            <button type="button" onClick={() => alignSelected("bottom")} title="Align Bottom" className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8"><AlignEndVertical className="h-3 w-3" /></button>
+          </>
+        )}
+
+        <div className="h-4 w-px bg-white/8" />
 
         {/* Export buttons */}
         <button type="button" onClick={async () => {
@@ -953,7 +1126,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <Layers className="inline h-3 w-3 mr-0.5" />Push to Platforms
         </button>
 
-        <button type="button" onClick={deleteSel} disabled={!selectedIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
+        <button type="button" onClick={deleteSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
         <button type="button" onClick={clearBoard} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">Clear board</button>
         <div className="ml-auto flex items-center gap-1">
           <button type="button" onClick={() => setShowInspector(p => !p)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">{showInspector ? "Hide panel" : "Inspector"}</button>
@@ -963,13 +1136,23 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
             </button>
           )}
         </div>
-        <div className="flex items-center gap-1.5 text-[9px] text-white/25">
+      </div>
+
+      {/* Status bar */}
+      <div className="flex items-center justify-between rounded-lg border border-white/4 bg-white/[0.02] px-3 py-0.5 text-[9px] text-white/30">
+        <div className="flex items-center gap-3">
           <span>{elements.filter(e => e.kind === "content").length} cards</span>
-          <span>&middot;</span>
           <span>{elements.filter(e => e.kind !== "content").length} els</span>
-          <span>&middot;</span>
           <span>{strokes.length} strokes</span>
+          <span className="text-white/20">|</span>
+          <span>Sel: {selectedIds.size} els + {selectedStrokeIds.size} strokes</span>
+        </div>
+        <div className="flex items-center gap-3">
           {linkSourceId && <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-emerald-400/70">Click target to link</span>}
+          <span>x:{Math.round(mouseScene.x)} y:{Math.round(mouseScene.y)}</span>
+          <span>{Math.round(viewport.zoom * 100)}%</span>
+          {snapToGrid && <span className="text-blue-400/50">⊞ Snap</span>}
+          <span className="hidden sm:inline">Space=Pan · Alt+Drag=Copy · ←→↑↓=Nudge · Esc=Deselect</span>
         </div>
       </div>
 
@@ -1010,10 +1193,43 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               <div className="max-w-xs rounded-xl border border-white/6 bg-white/3 p-5 text-center backdrop-blur-sm">
                 <h3 className="text-base font-medium text-white/80">Sandbox</h3>
                 <p className="mt-1.5 text-[12px] text-white/35">Import content, draw, link ideas, evolve with AI</p>
-                <p className="mt-1 text-[10px] text-white/20">Ctrl+Z undo · Ctrl+Shift+Z redo · Ctrl+S save · Scroll to zoom</p>
+                <p className="mt-1 text-[10px] text-white/20">Ctrl+A select all · Ctrl+1 fit · Space+drag pan · Alt+drag copy</p>
               </div>
             </div>
           )}
+          {/* Minimap */}
+          {showMinimap && (elements.length > 0 || strokes.length > 0) && (() => {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const el of elements) { minX = Math.min(minX, el.x); minY = Math.min(minY, el.y); maxX = Math.max(maxX, el.x + el.width); maxY = Math.max(maxY, el.y + el.height); }
+            for (const s of strokes) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
+            const pad = 40; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+            const cw = maxX - minX || 1, ch = maxY - minY || 1;
+            const mmW = 160, mmH = 120;
+            const sc = Math.min(mmW / cw, mmH / ch);
+            const board = boardRef.current;
+            const bw = board ? board.clientWidth : 800, bh = board ? board.clientHeight : 600;
+            const vpLeft = (-viewport.x / viewport.zoom - minX) * sc, vpTop = (-viewport.y / viewport.zoom - minY) * sc;
+            const vpW = (bw / viewport.zoom) * sc, vpH = (bh / viewport.zoom) * sc;
+            return (
+              <div className="absolute bottom-3 right-3 rounded-lg border border-white/10 bg-[hsl(222,30%,8%)]/90 backdrop-blur-sm overflow-hidden pointer-events-auto" style={{ width: mmW, height: mmH }}
+                onClick={(ev) => {
+                  const r = ev.currentTarget.getBoundingClientRect();
+                  const mx = (ev.clientX - r.left) / sc + minX, my = (ev.clientY - r.top) / sc + minY;
+                  setViewport(v => ({ ...v, x: -mx * v.zoom + bw / 2, y: -my * v.zoom + bh / 2 }));
+                }}>
+                {elements.map(el => (
+                  <div key={el.id} className={cn("absolute rounded-sm", selectedIds.has(el.id) ? "bg-blue-400/60" : el.kind === "content" ? "bg-white/20" : "bg-white/10")}
+                    style={{ left: (el.x - minX) * sc, top: (el.y - minY) * sc, width: Math.max(el.width * sc, 2), height: Math.max(el.height * sc, 2) }} />
+                ))}
+                {strokes.map(s => {
+                  const b = strokeBounds(s);
+                  return <div key={s.id} className={cn("absolute rounded-sm", selectedStrokeIds.has(s.id) ? "bg-blue-400/40" : "bg-white/8")}
+                    style={{ left: (b.x - minX) * sc, top: (b.y - minY) * sc, width: Math.max(b.w * sc, 1), height: Math.max(b.h * sc, 1) }} />;
+                })}
+                <div className="absolute border border-blue-400/50 rounded-sm" style={{ left: clamp(vpLeft, 0, mmW), top: clamp(vpTop, 0, mmH), width: clamp(vpW, 4, mmW), height: clamp(vpH, 4, mmH) }} />
+              </div>
+            );
+          })()}
         </div>
 
         {/* Inspector */}
