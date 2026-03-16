@@ -2431,7 +2431,7 @@ ONLY the JSON array.`;
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
