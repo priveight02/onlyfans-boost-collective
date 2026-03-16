@@ -2057,8 +2057,24 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         <div className="h-4 w-px bg-white/8" />
 
         {/* Convenience features */}
-        <button type="button" onClick={bringForward} disabled={!selectedIds.size} title="Bring Forward ( ] )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↑ Front</button>
-        <button type="button" onClick={sendToBack} disabled={!selectedIds.size} title="Send to Back ( [ )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↓ Back</button>
+        <div className="relative">
+          <button type="button" onClick={() => setZOrderPopup(p => p === "forward" ? null : "forward")} disabled={!selectedIds.size} title="Bring Forward ( ] )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↑ Forward</button>
+          {zOrderPopup === "forward" && (
+            <div className="absolute bottom-full left-0 mb-1 rounded-lg bg-[hsl(222,35%,10%)] border border-white/[0.08] p-1 flex flex-col gap-0.5 min-w-[120px] z-[9999] shadow-xl backdrop-blur-xl">
+              <button type="button" onClick={() => { bringForward(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-blue-400">↑</span> Forward one</button>
+              <button type="button" onClick={() => { bringToFront(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-blue-400">⤒</span> Bring to front</button>
+            </div>
+          )}
+        </div>
+        <div className="relative">
+          <button type="button" onClick={() => setZOrderPopup(p => p === "backward" ? null : "backward")} disabled={!selectedIds.size} title="Send Backward ( [ )" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">↓ Backward</button>
+          {zOrderPopup === "backward" && (
+            <div className="absolute bottom-full left-0 mb-1 rounded-lg bg-[hsl(222,35%,10%)] border border-white/[0.08] p-1 flex flex-col gap-0.5 min-w-[120px] z-[9999] shadow-xl backdrop-blur-xl">
+              <button type="button" onClick={() => { sendBackward(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-orange-400">↓</span> Backward one</button>
+              <button type="button" onClick={() => { sendToBack(); setZOrderPopup(null); }} className="rounded-md px-2.5 py-1.5 text-[10px] text-white/70 hover:bg-white/[0.06] text-left whitespace-nowrap flex items-center gap-2"><span className="text-orange-400">⤓</span> Send to back</button>
+            </div>
+          )}
+        </div>
         <button type="button" onClick={() => flipSelected("h")} disabled={!selectedIds.size} title="Flip Horizontal (Ctrl+Shift+F)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⇔ Flip H</button>
         <button type="button" onClick={() => flipSelected("v")} disabled={!selectedIds.size} title="Flip Vertical" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⇕ Flip V</button>
         <button type="button" onClick={centerOnCanvas} disabled={!selectedIds.size} title="Center on Canvas (Ctrl+Shift+C)" className="rounded-md border border-white/8 bg-white/4 px-2 py-1 text-[10px] text-white/60 hover:bg-white/8 disabled:opacity-30">⊙ Center</button>
