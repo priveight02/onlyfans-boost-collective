@@ -399,6 +399,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
   useEffect(() => { elsRef.current = elements; }, [elements]);
   useEffect(() => { selRef.current = selectedIds; }, [selectedIds]);
+  useEffect(() => { selStrokesRef.current = selectedStrokeIds; }, [selectedStrokeIds]);
   useEffect(() => { vpRef.current = viewport; }, [viewport]);
 
   useEffect(() => {
