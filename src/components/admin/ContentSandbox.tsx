@@ -488,7 +488,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     cancelAnimationFrame(rafRef.current);
     rafRef.current = requestAnimationFrame(drawScene);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [drawScene, elements, strokes, viewport]);
+  }, [drawScene, elements, strokes, viewport, selectedStrokeIds]);
 
   useEffect(() => {
     const board = boardRef.current;
