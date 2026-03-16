@@ -2417,7 +2417,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       {/* Toolbar */}
       <div className="flex items-center gap-1.5 rounded-xl border border-white/6 bg-[hsl(222,30%,10%)] px-2 py-1.5 overflow-x-auto flex-nowrap min-h-[36px]" style={{ scrollbarWidth: "none" }}>
         {/* Tools */}
-        <div className="flex items-center gap-px rounded-lg bg-white/4 p-px">
+        <div className="flex items-center gap-px rounded-lg bg-white/4 p-px shrink-0">
           {TOOL_ITEMS.map(t => (
             <button key={t.id} type="button" title={t.label} onClick={() => setTool(t.id)}
               className={cn("rounded-md px-1.5 py-1 transition-colors", tool === t.id ? "bg-blue-500/20 text-blue-400" : "text-white/40 hover:bg-white/6 hover:text-white/70")}>
