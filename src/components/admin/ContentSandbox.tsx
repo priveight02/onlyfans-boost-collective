@@ -830,9 +830,31 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         ctx.strokeStyle = "rgba(96,165,250,0.7)";
         ctx.lineWidth = 1.5;
         ctx.strokeRect(b.x, b.y, b.w, b.h);
-        // Draw resize handle for selected strokes
+        // Draw resize handle (bottom-right)
         ctx.fillStyle = "rgba(96,165,250,0.9)";
         ctx.fillRect(b.x + b.w - 5, b.y + b.h - 5, 10, 10);
+        // Draw rotate handle (top-center circle)
+        ctx.beginPath();
+        ctx.arc(b.x + b.w / 2, b.y - 16, 6, 0, Math.PI * 2);
+        ctx.fillStyle = "rgba(96,165,250,0.3)";
+        ctx.fill();
+        ctx.strokeStyle = "rgba(96,165,250,0.7)";
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        // Draw rotate icon (circular arrow hint)
+        ctx.beginPath();
+        ctx.arc(b.x + b.w / 2, b.y - 16, 3.5, -Math.PI * 0.8, Math.PI * 0.5);
+        ctx.strokeStyle = "rgba(147,197,253,0.9)";
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+        // Line from top-center to rotate handle
+        ctx.beginPath();
+        ctx.setLineDash([2, 2]);
+        ctx.strokeStyle = "rgba(96,165,250,0.4)";
+        ctx.lineWidth = 1;
+        ctx.moveTo(b.x + b.w / 2, b.y);
+        ctx.lineTo(b.x + b.w / 2, b.y - 10);
+        ctx.stroke();
         ctx.setLineDash([]);
       }
     }
@@ -1265,9 +1287,38 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
       for (const s of strokesRef.current) {
         if (!selStrokesRef.current.has(s.id)) continue;
         const b = strokeBounds(s);
+        // Resize handle (bottom-right corner)
         const handleX = b.x + b.w, handleY = b.y + b.h;
         if (Math.abs(pt.x - handleX) < 12 && Math.abs(pt.y - handleY) < 12) {
           interactionRef.current = { type: "resize-stroke", strokeId: s.id, anchor: pt, originBounds: b, originPoints: s.points.map(p => ({ ...p })) };
+          return;
+        }
+        // Rotate handle (top-center)
+        const rotHandleX = b.x + b.w / 2, rotHandleY = b.y - 16;
+        if (Math.abs(pt.x - rotHandleX) < 12 && Math.abs(pt.y - rotHandleY) < 12) {
+          const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+          const startAngle = Math.atan2(pt.y - cy, pt.x - cx) * (180 / Math.PI);
+          interactionRef.current = { type: "rotate-stroke", strokeId: s.id, center: { x: cx, y: cy }, startAngle, startRotation: s.rotation || 0 };
+          return;
+        }
+      }
+    }
+    // Check if clicking inside a selected stroke to drag it
+    if (tool === "select" && selStrokesRef.current.size) {
+      for (const s of strokesRef.current) {
+        if (!selStrokesRef.current.has(s.id)) continue;
+        const b = strokeBounds(s);
+        if (pt.x >= b.x && pt.x <= b.x + b.w && pt.y >= b.y && pt.y <= b.y + b.h) {
+          pushUndo();
+          const origins: Record<string, Point> = {};
+          for (const el of elsRef.current) {
+            if (selRef.current.has(el.id)) origins[el.id] = { x: el.x, y: el.y };
+          }
+          const strokeOrigins: Record<string, Point[]> = {};
+          for (const ss of strokesRef.current) {
+            if (selStrokesRef.current.has(ss.id)) strokeOrigins[ss.id] = ss.points.map(p => ({ ...p }));
+          }
+          interactionRef.current = { type: "drag", anchor: pt, originPositions: { ...origins, __strokeOrigins: strokeOrigins as any } };
           return;
         }
       }
@@ -1371,6 +1422,31 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         // Normalize to 0-360
         newRot = ((newRot % 360) + 360) % 360;
         setElements(p => p.map(el => el.id === ix.elementId ? { ...el, rotation: Math.round(newRot * 10) / 10 } : el));
+        return;
+      }
+      // Rotate stroke
+      if (ix.type === "rotate-stroke") {
+        const pt2 = scenePoint(e.clientX, e.clientY, boardRef.current, vpRef.current);
+        const angle = Math.atan2(pt2.y - ix.center.y, pt2.x - ix.center.x) * (180 / Math.PI);
+        const delta = angle - ix.startAngle;
+        let newRot = ix.startRotation + delta;
+        newRot = ((newRot % 360) + 360) % 360;
+        const radDelta = (delta * Math.PI) / 180;
+        setStrokes(p => p.map(s => {
+          if (s.id !== ix.strokeId) return s;
+          const cos = Math.cos(radDelta), sin = Math.sin(radDelta);
+          return {
+            ...s,
+            rotation: Math.round(newRot * 10) / 10,
+            points: s.points.map(op => ({
+              x: ix.center.x + (op.x - ix.center.x) * cos - (op.y - ix.center.y) * sin,
+              y: ix.center.y + (op.x - ix.center.x) * sin + (op.y - ix.center.y) * cos,
+            })),
+          };
+        }));
+        // Update center for continuous rotation
+        ix.startAngle = angle;
+        ix.startRotation = newRot;
         return;
       }
     };
@@ -1714,10 +1790,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           <Send className="inline h-3 w-3 mr-0.5" />Export Selected
         </button>
 
-        <button type="button" onClick={() => setShowInspector(p => !p)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">{showInspector ? "Hide panel" : "Inspector"}</button>
-        <button type="button" onClick={() => setShowHelp(true)} className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8 hover:text-white/80" title="Help & Shortcuts">
-          <HelpCircle className="h-3.5 w-3.5" />
-        </button>
+
+
 
         {/* Advanced Export */}
         <button type="button" onClick={() => setShowExportDialog(true)} className="rounded-md border border-purple-500/15 bg-purple-500/5 px-2.5 py-1 text-[10px] text-purple-400/70 hover:bg-purple-500/10" title="Ctrl+E">
@@ -1741,6 +1815,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
         <button type="button" onClick={deleteSel} disabled={!selectedIds.size && !selectedStrokeIds.size} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10 disabled:opacity-30">Delete</button>
         <button type="button" onClick={clearBoard} className="rounded-md border border-red-500/15 bg-red-500/5 px-2.5 py-1 text-[10px] text-red-400/70 hover:bg-red-500/10">Clear board</button>
+        <button type="button" onClick={() => setShowInspector(p => !p)} className="rounded-md border border-white/8 bg-white/4 px-2.5 py-1 text-[10px] text-white/60 hover:bg-white/8">{showInspector ? "Hide panel" : "Inspector"}</button>
+        <button type="button" onClick={() => setShowHelp(true)} className="rounded-md border border-white/8 bg-white/4 p-1 text-white/50 hover:bg-white/8 hover:text-white/80" title="Help & Shortcuts">
+          <HelpCircle className="h-3.5 w-3.5" />
+        </button>
         {selectedIds.size >= 2 && (
           <button type="button" onClick={evolve} disabled={evolving} className="ml-auto rounded-md bg-emerald-500/15 border border-emerald-500/20 px-3 py-1 text-[10px] text-emerald-400 hover:bg-emerald-500/25 disabled:opacity-50">
             {evolving ? <Loader2 className="mr-1 inline h-3 w-3 animate-spin" /> : null}Evolve {selectedIds.size}
