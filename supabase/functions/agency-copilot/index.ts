@@ -450,7 +450,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, context, quality } = await req.json();
+    const { messages, context, quality, skipTools } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
@@ -615,6 +615,28 @@ serve(async (req) => {
         return new Response(JSON.stringify({ type: "image", content: imageData?.choices?.[0]?.message?.content || "Image generation failed.", images: [], error: lastError }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       return new Response(JSON.stringify({ type: "image", content: imageData.choices?.[0]?.message?.content || "Here's the generated image.", images: imageData.choices?.[0]?.message?.images || [] }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // ==================== SKIP TOOLS MODE (for sandbox evolver etc.) ====================
+    if (skipTools) {
+      const directResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "google/gemini-3-flash-preview",
+          messages: [...messages],
+          stream: false,
+        }),
+      });
+      if (!directResp.ok) {
+        if (directResp.status === 429) return new Response(JSON.stringify({ error: "Rate limit exceeded." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        if (directResp.status === 402) return new Response(JSON.stringify({ error: "AI credits exhausted." }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+        const t = await directResp.text();
+        console.error("AI gateway error (skipTools):", directResp.status, t);
+        return new Response(JSON.stringify({ error: "AI gateway error" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+      const directData = await directResp.json();
+      return new Response(JSON.stringify(directData), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     // ==================== TOOL-CALLING CRM MODE ====================
