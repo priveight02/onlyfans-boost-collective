@@ -15,7 +15,7 @@ import {
   Lock, Map as MapIcon, Maximize, MousePointer, Move, Paperclip, Pencil, Pipette,
   Redo2, RotateCcw, RotateCw, Save, Search, Smile, Sparkles, Square, StickyNote, Strikethrough,
   Trash2, Triangle, Type, Underline, Unlink, Unlock, ZoomIn, ZoomOut, RefreshCw, Palette,
-  Send, FileDown, Grid3X3, Magnet, FileJson, FileSpreadsheet, FileImage, Image as ImageIcon,
+  Send, FileDown, Grid3X3, Magnet, FileJson, FileSpreadsheet, FileImage, FileText, Image as ImageIcon,
   CaseSensitive, ALargeSmall, Minus, LetterText, Upload, Film, Music, ImagePlus, HelpCircle, X,
   FolderOpen, Plus, ChevronDown, MoreHorizontal,
 } from "lucide-react";
