@@ -848,7 +848,9 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [exportCustomH, setExportCustomH] = useState(1080);
   const [exportScope, setExportScope] = useState<"all" | "selected" | "fov">("all");
   const [activeStamp, setActiveStamp] = useState("⭐");
-  const [canvasBgImage, setCanvasBgImage] = useState<string | null>(null);
+  const [canvasBgImage, setCanvasBgImage] = useState<string | null>(() => {
+    try { return localStorage.getItem("sandbox_bg_image") || null; } catch { return null; }
+  });
   const [showHelp, setShowHelp] = useState(false);
   const [showElementCount, setShowElementCount] = useState(true);
   const [proportionalResize, setProportionalResize] = useState(false);
@@ -859,6 +861,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; elementId?: string; strokeId?: string } | null>(null);
   const [ctxExportFormat, setCtxExportFormat] = useState<string | null>(null);
   const [ctxPushing, setCtxPushing] = useState(false);
+  const [connectedPlatforms, setConnectedPlatforms] = useState<Record<string, { account_id: string; username: string }[]>>({});
+  const [ctxAccountSelect, setCtxAccountSelect] = useState<{ platform: string; accounts: { account_id: string; username: string }[] } | null>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const spaceHeldRef = useRef(false);
