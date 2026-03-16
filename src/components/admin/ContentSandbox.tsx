@@ -880,6 +880,14 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const spaceHeldRef = useRef(false);
   const selStrokesRef = useRef<Set<string>>(new Set());
 
+  /* ─── Sandbox sessions state ─── */
+  const [sandboxSessions, setSandboxSessions] = useState<SandboxSession[]>([]);
+  const [activeSandboxId, setActiveSandboxId] = useState<string | null>(null);
+  const [sandboxListOpen, setSandboxListOpen] = useState(false);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [sandboxLoading, setSandboxLoading] = useState(false);
+
   const HISTORY_KEY = STORAGE_KEY + "_history";
   const undoStack = useRef<SandboxSnapshot[]>([]);
   const redoStack = useRef<SandboxSnapshot[]>([]);
