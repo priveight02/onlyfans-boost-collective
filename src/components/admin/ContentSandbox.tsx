@@ -1844,18 +1844,37 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
     finally { setSavingBack(false); }
   }, [onRefresh, primaryEl]);
 
-  /* ─── AI Evolver v4 — Multi-element creative engine ─── */
+  /* ─── AI Evolver v5 — Structured multi-element creative engine ─── */
   const evolveSelectionRef = useRef<SandboxElement[]>([]);
 
   const evolve = useCallback(async () => {
     const sel = evolveSelectionRef.current.length > 0
       ? evolveSelectionRef.current
       : elsRef.current.filter(e => selRef.current.has(e.id));
-    if (sel.length < 2) { toast.error("Select 2+ elements to evolve"); return; }
+
+    if (sel.length < 2) {
+      toast.error("Select 2+ elements to evolve");
+      return;
+    }
+
     evolveSelectionRef.current = sel;
     setEvolving(true);
 
     try {
+      const hasContentInput = sel.some(e => e.kind === "content" && e.data);
+      const palette = getEvolverPalette(sel);
+      const sourceShapes = sel.map(e => e.shape).filter(Boolean);
+      const sourceWords = sel
+        .flatMap(e => [
+          e.kind === "content" ? e.data?.title : null,
+          e.kind === "content" ? e.data?.caption : null,
+          e.kind === "text" ? e.text : null,
+          e.kind === "note" ? e.text : null,
+          e.annotation || null,
+        ])
+        .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+        .slice(0, 8);
+
       const elementDescriptions = sel.map((e, i) => {
         const parts: string[] = [`[Element ${i + 1} — ${e.kind}]`];
         if (e.kind === "content" && e.data) {
@@ -1871,6 +1890,8 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
           parts.push(`Text: "${e.text || "(empty)"}"`);
         } else if (e.kind === "media") {
           parts.push(`Media: ${e.mediaUrl || "none"} (${e.mediaType || "image"})`);
+        } else if (e.kind === "stamp") {
+          parts.push(`Stamp: ${e.emoji || "⭐"}`);
         } else {
           parts.push(`Visual: ${e.shape || "rectangle"} (${e.color})`);
         }
@@ -1878,71 +1899,86 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
         return parts.join("\n");
       }).join("\n\n");
 
-      const userGoal = evolverPrompt || "Synthesize into something more creative, strategic, and impactful.";
-      const targetPlatform = evolverPlatform || "instagram";
+      const userGoal = evolverPrompt || "Turn these source elements into a stronger, more original creative direction with tangible sandbox pieces.";
+      const targetPlatform = (evolverPlatform || "instagram").trim().toLowerCase();
 
-      const systemPrompt = `You are a legendary creative director working inside a visual sandbox canvas. You receive selected elements (content cards, sticky notes, text blocks, shapes, media) and your job is to EVOLVE them into something dramatically better.
+      const systemPrompt = `You are an elite creative director inside a visual sandbox canvas.
 
-CRITICAL: You don't just create one boring content card. You CREATE A CONSTELLATION of diverse, interconnected elements that represent the evolved idea. Think like a creative moodboard — mix element types!
+Your job is to EVOLVE the selected elements into a stronger concept that still clearly belongs to the source material.
 
-You can output ANY combination of these element types:
-1. "content" — A polished content card ready to publish (with title, caption, hashtags, platform, etc.)
-2. "note" — A sticky note with strategic insights, brainstorm ideas, or creative directions
-3. "text" — A bold text headline, tagline, hook, or key phrase that stands alone visually
-4. "shape" — A visual element (rectangle, ellipse, diamond, triangle) with a color and annotation to represent concepts
+You are NOT allowed to flatten everything into one generic card.
+You must create a creative composition made of tangible sandbox elements.
 
-RULES:
-- Generate 2-5 evolved elements (NOT always just one card!)
-- At least ONE must be a "content" card if any inputs were content
-- Add strategic "note" elements with insights about WHY this direction works
-- Add "text" elements for killer hooks, taglines, or key phrases
-- Add "shape" elements as visual markers or concept containers
-- Every element must have REAL, THOUGHTFUL, SPECIFIC content — never generic placeholders
-- The content card caption must be FULL (3+ sentences minimum), with a hook, value, and CTA
-- Hashtags should be specific and relevant (5-10)
-- Be creative and unexpected — surprise the creator with angles they didn't see
-- Each element should feel like it belongs on a professional creative moodboard`;
+Available sandbox element kinds:
+- content → publishable card with real title/caption/hashtags/CTA
+- note → strategic sticky note with concrete insight
+- text → bold headline, hook, or callout
+- shape → geometric visual motif
+- frame → container/composition block to structure a board
+- stamp → emoji marker or badge accent
 
-      const userPrompt = `SELECTED ELEMENTS TO EVOLVE:
+Creative rules:
+- Generate 3-6 elements.
+- Keep a visible relationship to the source inputs: reuse motifs, phrasing, colors, emotional tone, or geometry.
+- Make it feel upgraded, not random.
+- If the source is abstract, lean into text / frame / shape / note composition.
+- If the source includes content, you may include content cards — but not only content cards.
+- At least 2 elements must be NON-content.
+- Avoid generic filler like "Evolved Concept", "Combined concept", "Strategic note", or placeholder copy.
+- Captions must feel publishable and specific.
+- Notes must explain why the concept works.
+- Text elements should be sharp, memorable, and visually punchy.
+- Shapes/frames should represent a real motif or system, not random decoration.
+- Use this palette when possible: ${palette.join(", ")}.
+- Source motifs to respect: ${sourceShapes.length ? sourceShapes.join(", ") : "none explicitly"}.
+- Source phrases to build from: ${sourceWords.length ? sourceWords.join(" | ") : "none explicitly"}.`;
 
-${elementDescriptions}
+      const evolverTool = {
+        type: "function",
+        function: {
+          name: "return_evolved_sandbox_elements",
+          description: "Return a structured set of evolved sandbox elements.",
+          parameters: {
+            type: "object",
+            properties: {
+              concept: { type: "string" },
+              elements: {
+                type: "array",
+                minItems: 3,
+                maxItems: 6,
+                items: {
+                  type: "object",
+                  properties: {
+                    kind: { type: "string", enum: ["content", "note", "text", "shape", "frame", "stamp"] },
+                    role: { type: "string", enum: ["hero", "support", "insight", "cta", "motif", "container", "accent"] },
+                    emphasis: { type: "string", enum: ["xl", "lg", "md", "sm"] },
+                    title: { type: "string" },
+                    caption: { type: "string" },
+                    platform: { type: "string" },
+                    content_type: { type: "string", enum: ["post", "reel", "story", "carousel"] },
+                    hashtags: { type: "array", items: { type: "string" } },
+                    viral_score: { type: "number" },
+                    hook: { type: "string" },
+                    cta: { type: "string" },
+                    angle: { type: "string" },
+                    text: { type: "string" },
+                    shape: { type: "string", enum: ["rectangle", "ellipse", "diamond", "triangle"] },
+                    color: { type: "string" },
+                    annotation: { type: "string" },
+                    emoji: { type: "string" },
+                  },
+                  required: ["kind"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["concept", "elements"],
+            additionalProperties: false,
+          },
+        },
+      };
 
-CREATOR'S DIRECTION: ${userGoal}
-TARGET PLATFORM: ${targetPlatform}
-
-Generate an evolved constellation of 2-5 diverse elements. Return ONLY a valid JSON array:
-[
-  {
-    "kind": "content",
-    "title": "Specific catchy title",
-    "caption": "Full engaging caption (3+ sentences with hook, value, CTA)",
-    "platform": "${targetPlatform}",
-    "content_type": "post|reel|story|carousel",
-    "hashtags": ["specific", "relevant", "tags"],
-    "viral_score": 88,
-    "hook": "Scroll-stopping opening",
-    "cta": "Clear call to action",
-    "angle": "Creative angle"
-  },
-  {
-    "kind": "note",
-    "text": "Strategic insight about why this direction works and how to maximize impact...",
-    "color": "#f59e0b"
-  },
-  {
-    "kind": "text",
-    "text": "A KILLER HEADLINE OR TAGLINE",
-    "color": "#8b5cf6"
-  },
-  {
-    "kind": "shape",
-    "shape": "diamond",
-    "color": "#ec4899",
-    "annotation": "Core concept this represents"
-  }
-]
-
-Be creative with the mix! Don't just return one content card. Return the JSON array only.`;
+      const userPrompt = `SELECTED ELEMENTS TO EVOLVE:\n\n${elementDescriptions}\n\nCREATOR DIRECTION: ${userGoal}\nTARGET PLATFORM: ${targetPlatform}\n\nReturn a structured evolution that feels clearly derived from the source, but more creative, more tangible, and more strategically useful.`;
 
       const { data, error } = await supabase.functions.invoke("agency-copilot", {
         body: {
@@ -1950,44 +1986,89 @@ Be creative with the mix! Don't just return one content card. Return the JSON ar
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
+          model: "google/gemini-2.5-pro",
           skipTools: true,
+          tools: [evolverTool],
+          tool_choice: { type: "function", function: { name: "return_evolved_sandbox_elements" } },
         },
       });
+
       if (error) throw error;
 
-      // Parse response — expect an array of elements
-      let evolvedItems: any[] = [];
-      try {
-        const rawText = typeof data === "string" ? data
-          : typeof data === "object" && data !== null && "choices" in data
-            ? (data as any)?.choices?.[0]?.message?.content || JSON.stringify(data)
-            : JSON.stringify(data ?? "");
-        const cleaned = rawText.replace(/```json\s*/gi, "").replace(/```/g, "").trim();
+      const fallbackItems = () => {
+        const strongestTitle = sel.find(e => e.kind === "content" && e.data?.title)?.data?.title
+          || sel.find(e => e.kind === "text" && e.text)?.text
+          || sel.find(e => e.kind === "note" && e.text)?.text
+          || `${sel[0]?.shape || "shape"} signal`;
 
-        // Try array first
-        const arrMatch = cleaned.match(/\[[\s\S]*\]/);
-        if (arrMatch) {
-          evolvedItems = JSON.parse(arrMatch[0].replace(/,\s*([}\]])/g, "$1"));
-        } else {
-          // Fallback: single object
-          const objMatch = cleaned.match(/\{[\s\S]*\}/);
-          if (objMatch) {
-            const single = JSON.parse(objMatch[0].replace(/,\s*([}\]])/g, "$1"));
-            evolvedItems = [single];
-          }
-        }
-      } catch (parseErr) {
-        console.error("Evolver parse error:", parseErr);
-      }
+        return [
+          {
+            kind: hasContentInput ? "content" : "text",
+            emphasis: "xl",
+            title: `${strongestTitle} system`,
+            caption: `This evolution turns the selected ingredients into a sharper, more ownable creative direction. Lead with a clearer hook, make the visual motif more intentional, and build the supporting pieces so the concept feels designed instead of accidental. Use this as the next draft, then push the strongest phrase into the final post or carousel.`,
+            platform: targetPlatform,
+            content_type: hasContentInput ? "carousel" : "post",
+            hashtags: ["creativeDirection", "contentSystem", "brandSignal", "visualStrategy", targetPlatform].map(tag => tag.replace(/[^a-z0-9]/gi, "")),
+            viral_score: 84,
+            hook: `Built from ${sel.length} source elements, but way sharper.`,
+            cta: "Save this direction and build the next draft from it.",
+            angle: `Creative system evolved from ${sel.length} selected sandbox elements.`,
+            text: strongestTitle.toUpperCase(),
+          },
+          {
+            kind: "note",
+            emphasis: "lg",
+            text: `What works here is the contrast between the source motif and the upgraded framing. Keep one recognizable visual cue from the originals, then simplify the message so the audience gets the idea instantly.`,
+            color: palette[1],
+          },
+          {
+            kind: "frame",
+            emphasis: "md",
+            text: "Source motif → Hero idea → CTA",
+            color: palette[2],
+            annotation: "Use this frame as the composition spine for the evolved concept.",
+          },
+        ];
+      };
+
+      const validKinds = new Set(["content", "note", "text", "shape", "frame", "stamp"]);
+      const emphasisRank: Record<string, number> = { xl: 0, lg: 1, md: 2, sm: 3 };
+      const kindPriority: Record<string, number> = { content: 0, text: 1, frame: 2, note: 3, shape: 4, stamp: 5 };
+
+      const rawItems = parseEvolverItems(data);
+      const evolvedItems = (rawItems.length ? rawItems : fallbackItems())
+        .filter((item: any) => item && typeof item === "object")
+        .map((item: any, index: number) => {
+          const kind = validKinds.has(item.kind) ? item.kind : (hasContentInput && index === 0 ? "content" : "note");
+          const emphasis = ["xl", "lg", "md", "sm"].includes(item.emphasis) ? item.emphasis : (index === 0 ? "xl" : index < 3 ? "lg" : "md");
+          const role = typeof item.role === "string" ? item.role : (index === 0 ? "hero" : kind === "note" ? "insight" : kind === "text" ? "cta" : "support");
+          const color = typeof item.color === "string" && /^#[0-9a-f]{6}$/i.test(item.color)
+            ? item.color
+            : palette[index % palette.length];
+
+          return {
+            ...item,
+            kind,
+            emphasis,
+            role,
+            color,
+          };
+        })
+        .sort((a, b) => {
+          const emphasisDelta = (emphasisRank[a.emphasis] ?? 9) - (emphasisRank[b.emphasis] ?? 9);
+          if (emphasisDelta !== 0) return emphasisDelta;
+          return (kindPriority[a.kind] ?? 9) - (kindPriority[b.kind] ?? 9);
+        })
+        .slice(0, 6);
 
       if (!evolvedItems.length) {
-        toast.error("AI returned empty results — try again");
+        toast.error("Evolution couldn’t produce usable elements");
         return;
       }
 
       pushUndo();
 
-      // Calculate center of selection for placement
       const bounds = {
         minX: Math.min(...sel.map(e => e.x)),
         minY: Math.min(...sel.map(e => e.y)),
@@ -1995,86 +2076,226 @@ Be creative with the mix! Don't just return one content card. Return the JSON ar
         maxY: Math.max(...sel.map(e => e.y + e.height)),
       };
       const centerX = (bounds.minX + bounds.maxX) / 2;
-      const startY = bounds.maxY + 60; // Place below selected elements
+      const clusterTop = bounds.maxY + 100;
+      const zStart = nextZ(elsRef.current);
+      let z = zStart;
 
-      const selIds = new Set(sel.map(e => e.id));
+      const getElementSize = (kind: string, emphasis: string) => {
+        const sizeMap: Record<string, Record<string, { width: number; height: number }>> = {
+          content: {
+            xl: { width: 440, height: 290 },
+            lg: { width: 380, height: 250 },
+            md: { width: 340, height: 230 },
+            sm: { width: 310, height: 210 },
+          },
+          note: {
+            xl: { width: 280, height: 220 },
+            lg: { width: 250, height: 180 },
+            md: { width: 220, height: 160 },
+            sm: { width: 190, height: 130 },
+          },
+          text: {
+            xl: { width: 480, height: 90 },
+            lg: { width: 390, height: 74 },
+            md: { width: 320, height: 62 },
+            sm: { width: 250, height: 52 },
+          },
+          shape: {
+            xl: { width: 240, height: 240 },
+            lg: { width: 190, height: 190 },
+            md: { width: 150, height: 150 },
+            sm: { width: 120, height: 120 },
+          },
+          frame: {
+            xl: { width: 560, height: 320 },
+            lg: { width: 440, height: 260 },
+            md: { width: 360, height: 220 },
+            sm: { width: 300, height: 180 },
+          },
+          stamp: {
+            xl: { width: 150, height: 150 },
+            lg: { width: 110, height: 110 },
+            md: { width: 84, height: 84 },
+            sm: { width: 68, height: 68 },
+          },
+        };
+
+        return sizeMap[kind]?.[emphasis] || { width: 220, height: 160 };
+      };
+
+      const slots = [
+        { dx: 0, dy: 0 },
+        { dx: -360, dy: 40 },
+        { dx: 360, dy: 60 },
+        { dx: -220, dy: 280 },
+        { dx: 220, dy: 300 },
+        { dx: 0, dy: 430 },
+      ];
+
       const newElements: SandboxElement[] = [];
-      let offsetX = centerX - ((evolvedItems.length - 1) * 180);
-      let offsetY = startY;
-      let z = nextZ(elsRef.current);
 
-      for (const item of evolvedItems) {
+      for (let index = 0; index < evolvedItems.length; index += 1) {
+        const item = evolvedItems[index];
+        const { width, height } = getElementSize(item.kind, item.emphasis);
+        const slot = slots[index] || { dx: 0, dy: 520 + (index - slots.length) * 180 };
+        const x = centerX + slot.dx - width / 2;
+        const y = clusterTop + slot.dy;
         const id = `sb-${crypto.randomUUID()}`;
-        const kind = item.kind || "content";
-        const color = item.color || (kind === "content" ? "#22c55e" : kind === "note" ? "#f59e0b" : kind === "text" ? "#8b5cf6" : "#ec4899");
 
-        if (kind === "content") {
-          // Save to content_calendar
-          const { data: newItem, error: ie } = await supabase.from("content_calendar").insert({
-            title: item.title || "Evolved Content",
-            caption: item.caption || "",
-            platform: (item.platform || targetPlatform).toLowerCase(),
-            content_type: item.content_type || "post",
-            hashtags: Array.isArray(item.hashtags) ? item.hashtags.map((t: string) => t.replace(/^#/, "")) : [],
-            status: "draft",
-            viral_score: Number(item.viral_score || 85),
-            description: item.angle || `Evolved from ${sel.length} elements`,
-            cta: item.cta || null,
-            metadata: {
-              source: "sandbox_evolver_v4",
-              evolved_from: sel.map(e => e.sourceItemId || e.id),
-              hook: item.hook, cta: item.cta, angle: item.angle,
-            },
-          }).select().single();
+        if (item.kind === "content") {
+          const title = typeof item.title === "string" && item.title.trim() ? item.title.trim() : `${item.angle || item.hook || "Creative direction"}`.slice(0, 72);
+          const caption = typeof item.caption === "string" && item.caption.trim()
+            ? item.caption.trim()
+            : `This evolution sharpens the original idea into a stronger, clearer direction. Use the motif as the visual anchor, push the hook earlier, and let the CTA land with more confidence. Save this version and turn it into the next polished draft.`;
+          const { data: newItem, error: insertError } = await supabase
+            .from("content_calendar")
+            .insert({
+              title,
+              caption,
+              platform: (item.platform || targetPlatform).toLowerCase(),
+              content_type: item.content_type || "post",
+              hashtags: Array.isArray(item.hashtags) ? item.hashtags.map((tag: string) => String(tag).replace(/^#/, "")).filter(Boolean) : [],
+              status: "draft",
+              viral_score: Number(item.viral_score || 85),
+              description: item.angle || item.annotation || `Evolved from ${sel.length} sandbox elements`,
+              cta: item.cta || null,
+              metadata: {
+                source: "sandbox_evolver_v5",
+                evolved_from: sel.map(e => e.sourceItemId || e.id),
+                role: item.role,
+                hook: item.hook || null,
+                angle: item.angle || null,
+                palette,
+              },
+            })
+            .select()
+            .single();
 
-          if (!ie && newItem) {
+          if (!insertError && newItem) {
             newElements.push({
-              id, kind: "content", x: offsetX, y: offsetY, width: 340, height: 240,
-              z: z++, color, links: [], sourceItemId: newItem.id, data: newItem,
-              annotation: item.angle || "", fontSize: 14,
+              id,
+              kind: "content",
+              x,
+              y,
+              width,
+              height,
+              z: z++,
+              color: item.color,
+              links: [],
+              sourceItemId: newItem.id,
+              data: newItem,
+              annotation: item.angle || item.hook || item.annotation || "",
+              fontSize: 14,
             });
           }
-        } else if (kind === "note") {
-          newElements.push({
-            id, kind: "note", x: offsetX, y: offsetY, width: 220, height: 160,
-            z: z++, color, links: [], text: item.text || "Strategic note", fontSize: 13,
-          });
-        } else if (kind === "text") {
-          newElements.push({
-            id, kind: "text", x: offsetX, y: offsetY, width: 300, height: 60,
-            z: z++, color, links: [], text: item.text || "HEADLINE", fontSize: 24,
-            fontWeight: "bold",
-          });
-        } else if (kind === "shape") {
-          const shape = (["rectangle", "ellipse", "diamond", "triangle"].includes(item.shape) ? item.shape : "rectangle") as ShapeKind;
-          newElements.push({
-            id, kind: "shape", x: offsetX, y: offsetY, width: 140, height: 140,
-            z: z++, color, links: [], shape, annotation: item.annotation || "",
-          });
+
+          continue;
         }
 
-        offsetX += 360;
-        if (offsetX > centerX + 700) { offsetX = centerX - 180; offsetY += 280; }
+        if (item.kind === "note") {
+          newElements.push({
+            id,
+            kind: "note",
+            x,
+            y,
+            width,
+            height,
+            z: z++,
+            color: item.color,
+            links: [],
+            text: item.text || item.annotation || item.angle || "Concrete strategic note",
+            fontSize: 13,
+          });
+          continue;
+        }
+
+        if (item.kind === "text") {
+          newElements.push({
+            id,
+            kind: "text",
+            x,
+            y,
+            width,
+            height,
+            z: z++,
+            color: item.color,
+            links: [],
+            text: item.text || item.hook || item.title || "MAKE IT SHARPER",
+            fontSize: item.emphasis === "xl" ? 34 : item.emphasis === "lg" ? 26 : 20,
+            fontWeight: "bold",
+            textTransform: item.emphasis === "xl" ? "uppercase" : "none",
+            letterSpacing: item.emphasis === "xl" ? 1.5 : 0.2,
+          });
+          continue;
+        }
+
+        if (item.kind === "frame") {
+          newElements.push({
+            id,
+            kind: "frame",
+            x,
+            y,
+            width,
+            height,
+            z: z++,
+            color: item.color,
+            links: [],
+            text: item.text || item.annotation || item.title || "Structure",
+          });
+          continue;
+        }
+
+        if (item.kind === "stamp") {
+          newElements.push({
+            id,
+            kind: "stamp",
+            x,
+            y,
+            width,
+            height,
+            z: z++,
+            color: item.color,
+            links: [],
+            emoji: item.emoji || (item.role === "cta" ? "🚀" : item.role === "insight" ? "💡" : "✨"),
+          });
+          continue;
+        }
+
+        const shape = (["rectangle", "ellipse", "diamond", "triangle"].includes(item.shape) ? item.shape : (sourceShapes[0] || "diamond")) as ShapeKind;
+        newElements.push({
+          id,
+          kind: "shape",
+          x,
+          y,
+          width,
+          height,
+          z: z++,
+          color: item.color,
+          links: [],
+          shape,
+          annotation: item.annotation || item.angle || item.text || "",
+        });
       }
 
       if (!newElements.length) {
-        toast.error("Evolution produced no usable elements — try again");
+        toast.error("Evolution produced no usable elements");
         return;
       }
 
-      // Keep originals, add evolved elements below them
-      setElements(p => [...p, ...newElements]);
+      setElements(prev => [...prev, ...newElements]);
       setSelectedIds(new Set(newElements.map(e => e.id)));
       setEvolverPrompt("");
       evolveSelectionRef.current = [];
       onRefresh();
 
       const kinds = newElements.map(e => e.kind);
-      const summary = [...new Set(kinds)].map(k => `${kinds.filter(kk => kk === k).length} ${k}${kinds.filter(kk => kk === k).length > 1 ? "s" : ""}`).join(", ");
+      const summary = [...new Set(kinds)]
+        .map(kind => `${kinds.filter(value => value === kind).length} ${kind}${kinds.filter(value => value === kind).length > 1 ? "s" : ""}`)
+        .join(", ");
       toast.success(`🧬 Evolved into ${newElements.length} elements: ${summary}`);
     } catch (err: any) {
       console.error("Evolver error:", err);
-      toast.error(err.message || "Evolver failed");
+      toast.error(err?.message || "Evolver failed");
     } finally {
       setEvolving(false);
       evolveSelectionRef.current = [];
