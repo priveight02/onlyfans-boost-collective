@@ -2603,6 +2603,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
             <button type="button" onClick={() => {
               let scopeEls: SandboxElement[];
               let scopeStrokes: SandboxStroke[];
+              let fovBounds: { minX: number; minY: number; maxX: number; maxY: number } | undefined;
               if (exportScope === "selected") {
                 scopeEls = elements.filter(e => selectedIds.has(e.id));
                 scopeStrokes = strokes.filter(s => selectedStrokeIds.has(s.id));
@@ -2613,8 +2614,10 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                   const vp = vpRef.current;
                   const fovMinX = -vp.x / vp.zoom, fovMinY = -vp.y / vp.zoom;
                   const fovMaxX = fovMinX + r.width / vp.zoom, fovMaxY = fovMinY + r.height / vp.zoom;
-                  scopeEls = elements.filter(e => e.x + e.width > fovMinX && e.x < fovMaxX && e.y + e.height > fovMinY && e.y < fovMaxY);
-                  scopeStrokes = strokes.filter(s => { const b = strokeBounds(s); return b.x + b.w > fovMinX && b.x < fovMaxX && b.y + b.h > fovMinY && b.y < fovMaxY; });
+                  fovBounds = { minX: fovMinX, minY: fovMinY, maxX: fovMaxX, maxY: fovMaxY };
+                  // Include ALL elements/strokes — the render will clip to FOV bounds
+                  scopeEls = elements;
+                  scopeStrokes = strokes;
                 } else { scopeEls = elements; scopeStrokes = strokes; }
               } else {
                 scopeEls = elements;
@@ -2624,11 +2627,11 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
                 case "png":
                   if (exportFixedRes && exportFixedRes !== "custom") {
                     const [w, h] = exportFixedRes.split("x").map(Number);
-                    exportToPNGFixed(scopeEls, scopeStrokes, exportBg, w, h);
+                    exportToPNGFixed(scopeEls, scopeStrokes, exportBg, w, h, fovBounds);
                   } else if (exportFixedRes === "custom") {
-                    exportToPNGFixed(scopeEls, scopeStrokes, exportBg, exportCustomW, exportCustomH);
+                    exportToPNGFixed(scopeEls, scopeStrokes, exportBg, exportCustomW, exportCustomH, fovBounds);
                   } else {
-                    exportToPNG(canvasRef.current, scopeEls, scopeStrokes, viewport, boardRef.current, exportBg, exportScale);
+                    exportToPNG(canvasRef.current, scopeEls, scopeStrokes, viewport, boardRef.current, exportBg, exportScale, fovBounds);
                   }
                   break;
                 case "svg": exportToSVG(scopeEls, scopeStrokes); break;
