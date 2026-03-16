@@ -24,6 +24,7 @@ import { exportSandboxToDrafts, pushSandboxDirectToPlatforms, getConnectedAccoun
 
 /* ─── Types ─── */
 type Tool = "select" | "pan" | "pen" | "eraser" | "text" | "note" | "rectangle" | "ellipse" | "triangle" | "diamond" | "arrow" | "connector" | "frame" | "stamp" | "media";
+type ExportFormat = "png" | "svg" | "json" | "csv" | "pdf" | "xlsx" | "html";
 type ShapeKind = "rectangle" | "ellipse" | "triangle" | "diamond" | "arrow";
 type ElementKind = "content" | "note" | "text" | "shape" | "frame" | "stamp" | "media";
 type Point = { x: number; y: number };
@@ -372,7 +373,7 @@ const ElementView = memo(function ElementView({ el, selected, linkSrc, onDown, o
   return (
     <div
       className={cn("absolute", selected && "ring-2 ring-blue-400/80", linkSrc && "ring-2 ring-emerald-400")}
-      style={{ left: el.x, top: el.y, width: el.width, height: el.height, zIndex: el.z, willChange: "transform", opacity: el.opacity ?? 1, transform: rot ? `rotate(${rot}deg)` : undefined, transformOrigin: "center center" }}
+      style={{ left: el.x, top: el.y, width: el.width, height: el.height, zIndex: el.z, opacity: el.opacity ?? 1, transform: rot ? `rotate(${rot}deg)` : undefined, transformOrigin: "center center", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased", imageRendering: "auto" }}
       onPointerDown={e => onDown(e, el)}
     >
       {el.kind === "content" && el.data && (
@@ -616,6 +617,151 @@ const exportToSVG = (elements: SandboxElement[], strokes: SandboxStroke[]) => {
   toast.success("SVG exported (vector format, no pixel loss)");
 };
 
+/* ─── PDF Export (HTML-based print) ─── */
+const exportToPDF = (elements: SandboxElement[], strokes: SandboxStroke[]) => {
+  const content = elements.filter(e => (e.kind === "content" && e.data) || e.kind === "note" || e.kind === "text");
+  if (!content.length && !strokes.length) { toast.info("Nothing to export"); return; }
+  const win = window.open("", "_blank");
+  if (!win) { toast.error("Popup blocked — allow popups to export PDF"); return; }
+  win.document.write(`<!DOCTYPE html><html><head><title>Sandbox Export</title><style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family: Inter, system-ui, sans-serif; background: #1a1f2e; color: #e2e8f0; padding: 40px; }
+    h1 { font-size: 24px; margin-bottom: 8px; color: #fff; }
+    .meta { font-size: 12px; color: #64748b; margin-bottom: 32px; }
+    .card { background: #1e2536; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 20px; margin-bottom: 16px; page-break-inside: avoid; }
+    .card h2 { font-size: 16px; color: #f1f5f9; margin-bottom: 6px; }
+    .card p { font-size: 13px; color: #94a3b8; line-height: 1.6; }
+    .card .tags { font-size: 11px; color: #3b82f6; margin-top: 8px; }
+    .card .platform { font-size: 11px; color: #64748b; text-transform: capitalize; }
+    .note { background: #1e2536; border-left: 4px solid #3b82f6; padding: 16px; margin-bottom: 12px; border-radius: 8px; }
+    .text-el { padding: 12px; margin-bottom: 12px; }
+    @media print { body { background: white; color: #1a1f2e; } .card { border-color: #e2e8f0; background: #f8fafc; } .card h2 { color: #1e293b; } .card p { color: #475569; } }
+  </style></head><body>
+    <h1>📋 Sandbox Export</h1>
+    <p class="meta">Exported ${new Date().toLocaleString()} · ${content.length} elements · ${strokes.length} strokes</p>`);
+  for (const el of content) {
+    if (el.kind === "content" && el.data) {
+      win.document.write(`<div class="card"><div class="platform">${el.data.platform} · ${el.data.content_type || "post"} · ${el.data.status}</div><h2>${(el.data.title || "").replace(/</g, "&lt;")}</h2><p>${(el.data.caption || "").replace(/</g, "&lt;").replace(/\n/g, "<br>")}</p>${el.data.hashtags?.length ? `<div class="tags">${el.data.hashtags.map((t: string) => `#${t}`).join(" ")}</div>` : ""}${el.annotation ? `<p style="margin-top:8px;font-size:11px;color:#60a5fa">Note: ${el.annotation.replace(/</g, "&lt;")}</p>` : ""}</div>`);
+    } else if (el.kind === "note") {
+      win.document.write(`<div class="note">${(el.text || "").replace(/</g, "&lt;").replace(/\n/g, "<br>")}</div>`);
+    } else if (el.kind === "text") {
+      win.document.write(`<div class="text-el" style="font-size:${el.fontSize || 16}px;color:${el.color}">${(el.text || "").replace(/</g, "&lt;")}</div>`);
+    }
+  }
+  win.document.write(`<script>setTimeout(()=>{window.print()},300)</script></body></html>`);
+  win.document.close();
+  toast.success("PDF ready — use browser print dialog (Ctrl+P) to save");
+};
+
+/* ─── XLSX Export (XML Spreadsheet) ─── */
+const exportToXLSX = (elements: SandboxElement[]) => {
+  const content = elements.filter(e => e.kind === "content" && e.data);
+  if (!content.length) { toast.info("No content cards to export"); return; }
+  const escXml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  let xml = `<?xml version="1.0"?><?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Styles><Style ss:ID="hdr"><Font ss:Bold="1" ss:Size="12"/><Interior ss:Color="#3b82f6" ss:Pattern="Solid"/><Font ss:Color="#ffffff"/></Style></Styles>
+<Worksheet ss:Name="Sandbox Export"><Table>
+<Row ss:StyleID="hdr"><Cell><Data ss:Type="String">Title</Data></Cell><Cell><Data ss:Type="String">Caption</Data></Cell><Cell><Data ss:Type="String">Platform</Data></Cell><Cell><Data ss:Type="String">Type</Data></Cell><Cell><Data ss:Type="String">Status</Data></Cell><Cell><Data ss:Type="String">Hashtags</Data></Cell><Cell><Data ss:Type="String">Viral Score</Data></Cell><Cell><Data ss:Type="String">Annotation</Data></Cell></Row>`;
+  for (const e of content) {
+    xml += `<Row><Cell><Data ss:Type="String">${escXml(e.data?.title || "")}</Data></Cell><Cell><Data ss:Type="String">${escXml(e.data?.caption || "")}</Data></Cell><Cell><Data ss:Type="String">${escXml(e.data?.platform || "")}</Data></Cell><Cell><Data ss:Type="String">${escXml(e.data?.content_type || "")}</Data></Cell><Cell><Data ss:Type="String">${escXml(e.data?.status || "")}</Data></Cell><Cell><Data ss:Type="String">${escXml((e.data?.hashtags || []).join(", "))}</Data></Cell><Cell><Data ss:Type="Number">${e.data?.viral_score || 0}</Data></Cell><Cell><Data ss:Type="String">${escXml(e.annotation || "")}</Data></Cell></Row>`;
+  }
+  xml += `</Table></Worksheet></Workbook>`;
+  const blob = new Blob([xml], { type: "application/vnd.ms-excel" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = `sandbox-${Date.now()}.xls`; a.click();
+  URL.revokeObjectURL(url);
+  toast.success("Excel file exported (compatible with Excel, Google Sheets, LibreOffice)");
+};
+
+/* ─── HTML Export (standalone report) ─── */
+const exportToHTML = (elements: SandboxElement[], strokes: SandboxStroke[]) => {
+  const content = elements.filter(e => (e.kind === "content" && e.data) || e.kind === "note" || e.kind === "text");
+  if (!content.length) { toast.info("Nothing to export"); return; }
+  let html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sandbox Report</title><style>
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:Inter,system-ui,-apple-system,sans-serif;background:#0f1219;color:#e2e8f0;min-height:100vh;padding:40px 24px}
+.container{max-width:900px;margin:0 auto}h1{font-size:28px;font-weight:700;background:linear-gradient(135deg,#3b82f6,#8b5cf6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px}
+.subtitle{color:#64748b;font-size:13px;margin-bottom:32px}.grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fill,minmax(340px,1fr))}
+.card{background:#1a1f2e;border:1px solid rgba(255,255,255,0.06);border-radius:16px;padding:20px;transition:border-color .2s}.card:hover{border-color:rgba(59,130,246,0.3)}
+.card .platform{font-size:11px;color:#64748b;text-transform:capitalize;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.card .platform .status{color:#22c55e}.card h2{font-size:15px;color:#f1f5f9;margin-bottom:6px;font-weight:600}
+.card p{font-size:13px;color:#94a3b8;line-height:1.7}.card .tags{margin-top:10px;display:flex;flex-wrap:wrap;gap:6px}
+.card .tag{background:rgba(59,130,246,0.1);color:#60a5fa;font-size:10px;padding:3px 8px;border-radius:20px}
+.card .score{margin-top:10px;height:4px;background:rgba(255,255,255,0.06);border-radius:4px;overflow:hidden}.card .score-bar{height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:4px}
+.note{background:#1a1f2e;border-left:3px solid #3b82f6;padding:16px;border-radius:0 12px 12px 0;margin-bottom:16px}
+</style></head><body><div class="container">
+<h1>📋 Sandbox Report</h1>
+<p class="subtitle">Generated ${new Date().toLocaleString()} · ${content.length} elements</p>
+<div class="grid">`;
+  for (const el of content) {
+    if (el.kind === "content" && el.data) {
+      const esc = (s: string) => s.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      html += `<div class="card"><div class="platform">${esc(el.data.platform)} · ${esc(el.data.content_type || "post")} <span class="status">● ${esc(el.data.status)}</span></div><h2>${esc(el.data.title || "")}</h2><p>${esc(el.data.caption || "").replace(/\n/g, "<br>")}</p>`;
+      if (el.data.hashtags?.length) html += `<div class="tags">${el.data.hashtags.map((t: string) => `<span class="tag">#${t}</span>`).join("")}</div>`;
+      if (Number(el.data.viral_score || 0) > 0) html += `<div class="score"><div class="score-bar" style="width:${el.data.viral_score}%"></div></div>`;
+      html += `</div>`;
+    } else if (el.kind === "note") {
+      html += `<div class="note">${(el.text || "").replace(/</g, "&lt;").replace(/\n/g, "<br>")}</div>`;
+    }
+  }
+  html += `</div></div></body></html>`;
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a"); a.href = url; a.download = `sandbox-report-${Date.now()}.html`; a.click();
+  URL.revokeObjectURL(url);
+  toast.success("HTML report exported");
+};
+
+/* ─── PNG with fixed resolution ─── */
+const exportToPNGFixed = (elements: SandboxElement[], strokes: SandboxStroke[], bgColor: string, targetW: number, targetH: number) => {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const el of elements) { minX = Math.min(minX, el.x); minY = Math.min(minY, el.y); maxX = Math.max(maxX, el.x + el.width); maxY = Math.max(maxY, el.y + el.height); }
+  for (const s of strokes) { const b = strokeBounds(s); minX = Math.min(minX, b.x); minY = Math.min(minY, b.y); maxX = Math.max(maxX, b.x + b.w); maxY = Math.max(maxY, b.y + b.h); }
+  if (!isFinite(minX)) { toast.info("Nothing to export"); return; }
+  const pad = 20; minX -= pad; minY -= pad; maxX += pad; maxY += pad;
+  const contentW = maxX - minX, contentH = maxY - minY;
+  const scale = Math.min(targetW / contentW, targetH / contentH);
+  const offscreen = document.createElement("canvas");
+  offscreen.width = targetW; offscreen.height = targetH;
+  const ctx = offscreen.getContext("2d");
+  if (!ctx) return;
+  ctx.fillStyle = bgColor;
+  ctx.fillRect(0, 0, targetW, targetH);
+  ctx.save();
+  const offX = (targetW - contentW * scale) / 2, offY = (targetH - contentH * scale) / 2;
+  ctx.translate(offX, offY);
+  ctx.scale(scale, scale);
+  ctx.translate(-minX, -minY);
+  for (const s of strokes) {
+    if (s.points.length < 2) continue;
+    ctx.beginPath(); ctx.lineCap = "round"; ctx.lineJoin = "round"; ctx.lineWidth = s.size;
+    ctx.globalCompositeOperation = s.tool === "eraser" ? "destination-out" : "source-over";
+    ctx.strokeStyle = s.color;
+    ctx.moveTo(s.points[0].x, s.points[0].y);
+    for (let i = 1; i < s.points.length; i++) ctx.lineTo(s.points[i].x, s.points[i].y);
+    ctx.stroke(); ctx.globalCompositeOperation = "source-over";
+  }
+  for (const el of elements) {
+    ctx.globalAlpha = el.opacity ?? 1;
+    ctx.fillStyle = el.color + "18"; ctx.strokeStyle = el.color + "60"; ctx.lineWidth = 2;
+    ctx.beginPath();
+    if (el.kind === "shape" && el.shape === "ellipse") ctx.ellipse(el.x + el.width / 2, el.y + el.height / 2, el.width / 2, el.height / 2, 0, 0, Math.PI * 2);
+    else ctx.rect(el.x, el.y, el.width, el.height);
+    ctx.fill(); ctx.stroke();
+    const label = el.text || el.data?.title || el.emoji || "";
+    if (label) { ctx.fillStyle = el.kind === "stamp" ? "#000" : el.color; ctx.font = `${el.fontWeight || "normal"} ${el.fontSize || 14}px ${(el.fontFamily || "Inter").split(",")[0]}`; ctx.textBaseline = "top"; ctx.fillText(label.substring(0, 100), el.x + 8, el.y + 8, el.width - 16); }
+    ctx.globalAlpha = 1;
+  }
+  ctx.restore();
+  offscreen.toBlob(blob => {
+    if (!blob) return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `sandbox-${targetW}x${targetH}-${Date.now()}.png`; a.click();
+    URL.revokeObjectURL(url);
+    toast.success(`PNG exported at ${targetW}×${targetH}`);
+  }, "image/png");
+};
+
 /* ─── Main ─── */
 const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => void }) => {
   const isMobile = useIsMobile();
@@ -665,9 +811,12 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
   const [showMinimap, setShowMinimap] = useState(false);
   const [mouseScene, setMouseScene] = useState<Point>({ x: 0, y: 0 });
   const [showExportDialog, setShowExportDialog] = useState(false);
-  const [exportFormat, setExportFormat] = useState<"png" | "svg" | "json" | "csv">("png");
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("png");
   const [exportScale, setExportScale] = useState(2);
   const [exportBg, setExportBg] = useState("#1a1f2e");
+  const [exportFixedRes, setExportFixedRes] = useState<string | null>(null);
+  const [exportCustomW, setExportCustomW] = useState(1920);
+  const [exportCustomH, setExportCustomH] = useState(1080);
   const [exportScope, setExportScope] = useState<"all" | "selected">("all");
   const [activeStamp, setActiveStamp] = useState("⭐");
   const [canvasBgImage, setCanvasBgImage] = useState<string | null>(null);
@@ -1979,7 +2128,7 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               zIndex: 999999,
             }} />
           )}
-          <div className="absolute inset-0" style={{ transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0" }}>
+          <div className="absolute inset-0" style={{ transform: `translate3d(${viewport.x}px,${viewport.y}px,0) scale(${viewport.zoom})`, transformOrigin: "0 0", backfaceVisibility: "hidden", WebkitFontSmoothing: "antialiased" }}>
             {ordered.map(el => (
               <ElementView key={el.id} el={el} selected={selectedIds.has(el.id)} linkSrc={linkSourceId === el.id}
                 onDown={handleElDown} onResize={handleResizeDown} onTextChange={(id, v) => updateEl(id, { text: v })} onRotate={handleRotateDown} />
@@ -2267,25 +2416,40 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
 
       {/* Export Board Dialog */}
       <Dialog open={showExportDialog} onOpenChange={setShowExportDialog}>
-        <DialogContent className="max-w-md border-white/8 bg-[hsl(222,30%,10%)] text-white">
+        <DialogContent className="max-w-lg border-white/8 bg-[hsl(222,30%,10%)] text-white max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle className="text-white/90 flex items-center gap-2"><Download className="h-4 w-4 text-purple-400" />Export Board</DialogTitle></DialogHeader>
           <div className="space-y-4">
             {/* Format */}
             <div>
               <label className="text-[10px] text-white/40 uppercase tracking-wider mb-2 block">Format</label>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-4 gap-1.5 mb-1.5">
                 {([
-                  { id: "png" as const, label: "PNG", desc: "High-res image", icon: FileImage },
-                  { id: "svg" as const, label: "SVG", desc: "Vector, no pixel loss", icon: FileImage },
-                  { id: "json" as const, label: "JSON", desc: "Full data backup", icon: FileJson },
-                  { id: "csv" as const, label: "CSV", desc: "Excel / Sheets", icon: FileSpreadsheet },
+                  { id: "png" as ExportFormat, label: "PNG", desc: "High-res image", icon: FileImage },
+                  { id: "svg" as ExportFormat, label: "SVG", desc: "Vector lossless", icon: FileImage },
+                  { id: "json" as ExportFormat, label: "JSON", desc: "Full backup", icon: FileJson },
+                  { id: "csv" as ExportFormat, label: "CSV", desc: "Sheets / Excel", icon: FileSpreadsheet },
                 ]).map(f => (
                   <button key={f.id} type="button" onClick={() => setExportFormat(f.id)}
-                    className={cn("p-2.5 rounded-lg border text-center transition-all",
+                    className={cn("p-2 rounded-lg border text-center transition-all",
                       exportFormat === f.id ? "border-purple-500/30 bg-purple-500/10" : "border-white/6 hover:border-white/12")}>
-                    <f.icon className={cn("h-5 w-5 mx-auto mb-1", exportFormat === f.id ? "text-purple-400" : "text-white/40")} />
-                    <p className={cn("text-[11px] font-semibold", exportFormat === f.id ? "text-purple-400" : "text-white/50")}>{f.label}</p>
-                    <p className="text-[8px] text-white/25 mt-0.5">{f.desc}</p>
+                    <f.icon className={cn("h-4 w-4 mx-auto mb-0.5", exportFormat === f.id ? "text-purple-400" : "text-white/40")} />
+                    <p className={cn("text-[10px] font-semibold", exportFormat === f.id ? "text-purple-400" : "text-white/50")}>{f.label}</p>
+                    <p className="text-[8px] text-white/25">{f.desc}</p>
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {([
+                  { id: "pdf" as ExportFormat, label: "PDF", desc: "Print-ready", icon: FileDown },
+                  { id: "xlsx" as ExportFormat, label: "XLS", desc: "Excel native", icon: FileSpreadsheet },
+                  { id: "html" as ExportFormat, label: "HTML", desc: "Styled report", icon: FileJson },
+                ]).map(f => (
+                  <button key={f.id} type="button" onClick={() => setExportFormat(f.id)}
+                    className={cn("p-2 rounded-lg border text-center transition-all",
+                      exportFormat === f.id ? "border-purple-500/30 bg-purple-500/10" : "border-white/6 hover:border-white/12")}>
+                    <f.icon className={cn("h-4 w-4 mx-auto mb-0.5", exportFormat === f.id ? "text-purple-400" : "text-white/40")} />
+                    <p className={cn("text-[10px] font-semibold", exportFormat === f.id ? "text-purple-400" : "text-white/50")}>{f.label}</p>
+                    <p className="text-[8px] text-white/25">{f.desc}</p>
                   </button>
                 ))}
               </div>
@@ -2305,20 +2469,70 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               </div>
             </div>
 
-            {/* PNG settings */}
-            {exportFormat === "png" && (
-              <div className="space-y-2">
+            {/* PNG/SVG settings */}
+            {(exportFormat === "png" || exportFormat === "svg") && (
+              <div className="space-y-3">
+                {/* Resolution scale */}
                 <div>
                   <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Resolution Scale</label>
-                  <div className="flex gap-2">
-                    {[1, 2, 3, 4].map(s => (
-                      <button key={s} onClick={() => setExportScale(s)}
-                        className={cn("rounded-md px-3 py-1.5 text-[10px] border flex-1", exportScale === s ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>
-                        {s}x {s === 1 ? "(1:1)" : s === 2 ? "(Retina)" : s === 3 ? "(HiDPI)" : "(Ultra)"}
+                  <div className="flex gap-1.5">
+                    {[1, 2, 3, 4, 5, 6].map(s => (
+                      <button key={s} onClick={() => { setExportScale(s); setExportFixedRes(null); }}
+                        className={cn("rounded-md px-2 py-1.5 text-[10px] border flex-1", exportScale === s && !exportFixedRes ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>
+                        {s}x
                       </button>
                     ))}
                   </div>
                 </div>
+
+                {/* Resolution templates */}
+                {exportFormat === "png" && (
+                  <div>
+                    <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Resolution Template</label>
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {[
+                        { label: "Logo", res: "500x500", desc: "Square logo" },
+                        { label: "Favicon", res: "512x512", desc: "App icon" },
+                        { label: "IG Post", res: "1080x1080", desc: "Instagram" },
+                        { label: "IG Story", res: "1080x1920", desc: "Story/Reel" },
+                        { label: "FB Cover", res: "820x312", desc: "Facebook" },
+                        { label: "Twitter", res: "1200x675", desc: "Post image" },
+                        { label: "LinkedIn", res: "1200x627", desc: "Share card" },
+                        { label: "YouTube", res: "1280x720", desc: "Thumbnail" },
+                        { label: "HD", res: "1920x1080", desc: "Full HD" },
+                        { label: "2K", res: "2560x1440", desc: "QHD" },
+                        { label: "4K", res: "3840x2160", desc: "Ultra HD" },
+                        { label: "OG Image", res: "1200x630", desc: "Open Graph" },
+                        { label: "Pinterest", res: "1000x1500", desc: "Pin" },
+                        { label: "TikTok", res: "1080x1920", desc: "Video cover" },
+                        { label: "Banner", res: "1500x500", desc: "X/Twitter" },
+                      ].map(t => (
+                        <button key={t.label} onClick={() => { setExportFixedRes(t.res); const [w, h] = t.res.split("x").map(Number); setExportCustomW(w); setExportCustomH(h); }}
+                          className={cn("rounded-md px-2 py-1.5 border text-left transition-all",
+                            exportFixedRes === t.res ? "border-purple-500/30 bg-purple-500/10" : "border-white/6 hover:border-white/12")}>
+                          <p className={cn("text-[10px] font-medium", exportFixedRes === t.res ? "text-purple-400" : "text-white/60")}>{t.label}</p>
+                          <p className="text-[8px] text-white/25">{t.res} · {t.desc}</p>
+                        </button>
+                      ))}
+                    </div>
+                    {/* Custom resolution */}
+                    <div className="flex items-center gap-2 mt-2">
+                      <button onClick={() => setExportFixedRes("custom")} className={cn("rounded-md px-2.5 py-1.5 text-[10px] border", exportFixedRes === "custom" ? "border-purple-500/30 bg-purple-500/10 text-purple-400" : "border-white/8 text-white/40")}>Custom</button>
+                      {exportFixedRes === "custom" && (
+                        <>
+                          <input type="number" min={16} max={8192} value={exportCustomW} onChange={e => setExportCustomW(Number(e.target.value) || 500)}
+                            className="h-7 w-16 rounded border border-white/10 bg-white/5 px-2 text-[10px] text-white/80 outline-none" placeholder="Width" />
+                          <span className="text-white/30 text-[10px]">×</span>
+                          <input type="number" min={16} max={8192} value={exportCustomH} onChange={e => setExportCustomH(Number(e.target.value) || 500)}
+                            className="h-7 w-16 rounded border border-white/10 bg-white/5 px-2 text-[10px] text-white/80 outline-none" placeholder="Height" />
+                          <span className="text-[9px] text-white/25">px</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Background */}
                 <div>
                   <label className="text-[10px] text-white/40 uppercase tracking-wider mb-1 block">Background</label>
                   <div className="flex items-center gap-2">
@@ -2338,17 +2552,31 @@ const ContentSandbox = ({ items, onRefresh }: { items: any[]; onRefresh: () => v
               const scopeEls = exportScope === "selected" ? elements.filter(e => selectedIds.has(e.id)) : elements;
               const scopeStrokes = exportScope === "selected" ? strokes.filter(s => selectedStrokeIds.has(s.id)) : strokes;
               switch (exportFormat) {
-                case "png": exportToPNG(canvasRef.current, scopeEls, scopeStrokes, viewport, boardRef.current, exportBg, exportScale); break;
+                case "png":
+                  if (exportFixedRes && exportFixedRes !== "custom") {
+                    const [w, h] = exportFixedRes.split("x").map(Number);
+                    exportToPNGFixed(scopeEls, scopeStrokes, exportBg, w, h);
+                  } else if (exportFixedRes === "custom") {
+                    exportToPNGFixed(scopeEls, scopeStrokes, exportBg, exportCustomW, exportCustomH);
+                  } else {
+                    exportToPNG(canvasRef.current, scopeEls, scopeStrokes, viewport, boardRef.current, exportBg, exportScale);
+                  }
+                  break;
                 case "svg": exportToSVG(scopeEls, scopeStrokes); break;
                 case "json": exportToJSON(scopeEls, scopeStrokes); break;
                 case "csv": exportToCSV(scopeEls); break;
+                case "pdf": exportToPDF(scopeEls, scopeStrokes); break;
+                case "xlsx": exportToXLSX(scopeEls); break;
+                case "html": exportToHTML(scopeEls, scopeStrokes); break;
               }
               setShowExportDialog(false);
             }} className="w-full rounded-md bg-purple-500/15 border border-purple-500/20 py-2.5 text-[12px] font-medium text-purple-400 hover:bg-purple-500/25">
               <Download className="inline h-4 w-4 mr-1.5" />
               Export as {exportFormat.toUpperCase()}
+              {exportFormat === "png" && exportFixedRes && exportFixedRes !== "custom" && ` (${exportFixedRes})`}
+              {exportFormat === "png" && exportFixedRes === "custom" && ` (${exportCustomW}×${exportCustomH})`}
             </button>
-            <p className="text-[9px] text-white/20 text-center">PNG & SVG = full visual quality · JSON = complete backup · CSV = Excel/Sheets/LibreOffice compatible</p>
+            <p className="text-[9px] text-white/20 text-center">PNG & SVG = visual · PDF = print-ready · JSON = backup · CSV & XLS = spreadsheets · HTML = styled report</p>
           </div>
         </DialogContent>
       </Dialog>
